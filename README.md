@@ -60,6 +60,11 @@ clippings:
   with the pipe-trenching photo — `images/trenching-1987.jpg`,
   `images/snow-green-1987-p1.jpg`, `images/snow-green-1987-p2.jpg`
 - "Fleming Agrees to Lease F&H" (undated) — `images/fleming-leases-fh.jpg`
+- "Summer Fun Means Fairway Fun" (*Platte Valley Edition*, May 28, 2000) —
+  only the Fleming-Haxtun portion of this regional feature is reproduced; the
+  sign photo (`images/fh-sign-2000.jpg`) and course-layout diagram
+  (`images/fh-layout-2000.jpg`) are included. References to other-town courses
+  were intentionally omitted at the owner's request.
 
 Proper-noun spellings follow the original newspaper text (e.g. "James
 McPhilomy," "Heginbotham Estate," "Samm Vandenbark").
