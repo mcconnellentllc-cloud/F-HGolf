@@ -161,6 +161,90 @@ a { color: var(--accent-green); }
 
 .section__text--center { text-align: center; }
 
+.section__subtitle {
+  text-align: center;
+  font-size: 1.15rem;
+  font-style: italic;
+  color: var(--accent-green);
+  margin: -0.75rem auto 2rem;
+  max-width: 760px;
+}
+
+/* ---------- Our Story ---------- */
+.story {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.story p { margin-bottom: 1.1rem; font-size: 1.05rem; }
+
+.story__attribution {
+  max-width: 760px;
+  margin: 1.5rem auto 0;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: #555;
+  text-align: center;
+}
+
+/* ---------- Timeline ---------- */
+.timeline {
+  list-style: none;
+  max-width: 760px;
+  margin: 3rem auto 0;
+  padding: 0;
+  position: relative;
+}
+
+/* The vertical green line */
+.timeline::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 11px;
+  width: 3px;
+  background: var(--accent-green);
+}
+
+.timeline__item {
+  position: relative;
+  padding: 0 0 1.75rem 3rem;
+}
+
+.timeline__item:last-child { padding-bottom: 0; }
+
+/* The green dot */
+.timeline__item::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 17px;
+  height: 17px;
+  background: var(--primary-green);
+  border: 3px solid var(--white);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--accent-green);
+}
+
+.timeline__year {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--primary-green);
+  font-size: 1.15rem;
+  margin-bottom: 0.25rem;
+}
+
+.timeline__text {
+  background: var(--white);
+  border-left: 4px solid var(--accent-green);
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem;
+  box-shadow: var(--shadow);
+  margin: 0;
+}
+
 /* ---------- Cards ---------- */
 .cards {
   display: grid;
