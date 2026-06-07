@@ -34,12 +34,15 @@ These values are placeholders in the code. Search for the word `PLACEHOLDER` in
 - [ ] **Logo** — add a logo image to `images/` and swap the text logo if desired.
 - [ ] **Photos** — add course photos to `images/` (hero background, gallery, etc.).
 - [ ] **Founder names** — confirm spellings of founder names in the "Our Story" section.
-- [ ] **Full history** — decide whether to host the full Willard Hart story as a separate page or PDF.
 
 ## Content Sources
 
 The "Our Story" section and founding timeline are public history derived from
 *The Story of F&H Golf Course* by founder Willard Hart.
+
+`story.html` holds the complete founder's account in full, published with the
+family's blessing, and is linked from the "Our Story" section via the
+"Read the Full History" button.
 
 > ⚠️ **DO NOT publish financial-history figures, lender names, or member contribution
 > amounts — those records are internal only.**
