@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F&H Golf Course — original crest mark. 2-color (green + white).
+     Custom-drawn for this project; swap this file to drop in a real logo. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120" width="120" height="120" role="img" aria-labelledby="fhLogoTitle">
+  <title id="fhLogoTitle">F&amp;H Golf Course — Est. 1972</title>
+  <defs>
+    <path id="fhArcBottom" d="M28 60 A32 32 0 0 0 92 60" />
+  </defs>
+
+  <!-- Badge -->
+  <circle cx="60" cy="60" r="58" fill="#1B5E20"/>
+  <circle cx="60" cy="60" r="58" fill="none" stroke="#14471a" stroke-width="2"/>
+  <circle cx="60" cy="60" r="51" fill="none" stroke="#FFFFFF" stroke-width="1.4" opacity="0.85"/>
+
+  <!-- Flag on a green: flagstick, pennant, and a putting-line arc -->
+  <line x1="55" y1="26" x2="55" y2="52" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M55 27 L71 31.5 L55 36 Z" fill="#FFFFFF"/>
+  <circle cx="55" cy="52" r="2.2" fill="#FFFFFF"/>
+  <path d="M38 53 Q55 46 74 53" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- Monogram -->
+  <text x="60" y="82" text-anchor="middle" fill="#FFFFFF"
+        font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="30" letter-spacing="0.5">F&amp;H</text>
+
+  <!-- Est. banner along the bottom arc -->
+  <text fill="#FFFFFF" font-family="Georgia, 'Times New Roman', serif" font-size="8" letter-spacing="3" opacity="0.92">
+    <textPath href="#fhArcBottom" startOffset="50%" text-anchor="middle">EST. 1972</textPath>
+  </text>
+</svg>
