@@ -200,6 +200,19 @@ a { color: var(--accent-green); }
 
 .story__cta { text-align: center; margin-top: 2rem; }
 
+.story__listen-link {
+  display: inline-block;
+  margin-left: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.story__listen-link:hover { text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .story__listen-link { display: block; margin: 1rem 0 0; }
+}
+
 /* ---------- Full-history page (story.html) ---------- */
 .hero--strip { padding: 3rem 1.25rem; }
 
@@ -229,6 +242,27 @@ a { color: var(--accent-green); }
   font-weight: 600;
   text-decoration: underline;
 }
+
+/* ---------- Listen / audio block (story.html) ---------- */
+.listen {
+  max-width: 750px;
+  margin: 0 auto;
+  background: var(--light-green);
+  border: 1px solid var(--accent-green);
+  border-left: 6px solid var(--primary-green);
+  border-radius: 10px;
+  padding: 1.75rem;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.listen__title { color: var(--primary-green); margin-bottom: 0.4rem; font-size: 1.5rem; }
+.listen__lead { margin-bottom: 1.1rem; }
+.listen__player { width: 100%; max-width: 520px; }
+.listen__links { margin-top: 0.9rem; }
+.listen__links a { font-weight: 600; text-decoration: none; }
+.listen__links a:hover { text-decoration: underline; }
+.listen__caption { margin-top: 0.75rem; font-size: 0.85rem; font-style: italic; color: #555; }
 
 /* ---------- Timeline ---------- */
 .timeline {

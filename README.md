@@ -34,6 +34,7 @@ These values are placeholders in the code. Search for the word `PLACEHOLDER` in
 - [ ] **Logo** — add a logo image to `images/` and swap the text logo if desired.
 - [ ] **Photos** — add course photos to `images/` (hero background, gallery, etc.).
 - [ ] **Founder names** — confirm spellings of founder names in the "Our Story" section.
+- [ ] **Audio (optional)** — replace `audio/fh-story.mp3` with a family/Willard human recording.
 
 ## Content Sources
 
@@ -43,6 +44,12 @@ The "Our Story" section and founding timeline are public history derived from
 `story.html` holds the complete founder's account in full, published with the
 family's blessing, and is linked from the "Our Story" section via the
 "Read the Full History" button.
+
+`audio/fh-story.mp3` is an **auto-generated** narration of the full story
+(created with the free, offline Piper TTS voice *en_US-ryan-high*). It can be
+replaced later with a human recording — keep the same filename
+(`audio/fh-story.mp3`) and it's a drop-in swap with no HTML changes.
+`audio/narration.txt` is the lightly-normalized script used to generate it.
 
 > ⚠️ **DO NOT publish financial-history figures, lender names, or member contribution
 > amounts — those records are internal only.**
