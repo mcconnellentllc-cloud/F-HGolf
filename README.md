@@ -35,6 +35,7 @@ These values are placeholders in the code. Search for the word `PLACEHOLDER` in
 - [ ] **Photos** — add course photos to `images/` (hero background, gallery, etc.).
 - [ ] **Founder names** — confirm spellings of founder names in the "Our Story" section.
 - [ ] **Audio (optional)** — replace `audio/fh-story.mp3` with a family/Willard human recording.
+- [ ] **Archive OCR** — confirm a few names transcribed from the 1985 clipping (e.g. "James McPhilomy," "Heginbotham Estate").
 
 ## Content Sources
 
@@ -50,6 +51,11 @@ family's blessing, and is linked from the "Our Story" section via the
 replaced later with a human recording — keep the same filename
 (`audio/fh-story.mp3`) and it's a drop-in swap with no HTML changes.
 `audio/narration.txt` is the lightly-normalized script used to generate it.
+
+The "From the Archives" section on `story.html` reproduces a 1985 newspaper
+article ("Grass Greens Being Considered," Feb. 21, 1985) in an old-timey
+newspaper style, alongside the original scanned clipping
+(`images/grass-greens-1985.jpg`).
 
 > ⚠️ **DO NOT publish financial-history figures, lender names, or member contribution
 > amounts — those records are internal only.**
