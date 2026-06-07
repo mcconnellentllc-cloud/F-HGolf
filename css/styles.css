@@ -416,15 +416,8 @@ img { max-width: 100%; display: block; }
 /* ---------- Our Story ---------- */
 .story { max-width: 740px; }
 .story p { margin-bottom: 1.15rem; font-size: 1.08rem; }
-.story p:first-child::first-letter {
-  font-family: var(--font-display);
-  float: left;
-  font-size: 3.6rem;
-  line-height: 0.78;
-  padding: 0.06em 0.1em 0 0;
-  color: var(--primary-green);
-  font-weight: 600;
-}
+/* No drop cap here on purpose: the first paragraph opens with "F&H"
+   (Fleming & Haxtun) and ::first-letter would split the monogram. */
 
 .story__attribution {
   max-width: 740px;
@@ -494,6 +487,34 @@ img { max-width: 100%; display: block; }
 /* ---------- Contact ---------- */
 .contact-lines { font-size: 1.1rem; }
 .contact-lines a { font-weight: 600; }
+
+/* ---------- Facebook block ---------- */
+.fb { margin-top: 1.75rem; }
+.fb__card {
+  max-width: 540px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-top: 3px solid #1877F2;
+  border-radius: var(--radius);
+  padding: 1.9rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.fb__card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.fb__icon svg { width: 44px; height: 44px; display: block; }
+.fb__title { color: var(--primary-green); font-size: 1.45rem; margin: 0.85rem 0 0.4rem; }
+.fb__lead { color: var(--muted); margin-bottom: 1.35rem; }
+
+/* Live feed: collapsed/invisible until JS proves it rendered */
+.fb__feed {
+  max-width: 540px;
+  margin-top: 1.5rem;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.45s ease, max-height 0.45s ease;
+}
+.fb__feed.is-ready { max-height: 720px; opacity: 1; }
 
 /* ============================================================
    Footer

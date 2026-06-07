@@ -87,6 +87,19 @@ McPhilomy," "Heginbotham Estate," "Samm Vandenbark").
 > ⚠️ **DO NOT publish financial-history figures, lender names, or member contribution
 > amounts — those records are internal only.**
 
+## Facebook
+
+The Contact section has a styled **"Follow F&H on Facebook"** card (icon, blurb,
+and a "Visit our Facebook Page" button to <https://www.facebook.com/fandhgolf/>).
+This card is the guaranteed-working baseline and always shows.
+
+Below it, an **optional** live feed uses Meta's official Page Plugin. It is an
+enhancement only: the SDK loads asynchronously and the feed stays hidden unless
+JavaScript confirms the plugin actually rendered (a real iframe mounts within a
+few seconds). If Meta's widget is blocked, the page isn't embeddable, or it comes
+up empty, the feed **auto-hides** and visitors simply see the follow card — never
+a broken or blank box. No tracking pixel, no Facebook Login.
+
 ## Reference details
 
 - Phone: (970) 774-6362

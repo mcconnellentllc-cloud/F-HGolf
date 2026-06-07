@@ -316,10 +316,37 @@
       <p class="section__text contact-lines" style="margin-left:0;">
         Phone: <a href="tel:+19707746362">(970) 774-6362</a>
       </p>
-      <p class="section__text contact-lines" style="margin-left:0;">
-        Follow us on
-        <a href="https://www.facebook.com/fandhgolf/" target="_blank" rel="noopener">Facebook</a>.
-      </p>
+
+      <!-- Facebook presence. The card is the guaranteed-working baseline;
+           the live feed below is an optional enhancement that stays hidden
+           unless JS confirms Meta's plugin actually rendered. -->
+      <div class="fb">
+        <div class="fb__card">
+          <span class="fb__icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#1877F2"/><path fill="#fff" d="M18.5 26V17.5h2.86l.43-3.32H18.5v-2.12c0-.96.27-1.62 1.65-1.62h1.76V7.47c-.3-.04-1.35-.13-2.57-.13-2.54 0-4.28 1.55-4.28 4.4v2.46H12.2v3.32h2.86V26h3.44z"/></svg>
+          </span>
+          <h3 class="fb__title">Follow F&amp;H on Facebook</h3>
+          <p class="fb__lead">Course updates, tournaments, hours, and photos from the community.</p>
+          <a class="btn btn--solid" href="https://www.facebook.com/fandhgolf/" target="_blank" rel="noopener">Visit our Facebook Page &rarr;</a>
+        </div>
+
+        <!-- Live feed (Meta Page Plugin) — collapsed until proven rendered. -->
+        <div class="fb__feed" id="fbFeed" aria-hidden="true">
+          <div class="fb-page"
+               data-href="https://www.facebook.com/fandhgolf/"
+               data-tabs="timeline"
+               data-width="500"
+               data-height="600"
+               data-small-header="false"
+               data-hide-cover="false"
+               data-show-facepile="true"
+               data-adapt-container-width="true">
+            <blockquote cite="https://www.facebook.com/fandhgolf/" class="fb-xfbml-parse-ignore">
+              <a href="https://www.facebook.com/fandhgolf/">F&amp;H Golf Course</a>
+            </blockquote>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
