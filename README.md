@@ -27,14 +27,20 @@ F-HGolf/
 
 - **Type:** Fraunces (display serif) + Source Sans 3 (body), loaded from Google
   Fonts. Colors live as CSS custom properties in `:root` (`css/styles.css`).
-- **Logo:** `images/logo.svg` is a **custom, original SVG crest** drawn for this
-  project (a placeholder mark — green/white, a golf flag + "F&H" monogram). To use
-  a real logo later, just **replace `images/logo.svg`** with your own file of the
-  same name; the nav and footer pick it up automatically.
-- **Hero photo (optional):** the hero falls back to a layered green gradient +
-  turf-line texture. Drop a photo at **`images/hero.jpg`** and it appears
-  automatically beneath the green veil (see the comment in the `.hero` rules in
-  `css/styles.css`). Other course photos can also be added to `images/`.
+- **Color scheme:** green (brand, dominant) + warm white/cream, with
+  **charcoal/black** depth (hero overlay, gallery, footer) and a **crimson-red**
+  accent (eyebrows, rules, borders, primary CTA, stat-strip edge).
+- **Logo:** `images/logo.png` is the real F&H logo (golf ball + flag + "F&H"),
+  shown in a white emblem chip in the nav and footer. Drop a replacement at the
+  same path to swap it. (`images/logo.svg` is the earlier original crest, kept as
+  an alternate.)
+- **Hero photo:** `images/hero.jpg` (course sunset) sits under a cinematic dark
+  overlay. If the file is ever removed, the hero falls back to a green gradient.
+- **Gallery & band:** the "On the Course" gallery uses `images/course-sunset.jpg`,
+  `course-dusk.jpg`, and `course-night.jpg`; the immersive quote band uses
+  `images/band.jpg`. These were built from community photos (low-resolution
+  ~206 px) — replace with higher-resolution originals at the same paths for a
+  crisper result.
 
 ## TODO — placeholders to confirm
 
@@ -46,8 +52,7 @@ These values are placeholders in the code. Search for the word `PLACEHOLDER` in
 - [ ] **Hours / Season** — currently "April 1 – September 1". Confirm season + daily hours.
 - [ ] **Cart fee** — currently "$14". Confirm current rate.
 - [ ] **Green fees / rates** — add confirmed green fee pricing.
-- [ ] **Logo** — `images/logo.svg` is a custom placeholder crest; swap in a real logo (same filename) when available.
-- [ ] **Photos** — drop `images/hero.jpg` for the hero, plus other course photos to enrich the design.
+- [ ] **Photos (resolution)** — the hero/gallery/band photos are low-res (~206 px) community images; replace with higher-resolution originals at the same paths for a sharper result.
 - [ ] **Founder names** — confirm spellings of founder names in the "Our Story" section.
 - [ ] **Audio (optional)** — replace `audio/fh-story.mp3` with a family/Willard human recording.
 - [ ] **Lease article date** — the "Fleming Agrees to Lease F&H" clipping is undated; confirm the year if known.
