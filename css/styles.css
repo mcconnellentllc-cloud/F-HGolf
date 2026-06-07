@@ -1,0 +1,283 @@
+/* ============================================================
+   F&H Golf Course — styles.css
+   Color theme: green & white
+   ============================================================ */
+
+:root {
+  --primary-green: #1B5E20;
+  --accent-green: #2E7D32;
+  --light-green: #E8F5E9;
+  --white: #FFFFFF;
+  --dark-text: #1A1A1A;
+
+  --max-width: 1100px;
+  --nav-height: 64px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* ---------- Base ---------- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; scroll-padding-top: var(--nav-height); }
+
+body {
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--dark-text);
+  background: var(--white);
+  line-height: 1.6;
+}
+
+a { color: var(--accent-green); }
+
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* ---------- Nav ---------- */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: var(--white);
+  box-shadow: var(--shadow);
+}
+
+.nav__inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  height: var(--nav-height);
+  padding: 0 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav__logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-green);
+  text-decoration: none;
+}
+
+.nav__links {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.nav__links a {
+  color: var(--primary-green);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0.25rem 0;
+  transition: color 0.2s ease;
+}
+
+.nav__links a:hover { color: var(--accent-green); }
+
+.nav__toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 28px;
+  height: 22px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.nav__toggle span {
+  display: block;
+  height: 3px;
+  width: 100%;
+  background: var(--primary-green);
+  border-radius: 2px;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Hamburger active animation */
+.nav__toggle.is-open span:nth-child(1) { transform: translateY(9.5px) rotate(45deg); }
+.nav__toggle.is-open span:nth-child(2) { opacity: 0; }
+.nav__toggle.is-open span:nth-child(3) { transform: translateY(-9.5px) rotate(-45deg); }
+
+/* ---------- Hero ---------- */
+.hero {
+  background: linear-gradient(135deg, var(--primary-green), var(--accent-green));
+  color: var(--white);
+  text-align: center;
+  padding: 5rem 1.25rem;
+}
+
+.hero__content { max-width: 760px; margin: 0 auto; }
+
+.hero__title {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  letter-spacing: 0.5px;
+}
+
+.hero__subtitle {
+  font-size: 1.25rem;
+  margin-bottom: 2rem;
+  opacity: 0.95;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-block;
+  text-decoration: none;
+  font-weight: 700;
+  border-radius: 6px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn--hero {
+  background: var(--white);
+  color: var(--primary-green);
+  padding: 0.9rem 1.8rem;
+  font-size: 1.1rem;
+  box-shadow: var(--shadow);
+}
+
+.btn--hero:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.25); }
+
+/* ---------- Sections ---------- */
+.section { padding: 4rem 0; }
+.section--alt { background: var(--light-green); }
+
+.section__title {
+  font-size: 2rem;
+  color: var(--primary-green);
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.section__text {
+  max-width: 760px;
+  margin: 0 auto 1rem;
+  font-size: 1.05rem;
+}
+
+.section__text--center { text-align: center; }
+
+/* ---------- Cards ---------- */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.cards--two { grid-template-columns: repeat(2, 1fr); max-width: 700px; margin-left: auto; margin-right: auto; }
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--light-green);
+  border-top: 4px solid var(--accent-green);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.card h3 { color: var(--primary-green); margin-bottom: 0.5rem; }
+
+.card--feature .card__big {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent-green);
+  margin: 0.75rem 0 0.25rem;
+}
+
+.card__note { font-size: 0.85rem; color: #666; font-style: italic; }
+
+/* ---------- Scorecard table ---------- */
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 1.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.scorecard {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--white);
+  box-shadow: var(--shadow);
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 320px;
+}
+
+.scorecard th, .scorecard td {
+  padding: 0.75rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid var(--light-green);
+}
+
+.scorecard thead th {
+  background: var(--primary-green);
+  color: var(--white);
+}
+
+.scorecard tbody tr:nth-child(even) { background: var(--light-green); }
+
+.scorecard tfoot td {
+  background: var(--accent-green);
+  color: var(--white);
+  font-weight: 700;
+}
+
+/* ---------- Map ---------- */
+.map-wrap {
+  margin-top: 2rem;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.map-wrap iframe { display: block; }
+
+/* ---------- Footer ---------- */
+.footer {
+  background: var(--primary-green);
+  color: var(--white);
+  text-align: center;
+  padding: 1.5rem 1.25rem;
+  font-size: 0.95rem;
+}
+
+/* ============================================================
+   Responsive — nav collapses to hamburger under 768px
+   ============================================================ */
+@media (max-width: 768px) {
+  .nav__toggle { display: flex; }
+
+  .nav__links {
+    position: absolute;
+    top: var(--nav-height);
+    left: 0;
+    right: 0;
+    background: var(--white);
+    flex-direction: column;
+    gap: 0;
+    padding: 0.5rem 0;
+    box-shadow: var(--shadow);
+    transform: translateY(-150%);
+    transition: transform 0.3s ease;
+  }
+
+  .nav__links.is-open { transform: translateY(0); }
+
+  .nav__links a {
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--light-green);
+  }
+
+  .hero__title { font-size: 2.25rem; }
+  .hero__subtitle { font-size: 1.05rem; }
+
+  .cards, .cards--two { grid-template-columns: 1fr; }
+}
