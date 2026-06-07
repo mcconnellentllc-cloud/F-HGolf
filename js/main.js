@@ -38,4 +38,14 @@ document.addEventListener("DOMContentLoaded", function () {
       setMenu(false);
     });
   });
+
+  // ---- Nav elevation on scroll ----
+  var nav = document.querySelector(".nav");
+  if (nav) {
+    var onScroll = function () {
+      nav.classList.toggle("is-scrolled", window.scrollY > 8);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+  }
 });

@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Story of F&amp;H Golf Course — As told by Willard Hart</title>
   <meta name="description" content="The complete founding history of F&H Golf Course, as told by founder Willard Hart." />
+  <link rel="icon" href="images/logo.svg" type="image/svg+xml" />
+
+  <!-- Type pairing: Fraunces (display serif) + Source Sans 3 (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -12,7 +19,13 @@
   <!-- ============================ NAV BAR ============================ -->
   <header class="nav" id="top">
     <div class="nav__inner">
-      <a href="index.html" class="nav__logo">F&amp;H Golf Course</a>
+      <a href="index.html" class="nav__brand" aria-label="F&H Golf Course home">
+        <img class="nav__mark" src="images/logo.svg" alt="" aria-hidden="true" />
+        <span class="nav__wordmark">
+          <span class="nav__name">F&amp;H Golf Course</span>
+          <span class="nav__tagline">Est. 1972 · Fleming, CO</span>
+        </span>
+      </a>
 
       <button class="nav__toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
         <span></span><span></span><span></span>
@@ -32,9 +45,12 @@
 
   <!-- ============================ HERO STRIP ============================ -->
   <section class="hero hero--strip">
-    <div class="hero__content">
-      <h1 class="hero__title">The Story of F&amp;H Golf Course</h1>
-      <p class="hero__subtitle">As told by founder Willard Hart</p>
+    <div class="hero__inner">
+      <div class="hero__content">
+        <p class="hero__kicker">Est. 1972 · A Firsthand Account</p>
+        <h1 class="hero__title">The Story of F&amp;H Golf Course</h1>
+        <p class="hero__subtitle">As told by founder Willard Hart.</p>
+      </div>
     </div>
   </section>
 
@@ -368,9 +384,42 @@
   </section>
 
   <!-- ============================ FOOTER ============================ -->
-  <footer class="footer">
-    <p>&copy; 2026 F&amp;H Golf Course — F&amp;H Park &amp; Recreation District. Fleming, Colorado.</p>
-    <p><a href="index.html" class="footer__link">&larr; Back to Home</a></p>
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <img class="site-footer__mark" src="images/logo.svg" alt="F&H Golf Course crest" />
+        <div>
+          <div class="site-footer__name">F&amp;H Golf Course</div>
+          <p class="site-footer__tag">A true eastern Colorado experience since 1972.</p>
+        </div>
+      </div>
+
+      <div>
+        <h4>Visit</h4>
+        <address>
+          43355 County Rd 30<br />
+          Fleming, CO 80728<br />
+          <a href="tel:+19707746362">(970) 774-6362</a><br />
+          <a href="https://www.facebook.com/fandhgolf/" target="_blank" rel="noopener">Facebook</a>
+        </address>
+      </div>
+
+      <div>
+        <h4>Explore</h4>
+        <ul>
+          <li><a href="index.html">&larr; Back to Home</a></li>
+          <li><a href="index.html#course">The Course</a></li>
+          <li><a href="#listen">Listen to the Story</a></li>
+          <li><a href="#archives">From the Archives</a></li>
+          <li><a href="index.html#location">Location</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="site-footer__bottom">
+      <span>&copy; 2026 F&amp;H Golf Course — F&amp;H Park &amp; Recreation District. Fleming, Colorado.</span>
+      <span>Public · 9 holes · Par 36</span>
+    </div>
   </footer>
 
   <script src="js/main.js"></script>
