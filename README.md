@@ -35,7 +35,7 @@ These values are placeholders in the code. Search for the word `PLACEHOLDER` in
 - [ ] **Photos** — add course photos to `images/` (hero background, gallery, etc.).
 - [ ] **Founder names** — confirm spellings of founder names in the "Our Story" section.
 - [ ] **Audio (optional)** — replace `audio/fh-story.mp3` with a family/Willard human recording.
-- [ ] **Archive OCR** — confirm a few names transcribed from the 1985 clipping (e.g. "James McPhilomy," "Heginbotham Estate").
+- [ ] **Lease article date** — the "Fleming Agrees to Lease F&H" clipping is undated; confirm the year if known.
 
 ## Content Sources
 
@@ -52,10 +52,17 @@ replaced later with a human recording — keep the same filename
 (`audio/fh-story.mp3`) and it's a drop-in swap with no HTML changes.
 `audio/narration.txt` is the lightly-normalized script used to generate it.
 
-The "From the Archives" section on `story.html` reproduces a 1985 newspaper
-article ("Grass Greens Being Considered," Feb. 21, 1985) in an old-timey
-newspaper style, alongside the original scanned clipping
-(`images/grass-greens-1985.jpg`).
+The "From the Archives" section on `story.html` reproduces vintage newspaper
+articles in an old-timey newspaper style, alongside the original scanned
+clippings:
+- "Grass Greens Being Considered" (Feb. 21, 1985) — `images/grass-greens-1985.jpg`
+- "Snow May Fly, But It's Green at F&H" (*Journal-Advocate*, Nov. 21, 1987),
+  with the pipe-trenching photo — `images/trenching-1987.jpg`,
+  `images/snow-green-1987-p1.jpg`, `images/snow-green-1987-p2.jpg`
+- "Fleming Agrees to Lease F&H" (undated) — `images/fleming-leases-fh.jpg`
+
+Proper-noun spellings follow the original newspaper text (e.g. "James
+McPhilomy," "Heginbotham Estate," "Samm Vandenbark").
 
 > ⚠️ **DO NOT publish financial-history figures, lender names, or member contribution
 > amounts — those records are internal only.**
