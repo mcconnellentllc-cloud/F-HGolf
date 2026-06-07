@@ -51,7 +51,7 @@ These values are placeholders in the code. Search for the word `PLACEHOLDER` in
       that sums to par 36. Confirm actual per-hole pars.
 - [ ] **Hours / Season** — currently "April 1 – September 1". Confirm season + daily hours.
 - [ ] **Cart fee** — currently "$14". Confirm current rate.
-- [ ] **Green fees / rates** — add confirmed green fee pricing.
+- [x] **Green fees** — 9 holes $19 / 18 holes $32 (from the course's Scan-to-Pay notice).
 - [ ] **Photos (resolution)** — the hero/gallery/band photos are low-res (~206 px) community images; replace with higher-resolution originals at the same paths for a sharper result.
 - [ ] **Founder names** — confirm spellings of founder names in the "Our Story" section.
 - [ ] **Audio (optional)** — replace `audio/fh-story.mp3` with a family/Willard human recording.
@@ -104,6 +104,17 @@ JavaScript confirms the plugin actually rendered (a real iframe mounts within a
 few seconds). If Meta's widget is blocked, the page isn't embeddable, or it comes
 up empty, the feed **auto-hides** and visitors simply see the follow card — never
 a broken or blank box. No tracking pixel, no Facebook Login.
+
+## Pay for Play (QR)
+
+The Rates section has a **"Pay for Play"** block with a QR code and a **Pay Online**
+button. The QR (`images/pay-qr.png`) was **regenerated from the course's own
+Scan-to-Pay code** — decoded to its Deposyt hosted-payment URL, then re-encoded at
+high resolution so it always scans cleanly. The button links to the same URL, so
+phone users can simply tap instead of scanning.
+
+If the course's payment link ever changes, update both the button `href` in
+`index.html` and regenerate `images/pay-qr.png` from the new URL.
 
 ## Reference details
 
