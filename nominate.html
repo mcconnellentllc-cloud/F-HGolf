@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nominate a Hall of Famer — F&amp;H Golf Course</title>
+  <meta name="description" content="Nominate someone for the F&H Golf Course Hall of Fame — honoring the people who built and sustain the course." />
+  <link rel="icon" href="images/logo.png" type="image/png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ============================ NAV BAR ============================ -->
+  <header class="nav" id="top">
+    <div class="nav__inner">
+      <a href="index.html" class="nav__brand" aria-label="F&H Golf Course home">
+        <img class="nav__mark" src="images/logo.png" alt="" aria-hidden="true" />
+        <span class="nav__wordmark">
+          <span class="nav__name">F&amp;H Golf Course</span>
+          <span class="nav__tagline">Est. 1972 · Fleming, CO</span>
+        </span>
+      </a>
+
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav class="nav__links" id="navLinks">
+        <a href="index.html#course">Course</a>
+        <a href="index.html#story">Our Story</a>
+        <a href="hall-of-fame.html">Hall of Fame</a>
+        <a href="index.html#gallery">Gallery</a>
+        <a href="index.html#rates">Rates</a>
+        <a href="index.html#location">Location</a>
+        <a href="index.html#contact">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ============================ HERO STRIP ============================ -->
+  <section class="hero hero--strip">
+    <div class="hero__inner">
+      <div class="hero__content">
+        <p class="hero__kicker">Get Involved</p>
+        <h1 class="hero__title">Nominate a Hall of Famer</h1>
+        <p class="hero__subtitle">Honor someone who gave a lot to F&amp;H.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ NOMINATION FORM ============================ -->
+  <section class="section section--alt" id="nominate">
+    <div class="container nominate">
+      <div class="section-head">
+        <p class="eyebrow">Hall of Fame</p>
+        <h2 class="section__title">Tell Us Their Story</h2>
+        <hr class="rule-brass" />
+        <p class="section__subtitle">Founders, builders, volunteers, families, friends — if they helped make F&amp;H what it is, we'd love to hear about them. The board reviews every nomination.</p>
+      </div>
+
+      <form id="nominateForm" class="form" novalidate>
+        <div class="form__row">
+          <label class="form__field">
+            <span class="form__label">Nominee's name <span class="req">*</span></span>
+            <input type="text" name="nominee" required maxlength="120" autocomplete="off" />
+          </label>
+          <label class="form__field">
+            <span class="form__label">Their role</span>
+            <select name="role">
+              <option value="">— select —</option>
+              <option>Founder</option>
+              <option>Builder</option>
+              <option>Volunteer</option>
+              <option>Member</option>
+              <option>Family</option>
+              <option>Other</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="form__field">
+          <span class="form__label">Why do they belong in the Hall of Fame? <span class="req">*</span></span>
+          <textarea name="contribution" rows="5" required maxlength="4000" placeholder="What did they do for the course? A story, a project, the years they gave…"></textarea>
+        </label>
+
+        <label class="form__field">
+          <span class="form__label">Era / years at F&amp;H</span>
+          <input type="text" name="era" maxlength="120" placeholder="e.g. founding member, 1972 · grass-greens era, 1987" />
+        </label>
+
+        <div class="form__row form__row--3">
+          <label class="form__field">
+            <span class="form__label">Your name</span>
+            <input type="text" name="nominatedBy" maxlength="120" autocomplete="name" />
+          </label>
+          <label class="form__field">
+            <span class="form__label">Your email</span>
+            <input type="email" name="email" maxlength="200" autocomplete="email" />
+          </label>
+          <label class="form__field">
+            <span class="form__label">Your phone</span>
+            <input type="tel" name="phone" maxlength="60" autocomplete="tel" />
+          </label>
+        </div>
+
+        <!-- Honeypot (hidden from people; traps bots) -->
+        <div class="form__hp" aria-hidden="true">
+          <label>Company<input type="text" name="company" tabindex="-1" autocomplete="off" /></label>
+        </div>
+
+        <div class="form__actions">
+          <button type="submit" class="btn btn--primary" id="nominateSubmit">Submit Nomination</button>
+          <span class="form__status" id="nominateStatus" role="status" aria-live="polite"></span>
+        </div>
+        <p class="form__fineprint">Photos can be added after review — if you have one, mention it and we'll be in touch, or call <a href="tel:+19707746362">(970) 774-6362</a>.</p>
+      </form>
+
+      <div class="form__success" id="nominateSuccess" hidden>
+        <h3>Thank you! &#127942;</h3>
+        <p>Your nomination has been received. The F&amp;H board reviews every name — thank you for helping us honor the people who built this course.</p>
+        <a class="btn btn--solid" href="hall-of-fame.html">Back to the Hall of Fame</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ FOOTER ============================ -->
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <img class="site-footer__mark" src="images/logo.png" alt="F&H Golf Course logo" />
+        <div>
+          <div class="site-footer__name">F&amp;H Golf Course</div>
+          <p class="site-footer__tag">A true eastern Colorado experience since 1972.</p>
+        </div>
+      </div>
+      <div>
+        <h4>Visit</h4>
+        <address>
+          43355 County Rd 30<br />
+          Fleming, CO 80728<br />
+          <a href="tel:+19707746362">(970) 774-6362</a><br />
+          <a href="https://www.facebook.com/fandhgolf/" target="_blank" rel="noopener">Facebook</a>
+        </address>
+      </div>
+      <div>
+        <h4>Explore</h4>
+        <ul>
+          <li><a href="index.html">&larr; Back to Home</a></li>
+          <li><a href="hall-of-fame.html">Hall of Fame</a></li>
+          <li><a href="story.html">Full History</a></li>
+          <li><a href="index.html#gallery">Gallery</a></li>
+          <li><a href="index.html#rates">Rates &amp; Pay</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="site-footer__bottom">
+      <span>&copy; 2026 F&amp;H Golf Course — F&amp;H Park &amp; Recreation District. Fleming, Colorado.</span>
+      <span>Public · 9 holes · Par 36</span>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+    (function () {
+      var form = document.getElementById("nominateForm");
+      if (!form) return;
+      var btn = document.getElementById("nominateSubmit");
+      var status = document.getElementById("nominateStatus");
+      var success = document.getElementById("nominateSuccess");
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        status.textContent = ""; status.className = "form__status";
+        if (!form.nominee.value.trim() || !form.contribution.value.trim()) {
+          status.textContent = "Please add the nominee's name and why they belong.";
+          status.classList.add("is-error");
+          return;
+        }
+        var data = {};
+        ["nominee", "role", "contribution", "era", "nominatedBy", "email", "phone", "company"].forEach(function (k) {
+          if (form[k]) data[k] = form[k].value;
+        });
+        var orig = btn.textContent;
+        btn.disabled = true; btn.textContent = "Submitting…";
+        fetch("/api/nominate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        })
+          .then(function (r) { return r.json().catch(function () { return { ok: r.ok }; }); })
+          .then(function (res) {
+            if (res && res.ok) {
+              form.hidden = true;
+              success.hidden = false;
+              success.scrollIntoView({ behavior: "smooth", block: "center" });
+            } else {
+              status.textContent = (res && res.error) || "Could not submit. Please try again, or call (970) 774-6362.";
+              status.classList.add("is-error");
+              btn.disabled = false; btn.textContent = orig;
+            }
+          })
+          .catch(function () {
+            status.textContent = "Network error. Please try again, or call (970) 774-6362.";
+            status.classList.add("is-error");
+            btn.disabled = false; btn.textContent = orig;
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

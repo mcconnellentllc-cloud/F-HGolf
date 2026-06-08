@@ -414,6 +414,34 @@ img { max-width: 100%; display: block; }
 @media (max-width: 900px) { .hof__grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .hof__grid { grid-template-columns: 1fr; } .honor-roll { grid-template-columns: 1fr; } }
 
+/* ---------- Nomination form (nominate.html) ---------- */
+.nominate { max-width: 780px; }
+.form { display: grid; gap: 1.15rem; margin-top: 1.5rem; }
+.form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.15rem; }
+.form__row--3 { grid-template-columns: repeat(3, 1fr); }
+.form__field { display: grid; gap: 0.4rem; min-width: 0; }
+.form__label { font-size: 0.85rem; font-weight: 700; color: var(--primary-green); }
+.req { color: var(--red); }
+.form input, .form select, .form textarea {
+  font-family: var(--font-body); font-size: 1rem; color: var(--ink); background: #fff;
+  border: 1px solid var(--line); border-radius: 10px; padding: 0.72rem 0.85rem; width: 100%;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.form input:focus, .form select:focus, .form textarea:focus {
+  outline: none; border-color: var(--primary-green); box-shadow: 0 0 0 3px rgba(27, 94, 32, 0.13);
+}
+.form textarea { resize: vertical; }
+.form__hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.form__actions { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-top: 0.3rem; }
+.form__status { font-size: 0.95rem; }
+.form__status.is-error { color: var(--red); font-weight: 600; }
+.form__fineprint { font-size: 0.85rem; color: var(--muted); margin-top: 0.2rem; }
+.form__success { margin-top: 1.5rem; background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--primary-green); border-radius: var(--radius); padding: 1.9rem; box-shadow: var(--shadow-md); }
+.form__success h3 { color: var(--primary-green); font-size: 1.55rem; margin-bottom: 0.5rem; }
+.form__success p { color: #33342e; margin-bottom: 1.2rem; }
+
+@media (max-width: 640px) { .form__row, .form__row--3 { grid-template-columns: 1fr; } }
+
 /* ============================================================
    Responsive
    ============================================================ */

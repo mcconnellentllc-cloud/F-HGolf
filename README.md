@@ -133,6 +133,26 @@ shows an **initials medallion** placeholder.
 
 The image is cropped to a circle automatically. Send photos and I'll wire them in.
 
+## Hall of Fame nominations
+
+`nominate.html` is a public form to nominate Hall of Fame members. It submits to
+`api/nominate.js`, a **Vercel serverless function** that writes a record to
+Airtable. This feature only works on the **Vercel deployment** (GitHub Pages
+can't run serverless functions).
+
+Required Vercel **Environment Variables**:
+
+| Key | Value |
+| --- | --- |
+| `AIRTABLE_TOKEN` | Airtable personal access token with `data.records:write` |
+| `AIRTABLE_BASE_ID` | the base id (e.g. `appAwEdD9m6OVN6lg`) |
+| `AIRTABLE_TABLE` | the table **name** (`Hall of Fame Nominations`) |
+
+The function writes to these Airtable fields: `Nominee Name`, `Contribution`,
+`Era / Years at F&H`, `Role`, `Nominated By`, `Submitter Email`,
+`Submitter Phone`, `Status` (set to `New`). Keep these field names in sync with
+the table. Includes a honeypot anti-spam field and graceful error handling.
+
 ## Reference details
 
 - Phone: (970) 774-6362
