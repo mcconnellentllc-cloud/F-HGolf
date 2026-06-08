@@ -171,6 +171,21 @@ linked tool (Airtable, Deposyt, Vercel, GitHub) has its own login. To change the
 password, edit `PASS` in the script at the bottom of `admin.html`. The page is
 also marked `noindex`.
 
+## Tournaments
+
+`tournaments.html` shows the 2026 schedule and a **sign-up form**. Sign-ups go to
+Airtable and appear in the Staff Portal:
+- `api/tournament-signup.js` (POST) — writes a registration with `Status = "New"`.
+- `api/tournament-signups.js` (GET, admin-key protected) — feeds the portal's
+  "Tournament Sign-ups" panel.
+
+**Setup:** create an Airtable table named **`Tournament Signups`** in the same base
+with fields: `Player Name` (text), `Tournament` (single select or text),
+`Email` (email), `Phone` (phone), `Team / Partners` (long text), `Notes` (long
+text), `Status` (single select: New, Confirmed, Paid, Cancelled), `Submitted At`
+(created time). Override the table name with the optional `TOURNAMENTS_TABLE`
+Vercel env var. Uses the same `AIRTABLE_TOKEN` / `AIRTABLE_BASE_ID` / `ADMIN_KEY`.
+
 ## Reviews
 
 `reviews.html` shows: real public reviews (Cam Crabtree @cam_pga's Instagram

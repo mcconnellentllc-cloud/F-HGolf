@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tournaments — F&amp;H Golf Course</title>
+  <meta name="description" content="2026 tournament schedule for F&H Golf Course in Fleming, Colorado — and sign up to play." />
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ============================ NAV BAR ============================ -->
+  <header class="nav" id="top">
+    <div class="nav__inner">
+      <a href="index.html" class="nav__brand" aria-label="F&H Golf Course home">
+        <img class="nav__mark" src="images/logo.png" alt="" aria-hidden="true" />
+        <span class="nav__wordmark">
+          <span class="nav__name">F&amp;H Golf Course</span>
+          <span class="nav__tagline">Est. 1972 · Fleming, CO</span>
+        </span>
+      </a>
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav__links" id="navLinks">
+        <a href="index.html#course">Course</a>
+        <a href="index.html#story">Our Story</a>
+        <a href="hall-of-fame.html">Hall of Fame</a>
+        <a href="reviews.html">Reviews</a>
+        <a href="tournaments.html">Tournaments</a>
+        <a href="index.html#rates">Rates</a>
+        <a href="index.html#contact">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ============================ HERO STRIP ============================ -->
+  <section class="hero hero--strip">
+    <div class="hero__inner">
+      <div class="hero__content">
+        <p class="hero__kicker">Mark Your Calendar</p>
+        <h1 class="hero__title">2026 Tournaments</h1>
+        <p class="hero__subtitle">Events all season long — everyone's welcome. Sign up below.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SCHEDULE ============================ -->
+  <section class="section section--alt" id="schedule">
+    <div class="container">
+      <div class="section-head section-head--center">
+        <p class="eyebrow">2026 Season</p>
+        <h2 class="section__title">Tournament Schedule</h2>
+        <hr class="rule-brass" />
+      </div>
+      <ol class="schedule">
+        <li><span class="schedule__date">May 16</span><span class="schedule__event">Par 4 the Future</span></li>
+        <li><span class="schedule__date">May 23</span><span class="schedule__event">M&amp;M Invitational</span></li>
+        <li><span class="schedule__date">June 6</span><span class="schedule__event">Haxtun Daycare</span></li>
+        <li><span class="schedule__date">June 13</span><span class="schedule__event">John Everitt Memorial Tournament</span></li>
+        <li><span class="schedule__date">June 27</span><span class="schedule__event">Couple's Tournament</span></li>
+        <li><span class="schedule__date">July 4</span><span class="schedule__event">Red, White &amp; Blue Tournament</span></li>
+        <li><span class="schedule__date">July 15–17</span><span class="schedule__event">Junior Golf Camp</span></li>
+        <li><span class="schedule__date">July 23</span><span class="schedule__event">2-Lady Scramble</span></li>
+        <li><span class="schedule__date">July 25</span><span class="schedule__event">Haxtun Bulldog</span></li>
+        <li><span class="schedule__date">Aug 8–9</span><span class="schedule__event">Founder's Tournament</span></li>
+        <li><span class="schedule__date">Aug 22</span><span class="schedule__event">Couple's Tournament</span></li>
+        <li><span class="schedule__date">Sept 19</span><span class="schedule__event">Haxtun Fire</span></li>
+        <li><span class="schedule__date">Sept 27</span><span class="schedule__event">Cornfest Tournament</span></li>
+      </ol>
+      <p class="schedule__note">All dates are subject to change. Flyers with full details are posted as each event nears — call <a href="tel:+19707746362">(970) 774-6362</a> or follow us on <a href="https://www.facebook.com/fandhgolf/" target="_blank" rel="noopener">Facebook</a>.</p>
+    </div>
+  </section>
+
+  <!-- ============================ SIGN UP ============================ -->
+  <section class="section section--paper" id="signup">
+    <div class="container nominate">
+      <div class="section-head">
+        <p class="eyebrow">Sign Up</p>
+        <h2 class="section__title">Register for a Tournament</h2>
+        <hr class="rule-brass" />
+        <p class="section__subtitle">Fill this out and we'll add you to the field. We'll follow up with details, format, and entry fees.</p>
+      </div>
+
+      <form id="tourneyForm" class="form" novalidate>
+        <label class="form__field">
+          <span class="form__label">Tournament <span class="req">*</span></span>
+          <select name="tournament" required>
+            <option value="">— choose a tournament —</option>
+            <option>Par 4 the Future (May 16)</option>
+            <option>M&amp;M Invitational (May 23)</option>
+            <option>Haxtun Daycare (June 6)</option>
+            <option>John Everitt Memorial (June 13)</option>
+            <option>Couple's Tournament (June 27)</option>
+            <option>Red, White &amp; Blue (July 4)</option>
+            <option>Junior Golf Camp (July 15–17)</option>
+            <option>2-Lady Scramble (July 23)</option>
+            <option>Haxtun Bulldog (July 25)</option>
+            <option>Founder's Tournament (Aug 8–9)</option>
+            <option>Couple's Tournament (Aug 22)</option>
+            <option>Haxtun Fire (Sept 19)</option>
+            <option>Cornfest Tournament (Sept 27)</option>
+          </select>
+        </label>
+
+        <div class="form__row">
+          <label class="form__field">
+            <span class="form__label">Your name <span class="req">*</span></span>
+            <input type="text" name="name" required maxlength="120" autocomplete="name" />
+          </label>
+          <label class="form__field">
+            <span class="form__label">Partner / team members</span>
+            <input type="text" name="team" maxlength="500" placeholder="for scrambles &amp; couples events" />
+          </label>
+        </div>
+
+        <div class="form__row">
+          <label class="form__field">
+            <span class="form__label">Email</span>
+            <input type="email" name="email" maxlength="200" autocomplete="email" />
+          </label>
+          <label class="form__field">
+            <span class="form__label">Phone</span>
+            <input type="tel" name="phone" maxlength="60" autocomplete="tel" />
+          </label>
+        </div>
+
+        <label class="form__field">
+          <span class="form__label">Anything else?</span>
+          <textarea name="notes" rows="3" maxlength="2000" placeholder="Handicap, division, questions…"></textarea>
+        </label>
+
+        <div class="form__hp" aria-hidden="true"><label>Company<input type="text" name="company" tabindex="-1" autocomplete="off" /></label></div>
+
+        <div class="form__actions">
+          <button type="submit" class="btn btn--primary" id="tourneySubmit">Sign Up</button>
+          <span class="form__status" id="tourneyStatus" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+
+      <div class="form__success" id="tourneySuccess" hidden>
+        <h3>You're on the list! &#9971;</h3>
+        <p>Thanks for signing up. We'll be in touch with format and entry-fee details before the event.</p>
+        <a class="btn btn--solid" href="index.html">Back to Home</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ FOOTER ============================ -->
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <a href="admin.html" class="site-footer__marklink" aria-label="Staff portal"><img class="site-footer__mark" src="images/logo.png" alt="F&H Golf Course logo" /></a>
+        <div>
+          <div class="site-footer__name">F&amp;H Golf Course</div>
+          <p class="site-footer__tag">A true eastern Colorado experience since 1972.</p>
+        </div>
+      </div>
+      <div>
+        <h4>Visit</h4>
+        <address>
+          43355 County Rd 30<br />
+          Fleming, CO 80728<br />
+          <a href="tel:+19707746362">(970) 774-6362</a><br />
+          <a href="mailto:fandhgolfcourse@gmail.com">fandhgolfcourse@gmail.com</a>
+        </address>
+      </div>
+      <div>
+        <h4>Explore</h4>
+        <ul>
+          <li><a href="index.html">&larr; Back to Home</a></li>
+          <li><a href="hall-of-fame.html">Hall of Fame</a></li>
+          <li><a href="reviews.html">Reviews</a></li>
+          <li><a href="#signup">Sign Up</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="site-footer__bottom">
+      <span>&copy; 2026 F&amp;H Golf Course — F&amp;H Park &amp; Recreation District. Fleming, Colorado.</span>
+      <span>Public · 9 holes · Par 36</span>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+    (function () {
+      var form = document.getElementById("tourneyForm");
+      if (!form) return;
+      var btn = document.getElementById("tourneySubmit");
+      var status = document.getElementById("tourneyStatus");
+      var success = document.getElementById("tourneySuccess");
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        status.textContent = ""; status.className = "form__status";
+        if (!form.tournament.value || !form.name.value.trim()) {
+          status.textContent = "Please choose a tournament and enter your name.";
+          status.classList.add("is-error"); return;
+        }
+        var data = {};
+        ["tournament", "name", "team", "email", "phone", "notes", "company"].forEach(function (k) { if (form[k]) data[k] = form[k].value; });
+        var orig = btn.textContent; btn.disabled = true; btn.textContent = "Signing up…";
+        fetch("/api/tournament-signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            if (res.j && res.j.ok) { form.hidden = true; success.hidden = false; success.scrollIntoView({ behavior: "smooth", block: "center" }); }
+            else {
+              var code = res.status ? " (error " + res.status + ")" : "";
+              status.textContent = (res.j && res.j.error) || ("Couldn't sign you up" + code + ". Please try again, or call (970) 774-6362.");
+              status.classList.add("is-error"); btn.disabled = false; btn.textContent = orig;
+            }
+          })
+          .catch(function () { status.textContent = "Network error. Please try again, or call (970) 774-6362."; status.classList.add("is-error"); btn.disabled = false; btn.textContent = orig; });
+      });
+    })();
+  </script>
+</body>
+</html>
