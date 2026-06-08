@@ -99,3 +99,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }, 500);
   }
 });
+
+// ---- PWA: register the service worker (enables "Add to Home Screen") ----
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}

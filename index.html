@@ -6,6 +6,12 @@
   <title>F&amp;H Golf Course — Fleming, Colorado</title>
   <meta name="description" content="F&H Golf Course — a public 9-hole course in eastern Colorado, between Fleming and Haxtun. Par 36, 3,261 yards. Established 1972." />
   <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1B5E20" />
+  <link rel="apple-touch-icon" href="images/icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="F&amp;H Golf" />
 
   <!-- Type pairing: Fraunces (display serif) + Source Sans 3 (body) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -454,6 +460,34 @@
     </div>
   </section>
 
+  <!-- ============================ ADD TO HOME / SHARE ============================ -->
+  <section class="section section--alt" id="install">
+    <div class="container" style="max-width:760px;text-align:center;">
+      <p class="eyebrow">Take It With You</p>
+      <h2 class="section__title">Add F&amp;H to Your Phone</h2>
+      <hr class="rule-brass" style="margin-left:auto;margin-right:auto;" />
+      <p class="section__subtitle" style="margin-left:auto;margin-right:auto;text-align:center;">Save the site to your home screen for one-tap access to pay, hours, tournaments, and tee-time info — it works just like an app.</p>
+
+      <div class="install">
+        <button class="btn btn--primary" id="installBtn" hidden>&#128241; Add to Home Screen</button>
+        <p class="install__note" id="installNote">On most phones, open your browser's menu and choose <strong>“Add to Home Screen.”</strong></p>
+      </div>
+
+      <hr class="install__rule" />
+
+      <p class="eyebrow" style="margin-top:0.5rem;">Spread the Word</p>
+      <h3 class="install__share-title">Share the Site</h3>
+      <div class="share">
+        <button class="share__link share__link--primary" type="button" id="shareBtn" hidden>&#128228; Share…</button>
+        <a class="share__link" id="shareFb" href="https://www.facebook.com/fandhgolf/" target="_blank" rel="noopener">Facebook</a>
+        <a class="share__link" id="shareSms" href="sms:">Text</a>
+        <a class="share__link" id="shareEmail" href="mailto:">Email</a>
+        <button class="share__link" type="button" id="shareCopy">Copy link</button>
+      </div>
+      <span class="share__msg" id="shareMsg" role="status" aria-live="polite"></span>
+    </div>
+  </section>
+
   <!-- ============================ FOOTER ============================ -->
   <footer class="site-footer">
     <div class="site-footer__inner">
@@ -499,5 +533,63 @@
   </footer>
 
   <script src="js/main.js"></script>
+  <script>
+    (function () {
+      // ---- Add to Home Screen ----
+      var installBtn = document.getElementById("installBtn");
+      var installNote = document.getElementById("installNote");
+      var deferred = null;
+      var ua = navigator.userAgent || "";
+      var isIos = /iphone|ipad|ipod/i.test(ua);
+      var standalone = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches;
+
+      if (isIos && installNote) {
+        installNote.innerHTML = 'On iPhone &amp; iPad: tap the <strong>Share</strong> button (the box with an arrow), then <strong>“Add to Home Screen.”</strong>';
+      }
+      if (standalone && installNote) {
+        installNote.textContent = "You're all set — F&H is on your home screen. Thanks!";
+      }
+
+      window.addEventListener("beforeinstallprompt", function (e) {
+        e.preventDefault();
+        deferred = e;
+        if (installBtn) installBtn.hidden = false;
+        if (installNote) installNote.hidden = true;
+      });
+      if (installBtn) installBtn.addEventListener("click", function () {
+        if (!deferred) return;
+        deferred.prompt();
+        deferred.userChoice.then(function () { deferred = null; installBtn.hidden = true; });
+      });
+      window.addEventListener("appinstalled", function () {
+        if (installBtn) installBtn.hidden = true;
+        if (installNote) { installNote.hidden = false; installNote.textContent = "Added — thanks for keeping F&H close!"; }
+      });
+
+      // ---- Share the site ----
+      var url = (window.location.origin + window.location.pathname).replace(/index\.html$/, "");
+      var title = "F&H Golf Course — Fleming, Colorado";
+      var text = "Check out F&H Golf Course — a true eastern Colorado experience. Pay, hours, tournaments, and more:";
+      var fb = document.getElementById("shareFb");
+      var sms = document.getElementById("shareSms");
+      var em = document.getElementById("shareEmail");
+      var copy = document.getElementById("shareCopy");
+      var shareBtn = document.getElementById("shareBtn");
+      var msg = document.getElementById("shareMsg");
+      if (fb) fb.href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(url);
+      if (sms) sms.href = "sms:?&body=" + encodeURIComponent(text + " " + url);
+      if (em) em.href = "mailto:?subject=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(text + "\n\n" + url);
+      if (shareBtn && navigator.share) {
+        shareBtn.hidden = false;
+        shareBtn.addEventListener("click", function () { navigator.share({ title: title, text: text, url: url }).catch(function () {}); });
+      }
+      if (copy) copy.addEventListener("click", function () {
+        var done = function () { if (msg) { msg.textContent = "Link copied!"; setTimeout(function () { msg.textContent = ""; }, 2500); } };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(done, function () { window.prompt("Copy this link:", url); });
+        } else { window.prompt("Copy this link:", url); }
+      });
+    })();
+  </script>
 </body>
 </html>
