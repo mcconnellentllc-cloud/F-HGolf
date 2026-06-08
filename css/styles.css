@@ -342,7 +342,9 @@ img { max-width: 100%; display: block; }
 .creed__title { font-family: var(--font-display); font-weight: 600; font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 1.1rem; }
 .creed__lead { font-size: 1.15rem; color: rgba(255, 255, 255, 0.9); line-height: 1.7; margin: 0 auto 1.6rem; max-width: 60ch; }
 .creed__list { list-style: none; padding: 0; margin: 0 auto 1.6rem; display: inline-grid; gap: 0.7rem; text-align: left; }
-.creed__list li { padding: 0.5rem 0 0.5rem 1rem; border-left: 3px solid var(--red-bright); font-family: var(--font-display); font-size: 1.12rem; }
+.creed__ask { font-weight: 700; color: #fff; font-size: 1.05rem; margin-bottom: 1rem; letter-spacing: 0.01em; }
+.creed__list li { padding: 0.55rem 0 0.55rem 1rem; border-left: 3px solid var(--red-bright); font-family: var(--font-display); font-size: 1.12rem; }
+.creed__close { font-family: var(--font-display); font-size: clamp(1.15rem, 2.4vw, 1.4rem); color: #fff; margin: 0.4rem auto 1.3rem; max-width: 48ch; }
 .creed__sign { font-style: italic; color: rgba(255, 255, 255, 0.75); }
 
 /* ---------- Gallery (dark showcase) ---------- */
