@@ -76,6 +76,24 @@
     </div>
   </section>
 
+  <!-- ============================ SHARE ============================ -->
+  <section class="section section--paper" id="share">
+    <div class="container" style="max-width:760px;text-align:center;">
+      <p class="eyebrow">Spread the Word</p>
+      <h2 class="section__title">Share This Page</h2>
+      <hr class="rule-brass" style="margin-left:auto;margin-right:auto;" />
+      <p class="section__subtitle" style="margin-left:auto;margin-right:auto;text-align:center;">Round up a foursome — send the schedule to your golf buddies.</p>
+      <div class="share">
+        <button class="share__link share__link--primary" type="button" id="shareBtn" hidden>&#128228; Share…</button>
+        <a class="share__link" id="shareFb" href="https://www.facebook.com/fandhgolf/" target="_blank" rel="noopener">Facebook</a>
+        <a class="share__link" id="shareSms" href="sms:">Text</a>
+        <a class="share__link" id="shareEmail" href="mailto:">Email</a>
+        <button class="share__link" type="button" id="shareCopy">Copy link</button>
+      </div>
+      <span class="share__msg" id="shareMsg" role="status" aria-live="polite"></span>
+    </div>
+  </section>
+
   <!-- ============================ SIGN UP ============================ -->
   <section class="section section--paper" id="signup">
     <div class="container nominate">
@@ -214,6 +232,34 @@
             }
           })
           .catch(function () { status.textContent = "Network error. Please try again, or call (970) 774-6362."; status.classList.add("is-error"); btn.disabled = false; btn.textContent = orig; });
+      });
+    })();
+  </script>
+  <script>
+    (function () {
+      var url = window.location.href.split("#")[0];
+      var title = "F&H Golf Course — 2026 Tournaments";
+      var text = "Check out the 2026 tournament schedule at F&H Golf Course — and sign up to play!";
+      var fb = document.getElementById("shareFb");
+      var sms = document.getElementById("shareSms");
+      var em = document.getElementById("shareEmail");
+      var copy = document.getElementById("shareCopy");
+      var shareBtn = document.getElementById("shareBtn");
+      var msg = document.getElementById("shareMsg");
+      if (fb) fb.href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(url);
+      if (sms) sms.href = "sms:?&body=" + encodeURIComponent(text + " " + url);
+      if (em) em.href = "mailto:?subject=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(text + "\n\n" + url);
+      if (shareBtn && navigator.share) {
+        shareBtn.hidden = false;
+        shareBtn.addEventListener("click", function () {
+          navigator.share({ title: title, text: text, url: url }).catch(function () {});
+        });
+      }
+      if (copy) copy.addEventListener("click", function () {
+        var done = function () { if (msg) { msg.textContent = "Link copied!"; setTimeout(function () { msg.textContent = ""; }, 2500); } };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(done, function () { window.prompt("Copy this link:", url); });
+        } else { window.prompt("Copy this link:", url); }
       });
     })();
   </script>
