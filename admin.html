@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Staff Portal — F&amp;H Golf Course</title>
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ============================ NAV ============================ -->
+  <header class="nav" id="top">
+    <div class="nav__inner">
+      <a href="index.html" class="nav__brand" aria-label="F&H Golf Course home">
+        <img class="nav__mark" src="images/logo.png" alt="" aria-hidden="true" />
+        <span class="nav__wordmark">
+          <span class="nav__name">F&amp;H Golf Course</span>
+          <span class="nav__tagline">Staff Portal</span>
+        </span>
+      </a>
+      <nav class="nav__links">
+        <a href="index.html">View public site &rarr;</a>
+        <a href="#" id="adminLogout" hidden>Lock</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ============================ HERO STRIP ============================ -->
+  <section class="hero hero--strip">
+    <div class="hero__inner">
+      <div class="hero__content">
+        <p class="hero__kicker">Staff Only</p>
+        <h1 class="hero__title">Staff Portal</h1>
+        <p class="hero__subtitle">Tools for running F&amp;H Golf Course.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--alt">
+    <div class="container admin">
+
+      <!-- Password gate -->
+      <div class="admin-gate" id="adminGate">
+        <h2>Enter password</h2>
+        <p>This area is for F&amp;H staff and board members.</p>
+        <form class="form" id="adminLogin" autocomplete="off">
+          <label class="form__field" style="text-align:left;">
+            <span class="form__label">Password</span>
+            <input type="password" id="adminPass" name="password" autocomplete="current-password" />
+          </label>
+          <div class="form__actions" style="justify-content:center;">
+            <button type="submit" class="btn btn--primary">Unlock</button>
+            <span class="form__status is-error" id="adminErr" role="alert"></span>
+          </div>
+        </form>
+      </div>
+
+      <!-- Admin dashboard (revealed after unlock) -->
+      <div id="adminPanel" hidden>
+        <div class="section-head">
+          <p class="eyebrow">Dashboard</p>
+          <h2 class="section__title">Manage F&amp;H</h2>
+          <hr class="rule-brass" />
+          <p class="section__subtitle">Each tool below opens in a new tab and uses its own secure login.</p>
+        </div>
+
+        <div class="admin-grid">
+          <a class="admin-card" href="https://airtable.com/appAwEdD9m6OVN6lg/tbl81DbX9ptmRrwQi" target="_blank" rel="noopener">
+            <span class="admin-card__tag">Airtable</span>
+            <h3>Hall of Fame Nominations</h3>
+            <p>Review nominations submitted from the website and move them New &rarr; Reviewing &rarr; Approved &rarr; Added.</p>
+          </a>
+          <a class="admin-card" href="https://deposytdashboard.com" target="_blank" rel="noopener">
+            <span class="admin-card__tag">Payments</span>
+            <h3>Deposyt Dashboard</h3>
+            <p>View green-fee payments taken through the Scan-to-Pay / Pay Online button.</p>
+          </a>
+          <a class="admin-card" href="https://www.facebook.com/fandhgolf/" target="_blank" rel="noopener">
+            <span class="admin-card__tag">Social</span>
+            <h3>Facebook Page</h3>
+            <p>Post course updates, hours, tournaments, and photos for the community.</p>
+          </a>
+          <a class="admin-card" href="https://github.com/mcconnellentllc-cloud/F-HGolf" target="_blank" rel="noopener">
+            <span class="admin-card__tag">Website</span>
+            <h3>Edit the Website</h3>
+            <p>The site's code and content. Edits pushed to <code>main</code> publish automatically.</p>
+          </a>
+          <a class="admin-card" href="https://vercel.com/mcconnellentllc-clouds-projects/f-h-golf" target="_blank" rel="noopener">
+            <span class="admin-card__tag">Hosting</span>
+            <h3>Vercel</h3>
+            <p>Deployments, the live site, and the form's environment settings.</p>
+          </a>
+          <a class="admin-card" href="nominate.html" target="_blank" rel="noopener">
+            <span class="admin-card__tag">Public form</span>
+            <h3>Nomination Form</h3>
+            <p>See the public "Nominate a Hall of Famer" form as visitors do.</p>
+          </a>
+        </div>
+
+        <div class="admin-note">
+          <strong>Quick how-tos.</strong>
+          To <strong>add a Hall of Fame photo</strong>: drop a square photo in <code>images/hof/</code> and swap that person's avatar for an <code>&lt;img class="hof__photo"&gt;</code> (or just send it to your web helper).
+          To <strong>update green fees, cart fee, or season hours</strong>: edit the Rates section in <code>index.html</code> (placeholders are marked).
+          Course line: <a href="tel:+19707746362">(970) 774-6362</a> · 43355 County Rd 30, Fleming, CO 80728.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================ FOOTER ============================ -->
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <a href="index.html" class="site-footer__marklink"><img class="site-footer__mark" src="images/logo.png" alt="F&H Golf Course logo" /></a>
+        <div>
+          <div class="site-footer__name">F&amp;H Golf Course</div>
+          <p class="site-footer__tag">Staff Portal</p>
+        </div>
+      </div>
+      <div>
+        <h4>Go to</h4>
+        <ul>
+          <li><a href="index.html">Public site</a></li>
+          <li><a href="hall-of-fame.html">Hall of Fame</a></li>
+          <li><a href="nominate.html">Nomination form</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="site-footer__bottom">
+      <span>&copy; 2026 F&amp;H Golf Course — F&amp;H Park &amp; Recreation District. Fleming, Colorado.</span>
+      <span>Staff Portal</span>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var KEY = "fh_admin_ok";
+      var PASS = "fandhgolf!!";
+      var gate = document.getElementById("adminGate");
+      var panel = document.getElementById("adminPanel");
+      var form = document.getElementById("adminLogin");
+      var input = document.getElementById("adminPass");
+      var err = document.getElementById("adminErr");
+      var logout = document.getElementById("adminLogout");
+
+      function show(authed) {
+        gate.hidden = authed;
+        panel.hidden = !authed;
+        if (logout) logout.hidden = !authed;
+      }
+      try { show(sessionStorage.getItem(KEY) === "1"); } catch (e) { show(false); }
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (input.value === PASS) {
+          try { sessionStorage.setItem(KEY, "1"); } catch (e) {}
+          err.textContent = "";
+          show(true);
+        } else {
+          err.textContent = "Incorrect password.";
+          input.select();
+        }
+      });
+
+      if (logout) logout.addEventListener("click", function (e) {
+        e.preventDefault();
+        try { sessionStorage.removeItem(KEY); } catch (e) {}
+        input.value = "";
+        show(false);
+      });
+    })();
+  </script>
+</body>
+</html>

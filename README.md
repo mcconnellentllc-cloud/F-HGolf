@@ -133,6 +133,38 @@ shows an **initials medallion** placeholder.
 
 The image is cropped to a circle automatically. Send photos and I'll wire them in.
 
+## Hall of Fame nominations
+
+`nominate.html` is a public form to nominate Hall of Fame members. It submits to
+`api/nominate.js`, a **Vercel serverless function** that writes a record to
+Airtable. This feature only works on the **Vercel deployment** (GitHub Pages
+can't run serverless functions).
+
+Required Vercel **Environment Variables**:
+
+| Key | Value |
+| --- | --- |
+| `AIRTABLE_TOKEN` | Airtable personal access token with `data.records:write` |
+| `AIRTABLE_BASE_ID` | the base id (e.g. `appAwEdD9m6OVN6lg`) |
+| `AIRTABLE_TABLE` | the table **name** (`Hall of Fame Nominations`) |
+
+The function writes to these Airtable fields: `Nominee Name`, `Contribution`,
+`Era / Years at F&H`, `Role`, `Nominated By`, `Submitter Email`,
+`Submitter Phone`, `Status` (set to `New`). Keep these field names in sync with
+the table. Includes a honeypot anti-spam field and graceful error handling.
+
+## Staff portal
+
+`admin.html` is a hidden staff launcher (review nominations, payments, GitHub,
+Vercel, Facebook + how-tos). It's reached by clicking the **F&H crest in the
+footer** of any page, and gated by a client-side password (in `admin.html`).
+
+Note: a password in a static page is a **soft gate** — it keeps casual visitors
+out, but is visible to anyone who views source. Real security is that each
+linked tool (Airtable, Deposyt, Vercel, GitHub) has its own login. To change the
+password, edit `PASS` in the script at the bottom of `admin.html`. The page is
+also marked `noindex`.
+
 ## Reference details
 
 - Phone: (970) 774-6362
