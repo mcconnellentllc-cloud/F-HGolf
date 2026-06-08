@@ -442,6 +442,23 @@ img { max-width: 100%; display: block; }
 
 @media (max-width: 640px) { .form__row, .form__row--3 { grid-template-columns: 1fr; } }
 
+/* ---------- Staff portal (admin.html) ---------- */
+.admin { max-width: 1000px; }
+.admin-gate { max-width: 420px; margin: 1rem auto; background: #fff; border: 1px solid var(--line); border-top: 4px solid var(--red); border-radius: var(--radius); padding: 2rem; box-shadow: var(--shadow-md); text-align: center; }
+.admin-gate h2 { color: var(--primary-green); margin-bottom: 0.3rem; }
+.admin-gate p { color: var(--muted); margin-bottom: 1.2rem; }
+.admin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+.admin-card { display: block; text-decoration: none; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow-sm); transition: transform 0.2s ease, box-shadow 0.2s ease; color: var(--ink); }
+.admin-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.admin-card__tag { display: inline-block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700; color: var(--red); margin-bottom: 0.5rem; }
+.admin-card h3 { color: var(--primary-green); font-size: 1.2rem; margin-bottom: 0.3rem; }
+.admin-card p { color: var(--muted); font-size: 0.92rem; }
+.admin-note { margin-top: 2rem; font-size: 0.92rem; color: #3a3b34; background: var(--paper-2); border-radius: 10px; padding: 1.1rem 1.3rem; line-height: 1.7; }
+.admin-note code { background: rgba(0,0,0,0.06); padding: 0.05em 0.35em; border-radius: 4px; font-size: 0.92em; }
+.site-footer__marklink { display: inline-flex; flex: none; border-radius: 50%; }
+
+@media (max-width: 760px) { .admin-grid { grid-template-columns: 1fr; } }
+
 /* ============================================================
    Responsive
    ============================================================ */
