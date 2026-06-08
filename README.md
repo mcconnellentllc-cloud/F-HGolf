@@ -16,6 +16,7 @@ install required.
 F-HGolf/
   index.html       Single-page site (nav, hero, stat strip, course, scorecard, rates, location, contact)
   story.html       Full founder's history + audio narration + newspaper archive
+  hall-of-fame.html  Founders, builders & volunteers who contributed to F&H
   css/styles.css   All styling (editorial-heritage design via CSS custom properties)
   js/main.js       Smooth-scroll nav, mobile hamburger, nav-scroll elevation
   images/          Logo (logo.svg), newspaper scans; drop hero/course photos here
@@ -115,6 +116,22 @@ phone users can simply tap instead of scanning.
 
 If the course's payment link ever changes, update both the button `href` in
 `index.html` and regenerate `images/pay-qr.png` from the new URL.
+
+## Hall of Fame
+
+`hall-of-fame.html` honors the founders, builders, and volunteers behind F&H
+(sourced from Willard Hart's account and the local press). Each person currently
+shows an **initials medallion** placeholder.
+
+**To add a real photo:** drop a square image in `images/hof/` (e.g.
+`images/hof/willard-hart.jpg`) and, in `hall-of-fame.html`, replace that person's
+`<div class="hof__avatar">WH</div>` with:
+
+```html
+<img class="hof__photo" src="images/hof/willard-hart.jpg" alt="Portrait of Willard Hart" />
+```
+
+The image is cropped to a circle automatically. Send photos and I'll wire them in.
 
 ## Reference details
 
