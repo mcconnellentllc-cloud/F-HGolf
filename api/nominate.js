@@ -44,22 +44,34 @@ module.exports = async (req, res) => {
   if (email) fields["Submitter Email"] = email;
   if (phone) fields["Submitter Phone"] = phone;
 
+  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLE)}`;
+  const post = (f) => fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ records: [{ fields: f }], typecast: true }),
+  });
+
+  // Resilient write: if the table is missing an optional column (Airtable
+  // returns "Unknown field name: X"), drop that field and retry — so a
+  // nomination still saves as long as Nominee Name + Contribution exist.
   try {
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLE)}`;
-    const r = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${AIRTABLE_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ records: [{ fields }], typecast: true }),
-    });
-    if (!r.ok) {
+    let working = { ...fields };
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const r = await post(working);
+      if (r.ok) return res.status(200).json({ ok: true });
+
       const detail = await r.text();
+      let msg = detail;
+      try { msg = (JSON.parse(detail).error || {}).message || detail; } catch (e) {}
+      const m = /Unknown field name:?\s*"?([^"]+?)"?$/i.exec(String(msg).trim());
+      if (m && working.hasOwnProperty(m[1]) && Object.keys(working).length > 2) {
+        delete working[m[1]];
+        continue; // retry without the unknown field
+      }
       console.error("Airtable error", r.status, detail);
       return res.status(502).json({ ok: false, error: "Could not save your nomination right now. Please try again, or call (970) 774-6362." });
     }
-    return res.status(200).json({ ok: true });
+    return res.status(502).json({ ok: false, error: "Could not save your nomination. Please call (970) 774-6362." });
   } catch (e) {
     console.error("nominate error", e);
     return res.status(500).json({ ok: false, error: "Something went wrong. Please try again, or call (970) 774-6362." });
