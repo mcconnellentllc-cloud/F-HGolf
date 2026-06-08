@@ -171,6 +171,27 @@ linked tool (Airtable, Deposyt, Vercel, GitHub) has its own login. To change the
 password, edit `PASS` in the script at the bottom of `admin.html`. The page is
 also marked `noindex`.
 
+## Reviews
+
+`reviews.html` shows: real public reviews (Cam Crabtree @cam_pga's Instagram
+"hidden gem" video, a 5★ Yelp quote, a Golf Digest panelist quote, with links to
+the listing sites), **community reviews** submitted on-site, and a star-rating
+**Leave a Review** form.
+
+Submitting/displaying uses two Vercel functions + a separate Airtable table:
+- `api/review-submit.js` (POST) — writes a review with **Status = "Pending"** (so
+  nothing publishes until staff approve it).
+- `api/reviews.js` (GET, public) — returns only **Status = "Approved"** reviews and
+  safe fields (name, rating, text, date) — never email.
+
+**Setup:** create an Airtable table named **`Reviews`** in the same base with
+fields: `Reviewer Name` (text), `Rating` (number 1–5), `Review` (long text),
+`Email` (email), `Status` (single select: Pending, Approved, Hidden),
+`Submitted At` (created time). The functions default to a table named `Reviews`;
+set the optional Vercel env var `REVIEWS_TABLE` to override. To **publish** a
+review, set its Status to **Approved** (do it in Airtable, or via the Reviews
+card in the Staff Portal).
+
 ## Reference details
 
 - Phone: (970) 774-6362
