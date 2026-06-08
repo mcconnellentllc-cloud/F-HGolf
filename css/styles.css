@@ -98,8 +98,8 @@ img { max-width: 100%; display: block; }
 .nav__name { font-family: var(--font-display); font-weight: 600; font-size: 1.18rem; color: var(--primary-green); letter-spacing: 0.01em; }
 .nav__tagline { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.22em; color: var(--red); font-weight: 700; }
 
-.nav__links { display: flex; gap: 1.45rem; align-items: center; }
-.nav__links a { position: relative; color: var(--primary-green); text-decoration: none; font-weight: 600; font-size: 0.94rem; padding: 0.35rem 0; }
+.nav__links { display: flex; gap: 1.15rem; align-items: center; }
+.nav__links a { position: relative; color: var(--primary-green); text-decoration: none; font-weight: 600; font-size: 0.9rem; padding: 0.35rem 0; }
 .nav__links a::after {
   content: ""; position: absolute; left: 0; bottom: 0; width: 100%; height: 2px;
   background: var(--red); transform: scaleX(0); transform-origin: left; transition: transform 0.25s ease;
@@ -396,6 +396,24 @@ img { max-width: 100%; display: block; }
 
 .archives__divider { border: none; border-top: 2px dashed var(--red); max-width: 840px; margin: 2.75rem auto; opacity: 0.5; }
 
+/* ---------- Hall of Fame (hall-of-fame.html) ---------- */
+.hof__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.75rem; }
+.hof__card { background: var(--white); border: 1px solid var(--line); border-top: 3px solid var(--red); border-radius: var(--radius); padding: 1.9rem 1.6rem; text-align: center; box-shadow: var(--shadow-sm); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.hof__card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.hof__avatar, .hof__photo { width: 104px; height: 104px; border-radius: 50%; margin: 0 auto 1rem; box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--red); }
+.hof__avatar { display: grid; place-items: center; color: #fff; font-family: var(--font-display); font-size: 2rem; font-weight: 600; letter-spacing: 0.02em; background: radial-gradient(circle at 32% 26%, var(--accent-green), var(--deep-green)); }
+.hof__photo { object-fit: cover; display: block; }
+.hof__name { font-size: 1.3rem; color: var(--primary-green); margin-bottom: 0.2rem; }
+.hof__role { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--red); font-weight: 700; margin-bottom: 0.7rem; }
+.hof__bio { color: #33342e; font-size: 0.98rem; line-height: 1.55; }
+
+.honor-roll { list-style: none; max-width: 880px; margin: 0 auto; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem 2.25rem; }
+.honor-roll li { padding: 0.6rem 0; border-bottom: 1px solid var(--line); font-size: 0.98rem; color: #33342e; }
+.honor-roll__name { font-weight: 700; color: var(--primary-green); }
+
+@media (max-width: 900px) { .hof__grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .hof__grid { grid-template-columns: 1fr; } .honor-roll { grid-template-columns: 1fr; } }
+
 /* ============================================================
    Responsive
    ============================================================ */
@@ -408,7 +426,7 @@ img { max-width: 100%; display: block; }
   .gallery__grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 920px) {
   .nav__toggle { display: flex; }
   .nav__tagline { display: none; }
   .nav__links {
