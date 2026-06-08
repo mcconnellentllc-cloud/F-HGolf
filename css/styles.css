@@ -283,6 +283,29 @@ img { max-width: 100%; display: block; }
 .pricing td:last-child { color: var(--red-deep); font-weight: 700; }
 .pay__note2 { font-size: 0.9rem; color: #3a3b34; margin-bottom: 1.1rem; }
 
+/* Hours + Membership dues cards */
+.rates-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 2rem; align-items: start; }
+.ratecard { background: var(--white); border: 1px solid var(--line); border-top: 3px solid var(--red); border-radius: var(--radius); padding: 1.6rem 1.75rem; box-shadow: var(--shadow-sm); }
+.ratecard__title { color: var(--primary-green); font-size: 1.3rem; margin-bottom: 0.9rem; }
+.hours__table, .dues { width: 100%; border-collapse: collapse; }
+.hours__table th, .hours__table td, .dues th, .dues td { padding: 0.42rem 0.4rem; border-bottom: 1px solid var(--line); font-size: 0.97rem; }
+.hours__table th[scope="row"], .dues th[scope="row"] { text-align: left; font-weight: 600; color: #2c2d27; }
+.hours__table td { text-align: right; color: #33342e; }
+.dues thead th { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 700; }
+.dues thead th:not(:first-child), .dues td { text-align: right; }
+.dues td { font-family: var(--font-display); color: var(--ink); }
+.dues td[colspan] { color: var(--primary-green); font-weight: 600; }
+.hours__note, .dues__note { margin-top: 0.85rem; font-size: 0.85rem; color: var(--muted); }
+
+/* Tournament schedule */
+.schedule { list-style: none; max-width: 640px; margin: 0 auto; padding: 0; }
+.schedule li { display: flex; gap: 1rem; align-items: baseline; padding: 0.7rem 0.4rem; border-bottom: 1px solid var(--line); }
+.schedule__date { flex: 0 0 6rem; font-family: var(--font-display); font-weight: 600; color: var(--red-deep); }
+.schedule__event { color: #2c2d27; font-weight: 600; }
+.schedule__note { max-width: 640px; margin: 1.5rem auto 0; text-align: center; font-size: 0.85rem; color: var(--muted); }
+
+@media (max-width: 760px) { .rates-grid { grid-template-columns: 1fr; } }
+
 @media (max-width: 640px) {
   .pay { grid-template-columns: 1fr; text-align: center; justify-items: center; }
   .pay__lead, .pay__fees { max-width: none; }
