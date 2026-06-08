@@ -69,6 +69,14 @@
           <p class="section__subtitle">Each tool below opens in a new tab and uses its own secure login.</p>
         </div>
 
+        <section class="noms" aria-label="Submitted nominations">
+          <div class="noms__bar">
+            <h3 class="noms__title">Submitted Nominations <span class="noms__count" id="nomCount"></span></h3>
+            <button class="btn btn--solid" type="button" id="nomRefresh">Refresh</button>
+          </div>
+          <div class="noms__list" id="nomList"><p class="noms__msg">Loading nominations…</p></div>
+        </section>
+
         <div class="admin-grid">
           <a class="admin-card" href="https://airtable.com/appAwEdD9m6OVN6lg/tbl81DbX9ptmRrwQi" target="_blank" rel="noopener">
             <span class="admin-card__tag">Airtable</span>
@@ -140,7 +148,8 @@
 
   <script>
     (function () {
-      var KEY = "fh_admin_ok";
+      var FLAG = "fh_admin_ok";
+      var KEYK = "fh_admin_key";
       var PASS = "fandhgolf!!";
       var gate = document.getElementById("adminGate");
       var panel = document.getElementById("adminPanel");
@@ -148,18 +157,70 @@
       var input = document.getElementById("adminPass");
       var err = document.getElementById("adminErr");
       var logout = document.getElementById("adminLogout");
+      var list = document.getElementById("nomList");
+      var countEl = document.getElementById("nomCount");
+      var refresh = document.getElementById("nomRefresh");
+
+      function getKey() { try { return sessionStorage.getItem(KEYK) || ""; } catch (e) { return ""; } }
+      function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
+      function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); } catch (e) { return ""; } }
+
+      function render(records) {
+        if (!records || !records.length) { list.innerHTML = '<p class="noms__msg">No nominations yet.</p>'; countEl.textContent = ""; return; }
+        countEl.textContent = "(" + records.length + ")";
+        list.innerHTML = records.map(function (rec) {
+          var f = rec.fields || {};
+          var name = esc(f["Nominee Name"] || "(no name)");
+          var role = esc(f["Role"] || "");
+          var status = esc(f["Status"] || "New");
+          var era = esc(f["Era / Years at F&H"] || "");
+          var why = esc(f["Contribution"] || "");
+          var by = esc(f["Nominated By"] || "");
+          var email = esc(f["Submitter Email"] || "");
+          var phone = esc(f["Submitter Phone"] || "");
+          var when = fmtDate(rec.created);
+          var meta = [role, era].filter(Boolean).join(" · ");
+          var line = [];
+          if (by) line.push("Nominated by " + by);
+          if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
+          if (phone) line.push('<a href="tel:' + phone.replace(/[^0-9+]/g, "") + '">' + phone + "</a>");
+          if (when) line.push(when);
+          var cls = status.toLowerCase().replace(/[^a-z]/g, "");
+          return '<article class="nom">'
+            + '<div class="nom__head"><span class="nom__name">' + name + "</span>"
+            + '<span class="nom__status nom__status--' + cls + '">' + status + "</span></div>"
+            + (meta ? '<div class="nom__meta">' + meta + "</div>" : "")
+            + (why ? '<p class="nom__why">' + why + "</p>" : "")
+            + (line.length ? '<div class="nom__by">' + line.join(" · ") + "</div>" : "")
+            + "</article>";
+        }).join("");
+      }
+
+      function loadNominations() {
+        if (!list) return;
+        list.innerHTML = '<p class="noms__msg">Loading nominations…</p>';
+        fetch("/api/nominations", { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            if (res.j && res.j.ok) { render(res.j.records); }
+            else if (res.status === 401) { list.innerHTML = '<p class="noms__msg">Session expired — click <strong>Lock</strong> and sign in again.</p>'; }
+            else { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load nominations.") + "</p>"; }
+          })
+          .catch(function () { list.innerHTML = '<p class="noms__msg">Network error loading nominations.</p>'; });
+      }
 
       function show(authed) {
         gate.hidden = authed;
         panel.hidden = !authed;
         if (logout) logout.hidden = !authed;
+        if (authed) loadNominations();
       }
-      try { show(sessionStorage.getItem(KEY) === "1"); } catch (e) { show(false); }
+      try { show(sessionStorage.getItem(FLAG) === "1"); } catch (e) { show(false); }
 
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         if (input.value === PASS) {
-          try { sessionStorage.setItem(KEY, "1"); } catch (e) {}
+          try { sessionStorage.setItem(FLAG, "1"); sessionStorage.setItem(KEYK, input.value); } catch (e) {}
           err.textContent = "";
           show(true);
         } else {
@@ -168,9 +229,11 @@
         }
       });
 
+      if (refresh) refresh.addEventListener("click", loadNominations);
+
       if (logout) logout.addEventListener("click", function (e) {
         e.preventDefault();
-        try { sessionStorage.removeItem(KEY); } catch (e) {}
+        try { sessionStorage.removeItem(FLAG); sessionStorage.removeItem(KEYK); } catch (e) {}
         input.value = "";
         show(false);
       });

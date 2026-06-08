@@ -159,6 +159,12 @@ the table. Includes a honeypot anti-spam field and graceful error handling.
 Vercel, Facebook + how-tos). It's reached by clicking the **F&H crest in the
 footer** of any page, and gated by a client-side password (in `admin.html`).
 
+The portal lists **submitted nominations** in-page (newest first) via
+`api/nominations.js`, a read-only Vercel function. It requires the Airtable
+token to also have the **`data.records:read`** scope, plus a Vercel env var
+**`ADMIN_KEY`** (set it to the staff password) — the portal sends that key so the
+list (which can include submitter contact info) is never publicly exposed.
+
 Note: a password in a static page is a **soft gate** — it keeps casual visitors
 out, but is visible to anyone who views source. Real security is that each
 linked tool (Airtable, Deposyt, Vercel, GitHub) has its own login. To change the
