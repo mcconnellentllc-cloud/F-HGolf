@@ -77,6 +77,14 @@
           <div class="noms__list" id="nomList"><p class="noms__msg">Loading nominations…</p></div>
         </section>
 
+        <section class="noms" aria-label="Tournament sign-ups">
+          <div class="noms__bar">
+            <h3 class="noms__title">Tournament Sign-ups <span class="noms__count" id="touCount"></span></h3>
+            <button class="btn btn--solid" type="button" id="touRefresh">Refresh</button>
+          </div>
+          <div class="noms__list" id="touList"><p class="noms__msg">Loading sign-ups…</p></div>
+        </section>
+
         <div class="admin-grid">
           <a class="admin-card" href="https://airtable.com/appAwEdD9m6OVN6lg/tbl81DbX9ptmRrwQi" target="_blank" rel="noopener">
             <span class="admin-card__tag">Airtable</span>
@@ -87,6 +95,11 @@
             <span class="admin-card__tag">Airtable</span>
             <h3>Reviews</h3>
             <p>Approve course reviews — set a review's Status to "Approved" to publish it on the Reviews page.</p>
+          </a>
+          <a class="admin-card" href="https://airtable.com/appAwEdD9m6OVN6lg" target="_blank" rel="noopener">
+            <span class="admin-card__tag">Airtable</span>
+            <h3>Tournament Sign-ups</h3>
+            <p>Full registrant list and management (the latest sign-ups also show in the panel above).</p>
           </a>
           <a class="admin-card" href="https://deposytdashboard.com" target="_blank" rel="noopener">
             <span class="admin-card__tag">Payments</span>
@@ -165,6 +178,9 @@
       var list = document.getElementById("nomList");
       var countEl = document.getElementById("nomCount");
       var refresh = document.getElementById("nomRefresh");
+      var touList = document.getElementById("touList");
+      var touCount = document.getElementById("touCount");
+      var touRefresh = document.getElementById("touRefresh");
 
       function getKey() { try { return sessionStorage.getItem(KEYK) || ""; } catch (e) { return ""; } }
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
@@ -214,11 +230,53 @@
           .catch(function () { list.innerHTML = '<p class="noms__msg">Network error loading nominations.</p>'; });
       }
 
+      function renderTournaments(records) {
+        if (!records || !records.length) { touList.innerHTML = '<p class="noms__msg">No sign-ups yet.</p>'; touCount.textContent = ""; return; }
+        touCount.textContent = "(" + records.length + ")";
+        touList.innerHTML = records.map(function (rec) {
+          var f = rec.fields || {};
+          var name = esc(f["Player Name"] || "(no name)");
+          var tour = esc(f["Tournament"] || "");
+          var team = esc(f["Team / Partners"] || "");
+          var notes = esc(f["Notes"] || "");
+          var email = esc(f["Email"] || "");
+          var phone = esc(f["Phone"] || "");
+          var status = esc(f["Status"] || "New");
+          var when = fmtDate(rec.created);
+          var line = [];
+          if (team) line.push("Team: " + team);
+          if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
+          if (phone) line.push('<a href="tel:' + phone.replace(/[^0-9+]/g, "") + '">' + phone + "</a>");
+          if (when) line.push(when);
+          var cls = status.toLowerCase().replace(/[^a-z]/g, "");
+          return '<article class="nom">'
+            + '<div class="nom__head"><span class="nom__name">' + name + "</span>"
+            + '<span class="nom__status nom__status--' + cls + '">' + status + "</span></div>"
+            + (tour ? '<div class="nom__meta">' + tour + "</div>" : "")
+            + (notes ? '<p class="nom__why">' + notes + "</p>" : "")
+            + (line.length ? '<div class="nom__by">' + line.join(" · ") + "</div>" : "")
+            + "</article>";
+        }).join("");
+      }
+
+      function loadTournaments() {
+        if (!touList) return;
+        touList.innerHTML = '<p class="noms__msg">Loading sign-ups…</p>';
+        fetch("/api/tournament-signups", { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            if (res.j && res.j.ok) { renderTournaments(res.j.records); }
+            else if (res.status === 401) { touList.innerHTML = '<p class="noms__msg">Session expired — click <strong>Lock</strong> and sign in again.</p>'; }
+            else { touList.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load sign-ups.") + "</p>"; }
+          })
+          .catch(function () { touList.innerHTML = '<p class="noms__msg">Network error loading sign-ups.</p>'; });
+      }
+
       function show(authed) {
         gate.hidden = authed;
         panel.hidden = !authed;
         if (logout) logout.hidden = !authed;
-        if (authed) loadNominations();
+        if (authed) { loadNominations(); loadTournaments(); }
       }
       try { show(sessionStorage.getItem(FLAG) === "1"); } catch (e) { show(false); }
 
@@ -235,6 +293,7 @@
       });
 
       if (refresh) refresh.addEventListener("click", loadNominations);
+      if (touRefresh) touRefresh.addEventListener("click", loadTournaments);
 
       if (logout) logout.addEventListener("click", function (e) {
         e.preventDefault();
