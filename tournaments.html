@@ -110,6 +110,8 @@
         <p class="section__subtitle">Fill this out and we'll add you to the field. We'll follow up with details, format, and entry fees.</p>
       </div>
 
+      <p class="form__prefill" id="tourneyPrefill" hidden></p>
+
       <form id="tourneyForm" class="form" novalidate>
         <label class="form__field">
           <span class="form__label">Tournament <span class="req">*</span></span>
@@ -142,7 +144,7 @@
           </label>
         </div>
 
-        <div class="form__row">
+        <div class="form__row form__row--3">
           <label class="form__field">
             <span class="form__label">Email</span>
             <input type="email" name="email" maxlength="200" autocomplete="email" />
@@ -150,6 +152,16 @@
           <label class="form__field">
             <span class="form__label">Phone</span>
             <input type="tel" name="phone" maxlength="60" autocomplete="tel" />
+          </label>
+          <label class="form__field">
+            <span class="form__label">Carts to reserve</span>
+            <select name="carts">
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
           </label>
         </div>
 
@@ -217,6 +229,31 @@
       var btn = document.getElementById("tourneySubmit");
       var status = document.getElementById("tourneyStatus");
       var success = document.getElementById("tourneySuccess");
+
+      // Autofill returning golfers from this device (no account needed)
+      var GKEY = "fh_golfer";
+      var prefill = document.getElementById("tourneyPrefill");
+      function esc(s) { return String(s == null ? "" : s).replace(/[<>&"]/g, ""); }
+      try {
+        var saved = JSON.parse(localStorage.getItem(GKEY) || "null");
+        if (saved && (saved.name || saved.email)) {
+          if (saved.name && !form.name.value) form.name.value = saved.name;
+          if (saved.email && !form.email.value) form.email.value = saved.email;
+          if (saved.phone && !form.phone.value) form.phone.value = saved.phone;
+          if (prefill) {
+            prefill.hidden = false;
+            prefill.innerHTML = "Welcome back" + (saved.name ? ", " + esc(saved.name) : "") + "! We filled in your details. <a href=\"#\" id=\"tourneyClear\">Not you?</a>";
+            var clr = document.getElementById("tourneyClear");
+            if (clr) clr.addEventListener("click", function (e) {
+              e.preventDefault();
+              try { localStorage.removeItem(GKEY); } catch (e2) {}
+              form.name.value = ""; form.email.value = ""; form.phone.value = "";
+              prefill.hidden = true;
+            });
+          }
+        }
+      } catch (e) {}
+
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         status.textContent = ""; status.className = "form__status";
@@ -225,7 +262,8 @@
           status.classList.add("is-error"); return;
         }
         var data = {};
-        ["tournament", "name", "team", "email", "phone", "notes", "company"].forEach(function (k) { if (form[k]) data[k] = form[k].value; });
+        ["tournament", "name", "team", "email", "phone", "carts", "notes", "company"].forEach(function (k) { if (form[k]) data[k] = form[k].value; });
+        try { localStorage.setItem(GKEY, JSON.stringify({ name: form.name.value, email: form.email.value, phone: form.phone.value })); } catch (e2) {}
         var orig = btn.textContent; btn.disabled = true; btn.textContent = "Signing up…";
         fetch("/api/tournament-signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })

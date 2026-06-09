@@ -34,9 +34,11 @@ module.exports = async (req, res) => {
   const phone = clean(body.phone, 60);
   const team = clean(body.team, 500);
   const notes = clean(body.notes, 2000);
+  const carts = parseInt(body.carts, 10);
   if (email) fields["Email"] = email;
   if (phone) fields["Phone"] = phone;
   if (team) fields["Team / Partners"] = team;
+  if (!isNaN(carts) && carts >= 0) fields["Carts"] = carts;
   if (notes) fields["Notes"] = notes;
 
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}`;

@@ -247,8 +247,10 @@
           var notes = esc(f["Notes"] || "");
           var email = esc(f["Email"] || "");
           var phone = esc(f["Phone"] || "");
+          var carts = (f["Carts"] !== undefined && f["Carts"] !== "") ? esc(f["Carts"]) : "";
           var status = esc(f["Status"] || "New");
           var when = fmtDate(rec.created);
+          var meta2 = [tour, (carts !== "" ? carts + " cart(s)" : "")].filter(Boolean).join(" · ");
           var line = [];
           if (team) line.push("Team: " + team);
           if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
@@ -258,7 +260,7 @@
           return '<article class="nom">'
             + '<div class="nom__head"><span class="nom__name">' + name + "</span>"
             + '<span class="nom__status nom__status--' + cls + '">' + status + "</span></div>"
-            + (tour ? '<div class="nom__meta">' + tour + "</div>" : "")
+            + (meta2 ? '<div class="nom__meta">' + meta2 + "</div>" : "")
             + (notes ? '<p class="nom__why">' + notes + "</p>" : "")
             + (line.length ? '<div class="nom__by">' + line.join(" · ") + "</div>" : "")
             + "</article>";
