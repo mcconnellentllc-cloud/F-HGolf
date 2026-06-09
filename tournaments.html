@@ -308,50 +308,6 @@
       });
     })();
   </script>
-  <script>
-    (function () {
-      // Per-tournament format + capacity. cap = max number of SIGN-UP ENTRIES
-      // (= teams for team events, players for individual). Add the rest as the
-      // board confirms each tournament's style.
-      var TMETA = {
-        "Haxtun Bulldog (July 25)": { unit: "teams", format: "4-man (4 players per team)" },
-        "Couple's Tournament (June 27)": { cap: 24, unit: "teams", format: "2-player couples (one entry = a team)" },
-        "Couple's Tournament (Aug 22)": { cap: 24, unit: "teams", format: "2-player couples (one entry = a team)" },
-        "Cornfest Tournament (Sept 27)": { unit: "teams", format: "2-man (2 players per team)" }
-      };
-
-      function renderFull(counts) {
-        counts = counts || {};
-        var items = document.querySelectorAll(".schedule li[data-key]");
-        Array.prototype.forEach.call(items, function (li) {
-          var key = li.getAttribute("data-key");
-          var meta = TMETA[key];
-          if (!meta || !meta.cap) return;
-          var n = counts[key] || 0;
-          var pct = Math.min(100, Math.round((n / meta.cap) * 100));
-          var full = n >= meta.cap;
-          var bar = document.createElement("div");
-          bar.className = "schedule__full" + (full ? " is-full" : "");
-          bar.innerHTML = '<div class="schedule__track"><div class="schedule__fill" style="width:' + pct + '%"></div></div>'
-            + '<span class="schedule__pct">' + (full ? "Full" : (n + " of " + meta.cap + " " + meta.unit + " · " + pct + "% full")) + "</span>";
-          li.appendChild(bar);
-        });
-      }
-      fetch("/api/tournament-counts").then(function (r) { return r.json(); })
-        .then(function (res) { renderFull(res && res.counts); })
-        .catch(function () { renderFull({}); });
-
-      // Show the format of the selected tournament on the sign-up form
-      var sel = document.querySelector('#tourneyForm select[name="tournament"]');
-      var hint = document.getElementById("tourneyFormat");
-      if (sel && hint) {
-        sel.addEventListener("change", function () {
-          var m = TMETA[sel.value];
-          if (m && m.format) { hint.hidden = false; hint.textContent = "Format: " + m.format + (m.cap ? " · " + m.cap + " " + m.unit + " max" : ""); }
-          else { hint.hidden = true; }
-        });
-      }
-    })();
-  </script>
+  <script src="js/tournaments.js"></script>
 </body>
 </html>
