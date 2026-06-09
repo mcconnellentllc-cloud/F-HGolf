@@ -91,6 +91,29 @@
           <div class="noms__list" id="touList"><p class="noms__msg">Loading sign-ups…</p></div>
         </section>
 
+        <section class="noms" aria-label="Tournament finances" id="financePanel">
+          <div class="noms__bar">
+            <h3 class="noms__title">Tournament Finances</h3>
+          </div>
+          <div class="calc">
+            <div class="calc__inputs">
+              <label class="form__field"><span class="form__label">Players</span><input type="number" id="cPlayers" min="0" step="1" value="0" /></label>
+              <label class="form__field"><span class="form__label">Entry fee / player</span><input type="number" id="cEntry" min="0" step="1" value="0" /></label>
+              <label class="form__field"><span class="form__label">To course / player</span><input type="number" id="cCourse" min="0" step="1" value="0" /></label>
+              <label class="form__field"><span class="form__label">Meal / player</span><input type="number" id="cMeal" min="0" step="1" value="0" /></label>
+              <label class="form__field"><span class="form__label">Flights</span><input type="number" id="cFlights" min="1" step="1" value="1" /></label>
+            </div>
+            <div class="calc__out">
+              <div class="calc__row"><span>Total entry revenue</span><strong id="oEntry">$0</strong></div>
+              <div class="calc__row"><span>Pay the course</span><strong id="oCourse">$0</strong></div>
+              <div class="calc__row"><span>Meal check to course</span><strong id="oMeal">$0</strong></div>
+              <div class="calc__row calc__row--prize"><span>Prize money (payout)</span><strong id="oPrize">$0</strong></div>
+              <div class="calc__row"><span>Prize money per flight</span><strong id="oPerFlight">$0</strong></div>
+            </div>
+            <p class="calc__hint">Prize money = entry revenue − course − meal. Click "→ Calculator" on a tournament above to load its player count.</p>
+          </div>
+        </section>
+
         <div class="admin-grid">
           <a class="admin-card" href="https://airtable.com/appAwEdD9m6OVN6lg/tbl81DbX9ptmRrwQi" target="_blank" rel="noopener">
             <span class="admin-card__tag">Airtable</span>
@@ -239,33 +262,80 @@
       function renderTournaments(records) {
         if (!records || !records.length) { touList.innerHTML = '<p class="noms__msg">No sign-ups yet.</p>'; touCount.textContent = ""; return; }
         touCount.textContent = "(" + records.length + ")";
-        touList.innerHTML = records.map(function (rec) {
-          var f = rec.fields || {};
-          var name = esc(f["Player Name"] || "(no name)");
-          var tour = esc(f["Tournament"] || "");
-          var team = esc(f["Team / Partners"] || "");
-          var notes = esc(f["Notes"] || "");
-          var email = esc(f["Email"] || "");
-          var phone = esc(f["Phone"] || "");
-          var carts = (f["Carts"] !== undefined && f["Carts"] !== "") ? esc(f["Carts"]) : "";
-          var status = esc(f["Status"] || "New");
-          var when = fmtDate(rec.created);
-          var meta2 = [tour, (carts !== "" ? carts + " cart(s)" : "")].filter(Boolean).join(" · ");
-          var line = [];
-          if (team) line.push("Team: " + team);
-          if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
-          if (phone) line.push('<a href="tel:' + phone.replace(/[^0-9+]/g, "") + '">' + phone + "</a>");
-          if (when) line.push(when);
-          var cls = status.toLowerCase().replace(/[^a-z]/g, "");
-          return '<article class="nom">'
-            + '<div class="nom__head"><span class="nom__name">' + name + "</span>"
-            + '<span class="nom__status nom__status--' + cls + '">' + status + "</span></div>"
-            + (meta2 ? '<div class="nom__meta">' + meta2 + "</div>" : "")
-            + (notes ? '<p class="nom__why">' + notes + "</p>" : "")
-            + (line.length ? '<div class="nom__by">' + line.join(" · ") + "</div>" : "")
-            + "</article>";
+        var groups = {};
+        records.forEach(function (rec) {
+          var t = (rec.fields && rec.fields["Tournament"]) || "Other";
+          (groups[t] = groups[t] || []).push(rec);
+        });
+        touList.innerHTML = Object.keys(groups).sort().map(function (t) {
+          var recs = groups[t];
+          var emails = recs.map(function (r) { return (r.fields && r.fields["Email"]) || ""; }).filter(Boolean).join(",");
+          var carts = recs.reduce(function (s, r) { return s + (parseInt(r.fields && r.fields["Carts"], 10) || 0); }, 0);
+          var rows = recs.map(function (rec) {
+            var f = rec.fields || {};
+            var name = esc(f["Player Name"] || "(no name)");
+            var team = esc(f["Team / Partners"] || "");
+            var notes = esc(f["Notes"] || "");
+            var email = esc(f["Email"] || "");
+            var phone = esc(f["Phone"] || "");
+            var c = (f["Carts"] !== undefined && f["Carts"] !== "") ? esc(f["Carts"]) : "";
+            var status = esc(f["Status"] || "New");
+            var when = fmtDate(rec.created);
+            var line = [];
+            if (team) line.push("Team: " + team);
+            if (c !== "") line.push(c + " cart(s)");
+            if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
+            if (phone) line.push('<a href="tel:' + phone.replace(/[^0-9+]/g, "") + '">' + phone + "</a>");
+            if (when) line.push(when);
+            var cls = status.toLowerCase().replace(/[^a-z]/g, "");
+            return '<article class="nom">'
+              + '<div class="nom__head"><span class="nom__name">' + name + "</span>"
+              + '<span class="nom__status nom__status--' + cls + '">' + status + "</span></div>"
+              + (notes ? '<p class="nom__why">' + notes + "</p>" : "")
+              + (line.length ? '<div class="nom__by">' + line.join(" · ") + "</div>" : "")
+              + "</article>";
+          }).join("");
+          var actions = '<button type="button" class="btn btn--solid tgroup__calc" data-players="' + recs.length + '">&rarr; Calculator</button>'
+            + (emails ? ' <a class="btn btn--solid" href="mailto:?bcc=' + encodeURIComponent(emails) + "&subject=" + encodeURIComponent("F&H — " + t) + '">Email all</a>' : "");
+          return '<div class="tgroup">'
+            + '<div class="tgroup__head"><h4 class="tgroup__name">' + esc(t) + ' <span class="tgroup__count">' + recs.length + " signed up" + (carts ? " · " + carts + " carts" : "") + "</span></h4>"
+            + '<div class="tgroup__actions">' + actions + "</div></div>"
+            + rows + "</div>";
         }).join("");
+        Array.prototype.forEach.call(touList.querySelectorAll(".tgroup__calc"), function (b) {
+          b.addEventListener("click", function () { setCalcPlayers(parseInt(b.getAttribute("data-players"), 10) || 0); });
+        });
       }
+
+      // ---- Tournament finance calculator (self-contained, no backend) ----
+      function money(n) { n = isFinite(n) ? n : 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+      function calcId(id) { return document.getElementById(id); }
+      function setCalcPlayers(n) {
+        var p = calcId("cPlayers");
+        if (p) { p.value = n; recalc(); var panel = calcId("financePanel"); if (panel) panel.scrollIntoView({ behavior: "smooth", block: "center" }); }
+      }
+      function recalc() {
+        var num = function (id) { var el = calcId(id); return el ? (parseFloat(el.value) || 0) : 0; };
+        var players = num("cPlayers"), entry = num("cEntry"), course = num("cCourse"), meal = num("cMeal");
+        var flights = Math.max(1, num("cFlights"));
+        var totalEntry = players * entry;
+        var toCourse = players * course;
+        var mealCheck = players * meal;
+        var prize = totalEntry - toCourse - mealCheck;
+        var perFlight = prize / flights;
+        var set = function (id, v) { var el = calcId(id); if (el) el.textContent = v; };
+        set("oEntry", money(totalEntry));
+        set("oCourse", money(toCourse));
+        set("oMeal", money(mealCheck));
+        set("oPrize", money(prize));
+        set("oPerFlight", money(perFlight));
+      }
+      (function initCalc() {
+        ["cPlayers", "cEntry", "cCourse", "cMeal", "cFlights"].forEach(function (id) {
+          var el = calcId(id); if (el) el.addEventListener("input", recalc);
+        });
+        recalc();
+      })();
 
       function loadTournaments() {
         if (!touList) return;
