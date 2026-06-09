@@ -181,9 +181,10 @@ Airtable and appear in the Staff Portal:
 
 **Setup:** create an Airtable table named **`Tournament Signups`** in the same base
 with fields: `Player Name` (text), `Tournament` (single select or text),
-`Email` (email), `Phone` (phone), `Team / Partners` (long text), `Notes` (long
-text), `Status` (single select: New, Confirmed, Paid, Cancelled), `Submitted At`
-(created time). Override the table name with the optional `TOURNAMENTS_TABLE`
+`Email` (email), `Phone` (phone), `Team / Partners` (long text), `Carts`
+(number), `Notes` (long text), `Status` (single select: New, Confirmed, Paid,
+Cancelled), `Submitted At` (created time). The form also remembers a returning
+golfer's name/email/phone in their own browser (localStorage) to autofill. Override the table name with the optional `TOURNAMENTS_TABLE`
 Vercel env var. Uses the same `AIRTABLE_TOKEN` / `AIRTABLE_BASE_ID` / `ADMIN_KEY`.
 
 ## Reviews
