@@ -535,6 +535,28 @@ img { max-width: 100%; display: block; }
 .nom__by { font-size: 0.85rem; color: var(--muted); }
 .nom__by a { color: var(--accent-green); }
 
+/* Tournament groups in the portal */
+.tgroup { margin-bottom: 1.75rem; }
+.tgroup__head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.7rem; padding-bottom: 0.45rem; border-bottom: 2px solid var(--line); }
+.tgroup__name { font-family: var(--font-display); color: var(--primary-green); font-size: 1.18rem; }
+.tgroup__count { font-family: var(--font-body); font-weight: 600; font-size: 0.85rem; color: var(--muted); }
+.tgroup__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.tgroup__actions .btn { padding: 0.5rem 1rem; font-size: 0.88rem; }
+.tgroup .nom { margin-bottom: 0.6rem; }
+
+/* Tournament finance calculator */
+.calc { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow-sm); }
+.calc__inputs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.9rem; margin-bottom: 1.25rem; }
+.calc input { font-family: var(--font-body); font-size: 1rem; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 0.5rem 0.6rem; width: 100%; }
+.calc input:focus { outline: none; border-color: var(--primary-green); box-shadow: 0 0 0 3px rgba(27, 94, 32, 0.12); }
+.calc__out { display: grid; gap: 0.4rem; max-width: 440px; }
+.calc__row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--line); }
+.calc__row strong { font-family: var(--font-display); font-size: 1.1rem; }
+.calc__row--prize { background: var(--light-green); border-radius: 10px; border-bottom: none; }
+.calc__row--prize strong { color: var(--primary-green); }
+.calc__hint { margin-top: 1rem; font-size: 0.85rem; color: var(--muted); }
+@media (max-width: 760px) { .calc__inputs { grid-template-columns: repeat(2, 1fr); } }
+
 @media (max-width: 760px) { .admin-grid { grid-template-columns: 1fr; } }
 
 /* ---------- Reviews page (reviews.html) ---------- */
