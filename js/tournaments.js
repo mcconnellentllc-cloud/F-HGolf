@@ -6,22 +6,31 @@
    individual events). Add/adjust as the board confirms each tournament. */
 (function () {
   var TMETA = {
-    "Par 4 the Future (May 16)": { cap: 22, unit: "teams", format: "4-person scramble", fee: "$400/team", note: "Fleming Class of 2032 · lunch included" },
-    "M&M Invitational (May 23)": { format: "invitational", note: "by invite only — no sign-up needed" },
-    "Haxtun Daycare (June 6)": { cap: 22, unit: "teams", format: "4-person scramble", fee: "$400/team", note: "Little Sprouts Learning Center · lunch provided" },
-    "John Everitt Memorial (June 13)": { cap: 22, unit: "teams", format: "4-man scramble", note: "8th annual · proceeds fund course improvements" },
-    "Couple's Tournament (June 27)": { cap: 24, unit: "teams", format: "2-player couples (one entry = a team)" },
-    "Red, White & Blue (July 4)": { cap: 22, unit: "teams", format: "3-man scramble", fee: "$225/team ($75/person)", note: "shotgun 9 AM · 3 flights, cash payout" },
-    "Adult/Child Tournament (July 12)": { cap: 22, unit: "teams", format: "adult + child team", note: "3 PM start" },
-    "Junior Golf Camp (July 15–17)": { cap: 50, unit: "spots", format: "junior camp, ages 6–13", fee: "$70" },
-    "2-Lady Scramble (July 23)": { cap: 22, unit: "teams", format: "2-lady scramble" },
-    "Haxtun Bulldog (July 25)": { cap: 22, unit: "teams", format: "4-man (4 players per team)" },
-    "Founder's Tournament (Aug 8–9)": { cap: 48, unit: "teams", note: "2-day tournament · 2 shotgun starts · Calcutta" },
-    "Couple's Tournament (Aug 22)": { cap: 24, unit: "teams", format: "2-player couples (one entry = a team)" },
-    "Haxtun Fire (Sept 19)": { cap: 22, unit: "teams", format: "4-man scramble" },
-    "Cornfest Tournament (Sept 27)": { cap: 22, unit: "teams", format: "2-man (2 players per team)" },
+    "Par 4 the Future (May 16)": { end: "2026-05-16", cap: 22, unit: "teams", format: "4-person scramble", fee: "$400/team", note: "Fleming Class of 2032 · lunch included" },
+    "M&M Invitational (May 23)": { end: "2026-05-23", format: "invitational", note: "by invite only — no sign-up needed" },
+    "Haxtun Daycare (June 6)": { end: "2026-06-06", cap: 22, unit: "teams", format: "4-person scramble", fee: "$400/team", note: "Little Sprouts Learning Center · lunch provided" },
+    "John Everitt Memorial (June 13)": { end: "2026-06-13", cap: 22, unit: "teams", format: "4-man scramble", note: "8th annual · proceeds fund course improvements" },
+    "Couple's Tournament (June 27)": { end: "2026-06-27", cap: 24, unit: "teams", format: "2-player couples (one entry = a team)" },
+    "Red, White & Blue (July 4)": { end: "2026-07-04", cap: 22, unit: "teams", format: "3-man scramble", fee: "$225/team ($75/person)", note: "shotgun 9 AM · 3 flights, cash payout" },
+    "Adult/Child Tournament (July 12)": { end: "2026-07-12", cap: 22, unit: "teams", format: "adult + child team", note: "3 PM start" },
+    "Junior Golf Camp (July 15–17)": { end: "2026-07-17", cap: 50, unit: "spots", format: "junior camp, ages 6–13", fee: "$70" },
+    "2-Lady Scramble (July 23)": { end: "2026-07-23", cap: 22, unit: "teams", format: "2-lady scramble" },
+    "Haxtun Bulldog (July 25)": { end: "2026-07-25", cap: 22, unit: "teams", format: "4-man (4 players per team)" },
+    "Founder's Tournament (Aug 8–9)": { end: "2026-08-09", cap: 48, unit: "teams", note: "2-day tournament · 2 shotgun starts · Calcutta" },
+    "Couple's Tournament (Aug 22)": { end: "2026-08-22", cap: 24, unit: "teams", format: "2-player couples (one entry = a team)" },
+    "Haxtun Fire (Sept 19)": { end: "2026-09-19", cap: 22, unit: "teams", format: "4-man scramble" },
+    "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", format: "2-man (2 players per team)" },
     "Hole 8 Raffle Contest": { format: "tee shot into the circle on #8", fee: "$5/person · $20/team", note: "2 entries max · two winners" }
   };
+
+  // An event is "past" the day after its end date (so the bar stays live all
+  // day on the day of the event, then disappears).
+  function isPast(m) {
+    if (!m || !m.end) return false;
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var end = new Date(m.end + "T00:00:00");
+    return end < today;
+  }
 
   function metaLine(m) {
     var parts = [];
@@ -39,8 +48,17 @@
       var m = TMETA[li.getAttribute("data-key")];
       if (!m) return;
       li.setAttribute("data-enhanced", "1");
+      var past = isPast(m);
       var ml = metaLine(m);
       if (ml) { var d = document.createElement("div"); d.className = "schedule__meta"; d.textContent = ml; li.appendChild(d); }
+      if (past) {
+        li.classList.add("is-past");
+        var done = document.createElement("span");
+        done.className = "schedule__done";
+        done.textContent = "Completed";
+        li.appendChild(done);
+        return; // no "% full" bar for events that are over
+      }
       if (m.cap) {
         var n = counts[li.getAttribute("data-key")] || 0;
         var pct = Math.min(100, Math.round((n / m.cap) * 100));

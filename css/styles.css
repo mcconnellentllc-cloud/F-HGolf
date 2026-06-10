@@ -305,6 +305,9 @@ img { max-width: 100%; display: block; }
 .schedule__note { max-width: 640px; margin: 1.5rem auto 0; text-align: center; font-size: 0.85rem; color: var(--muted); }
 .schedule li { flex-wrap: wrap; }
 .schedule__meta { flex-basis: 100%; font-size: 0.85rem; color: var(--muted); margin-top: 0.2rem; font-weight: 600; }
+.schedule li.is-past { opacity: 0.7; }
+.schedule__done { display: inline-flex; align-items: center; gap: 0.3rem; margin-top: 0.4rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.schedule__done::before { content: "✓"; color: var(--primary-green); font-weight: 700; }
 .schedule__full { flex-basis: 100%; display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem; }
 .schedule__track { flex: 1 1 auto; max-width: 340px; height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
 .schedule__fill { height: 100%; background: linear-gradient(90deg, var(--accent-green), var(--primary-green)); border-radius: 999px; transition: width 0.5s ease; }
