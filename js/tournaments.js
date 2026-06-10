@@ -16,7 +16,7 @@
     "Junior Golf Camp (July 15–17)": { cap: 50, unit: "spots", format: "junior camp, ages 6–13", fee: "$70" },
     "2-Lady Scramble (July 23)": { cap: 22, unit: "teams", format: "2-lady scramble" },
     "Haxtun Bulldog (July 25)": { cap: 22, unit: "teams", format: "4-man (4 players per team)" },
-    "Founder's Tournament (Aug 8–9)": { cap: 44, unit: "teams", note: "2-day tournament · 2 shotgun starts · Calcutta" },
+    "Founder's Tournament (Aug 8–9)": { cap: 48, unit: "teams", note: "2-day tournament · 2 shotgun starts · Calcutta" },
     "Couple's Tournament (Aug 22)": { cap: 24, unit: "teams", format: "2-player couples (one entry = a team)" },
     "Haxtun Fire (Sept 19)": { cap: 22, unit: "teams", format: "4-man scramble" },
     "Cornfest Tournament (Sept 27)": { cap: 22, unit: "teams", format: "2-man (2 players per team)" },
