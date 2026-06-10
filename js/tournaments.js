@@ -7,8 +7,9 @@
 (function () {
   var TMETA = {
     "Par 4 the Future (May 16)": { cap: 22, unit: "teams", format: "4-person scramble", fee: "$400/team", note: "Fleming Class of 2032 · lunch included" },
+    "M&M Invitational (May 23)": { format: "invitational", note: "by invite only — no sign-up needed" },
     "Haxtun Daycare (June 6)": { cap: 22, unit: "teams", format: "4-person scramble", fee: "$400/team", note: "Little Sprouts Learning Center · lunch provided" },
-    "John Everitt Memorial (June 13)": { note: "8th annual · proceeds fund course improvements" },
+    "John Everitt Memorial (June 13)": { cap: 22, unit: "teams", format: "4-man scramble", note: "8th annual · proceeds fund course improvements" },
     "Couple's Tournament (June 27)": { cap: 24, unit: "teams", format: "2-player couples (one entry = a team)" },
     "Red, White & Blue (July 4)": { cap: 22, unit: "teams", format: "3-man scramble", fee: "$225/team ($75/person)", note: "shotgun 9 AM · 3 flights, cash payout" },
     "Adult/Child Tournament (July 12)": { cap: 22, unit: "teams", format: "adult + child team", note: "3 PM start" },
@@ -17,6 +18,7 @@
     "Haxtun Bulldog (July 25)": { cap: 22, unit: "teams", format: "4-man (4 players per team)" },
     "Founder's Tournament (Aug 8–9)": { cap: 22, unit: "teams", note: "2-day tournament · Calcutta" },
     "Couple's Tournament (Aug 22)": { cap: 24, unit: "teams", format: "2-player couples (one entry = a team)" },
+    "Haxtun Fire (Sept 19)": { cap: 22, unit: "teams", format: "4-man scramble" },
     "Cornfest Tournament (Sept 27)": { cap: 22, unit: "teams", format: "2-man (2 players per team)" },
     "Hole 8 Raffle Contest": { format: "tee shot into the circle on #8", fee: "$5/person · $20/team", note: "2 entries max · two winners" }
   };
