@@ -226,6 +226,7 @@
   </footer>
 
   <script src="js/main.js"></script>
+  <script src="js/api.js"></script>
   <script>
     (function () {
       var form = document.getElementById("tourneyForm");
@@ -269,7 +270,7 @@
         ["tournament", "name", "team", "email", "phone", "carts", "notes", "company"].forEach(function (k) { if (form[k]) data[k] = form[k].value; });
         try { localStorage.setItem(GKEY, JSON.stringify({ name: form.name.value, email: form.email.value, phone: form.phone.value })); } catch (e2) {}
         var orig = btn.textContent; btn.disabled = true; btn.textContent = "Signing up…";
-        fetch("/api/tournament-signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
+        fetch(FH_API.url("/api/tournament-signup"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
             if (res.j && res.j.ok) { form.hidden = true; success.hidden = false; success.scrollIntoView({ behavior: "smooth", block: "center" }); }
