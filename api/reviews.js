@@ -6,6 +6,7 @@
 // Env vars: AIRTABLE_TOKEN (data.records:read), AIRTABLE_BASE_ID, REVIEWS_TABLE.
 
 module.exports = async (req, res) => {
+  if (require("./_cors")(req, res)) return;
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ ok: false, error: "Method not allowed" });

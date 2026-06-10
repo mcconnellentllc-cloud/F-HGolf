@@ -78,7 +78,7 @@
     if (!hasSchedule && !sel) return;
 
     if (hasSchedule) {
-      fetch("/api/tournament-counts").then(function (r) { return r.json(); })
+      fetch(FH_API.url("/api/tournament-counts")).then(function (r) { return r.json(); })
         .then(function (res) { render(res && res.counts); })
         .catch(function () { render({}); });
     }

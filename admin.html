@@ -193,6 +193,7 @@
     </div>
   </footer>
 
+  <script src="js/api.js"></script>
   <script>
     (function () {
       var FLAG = "fh_admin_ok";
@@ -249,7 +250,7 @@
       function loadNominations() {
         if (!list) return;
         list.innerHTML = '<p class="noms__msg">Loading nominations…</p>';
-        fetch("/api/nominations", { headers: { "x-admin-key": getKey() } })
+        fetch(FH_API.url("/api/nominations"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
             if (res.j && res.j.ok) { render(res.j.records); }
@@ -340,7 +341,7 @@
       function loadTournaments() {
         if (!touList) return;
         touList.innerHTML = '<p class="noms__msg">Loading sign-ups…</p>';
-        fetch("/api/tournament-signups", { headers: { "x-admin-key": getKey() } })
+        fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
             if (res.j && res.j.ok) { renderTournaments(res.j.records); }

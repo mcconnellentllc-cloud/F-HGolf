@@ -5,6 +5,7 @@
 //      TOURNAMENTS_TABLE (defaults to "Tournament Signups").
 
 module.exports = async (req, res) => {
+  if (require("./_cors")(req, res)) return;
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ ok: false, error: "Method not allowed" });
