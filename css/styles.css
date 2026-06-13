@@ -643,3 +643,10 @@ img { max-width: 100%; display: block; }
   .gallery__grid { grid-template-columns: 1fr; }
   .story__cta { flex-direction: column; align-items: flex-start; }
 }
+
+/* ===================== Site-wide under-construction notice ===================== */
+.notice { background: var(--red-deep); color: #fff; }
+.notice__inner { max-width: 1200px; margin: 0 auto; padding: 0.55rem 1.25rem; display: flex; gap: 0.45rem 0.85rem; align-items: center; justify-content: center; flex-wrap: wrap; text-align: center; font-size: 0.88rem; line-height: 1.45; }
+.notice__tag { display: inline-block; background: #fff; color: var(--red-deep); font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; }
+.notice__msg { font-weight: 600; }
+.notice a { color: #fff; text-decoration: underline; font-weight: 800; white-space: nowrap; }
