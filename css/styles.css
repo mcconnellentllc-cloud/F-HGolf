@@ -650,3 +650,16 @@ img { max-width: 100%; display: block; }
 .notice__tag { display: inline-block; background: #fff; color: var(--red-deep); font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; }
 .notice__msg { font-weight: 600; }
 .notice a { color: #fff; text-decoration: underline; font-weight: 800; white-space: nowrap; }
+
+/* ===================== Projects of F&H ===================== */
+.projects { margin-top: 2.5rem; }
+.project { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 1.6rem 1.75rem; }
+.project--feature { border-left: 5px solid var(--red); background: var(--paper); box-shadow: var(--shadow-md); padding: 2rem 2.1rem; }
+.project__tag { display: inline-block; background: var(--red); color: #fff; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.2rem 0.6rem; border-radius: 999px; margin-bottom: 0.7rem; }
+.project__tag--done { background: var(--primary-green); }
+.project__title { font-size: 1.5rem; color: var(--primary-green); margin-bottom: 0.55rem; }
+.project--feature .project__title { font-size: clamp(1.8rem, 4vw, 2.3rem); }
+.project p { margin-bottom: 0.85rem; }
+.project p:last-child { margin-bottom: 0; }
+.project__cta { font-weight: 700; color: var(--ink); }
+.project__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; margin-top: 2rem; }
