@@ -663,3 +663,6 @@ img { max-width: 100%; display: block; }
 .project p:last-child { margin-bottom: 0; }
 .project__cta { font-weight: 700; color: var(--ink); }
 .project__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; margin-top: 2rem; }
+
+.project__figure { margin: -2rem -2.1rem 1.4rem; border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; }
+.project__figure img { width: 100%; height: clamp(220px, 42vw, 420px); object-fit: cover; display: block; }
