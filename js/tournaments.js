@@ -40,6 +40,34 @@
     return parts.join(" · ");
   }
 
+  // Pre-select a tournament in the sign-up form and scroll to it. On pages
+  // without the form (e.g. the homepage), callers link to tournaments.html?t=…
+  function goToSignup(key) {
+    var sel = document.querySelector('select[name="tournament"]');
+    if (sel) { sel.value = key; sel.dispatchEvent(new Event("change")); }
+    var s = document.getElementById("signup");
+    if (s) s.scrollIntoView({ behavior: "smooth", block: "start" });
+    var nameField = document.querySelector('#tourneyForm [name="name"]');
+    if (nameField) setTimeout(function () { nameField.focus(); }, 450);
+  }
+
+  // A "Sign Up" control for a schedule row: an in-page button when the form is
+  // present, otherwise a link to the tournaments page pre-selecting the event.
+  function signupControl(key) {
+    var act;
+    if (document.querySelector('select[name="tournament"]')) {
+      act = document.createElement("button");
+      act.type = "button";
+      act.addEventListener("click", function () { goToSignup(key); });
+    } else {
+      act = document.createElement("a");
+      act.href = "tournaments.html?t=" + encodeURIComponent(key) + "#signup";
+    }
+    act.className = "btn btn--solid schedule__signup";
+    act.textContent = "Sign Up";
+    return act;
+  }
+
   function render(counts) {
     counts = counts || {};
     var items = document.querySelectorAll(".schedule li[data-key]");
@@ -69,18 +97,72 @@
           + '<span class="schedule__pct">' + (full ? "Full" : (n + " of " + m.cap + " " + (m.unit || "spots") + " · " + pct + "% full")) + "</span>";
         li.appendChild(bar);
       }
+      // Sign-up button for every remaining, sign-up-able event (skip invitationals).
+      if (m.format !== "invitational") {
+        li.appendChild(signupControl(li.getAttribute("data-key")));
+      }
     });
+  }
+
+  // The next upcoming sign-up event (chronological by end date; TMETA is
+  // declared in date order). Skips events with no cap (e.g. invitational/raffle).
+  function nextKey() {
+    var keys = Object.keys(TMETA);
+    for (var i = 0; i < keys.length; i++) {
+      var m = TMETA[keys[i]];
+      if (m.end && m.cap && !isPast(m)) return keys[i];
+    }
+    return null;
+  }
+
+  // Pull the display name + date out of a key like "Couple's Tournament (June 27)".
+  function splitKey(key) {
+    var mm = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(key);
+    return mm ? { name: mm[1], date: mm[2] } : { name: key, date: "" };
+  }
+
+  function renderNext(counts) {
+    counts = counts || {};
+    var card = document.getElementById("nextUpCard");
+    var sect = document.getElementById("nextup");
+    if (!card || !sect) return;
+    var key = nextKey();
+    if (!key) { sect.hidden = true; return; }
+    var m = TMETA[key], info = splitKey(key);
+
+    var bar = "";
+    var n = counts[key] || 0;
+    var pct = Math.min(100, Math.round((n / m.cap) * 100));
+    var full = n >= m.cap;
+    bar = '<div class="schedule__full' + (full ? " is-full" : "") + '">'
+      + '<div class="schedule__track"><div class="schedule__fill" style="width:' + pct + '%"></div></div>'
+      + '<span class="schedule__pct">' + (full ? "Full" : (n + " of " + m.cap + " " + (m.unit || "spots") + " · " + pct + "% full")) + "</span></div>";
+
+    var detail = metaLine(m);
+    card.innerHTML =
+      '<span class="nextup__tag">Next Up</span>'
+      + '<p class="nextup__date">' + info.date + "</p>"
+      + '<h3 class="nextup__title">' + info.name + "</h3>"
+      + (detail ? '<p class="nextup__detail">' + detail + "</p>" : "")
+      + (m.note ? '<p class="nextup__note">' + m.note + "</p>" : "")
+      + bar
+      + '<button type="button" class="btn btn--primary nextup__btn">Sign up for this tournament &rarr;</button>';
+    sect.hidden = false;
+
+    var btn = card.querySelector(".nextup__btn");
+    if (btn) btn.addEventListener("click", function () { goToSignup(key); });
   }
 
   function init() {
     var hasSchedule = document.querySelector(".schedule li[data-key]");
     var sel = document.querySelector('select[name="tournament"]');
-    if (!hasSchedule && !sel) return;
+    var hasNext = document.getElementById("nextUpCard");
+    if (!hasSchedule && !sel && !hasNext) return;
 
-    if (hasSchedule) {
+    if (hasSchedule || hasNext) {
       fetch(FH_API.url("/api/tournament-counts")).then(function (r) { return r.json(); })
-        .then(function (res) { render(res && res.counts); })
-        .catch(function () { render({}); });
+        .then(function (res) { render(res && res.counts); renderNext(res && res.counts); })
+        .catch(function () { render({}); renderNext({}); });
     }
 
     var hint = document.getElementById("tourneyFormat");
@@ -90,6 +172,11 @@
         if (!opt.value) return; // keep the "— choose —" placeholder
         if (isPast(TMETA[opt.value])) opt.remove();
       });
+      // Pre-select from ?t=… (used by Sign Up links coming from the homepage).
+      try {
+        var t = new URLSearchParams(window.location.search).get("t");
+        if (t && TMETA[t] && !isPast(TMETA[t])) { sel.value = t; sel.dispatchEvent(new Event("change")); }
+      } catch (e) {}
     }
     if (sel && hint) {
       sel.addEventListener("change", function () {
