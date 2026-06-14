@@ -666,3 +666,27 @@ img { max-width: 100%; display: block; }
 
 .project__figure { margin: -2rem -2.1rem 1.4rem; border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; }
 .project__figure img { width: 100%; height: clamp(220px, 42vw, 420px); object-fit: cover; display: block; }
+
+/* ===================== Next-Up featured tournament ===================== */
+.nextup { padding-top: 2.6rem; padding-bottom: 0.5rem; }
+.nextup__card {
+  max-width: 640px; margin: 0 auto; text-align: center;
+  background: var(--paper); border: 1px solid var(--line);
+  border-top: 5px solid var(--red); border-radius: var(--radius);
+  box-shadow: var(--shadow-md); padding: 1.8rem 1.9rem;
+}
+.nextup__tag {
+  display: inline-block; background: var(--red); color: #fff;
+  font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em;
+  padding: 0.22rem 0.7rem; border-radius: 999px; margin-bottom: 0.7rem;
+}
+.nextup__date { font-weight: 700; color: var(--red); letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.85rem; margin-bottom: 0.15rem; }
+.nextup__title { font-size: clamp(1.7rem, 4vw, 2.3rem); color: var(--primary-green); line-height: 1.05; }
+.nextup__detail { color: var(--muted); margin-top: 0.4rem; }
+.nextup__note { color: var(--ink); margin-top: 0.2rem; font-style: italic; }
+.nextup__card .schedule__full { max-width: 360px; margin: 1.1rem auto 0; }
+.nextup__btn { margin-top: 1.3rem; }
+
+/* Per-row Sign Up button on the schedule */
+.schedule__signup { flex-basis: 100%; align-self: flex-start; margin-top: 0.6rem; padding: 0.5rem 1.2rem; font-size: 0.85rem; }
+.schedule li.is-past .schedule__signup { display: none; }
