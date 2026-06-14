@@ -717,3 +717,10 @@ img { max-width: 100%; display: block; }
 .gstep__title { color: var(--primary-green); font-size: 1.15rem; margin-bottom: 0.35rem; }
 .gstep p { color: #3a3b34; line-height: 1.65; }
 .gstep__examples { margin: 0.6rem 0 0.2rem; padding-left: 1.2rem; color: var(--muted); font-style: italic; line-height: 1.7; }
+
+/* ===================== "Scroll down to learn more" cue ===================== */
+.scroll-cue { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; margin-top: 2.4rem; text-decoration: none; color: var(--primary-green); font-weight: 700; letter-spacing: 0.02em; text-align: center; transition: color 0.2s ease; }
+.scroll-cue:hover { color: var(--red); }
+.scroll-cue__arrow { font-size: 1.5rem; line-height: 1; animation: scrollbob 1.6s ease-in-out infinite; }
+@keyframes scrollbob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .scroll-cue__arrow { animation: none; } }
