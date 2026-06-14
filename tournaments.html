@@ -200,6 +200,20 @@
       <div class="form__success" id="tourneySuccess" hidden>
         <h3>You're on the list! &#9971;</h3>
         <p>Thanks for signing up. We'll be in touch with format and entry-fee details before the event.</p>
+
+        <div class="paycard" id="tourneyPay">
+          <p class="paycard__amount" id="tourneyPayAmount" hidden></p>
+          <p class="paycard__lead">Pay your entry fee now by card &mdash; or settle up at the course.</p>
+          <div class="paycard__row">
+            <a class="btn btn--primary" id="tourneyPayBtn" href="#" target="_blank" rel="noopener">Pay by card &rarr;</a>
+            <div class="paycard__qr">
+              <img src="images/pay-qr.png" alt="QR code — scan to pay your F&H entry fee by card" />
+              <span class="pay__qr-label">Scan to Pay</span>
+            </div>
+          </div>
+          <p class="pay__note">Secure checkout processed by Deposyt. Enter your entry-fee amount at checkout.</p>
+        </div>
+
         <a class="btn btn--solid" href="index.html">Back to Home</a>
       </div>
     </div>
@@ -288,7 +302,18 @@
         fetch(FH_API.url("/api/tournament-signup"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { form.hidden = true; success.hidden = false; success.scrollIntoView({ behavior: "smooth", block: "center" }); }
+            if (res.j && res.j.ok) {
+              // Set up the card-payment block for the chosen tournament.
+              var payBtn = document.getElementById("tourneyPayBtn");
+              if (payBtn && window.FH_PAY_URL) payBtn.href = window.FH_PAY_URL;
+              var meta = window.FH_TMETA && window.FH_TMETA[data.tournament];
+              var amtEl = document.getElementById("tourneyPayAmount");
+              if (amtEl) {
+                if (meta && meta.fee) { amtEl.hidden = false; amtEl.textContent = "Entry fee: " + meta.fee; }
+                else { amtEl.hidden = true; }
+              }
+              form.hidden = true; success.hidden = false; success.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
             else {
               var code = res.status ? " (error " + res.status + ")" : "";
               status.textContent = (res.j && res.j.error) || ("Couldn't sign you up" + code + ". Please try again, or call (970) 774-6362.");

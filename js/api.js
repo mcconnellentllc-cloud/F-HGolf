@@ -13,4 +13,8 @@
     base: base,
     url: function (path) { return base + path; }
   };
+
+  /* Course's Deposyt hosted card-payment form (feeType=amount → payer enters the
+     amount). Shared by the Rates "Pay for Play" block and tournament sign-ups. */
+  window.FH_PAY_URL = "https://deposytdashboard.com/gateway/public/form?data=eyJkYmFJZCI6Ijg5MjY2IiwidGVybWluYWxJZCI6Ijc5MjcwMSIsInRocmVlZHMiOiJEaXNhYmxlZCIsInJldHVyblVybCI6IiIsInJldHVyblVybE5hdmlnYXRpb24iOiJ0b3AiLCJsb2dvIjpudWxsLCJ2aXNpYmxlTm90ZSI6bnVsbCwicmVxdWVzdENvbnRhY3RJbmZvIjoiWWVzIiwicmVxdWVzdEJpbGxpbmdJbmZvIjpudWxsLCJyZXF1ZXN0U2hpcHBpbmdJbmZvIjpudWxsLCJzZW5kUmVjZWlwdCI6IlllcyIsIm9yaWdpbiI6Ikhvc3RlZEZvcm0iLCJoYXNoIjoiZmZjYzliNTM2YWYwOTNlY2RkZjMxYmI4NjY1YTM5NGYiLCJjb250YWN0SW5mbyI6eyJjb250YWN0TmFtZSI6IiIsImNvbnRhY3RFbWFpbCI6IiIsImNvbnRhY3RQaG9uZSI6IiJ9fQ%3D%3D&feeType=amount";
 })();

@@ -22,6 +22,7 @@
     "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", format: "2-man (2 players per team)" },
     "Hole 8 Raffle Contest": { format: "tee shot into the circle on #8", fee: "$5/person · $20/team", note: "2 entries max · two winners" }
   };
+  window.FH_TMETA = TMETA; // shared with the sign-up success/payment block
 
   // An event is "past" the day after its end date (so the bar stays live all
   // day on the day of the event, then disappears).
