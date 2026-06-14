@@ -690,3 +690,11 @@ img { max-width: 100%; display: block; }
 /* Per-row Sign Up button on the schedule */
 .schedule__signup { flex-basis: 100%; align-self: flex-start; margin-top: 0.6rem; padding: 0.5rem 1.2rem; font-size: 0.85rem; }
 .schedule li.is-past .schedule__signup { display: none; }
+
+/* ===================== Tournament entry-fee card payment ===================== */
+.paycard { margin: 1.4rem 0; padding: 1.3rem 1.4rem; background: var(--paper); border: 1px solid var(--line); border-left: 5px solid var(--red); border-radius: var(--radius); text-align: left; }
+.paycard__amount { font-family: var(--font-display); font-size: 1.25rem; color: var(--primary-green); margin-bottom: 0.3rem; }
+.paycard__lead { color: var(--ink); margin-bottom: 0.9rem; font-weight: 600; }
+.paycard__row { display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; }
+.paycard__qr { text-align: center; }
+.paycard__qr img { width: 120px; height: 120px; display: block; border: 1px solid var(--line); border-radius: 10px; padding: 6px; background: #fff; }
