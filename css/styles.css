@@ -709,3 +709,11 @@ img { max-width: 100%; display: block; }
 .buildteam__steps { list-style: decimal; }
 .buildteam__list li, .buildteam__steps li { margin-bottom: 0.45rem; }
 .buildteam__foot { margin-top: 1.2rem; font-style: italic; color: var(--muted); }
+
+/* ===================== Staff: step-by-step builder guide ===================== */
+.gsteps { list-style: none; counter-reset: gstep; padding: 0; max-width: 760px; }
+.gstep { counter-increment: gstep; position: relative; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 1.3rem 1.4rem 1.3rem 3.6rem; margin-bottom: 1rem; }
+.gstep::before { content: counter(gstep); position: absolute; left: 1rem; top: 1.25rem; width: 1.9rem; height: 1.9rem; background: var(--red); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
+.gstep__title { color: var(--primary-green); font-size: 1.15rem; margin-bottom: 0.35rem; }
+.gstep p { color: #3a3b34; line-height: 1.65; }
+.gstep__examples { margin: 0.6rem 0 0.2rem; padding-left: 1.2rem; color: var(--muted); font-style: italic; line-height: 1.7; }
