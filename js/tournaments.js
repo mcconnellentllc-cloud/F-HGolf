@@ -84,6 +84,13 @@
     }
 
     var hint = document.getElementById("tourneyFormat");
+    if (sel) {
+      // Drop tournaments that are already over so they can't be signed up for.
+      Array.prototype.slice.call(sel.options).forEach(function (opt) {
+        if (!opt.value) return; // keep the "— choose —" placeholder
+        if (isPast(TMETA[opt.value])) opt.remove();
+      });
+    }
     if (sel && hint) {
       sel.addEventListener("change", function () {
         var m = TMETA[sel.value];
