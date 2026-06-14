@@ -698,3 +698,14 @@ img { max-width: 100%; display: block; }
 .paycard__row { display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; }
 .paycard__qr { text-align: center; }
 .paycard__qr img { width: 120px; height: 120px; display: block; border: 1px solid var(--line); border-radius: 10px; padding: 6px; background: #fff; }
+
+/* ===================== Staff: Join the Website Building Team ===================== */
+.buildteam { margin-top: 2rem; background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--red); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 1.7rem 1.8rem; }
+.buildteam__title { color: var(--primary-green); font-size: 1.5rem; margin-bottom: 0.5rem; }
+.buildteam__lead { color: var(--ink); font-size: 1rem; margin-bottom: 1.2rem; }
+.buildteam__sub { color: var(--primary-green); font-size: 1.05rem; margin: 1.2rem 0 0.5rem; }
+.buildteam__list, .buildteam__steps { padding-left: 1.3rem; color: #3a3b34; line-height: 1.7; }
+.buildteam__list { list-style: disc; }
+.buildteam__steps { list-style: decimal; }
+.buildteam__list li, .buildteam__steps li { margin-bottom: 0.45rem; }
+.buildteam__foot { margin-top: 1.2rem; font-style: italic; color: var(--muted); }
