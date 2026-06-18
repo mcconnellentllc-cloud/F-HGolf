@@ -16,7 +16,7 @@
     "Junior Golf Camp (July 15–17)": { end: "2026-07-17", cap: 50, unit: "spots", team: 1, roles: ["Camper's name"], format: "junior camp, ages 6–13", fee: "$70" },
     "2-Lady Scramble (July 23)": { end: "2026-07-23", cap: 22, unit: "teams", team: 2, roles: ["Your name", "Partner's name"], format: "2-lady scramble" },
     "Haxtun Bulldog (July 25)": { end: "2026-07-25", cap: 22, unit: "teams", team: 4, format: "4-man (4 players per team)" },
-    "Founder's Tournament (Aug 8–9)": { end: "2026-08-09", cap: 48, unit: "teams", team: 2, format: "2-day best-ball", note: "2-day tournament · 2 shotgun starts · Calcutta" },
+    "Founder's Tournament (Aug 8–9)": { end: "2026-08-09", cap: 54, unit: "teams", team: 2, format: "2-day 2-man scramble", note: "2-day tournament · 2 shotgun starts · Calcutta" },
     "Couple's Tournament (Aug 22)": { end: "2026-08-22", cap: 24, unit: "teams", team: 2, roles: ["Your name", "Partner's name"], format: "2-player couples (one entry = a team)" },
     "Haxtun Fire (Sept 19)": { end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble" },
     "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)" },
