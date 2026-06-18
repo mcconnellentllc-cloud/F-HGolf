@@ -724,3 +724,11 @@ img { max-width: 100%; display: block; }
 .scroll-cue__arrow { font-size: 1.5rem; line-height: 1; animation: scrollbob 1.6s ease-in-out infinite; }
 @keyframes scrollbob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .scroll-cue__arrow { animation: none; } }
+
+/* ===================== Tournament sign-up: per-tournament player fields ===================== */
+.teamsec { gap: 0.6rem; }
+.teammates { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.teammates.is-disabled { opacity: 0.45; }
+.form__check { display: flex; align-items: flex-start; gap: 0.55rem; font-weight: 600; color: var(--ink); font-size: 0.92rem; margin-top: 0.4rem; cursor: pointer; }
+.form__check input { width: 1.1rem; height: 1.1rem; margin-top: 0.15rem; flex: none; accent-color: var(--red); }
+.form__warn { margin-top: 0.2rem; font-size: 0.85rem; color: var(--red-deep); background: rgba(177,30,45,0.06); border-left: 3px solid var(--red); padding: 0.6rem 0.8rem; border-radius: 8px; line-height: 1.55; }
