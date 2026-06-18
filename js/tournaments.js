@@ -6,21 +6,21 @@
    individual events). Add/adjust as the board confirms each tournament. */
 (function () {
   var TMETA = {
-    "Par 4 the Future (May 16)": { end: "2026-05-16", cap: 22, unit: "teams", format: "4-person scramble", fee: "$400/team", note: "Fleming Class of 2032 · lunch included" },
+    "Par 4 the Future (May 16)": { end: "2026-05-16", cap: 22, unit: "teams", team: 4, format: "4-person scramble", fee: "$400/team", note: "Fleming Class of 2032 · lunch included" },
     "M&M Invitational (May 23)": { end: "2026-05-23", format: "invitational", note: "by invite only — no sign-up needed" },
-    "Haxtun Daycare (June 6)": { end: "2026-06-06", cap: 22, unit: "teams", format: "4-person scramble", fee: "$400/team", note: "Little Sprouts Learning Center · lunch provided" },
-    "John Everitt Memorial (June 13)": { end: "2026-06-13", cap: 22, unit: "teams", format: "4-man scramble", note: "8th annual · proceeds fund course improvements" },
-    "Couple's Tournament (June 27)": { end: "2026-06-27", cap: 24, unit: "teams", format: "2-player couples (one entry = a team)" },
-    "Red, White & Blue (July 4)": { end: "2026-07-04", cap: 22, unit: "teams", format: "3-man scramble", fee: "$225/team ($75/person)", note: "shotgun 9 AM · 3 flights, cash payout" },
-    "Adult/Child Tournament (July 12)": { end: "2026-07-12", cap: 22, unit: "teams", format: "adult + child team", note: "3 PM start" },
-    "Junior Golf Camp (July 15–17)": { end: "2026-07-17", cap: 50, unit: "spots", format: "junior camp, ages 6–13", fee: "$70" },
-    "2-Lady Scramble (July 23)": { end: "2026-07-23", cap: 22, unit: "teams", format: "2-lady scramble" },
-    "Haxtun Bulldog (July 25)": { end: "2026-07-25", cap: 22, unit: "teams", format: "4-man (4 players per team)" },
-    "Founder's Tournament (Aug 8–9)": { end: "2026-08-09", cap: 48, unit: "teams", note: "2-day tournament · 2 shotgun starts · Calcutta" },
-    "Couple's Tournament (Aug 22)": { end: "2026-08-22", cap: 24, unit: "teams", format: "2-player couples (one entry = a team)" },
-    "Haxtun Fire (Sept 19)": { end: "2026-09-19", cap: 22, unit: "teams", format: "4-man scramble" },
-    "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", format: "2-man (2 players per team)" },
-    "Hole 8 Raffle Contest": { format: "tee shot into the circle on #8", fee: "$5/person · $20/team", note: "2 entries max · two winners" }
+    "Haxtun Daycare (June 6)": { end: "2026-06-06", cap: 22, unit: "teams", team: 4, format: "4-person scramble", fee: "$400/team", note: "Little Sprouts Learning Center · lunch provided" },
+    "John Everitt Memorial (June 13)": { end: "2026-06-13", cap: 22, unit: "teams", team: 4, format: "4-man scramble", note: "8th annual · proceeds fund course improvements" },
+    "Couple's Tournament (June 27)": { end: "2026-06-27", cap: 24, unit: "teams", team: 2, roles: ["Your name", "Partner's name"], format: "2-player couples (one entry = a team)" },
+    "Red, White & Blue (July 4)": { end: "2026-07-04", cap: 22, unit: "teams", team: 3, format: "3-man scramble", fee: "$225/team ($75/person)", note: "shotgun 9 AM · 3 flights, cash payout" },
+    "Adult/Child Tournament (July 12)": { end: "2026-07-12", cap: 22, unit: "teams", team: 2, roles: ["Adult's name", "Child's name"], format: "adult + child team", note: "3 PM start" },
+    "Junior Golf Camp (July 15–17)": { end: "2026-07-17", cap: 50, unit: "spots", team: 1, roles: ["Camper's name"], format: "junior camp, ages 6–13", fee: "$70" },
+    "2-Lady Scramble (July 23)": { end: "2026-07-23", cap: 22, unit: "teams", team: 2, roles: ["Your name", "Partner's name"], format: "2-lady scramble" },
+    "Haxtun Bulldog (July 25)": { end: "2026-07-25", cap: 22, unit: "teams", team: 4, format: "4-man (4 players per team)" },
+    "Founder's Tournament (Aug 8–9)": { end: "2026-08-09", cap: 48, unit: "teams", team: 2, format: "2-day best-ball", note: "2-day tournament · 2 shotgun starts · Calcutta" },
+    "Couple's Tournament (Aug 22)": { end: "2026-08-22", cap: 24, unit: "teams", team: 2, roles: ["Your name", "Partner's name"], format: "2-player couples (one entry = a team)" },
+    "Haxtun Fire (Sept 19)": { end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble" },
+    "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)" },
+    "Hole 8 Raffle Contest": { team: 1, format: "tee shot into the circle on #8", fee: "$5/person · $20/team", note: "2 entries max · two winners" }
   };
   window.FH_TMETA = TMETA; // shared with the sign-up success/payment block
 
@@ -154,6 +154,57 @@
     if (btn) btn.addEventListener("click", function () { goToSignup(key); });
   }
 
+  // One teammate name field (optional). Player 1 is the static "Your name".
+  function teammateField(label, idx) {
+    var wrap = document.createElement("label");
+    wrap.className = "form__field";
+    var span = document.createElement("span");
+    span.className = "form__label";
+    span.textContent = label;
+    var input = document.createElement("input");
+    input.type = "text"; input.name = "player" + idx; input.maxLength = 120;
+    input.autocomplete = "off"; input.className = "tourney-player";
+    wrap.appendChild(span); wrap.appendChild(input);
+    return wrap;
+  }
+
+  // Build the player fields to match the chosen tournament's team size.
+  function renderPlayers(sel) {
+    var box = document.getElementById("teammates");
+    var section = document.getElementById("teamSection");
+    var nameLabel = document.getElementById("nameLabel");
+    var teamHint = document.getElementById("teamHint");
+    if (!box || !section) return;
+    box.innerHTML = "";
+    var m = TMETA[sel.value];
+    var size = (m && m.team) || 1;
+    var roles = (m && m.roles) || null;
+    if (nameLabel) nameLabel.innerHTML = ((roles && roles[0]) ? roles[0] : "Your name") + ' <span class="req">*</span>';
+    if (size > 1) {
+      for (var i = 2; i <= size; i++) {
+        var lbl = (roles && roles[i - 1]) ? roles[i - 1] : (size === 2 ? "Partner's name" : "Player " + i + "'s name");
+        box.appendChild(teammateField(lbl, i));
+      }
+      section.hidden = false;
+      if (teamHint) teamHint.textContent = "This is a " + size + "-player team. Add your teammates' names if you have them — only your own name is required.";
+    } else {
+      section.hidden = true;
+    }
+  }
+
+  function onTournamentChange(sel) {
+    var hint = document.getElementById("tourneyFormat");
+    var m = TMETA[sel.value];
+    if (hint) {
+      if (m) {
+        var ml = metaLine(m);
+        var full = (ml ? "Format: " + ml : "") + (m.note ? (ml ? " — " : "") + m.note : "");
+        if (full) { hint.hidden = false; hint.textContent = full; } else { hint.hidden = true; }
+      } else { hint.hidden = true; }
+    }
+    renderPlayers(sel);
+  }
+
   function init() {
     var hasSchedule = document.querySelector(".schedule li[data-key]");
     var sel = document.querySelector('select[name="tournament"]');
@@ -166,28 +217,31 @@
         .catch(function () { render({}); renderNext({}); });
     }
 
-    var hint = document.getElementById("tourneyFormat");
     if (sel) {
       // Drop tournaments that are already over so they can't be signed up for.
       Array.prototype.slice.call(sel.options).forEach(function (opt) {
         if (!opt.value) return; // keep the "— choose —" placeholder
         if (isPast(TMETA[opt.value])) opt.remove();
       });
+      sel.addEventListener("change", function () { onTournamentChange(sel); });
+
+      // "Looking for a partner" disables the teammate fields (you don't have them yet).
+      var lfp = document.getElementById("lfp");
+      if (lfp) lfp.addEventListener("change", function () {
+        var on = lfp.checked, box = document.getElementById("teammates");
+        Array.prototype.forEach.call(document.querySelectorAll("#teammates .tourney-player"), function (inp) {
+          inp.disabled = on; if (on) inp.value = "";
+        });
+        if (box) box.classList.toggle("is-disabled", on);
+      });
+
       // Pre-select from ?t=… (used by Sign Up links coming from the homepage).
       try {
         var t = new URLSearchParams(window.location.search).get("t");
-        if (t && TMETA[t] && !isPast(TMETA[t])) { sel.value = t; sel.dispatchEvent(new Event("change")); }
+        if (t && TMETA[t] && !isPast(TMETA[t])) sel.value = t;
       } catch (e) {}
-    }
-    if (sel && hint) {
-      sel.addEventListener("change", function () {
-        var m = TMETA[sel.value];
-        if (m) {
-          var ml = metaLine(m);
-          var full = (ml ? "Format: " + ml : "") + (m.note ? (ml ? " — " : "") + m.note : "");
-          if (full) { hint.hidden = false; hint.textContent = full; } else { hint.hidden = true; }
-        } else { hint.hidden = true; }
-      });
+
+      onTournamentChange(sel); // initialize hint + player fields for the current selection
     }
   }
 

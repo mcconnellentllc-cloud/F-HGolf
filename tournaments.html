@@ -152,15 +152,21 @@
         </label>
         <p class="form__format" id="tourneyFormat" hidden></p>
 
-        <div class="form__row">
-          <label class="form__field">
-            <span class="form__label">Your name <span class="req">*</span></span>
-            <input type="text" name="name" required maxlength="120" autocomplete="name" />
+        <label class="form__field">
+          <span class="form__label" id="nameLabel">Your name <span class="req">*</span></span>
+          <input type="text" name="name" required maxlength="120" autocomplete="name" />
+        </label>
+
+        <!-- Player/team fields are built to match the chosen tournament by js/tournaments.js -->
+        <div class="form__field teamsec" id="teamSection" hidden>
+          <span class="form__label">Your team</span>
+          <p class="form__hint" id="teamHint"></p>
+          <div id="teammates" class="teammates"></div>
+          <label class="form__check" id="lfpWrap">
+            <input type="checkbox" name="lookingForPartner" id="lfp" />
+            <span>I'm looking for a partner / team — match me up with other players.</span>
           </label>
-          <label class="form__field">
-            <span class="form__label">Partner / team members</span>
-            <input type="text" name="team" maxlength="500" placeholder="for scrambles &amp; couples events" />
-          </label>
+          <p class="form__warn">Don't have a full team yet? Sign up anyway — only your own name is required. Someone will reach out to confirm your team. If the tournament fills up, incomplete teams may be bumped to make room, so the sooner you confirm, the better.</p>
         </div>
 
         <div class="form__row form__row--3">
@@ -170,7 +176,8 @@
           </label>
           <label class="form__field">
             <span class="form__label">Phone</span>
-            <input type="tel" name="phone" maxlength="60" autocomplete="tel" />
+            <input type="tel" name="phone" maxlength="60" autocomplete="tel" placeholder="Best number to reach you" />
+            <span class="form__hint">So we can confirm your team &amp; tee time.</span>
           </label>
           <label class="form__field">
             <span class="form__label">Carts to reserve</span>
@@ -296,7 +303,18 @@
           status.classList.add("is-error"); return;
         }
         var data = {};
-        ["tournament", "name", "team", "email", "phone", "carts", "notes", "company"].forEach(function (k) { if (form[k]) data[k] = form[k].value; });
+        ["tournament", "name", "email", "phone", "carts", "notes", "company"].forEach(function (k) { if (form[k]) data[k] = form[k].value; });
+        // Assemble teammates (optional) + "looking for partner" into the Team field.
+        var mates = [];
+        Array.prototype.forEach.call(document.querySelectorAll("#teammates .tourney-player"), function (inp) {
+          var v = inp.value.trim(); if (v) mates.push(v);
+        });
+        var lfp = document.getElementById("lfp");
+        if (lfp && lfp.checked) {
+          data.team = mates.length ? ("LOOKING FOR PARTNER — have so far: " + mates.join(", ")) : "LOOKING FOR A PARTNER / TEAM";
+        } else {
+          data.team = mates.join(", ");
+        }
         try { localStorage.setItem(GKEY, JSON.stringify({ name: form.name.value, email: form.email.value, phone: form.phone.value })); } catch (e2) {}
         var orig = btn.textContent; btn.disabled = true; btn.textContent = "Signing up…";
         fetch(FH_API.url("/api/tournament-signup"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
