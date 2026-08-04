@@ -57,6 +57,7 @@ These values are placeholders in the code. Search for the word `PLACEHOLDER` in
 - [ ] **Founder names** — confirm spellings of founder names in the "Our Story" section.
 - [ ] **Audio (optional)** — replace `audio/fh-story.mp3` with a family/Willard human recording.
 - [ ] **Lease article date** — the "Fleming Agrees to Lease F&H" clipping is undated; confirm the year if known.
+- [ ] **Founders Tournament** — see `data/founders-tournament-REVIEW.md` for open transcription items. Add nav link and `images/founders-pairings.jpg` once resolved.
 
 ## Content Sources
 
