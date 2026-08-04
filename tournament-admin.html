@@ -96,6 +96,26 @@
           <div class="noms__list" id="twRoster"><p class="noms__msg">Loading roster…</p></div>
         </section>
 
+        <!-- Expenses & P&L -->
+        <section class="noms" id="twExpenses" aria-label="Expenses and P and L">
+          <div class="noms__bar">
+            <h3 class="noms__title">Expenses &amp; P&amp;L</h3>
+            <button class="btn btn--solid" type="button" id="expRefresh">Refresh</button>
+          </div>
+          <div class="pl" id="twPL"></div>
+          <div class="checkin-add__row">
+            <input type="text" id="expDesc" maxlength="200" placeholder="Expense (e.g. Steaks, Trophies)" />
+            <input type="number" id="expAmt" min="0" step="0.01" inputmode="decimal" placeholder="Amount $" />
+            <select id="expCat">
+              <option value="">Category…</option>
+              <option>Food</option><option>Prizes</option><option>Supplies</option><option>Labor</option><option>Other</option>
+            </select>
+            <button class="btn btn--primary" type="button" id="expAdd">Add expense</button>
+          </div>
+          <span class="checkin-add__msg" id="expMsg" role="status" aria-live="polite"></span>
+          <div class="noms__list" id="expList"><p class="noms__msg">Loading expenses…</p></div>
+        </section>
+
         <!-- Flights (in development) -->
         <section class="noms tw-soon" aria-label="Flights">
           <div class="noms__bar">
@@ -213,17 +233,95 @@
       function savedFee() { try { return localStorage.getItem(FEEK) || ""; } catch (e) { return ""; } }
       function money(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
 
+      var collectedTotal = 0, expensesTotal = 0, cashTotal = 0, checkTotal = 0, cardTotal = 0;
       function summarize(recs) {
-        var el = document.getElementById("twSummary");
-        if (!el) return;
-        var inCount = 0, total = 0;
+        var inCount = 0, total = 0; cashTotal = 0; checkTotal = 0; cardTotal = 0;
         recs.forEach(function (r) {
           var f = r.fields || {};
           if (f["Checked In"]) inCount++;
-          var a = Number(f["Amount Paid"]); if (!isNaN(a)) total += a;
+          var a = Number(f["Amount Paid"]);
+          if (!isNaN(a)) {
+            total += a;
+            var m = (f["Pay Method"] || "").toLowerCase();
+            if (m === "cash") cashTotal += a; else if (m === "check") checkTotal += a; else if (m === "card") cardTotal += a;
+          }
         });
-        el.innerHTML = "<strong>" + inCount + " / " + recs.length + "</strong> checked in · <strong>"
+        collectedTotal = total;
+        var el = document.getElementById("twSummary");
+        if (el) el.innerHTML = "<strong>" + inCount + " / " + recs.length + "</strong> checked in · <strong>"
           + money(total) + "</strong> collected";
+        renderPL();
+      }
+
+      // ---- Expenses & P&L (with register reconciliation) ----
+      function renderPL() {
+        var el = document.getElementById("twPL"); if (!el) return;
+        var net = collectedTotal - expensesTotal;
+        el.innerHTML = '<div class="pl__row"><span>Collected</span><strong>' + money(collectedTotal) + "</strong></div>"
+          + '<div class="pl__row"><span>Cash</span><strong>' + money(cashTotal) + "</strong></div>"
+          + '<div class="pl__row"><span>Checks</span><strong>' + money(checkTotal) + "</strong></div>"
+          + (cardTotal ? '<div class="pl__row"><span>Card</span><strong>' + money(cardTotal) + "</strong></div>" : "")
+          + '<div class="pl__row"><span>Expenses</span><strong>' + money(expensesTotal) + "</strong></div>"
+          + '<div class="pl__row pl__row--net"><span>Net (P&amp;L)</span><strong class="' + (net < 0 ? "is-neg" : "is-pos") + '">' + money(net) + "</strong></div>";
+      }
+
+      function renderExpenses(records) {
+        var list = document.getElementById("expList"); if (!list) return;
+        var recs = records || [];
+        expensesTotal = recs.reduce(function (s, r) { var a = Number(r.fields && r.fields.Amount); return s + (isFinite(a) ? a : 0); }, 0);
+        if (!recs.length) { list.innerHTML = '<p class="noms__msg">No expenses yet.</p>'; renderPL(); return; }
+        list.innerHTML = recs.map(function (rec) {
+          var f = rec.fields || {};
+          var desc = esc(f.Description || "(no description)");
+          var cat = f.Category ? ' <span class="exp__cat">' + esc(f.Category) + "</span>" : "";
+          return '<article class="nom exp" data-id="' + esc(rec.id) + '">'
+            + '<div class="nom__head"><span class="nom__name">' + desc + cat + "</span>"
+            + '<span class="exp__amt">' + money(Number(f.Amount) || 0) + "</span></div>"
+            + '<div class="exp__actions"><button type="button" class="ci__remove exp__remove">Remove</button><span class="ci__status exp__status"></span></div>'
+            + "</article>";
+        }).join("");
+        Array.prototype.forEach.call(list.querySelectorAll(".exp"), function (card) {
+          var id = card.getAttribute("data-id");
+          var btn = card.querySelector(".exp__remove"), st = card.querySelector(".exp__status");
+          btn.addEventListener("click", function () {
+            if (!window.confirm("Remove this expense?")) return;
+            expenseAction({ action: "delete", id: id }, st, btn);
+          });
+        });
+        renderPL();
+      }
+
+      function loadExpenses() {
+        var list = document.getElementById("expList"); if (!list) return;
+        list.innerHTML = '<p class="noms__msg">Loading expenses…</p>';
+        fetch(FH_API.url("/api/tournament-expenses?t=" + encodeURIComponent(KEY)), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            if (res.j && res.j.ok) renderExpenses(res.j.records);
+            else list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load expenses.") + "</p>";
+          })
+          .catch(function () { list.innerHTML = '<p class="noms__msg">Network error loading expenses.</p>'; });
+      }
+
+      function expenseAction(payload, statusEl, btn) {
+        if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "ci__status exp__status"; }
+        if (btn) btn.disabled = true;
+        fetch(FH_API.url("/api/tournament-expenses"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify(payload) })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) { if (btn) btn.disabled = false; if (res.j && res.j.ok) { loadExpenses(); } else if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't save."; statusEl.className = "ci__status exp__status is-error"; } })
+          .catch(function () { if (btn) btn.disabled = false; if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status exp__status is-error"; } });
+      }
+
+      function addExpense() {
+        var d = document.getElementById("expDesc"), a = document.getElementById("expAmt"), c = document.getElementById("expCat"),
+            msg = document.getElementById("expMsg"), btn = document.getElementById("expAdd");
+        if (!d.value.trim() || a.value === "" || !(Number(a.value) >= 0)) { msg.textContent = "Enter a description and amount."; return; }
+        msg.textContent = "Adding…"; btn.disabled = true;
+        fetch(FH_API.url("/api/tournament-expenses"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ tournament: KEY, description: d.value.trim(), amount: Number(a.value), category: c.value }) })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) { btn.disabled = false; if (j && j.ok) { d.value = ""; a.value = ""; c.value = ""; msg.textContent = "Added ✓"; loadExpenses(); } else { msg.textContent = (j && j.error) || "Couldn't add."; } })
+          .catch(function () { btn.disabled = false; msg.textContent = "Network error."; });
       }
 
       function saveCheckin(id, payload, statusEl, btn) {
@@ -263,6 +361,7 @@
         var isIn = !!f["Checked In"];
         var paid = (f["Amount Paid"] !== undefined && f["Amount Paid"] !== "") ? Number(f["Amount Paid"]) : "";
         var method = esc(f["Pay Method"] || "Cash");
+        var checkNo = esc(f["Check Number"] || "");
         var start = esc(f["Start"] || "");
         var line = [];
         if (team) line.push("Team: " + team);
@@ -274,6 +373,7 @@
           + '<select class="ci__start" title="Shotgun start">' + startOptions(start) + "</select>"
           + '<span class="ci__amtwrap">$<input type="number" class="ci__amt" min="0" step="1" inputmode="numeric" value="' + amtValue + '" /></span>'
           + '<select class="ci__method">' + methodOptions(paid !== "" ? method : "Cash") + "</select>"
+          + '<input type="text" class="ci__checkno" maxlength="40" placeholder="Check #" value="' + checkNo + '" title="Check number (if paid by check)" />'
           + '<button type="button" class="btn ' + (isIn ? "btn--solid" : "btn--primary") + ' ci__save">' + (isIn ? "Update" : "Check in") + "</button>"
           + (isIn ? '<button type="button" class="btn btn--solid ci__undo">Undo</button>' : "")
           + '<button type="button" class="ci__remove" title="Remove this team">Remove</button>'
@@ -311,10 +411,11 @@
         Array.prototype.forEach.call(list.querySelectorAll(".ci"), function (row) {
           var id = row.getAttribute("data-id");
           var amt = row.querySelector(".ci__amt"), meth = row.querySelector(".ci__method"), startSel = row.querySelector(".ci__start");
+          var checkno = row.querySelector(".ci__checkno");
           var statusEl = row.querySelector(".ci__status");
           var save = row.querySelector(".ci__save"), undo = row.querySelector(".ci__undo"), remove = row.querySelector(".ci__remove");
           if (save) save.addEventListener("click", function () {
-            saveCheckin(id, { checkedIn: true, amountPaid: amt.value, payMethod: meth.value, paidAt: new Date().toISOString() }, statusEl, save);
+            saveCheckin(id, { checkedIn: true, amountPaid: amt.value, payMethod: meth.value, checkNumber: checkno ? checkno.value : "", paidAt: new Date().toISOString() }, statusEl, save);
           });
           if (undo) undo.addEventListener("click", function () { saveCheckin(id, { checkedIn: false }, statusEl, undo); });
           if (startSel) startSel.addEventListener("change", function () { saveCheckin(id, { start: startSel.value }, statusEl, startSel); });
@@ -548,8 +649,13 @@
         if (sr) sr.addEventListener("click", loadRoster);
         var wa = document.getElementById("waAdd");
         if (wa) wa.addEventListener("click", addWalkup);
+        var er = document.getElementById("expRefresh");
+        if (er) er.addEventListener("click", loadExpenses);
+        var ea = document.getElementById("expAdd");
+        if (ea) ea.addEventListener("click", addExpense);
 
         loadRoster();
+        loadExpenses();
       });
     })();
   </script>

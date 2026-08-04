@@ -43,6 +43,7 @@ module.exports = async (req, res) => {
     if (!isNaN(amt) && amt >= 0) fields["Amount Paid"] = amt;
   }
   if (typeof body.payMethod === "string" && body.payMethod) fields["Pay Method"] = body.payMethod.slice(0, 40);
+  if (typeof body.checkNumber === "string") fields["Check Number"] = body.checkNumber ? body.checkNumber.slice(0, 40) : null;
   if (typeof body.paidAt === "string" && body.paidAt) fields["Paid At"] = body.paidAt;
   // Shotgun wave (8 AM / 1 PM); empty string clears it.
   if (typeof body.start === "string") fields["Start"] = body.start ? body.start.slice(0, 20) : null;
