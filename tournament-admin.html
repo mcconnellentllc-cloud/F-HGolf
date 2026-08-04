@@ -104,12 +104,14 @@
           <p class="tw-soon__desc">Split the field into flights (by handicap or draw), assign starting holes/tee times, and print pairing sheets. Flights defined here will feed the scorecards and leaderboard.</p>
         </section>
 
-        <!-- Scorecards (in development) -->
-        <section class="noms tw-soon" aria-label="Scorecards">
+        <!-- Scores (hole-by-hole) -->
+        <section class="noms" id="twScores" aria-label="Scores">
           <div class="noms__bar">
-            <h3 class="noms__title">Scorecards <span class="tw-tag">In development</span></h3>
+            <h3 class="noms__title">Scores <span class="noms__count" id="twScoreCount"></span></h3>
+            <button class="btn btn--solid" type="button" id="twScoreRefresh">Refresh</button>
           </div>
-          <p class="tw-soon__desc">Enter hole-by-hole scores for each team, with the course's par layout pre-loaded. Scores roll straight into the live leaderboard.</p>
+          <p class="scaffold__desc">Enter each team's 18-hole gross for Day 1 and Day 2 (two loops of the nine). No mulligans. Totals feed the leaderboard.</p>
+          <div class="noms__list" id="twScoreList"><p class="noms__msg">Loading…</p></div>
         </section>
 
         <!-- Leaderboard (in development) -->
@@ -233,6 +235,43 @@
         return METHODS.map(function (m) { return '<option' + (m === sel ? " selected" : "") + ">" + m + "</option>"; }).join("");
       }
 
+      var STARTS = ["", "8 AM", "1 PM"];
+      function startOptions(sel) {
+        return STARTS.map(function (s) { return '<option value="' + s + '"' + (s === sel ? " selected" : "") + ">" + (s || "— start —") + "</option>"; }).join("");
+      }
+
+      function teamCard(rec, feeVal) {
+        var f = rec.fields || {};
+        var name = esc(f["Player Name"] || "(no name)");
+        var team = esc(f["Team / Partners"] || "");
+        var email = esc(f["Email"] || ""), phone = esc(f["Phone"] || "");
+        var carts = (f["Carts"] !== undefined && f["Carts"] !== "") ? esc(f["Carts"]) : "";
+        var isIn = !!f["Checked In"];
+        var paid = (f["Amount Paid"] !== undefined && f["Amount Paid"] !== "") ? Number(f["Amount Paid"]) : "";
+        var method = esc(f["Pay Method"] || "Cash");
+        var start = esc(f["Start"] || "");
+        var line = [];
+        if (team) line.push("Team: " + team);
+        if (carts !== "") line.push(carts + " cart(s)");
+        if (phone) line.push('<a href="tel:' + phone.replace(/[^0-9+]/g, "") + '">' + phone + "</a>");
+        if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
+        var amtValue = paid !== "" ? paid : esc(feeVal);
+        var ci = '<div class="ci" data-id="' + esc(rec.id) + '">'
+          + '<select class="ci__start" title="Shotgun start">' + startOptions(start) + "</select>"
+          + '<span class="ci__amtwrap">$<input type="number" class="ci__amt" min="0" step="1" inputmode="numeric" value="' + amtValue + '" /></span>'
+          + '<select class="ci__method">' + methodOptions(paid !== "" ? method : "Cash") + "</select>"
+          + '<button type="button" class="btn ' + (isIn ? "btn--solid" : "btn--primary") + ' ci__save">' + (isIn ? "Update" : "Check in") + "</button>"
+          + (isIn ? '<button type="button" class="btn btn--solid ci__undo">Undo</button>' : "")
+          + '<button type="button" class="ci__remove" title="Remove this team">Remove</button>'
+          + '<span class="ci__status"></span></div>';
+        return '<article class="nom ci-card' + (isIn ? " is-in" : "") + '">'
+          + '<div class="nom__head"><span class="nom__name">' + name
+          + (isIn ? ' <span class="ci-badge">✓ Checked in' + (paid !== "" ? " · " + money(paid) + " " + method : "") + "</span>" : "")
+          + "</span></div>"
+          + (line.length ? '<div class="nom__by">' + line.join(" · ") + "</div>" : "")
+          + ci + "</article>";
+      }
+
       function renderRoster(all) {
         var list = document.getElementById("twRoster"), count = document.getElementById("twCount");
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
@@ -244,51 +283,27 @@
         var fee = document.getElementById("twFee");
         var feeVal = fee && fee.value ? fee.value : savedFee();
 
-        list.innerHTML = recs.map(function (rec) {
-          var f = rec.fields || {};
-          var name = esc(f["Player Name"] || "(no name)");
-          var team = esc(f["Team / Partners"] || "");
-          var email = esc(f["Email"] || ""), phone = esc(f["Phone"] || "");
-          var carts = (f["Carts"] !== undefined && f["Carts"] !== "") ? esc(f["Carts"]) : "";
-          var isIn = !!f["Checked In"];
-          var paid = (f["Amount Paid"] !== undefined && f["Amount Paid"] !== "") ? Number(f["Amount Paid"]) : "";
-          var method = esc(f["Pay Method"] || "Cash");
-          var line = [];
-          if (team) line.push("Team: " + team);
-          if (carts !== "") line.push(carts + " cart(s)");
-          if (phone) line.push('<a href="tel:' + phone.replace(/[^0-9+]/g, "") + '">' + phone + "</a>");
-          if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
-
-          var amtValue = paid !== "" ? paid : esc(feeVal);
-          var ci = '<div class="ci" data-id="' + esc(rec.id) + '">'
-            + '<span class="ci__amtwrap">$<input type="number" class="ci__amt" min="0" step="1" inputmode="numeric" value="' + amtValue + '" /></span>'
-            + '<select class="ci__method">' + methodOptions(paid !== "" ? method : "Cash") + "</select>"
-            + '<button type="button" class="btn ' + (isIn ? "btn--solid" : "btn--primary") + ' ci__save">' + (isIn ? "Update" : "Check in") + "</button>"
-            + (isIn ? '<button type="button" class="btn btn--solid ci__undo">Undo</button>' : "")
-            + '<button type="button" class="ci__remove" title="Remove this team">Remove</button>'
-            + '<span class="ci__status"></span></div>';
-
-          return '<article class="nom ci-card' + (isIn ? " is-in" : "") + '">'
-            + '<div class="nom__head"><span class="nom__name">' + name
-            + (isIn ? ' <span class="ci-badge">✓ Checked in' + (paid !== "" ? " · " + money(paid) + " " + method : "") + "</span>" : "")
-            + "</span></div>"
-            + (line.length ? '<div class="nom__by">' + line.join(" · ") + "</div>" : "")
-            + ci + "</article>";
+        // Split into shotgun waves (8 AM / 1 PM / unassigned).
+        var groups = { "8 AM": [], "1 PM": [], "": [] };
+        recs.forEach(function (r) { var s = (r.fields && r.fields["Start"]) || ""; (groups[s] = groups[s] || []).push(r); });
+        list.innerHTML = ["8 AM", "1 PM", ""].map(function (g) {
+          var arr = groups[g]; if (!arr || !arr.length) return "";
+          var label = g ? (g + " shotgun") : "Unassigned start";
+          return '<div class="wave"><h4 class="wave__label">' + label + " <span>(" + arr.length + ")</span></h4>"
+            + arr.map(function (r) { return teamCard(r, feeVal); }).join("") + "</div>";
         }).join("");
 
         // Wire the per-team controls.
         Array.prototype.forEach.call(list.querySelectorAll(".ci"), function (row) {
           var id = row.getAttribute("data-id");
-          var amt = row.querySelector(".ci__amt"), meth = row.querySelector(".ci__method");
+          var amt = row.querySelector(".ci__amt"), meth = row.querySelector(".ci__method"), startSel = row.querySelector(".ci__start");
           var statusEl = row.querySelector(".ci__status");
-          var save = row.querySelector(".ci__save"), undo = row.querySelector(".ci__undo");
-          var remove = row.querySelector(".ci__remove");
+          var save = row.querySelector(".ci__save"), undo = row.querySelector(".ci__undo"), remove = row.querySelector(".ci__remove");
           if (save) save.addEventListener("click", function () {
             saveCheckin(id, { checkedIn: true, amountPaid: amt.value, payMethod: meth.value, paidAt: new Date().toISOString() }, statusEl, save);
           });
-          if (undo) undo.addEventListener("click", function () {
-            saveCheckin(id, { checkedIn: false }, statusEl, undo);
-          });
+          if (undo) undo.addEventListener("click", function () { saveCheckin(id, { checkedIn: false }, statusEl, undo); });
+          if (startSel) startSel.addEventListener("change", function () { saveCheckin(id, { start: startSel.value }, statusEl, startSel); });
           if (remove) remove.addEventListener("click", function () {
             var card = row.closest(".ci-card");
             var who = card ? (card.querySelector(".nom__name") || {}).textContent : "this team";
@@ -298,13 +313,94 @@
         });
       }
 
+      // ---- Hole-by-hole scoring (18 holes = two loops of the nine) ----
+      var PAR9 = [4, 4, 3, 4, 5, 4, 3, 4, 5]; // placeholder — confirm per-hole pars
+      var PARS = PAR9.concat(PAR9);
+      function parseScores(str) { try { var a = JSON.parse(str); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+
+      function renderScores(all) {
+        var listEl = document.getElementById("twScoreList"), cnt = document.getElementById("twScoreCount");
+        if (!listEl) return;
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
+        if (!recs.length) { listEl.innerHTML = '<p class="noms__msg">No teams yet.</p>'; if (cnt) cnt.textContent = ""; return; }
+        if (cnt) cnt.textContent = "(" + recs.length + ")";
+        listEl.innerHTML = recs.map(function (rec) {
+          var f = rec.fields || {};
+          var name = esc(f["Player Name"] || "(no name)");
+          var team = esc(f["Team / Partners"] || "");
+          var d1 = f["Day1 Scores"] ? f["Day1 Gross"] : null;
+          var d2 = f["Day2 Scores"] ? f["Day2 Gross"] : null;
+          var tot = (typeof d1 === "number" && typeof d2 === "number") ? " · Total <b>" + (d1 + d2) + "</b>" : "";
+          return '<article class="nom sc" data-id="' + esc(rec.id) + '">'
+            + '<div class="nom__head"><span class="nom__name">' + name + (team ? ' <span class="sc__team">(' + team + ")</span>" : "") + "</span>"
+            + '<span class="sc__tot">D1 <b>' + (d1 == null ? "—" : d1) + "</b> · D2 <b>" + (d2 == null ? "—" : d2) + "</b>" + tot + "</span></div>"
+            + '<div class="sc__days"><button type="button" class="btn btn--solid sc__day" data-day="1">Enter Day 1</button>'
+            + '<button type="button" class="btn btn--solid sc__day" data-day="2">Enter Day 2</button></div>'
+            + '<div class="sc__editor" hidden></div></article>';
+        }).join("");
+        Array.prototype.forEach.call(listEl.querySelectorAll(".sc"), function (card) {
+          var id = card.getAttribute("data-id");
+          var rec = recs.filter(function (r) { return r.id === id; })[0] || { fields: {} };
+          Array.prototype.forEach.call(card.querySelectorAll(".sc__day"), function (btn) {
+            btn.addEventListener("click", function () {
+              var day = btn.getAttribute("data-day");
+              var ed = card.querySelector(".sc__editor");
+              if (!ed.hidden && ed.getAttribute("data-day") === day) { ed.hidden = true; return; }
+              buildEditor(ed, id, day, parseScores(rec.fields["Day" + day + " Scores"]));
+            });
+          });
+        });
+      }
+
+      function buildEditor(ed, id, day, existing) {
+        ed.setAttribute("data-day", day);
+        var cells = "";
+        for (var h = 0; h < 18; h++) {
+          var val = (existing && existing[h] != null) ? existing[h] : "";
+          cells += '<label class="sc__cell"><span>H' + (h + 1) + "<small>p" + PARS[h] + "</small></span>"
+            + '<input type="number" min="1" max="40" inputmode="numeric" class="sc__in" value="' + val + '" /></label>';
+        }
+        ed.innerHTML = '<div class="sc__grid">' + cells + "</div>"
+          + '<div class="sc__foot">Total: <b class="sc__gross">0</b>'
+          + ' <button type="button" class="btn btn--primary sc__save">Save Day ' + day + "</button>"
+          + ' <button type="button" class="btn btn--solid sc__cancel">Close</button>'
+          + ' <span class="sc__status"></span></div>';
+        ed.hidden = false;
+        var ins = ed.querySelectorAll(".sc__in");
+        var grossEl = ed.querySelector(".sc__gross");
+        function recompute() { var t = 0; Array.prototype.forEach.call(ins, function (i) { var n = parseInt(i.value, 10); if (!isNaN(n)) t += n; }); grossEl.textContent = t; }
+        Array.prototype.forEach.call(ins, function (i) { i.addEventListener("input", recompute); });
+        recompute();
+        ed.querySelector(".sc__cancel").addEventListener("click", function () { ed.hidden = true; });
+        ed.querySelector(".sc__save").addEventListener("click", function () {
+          var scores = []; Array.prototype.forEach.call(ins, function (i) { var n = parseInt(i.value, 10); scores.push(isNaN(n) ? null : n); });
+          saveScore(id, day, scores, ed.querySelector(".sc__status"), ed.querySelector(".sc__save"));
+        });
+      }
+
+      function saveScore(id, day, scores, statusEl, btn) {
+        if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "sc__status"; }
+        if (btn) btn.disabled = true;
+        fetch(FH_API.url("/api/tournament-score"), {
+          method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ id: id, day: Number(day), scores: scores }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            if (btn) btn.disabled = false;
+            if (res.j && res.j.ok) { loadRoster(); }
+            else if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't save."; statusEl.className = "sc__status is-error"; }
+          })
+          .catch(function () { if (btn) btn.disabled = false; if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "sc__status is-error"; } });
+      }
+
       function loadRoster() {
         var list = document.getElementById("twRoster");
         list.innerHTML = '<p class="noms__msg">Loading roster…</p>';
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { renderRoster(res.j.records); }
+            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); }
             else if (res.status === 401) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
             else { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
           })
@@ -364,6 +460,8 @@
 
         var tr = document.getElementById("twRefresh");
         if (tr) tr.addEventListener("click", loadRoster);
+        var sr = document.getElementById("twScoreRefresh");
+        if (sr) sr.addEventListener("click", loadRoster);
         var wa = document.getElementById("waAdd");
         if (wa) wa.addEventListener("click", addWalkup);
 
