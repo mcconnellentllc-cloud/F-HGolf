@@ -60,6 +60,7 @@
         <!-- Excel-style workbook tabs -->
         <div class="wb-tabs" id="wbTabs" role="tablist">
           <button type="button" class="wb-tab" data-sheet="check" role="tab">Check-In</button>
+          <button type="button" class="wb-tab" data-sheet="pairings" role="tab">Pairings</button>
           <button type="button" class="wb-tab" data-sheet="scores" role="tab">Scores</button>
           <button type="button" class="wb-tab" data-sheet="flights" role="tab">Flights &amp; Leaderboard</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
@@ -103,6 +104,20 @@
           </details>
 
           <div class="noms__list" id="twRoster"><p class="noms__msg">Loading roster…</p></div>
+        </section>
+
+        <!-- Pairings: waves + starting holes -->
+        <section class="noms wb-sheet" data-sheet="pairings" id="twPairings" aria-label="Pairings" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Pairings — waves &amp; starting holes</h3>
+            <button class="btn btn--solid" type="button" id="prRefresh">Refresh</button>
+          </div>
+          <div class="checkin-add__row">
+            <button class="btn btn--primary" type="button" id="prImport">Import 2026 field from pairing sheet</button>
+            <span class="checkin-add__msg" id="prMsg" role="status" aria-live="polite"></span>
+          </div>
+          <p class="scaffold__desc">Set each team's shotgun wave and starting hole. Change the hole dropdown to move a team between holes — it saves automatically.</p>
+          <div id="prBoard"><p class="noms__msg">Loading…</p></div>
         </section>
 
         <!-- Expenses & P&L -->
@@ -528,7 +543,7 @@
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); }
+            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderPairings(res.j.records); }
             else if (res.status === 401) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
             else { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
           })
@@ -567,6 +582,85 @@
             else { msg.textContent = (j && j.error) || "Couldn't add team."; }
           })
           .catch(function () { btn.disabled = false; msg.textContent = "Network error."; });
+      }
+
+      // ---- Pairings: waves + starting holes ----
+      var WAVES = [{ k: "8 AM", l: "A.M. — 8:00 shotgun" }, { k: "1 PM", l: "P.M. — 1:00 shotgun" }, { k: "", l: "Unassigned wave" }];
+      function holeOpts(sel) {
+        var o = '<option value="">— hole —</option>';
+        for (var h = 1; h <= 9; h++) o += '<option value="' + h + '"' + (Number(sel) === h ? " selected" : "") + ">Hole " + h + "</option>";
+        return o;
+      }
+      function waveOpts(sel) {
+        return ['<option value="">— wave —</option>',
+          '<option value="8 AM"' + (sel === "8 AM" ? " selected" : "") + ">A.M.</option>",
+          '<option value="1 PM"' + (sel === "1 PM" ? " selected" : "") + ">P.M.</option>"].join("");
+      }
+
+      function positionSave(id, payload, statusEl) {
+        if (statusEl) statusEl.textContent = "Saving…";
+        payload.id = id;
+        fetch(FH_API.url("/api/tournament-position"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: [payload] }) })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) { if (res.j && res.j.ok) { loadRoster(); } else if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't save."; } })
+          .catch(function () { if (statusEl) statusEl.textContent = "Network error."; });
+      }
+
+      function prTeamCard(r) {
+        var f = r.fields || {};
+        return '<div class="pr-team" data-id="' + esc(r.id) + '"><span class="pr-team__name">' + esc(f["Player Name"] || "(no name)") + "</span>"
+          + '<span class="pr-team__ctl"><select class="pr-hole">' + holeOpts(f["Hole"]) + "</select>"
+          + '<select class="pr-wave">' + waveOpts(f["Start"] || "") + "</select></span></div>";
+      }
+
+      function renderPairings(all) {
+        var board = document.getElementById("prBoard"); if (!board) return;
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
+        if (!recs.length) { board.innerHTML = '<p class="noms__msg">No teams yet. Import the 2026 field above, or add teams on the Check-In sheet.</p>'; return; }
+        board.innerHTML = WAVES.map(function (w) {
+          var teams = recs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; });
+          if (!teams.length && w.k === "") return "";
+          var holes = {};
+          teams.forEach(function (t) { var h = (t.fields || {})["Hole"]; var k = (h != null && h !== "") ? Number(h) : 0; (holes[k] = holes[k] || []).push(t); });
+          var boxes = "";
+          for (var h = 1; h <= 9; h++) {
+            var arr = holes[h] || [];
+            boxes += '<div class="pr-hole-box"><div class="pr-hole-box__hd">Hole ' + h + " <span>(" + arr.length + ")</span></div>"
+              + arr.map(prTeamCard).join("") + "</div>";
+          }
+          var un = holes[0] || [];
+          var unBox = un.length ? '<div class="pr-hole-box pr-hole-box--un"><div class="pr-hole-box__hd">No hole yet <span>(' + un.length + ")</span></div>" + un.map(prTeamCard).join("") + "</div>" : "";
+          return '<div class="pr-wave"><h4 class="pr-wave__title">' + w.l + " <span>(" + teams.length + " teams)</span></h4>"
+            + unBox + '<div class="pr-holes">' + boxes + "</div></div>";
+        }).join("");
+        Array.prototype.forEach.call(board.querySelectorAll(".pr-team"), function (row) {
+          var id = row.getAttribute("data-id");
+          var hs = row.querySelector(".pr-hole"), ws = row.querySelector(".pr-wave");
+          if (hs) hs.addEventListener("change", function () { positionSave(id, { hole: hs.value }, document.getElementById("prMsg")); });
+          if (ws) ws.addEventListener("change", function () { positionSave(id, { start: ws.value }, document.getElementById("prMsg")); });
+        });
+      }
+
+      function importField() {
+        var msg = document.getElementById("prMsg"), btn = document.getElementById("prImport");
+        msg.textContent = "Reading pairing sheet…";
+        fetch("data/founders-tournament.json").then(function (r) { return r.json(); }).then(function (data) {
+          var teams = [];
+          (data.flights || []).forEach(function (fl) {
+            var start = /^A/i.test(fl.name) ? "8 AM" : (/^P/i.test(fl.name) ? "1 PM" : "");
+            (fl.teams || []).forEach(function (t) {
+              var nm = (t.players || []).filter(Boolean).join(" / ");
+              if (nm) teams.push({ name: nm, start: start });
+            });
+          });
+          if (!teams.length) { msg.textContent = "No teams found in the pairing sheet."; return; }
+          if (!window.confirm("Add " + teams.length + " teams from the 2026 pairing sheet (A.M./P.M. waves)? This creates new team records.")) { msg.textContent = ""; return; }
+          msg.textContent = "Importing " + teams.length + " teams…"; if (btn) btn.disabled = true;
+          fetch(FH_API.url("/api/tournament-position"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ action: "import", tournament: KEY, teams: teams }) })
+            .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+            .then(function (res) { if (btn) btn.disabled = false; if (res.j && res.j.ok) { msg.textContent = "Imported " + res.j.created + " teams ✓"; loadRoster(); } else { msg.textContent = (res.j && res.j.error) || "Import failed."; } })
+            .catch(function () { if (btn) btn.disabled = false; msg.textContent = "Network error importing."; });
+        }).catch(function () { msg.textContent = "Couldn't read the pairing sheet."; });
       }
 
       // ---- Flights + Leaderboard ----
@@ -796,6 +890,10 @@
         if (lbr) lbr.addEventListener("click", loadRoster);
         var lbs = document.getElementById("lbSaveFlights");
         if (lbs) lbs.addEventListener("click", saveFlights);
+        var prr = document.getElementById("prRefresh");
+        if (prr) prr.addEventListener("click", loadRoster);
+        var pri = document.getElementById("prImport");
+        if (pri) pri.addEventListener("click", importField);
 
         loadRoster();
         loadExpenses();

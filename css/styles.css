@@ -892,3 +892,17 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .wb-sheet, .wb-sheet input, .wb-sheet select { font-variant-numeric: tabular-nums; }
 .wb-sheet .lb-table th, .wb-sheet .lb-table td { border: 1px solid var(--line); }
 .wb-sheet .sc__grid .sc__cell, .wb-sheet .calc__grp { background: #fff; }
+
+/* Pairings board — waves + starting holes */
+.pr-wave { margin-bottom: 1.6rem; }
+.pr-wave__title { color: var(--primary-green); font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.6rem; padding-bottom: 0.3rem; border-bottom: 2px solid var(--primary-green); }
+.pr-wave__title span, .pr-hole-box__hd span { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+.pr-holes { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.7rem; }
+.pr-hole-box { border: 1px solid var(--line); border-radius: 6px; background: #fff; padding: 0.5rem 0.6rem; }
+.pr-hole-box--un { background: rgba(177,30,45,0.05); border-color: var(--red); margin-bottom: 0.7rem; }
+.pr-hole-box__hd { font-weight: 800; color: var(--primary-green); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--line); padding-bottom: 0.25rem; margin-bottom: 0.35rem; }
+.pr-team { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem; padding: 0.35rem 0; border-bottom: 1px solid var(--line); }
+.pr-team:last-child { border-bottom: none; }
+.pr-team__name { font-weight: 600; font-size: 0.92rem; }
+.pr-team__ctl { display: flex; gap: 0.3rem; }
+.pr-hole, .pr-wave select, .pr-team select { padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; }
