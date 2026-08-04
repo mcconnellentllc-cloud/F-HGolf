@@ -559,13 +559,15 @@
       // ---- Calculations: editable formula, drives leaderboard + Calcutta ----
       var CALCK = "fh_calc_" + KEY;
       var CALC_DEFAULTS = {
+        entryPP: 120,                        // $ entry fee per person
         greenFeePP: 20,                      // $ per person to the course (green fee)
         mealPP: 30,                          // $ per person for meals
+        otherPP: 0,                          // $ per person other deductions
         handicapMultiplier: 0.8,
         flights: 4,
-        flightPrize: [100, 60, 40],          // $ to 1st / 2nd / 3rd in each flight (ties split)
+        flightSplit: [50, 30, 20],           // % of prize pool to 1st/2nd/3rd (then ÷ # flights)
         calcuttaCommission: 10,              // % the club keeps
-        calcuttaSplit: [40, 25, 15, 12, 8],  // % of the payout pool to net places 1–5
+        calcuttaSplit: [40, 30, 20, 10],     // % of each flight's pool to net places 1–4 (top 4)
         pars: [4, 4, 3, 4, 5, 4, 3, 4, 5, 4, 4, 3, 4, 5, 4, 3, 4, 5]
       };
       function loadCalc() {
@@ -578,41 +580,45 @@
         if (!box) return;
         var pars = c.pars && c.pars.length === 18 ? c.pars : CALC_DEFAULTS.pars;
         var parCells = pars.map(function (p, i) { return '<label class="sc__cell"><span>H' + (i + 1) + "</span><input type=\"number\" min=\"1\" max=\"8\" class=\"calc__par sc__in\" value=\"" + p + "\" /></label>"; }).join("");
+        var gv = function (k, d) { return c[k] != null ? c[k] : d; };
         box.innerHTML =
-          '<div class="calc__grp"><h4>Course take (per person)</h4>'
-          + '<label class="calc__row">Green fee $ ' + numIn("cGreen", c.greenFeePP != null ? c.greenFeePP : 20, "1") + "</label>"
-          + '<label class="calc__row">Meals $ ' + numIn("cMeal", c.mealPP != null ? c.mealPP : 30, "1") + "</label>"
-          + '<p class="calc__note">Comes off the top per player; the rest is the prize pool.</p></div>'
+          '<div class="calc__grp"><h4>Money (per person)</h4>'
+          + '<label class="calc__row">Entry fee $ ' + numIn("cEntry", gv("entryPP", 120), "1") + "</label>"
+          + '<label class="calc__row">Green fee $ ' + numIn("cGreen", gv("greenFeePP", 20), "1") + "</label>"
+          + '<label class="calc__row">Meals $ ' + numIn("cMeal", gv("mealPP", 30), "1") + "</label>"
+          + '<label class="calc__row">Other $ ' + numIn("cOther", gv("otherPP", 0), "1") + "</label>"
+          + '<p class="calc__note">Prize pool = (entry − green − meal − other) × players. Green & meals go to the course.</p></div>'
           + '<div class="calc__grp"><h4>Handicap</h4>'
           + '<label class="calc__row">Multiplier (× stroke difference) ' + numIn("cMult", c.handicapMultiplier) + "</label>"
-          + '<p class="calc__note">Handicap = floor((team gross − flight-leader gross) × multiplier). Day 1 sets it.</p></div>'
-          + '<div class="calc__grp"><h4>Flights</h4>'
+          + '<p class="calc__note">HCP = (team Day-1 gross − flight-leader Day-1 gross) × multiplier. Net = Day-2 gross − HCP.</p></div>'
+          + '<div class="calc__grp"><h4>Flight prizes</h4>'
           + '<label class="calc__row">Number of flights ' + numIn("cFlights", c.flights, "1") + "</label>"
-          + '<label class="calc__row">Prize — 1st $ ' + numIn("cP1", c.flightPrize[0], "1") + "</label>"
-          + '<label class="calc__row">Prize — 2nd $ ' + numIn("cP2", c.flightPrize[1], "1") + "</label>"
-          + '<label class="calc__row">Prize — 3rd $ ' + numIn("cP3", c.flightPrize[2], "1") + "</label>"
-          + '<p class="calc__note">Flight places are by 2-day total gross. Ties split the tied places’ prize money equally.</p></div>'
-          + '<div class="calc__grp"><h4>Calcutta</h4>'
+          + '<label class="calc__row">Pool — 1st % ' + numIn("cF1", c.flightSplit[0], "1") + "</label>"
+          + '<label class="calc__row">2nd % ' + numIn("cF2", c.flightSplit[1], "1") + "</label>"
+          + '<label class="calc__row">3rd % ' + numIn("cF3", c.flightSplit[2], "1") + "</label>"
+          + '<p class="calc__note">Prize pool split by these %, then ÷ # flights = each flight’s 1st/2nd/3rd. Places by 2-day gross; ties split.</p></div>'
+          + '<div class="calc__grp"><h4>Calcutta (top 4 net)</h4>'
           + '<label class="calc__row">Club commission % ' + numIn("cComm", c.calcuttaCommission, "1") + "</label>"
           + '<label class="calc__row">Payout — 1st % ' + numIn("cS1", c.calcuttaSplit[0], "1") + "</label>"
           + '<label class="calc__row">2nd % ' + numIn("cS2", c.calcuttaSplit[1], "1") + "</label>"
           + '<label class="calc__row">3rd % ' + numIn("cS3", c.calcuttaSplit[2], "1") + "</label>"
           + '<label class="calc__row">4th % ' + numIn("cS4", c.calcuttaSplit[3], "1") + "</label>"
-          + '<label class="calc__row">5th % ' + numIn("cS5", c.calcuttaSplit[4], "1") + "</label>"
-          + '<p class="calc__note">Top-5 by net. Club keeps commission; the remainder is split by these percents.</p></div>'
+          + '<p class="calc__note">Per flight: pool × (100 − commission)%, split by these percents to the top 4 net.</p></div>'
           + '<div class="calc__grp"><h4>Course pars (per hole)</h4><div class="sc__grid">' + parCells + "</div></div>";
       }
       function saveCalc() {
         var g = function (id) { var el = document.getElementById(id); return el ? parseFloat(el.value) : NaN; };
         var pars = Array.prototype.map.call(document.querySelectorAll(".calc__par"), function (i) { return parseInt(i.value, 10) || 0; });
         var c = {
+          entryPP: isFinite(g("cEntry")) ? g("cEntry") : 120,
           greenFeePP: isFinite(g("cGreen")) ? g("cGreen") : 20,
           mealPP: isFinite(g("cMeal")) ? g("cMeal") : 30,
+          otherPP: isFinite(g("cOther")) ? g("cOther") : 0,
           handicapMultiplier: isFinite(g("cMult")) ? g("cMult") : 0.8,
           flights: parseInt(g("cFlights"), 10) || 4,
-          flightPrize: [g("cP1") || 0, g("cP2") || 0, g("cP3") || 0],
+          flightSplit: [g("cF1") || 0, g("cF2") || 0, g("cF3") || 0],
           calcuttaCommission: isFinite(g("cComm")) ? g("cComm") : 10,
-          calcuttaSplit: [g("cS1") || 0, g("cS2") || 0, g("cS3") || 0, g("cS4") || 0, g("cS5") || 0],
+          calcuttaSplit: [g("cS1") || 0, g("cS2") || 0, g("cS3") || 0, g("cS4") || 0],
           pars: pars.length === 18 ? pars : CALC_DEFAULTS.pars.slice()
         };
         try { localStorage.setItem(CALCK, JSON.stringify(c)); } catch (e) {}
