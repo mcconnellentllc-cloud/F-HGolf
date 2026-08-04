@@ -235,7 +235,7 @@ Day 2 (18 holes = two loops of the nine; no mulligans).
 - `api/tournament-score.js` (POST, admin-key) writes a round's holes + gross.
 - **Add these fields to the `Tournament Signups` table too:** `Start` (single
   select: `8 AM`, `1 PM`), `Day1 Scores` (long text), `Day2 Scores` (long text),
-  `Day1 Gross` (number), `Day2 Gross` (number), `Hole` (number 1–9) · `Flight` (number — used by the
+  `Day1 Gross` (number), `Day2 Gross` (number), `Hole` (number 1–9) · `Alternate` (checkbox) · `Flight` (number — used by the
   upcoming leaderboard flight slider).
 - Per-hole pars are a placeholder (`4,4,3,4,5,4,3,4,5`); confirm the real layout.
 

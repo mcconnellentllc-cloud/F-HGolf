@@ -906,3 +906,10 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .pr-team__name { font-weight: 600; font-size: 0.92rem; }
 .pr-team__ctl { display: flex; gap: 0.3rem; }
 .pr-hole, .pr-wave select, .pr-team select { padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; }
+
+/* Alternates (standby, not in the active field) */
+.ci-badge--alt { background: var(--red); }
+.ci-card.is-alt { border-left: 4px solid var(--red); opacity: 0.9; }
+.ci__alt { background: none; border: 1px solid var(--line); color: var(--primary-green); font: inherit; font-size: 0.8rem; border-radius: 8px; padding: 0.4rem 0.7rem; cursor: pointer; }
+.ci__alt:hover { border-color: var(--primary-green); }
+.wave--alt .wave__label { color: var(--red-deep); border-bottom-color: var(--red); }
