@@ -683,6 +683,7 @@
         handicapMultiplier: 0.8,
         flights: 4,
         flightSplit: [50, 30, 20],           // % of prize pool to 1st/2nd/3rd (then ÷ # flights)
+        additionalFlight: 0,                 // flat $ added to flight money, spread (add ÷ flights) ÷ 3 / place
         calcuttaCommission: 10,              // % the club keeps
         calcuttaSplit: [40, 30, 20, 10],     // % of each flight's pool to net places 1–4 (top 4)
         pars: [4, 4, 3, 4, 5, 4, 3, 4, 5, 4, 4, 3, 4, 5, 4, 3, 4, 5]
@@ -713,7 +714,8 @@
           + '<label class="calc__row">Pool — 1st % ' + numIn("cF1", c.flightSplit[0], "1") + "</label>"
           + '<label class="calc__row">2nd % ' + numIn("cF2", c.flightSplit[1], "1") + "</label>"
           + '<label class="calc__row">3rd % ' + numIn("cF3", c.flightSplit[2], "1") + "</label>"
-          + '<p class="calc__note">Prize pool split by these %, then ÷ # flights = each flight’s 1st/2nd/3rd. Places by 2-day gross; ties split.</p></div>'
+          + '<label class="calc__row">Additional $ (added) ' + numIn("cAdd", gv("additionalFlight", 0), "1") + "</label>"
+          + '<p class="calc__note">Pool split by these %, ÷ # flights = each flight’s 1st/2nd/3rd. Additional $ is spread (add ÷ flights) ÷ 3 per place. Places by 2-day gross; ties split.</p></div>'
           + '<div class="calc__grp"><h4>Calcutta (top 4 net)</h4>'
           + '<label class="calc__row">Club commission % ' + numIn("cComm", c.calcuttaCommission, "1") + "</label>"
           + '<label class="calc__row">Payout — 1st % ' + numIn("cS1", c.calcuttaSplit[0], "1") + "</label>"
@@ -734,6 +736,7 @@
           handicapMultiplier: isFinite(g("cMult")) ? g("cMult") : 0.8,
           flights: parseInt(g("cFlights"), 10) || 4,
           flightSplit: [g("cF1") || 0, g("cF2") || 0, g("cF3") || 0],
+          additionalFlight: isFinite(g("cAdd")) ? g("cAdd") : 0,
           calcuttaCommission: isFinite(g("cComm")) ? g("cComm") : 10,
           calcuttaSplit: [g("cS1") || 0, g("cS2") || 0, g("cS3") || 0, g("cS4") || 0],
           pars: pars.length === 18 ? pars : CALC_DEFAULTS.pars.slice()
