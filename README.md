@@ -210,6 +210,24 @@ Grouping by year is intentional so each event's format can be reused season afte
 season. **Roadmap:** a Membership card and a Communications card (message all
 contacts / members / a tournament's field) are planned next.
 
+### Check-in & money (workspace)
+
+The workspace's **Check-in & Money** section marks each team checked in, records
+the amount paid + method (Cash/Check/Card/Other), shows a running "X/Y checked in
+· $Z collected" total, prefills a remembered **entry fee**, links to the Deposyt
+**card payment** page, and can add **walk-up teams** on the spot.
+
+- `api/tournament-checkin.js` (POST, admin-key) PATCHes the sign-up record.
+- **Add these fields to the `Tournament Signups` Airtable table** (additive; the
+  public sign-up flow is unaffected): `Checked In` (checkbox), `Amount Paid`
+  (number/currency), `Pay Method` (single select: Cash, Check, Card, Other),
+  `Paid At` (date, include time). Uses the same `AIRTABLE_TOKEN` /
+  `AIRTABLE_BASE_ID` / `ADMIN_KEY` env vars (the token needs
+  `data.records:write`).
+
+**In progress for Founders:** hole-by-hole scoring and a public flighted
+leaderboard with a staff "flight cut" slider (2-day, no mulligans).
+
 ## Reviews
 
 `reviews.html` shows: real public reviews (Cam Crabtree @cam_pga's Instagram

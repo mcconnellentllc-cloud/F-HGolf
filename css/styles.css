@@ -780,3 +780,23 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .tw-soon { opacity: 0.96; }
 .tw-soon__desc { color: var(--muted); font-size: 0.92rem; max-width: 70ch; }
 .tw-tag { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 800; color: #fff; background: var(--red); border-radius: 999px; padding: 0.15rem 0.55rem; vertical-align: middle; }
+
+/* ===================== Staff: tournament check-in & money ===================== */
+.checkin-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem; margin-bottom: 1rem; }
+.checkin-fee { max-width: 150px; }
+.checkin-summary { font-size: 1.05rem; color: var(--ink); flex: 1 1 auto; }
+.checkin-summary strong { color: var(--primary-green); }
+.checkin-add { margin-bottom: 1rem; background: var(--paper-2); border-radius: 10px; padding: 0.6rem 0.9rem; }
+.checkin-add summary { cursor: pointer; font-weight: 700; color: var(--primary-green); }
+.checkin-add__row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.7rem; }
+.checkin-add__row input { flex: 1 1 150px; padding: 0.55rem 0.7rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.checkin-add__msg { font-size: 0.85rem; color: var(--muted); margin-top: 0.4rem; display: inline-block; }
+.ci-card.is-in { border-left: 4px solid var(--primary-green); }
+.ci-badge { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--primary-green); background: var(--light-green); border-radius: 999px; padding: 0.1rem 0.5rem; white-space: nowrap; }
+.ci { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.6rem; }
+.ci__amtwrap { font-weight: 700; color: var(--ink); }
+.ci__amt { width: 5rem; padding: 0.45rem 0.5rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.ci__method { padding: 0.45rem 0.5rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; }
+.ci .btn { padding: 0.45rem 1rem; font-size: 0.85rem; }
+.ci__status { font-size: 0.82rem; color: var(--muted); }
+.ci__status.is-error { color: var(--red-deep); }

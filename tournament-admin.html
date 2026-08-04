@@ -66,12 +66,33 @@
           <div class="tw-actions" id="twActions"></div>
         </section>
 
-        <!-- Roster (live from sign-ups) -->
-        <section class="noms" aria-label="Roster">
+        <!-- Check-in & money (live from sign-ups) -->
+        <section class="noms" aria-label="Check-in and payment">
           <div class="noms__bar">
-            <h3 class="noms__title">Roster <span class="noms__count" id="twCount"></span></h3>
+            <h3 class="noms__title">Check-in &amp; Money <span class="noms__count" id="twCount"></span></h3>
             <button class="btn btn--solid" type="button" id="twRefresh">Refresh</button>
           </div>
+
+          <div class="checkin-bar">
+            <label class="form__field checkin-fee">
+              <span class="form__label">Entry fee / team</span>
+              <input type="number" id="twFee" min="0" step="1" inputmode="numeric" placeholder="e.g. 200" />
+            </label>
+            <div class="checkin-summary" id="twSummary"></div>
+            <a class="btn btn--solid" id="twCardLink" target="_blank" rel="noopener" href="#">Card payment page &rarr;</a>
+          </div>
+
+          <details class="checkin-add">
+            <summary>+ Add a walk-up team</summary>
+            <div class="checkin-add__row">
+              <input type="text" id="waName" maxlength="120" placeholder="Player 1 name" />
+              <input type="text" id="waPartner" maxlength="120" placeholder="Partner name" />
+              <input type="tel" id="waPhone" maxlength="60" placeholder="Phone (optional)" />
+              <button class="btn btn--primary" type="button" id="waAdd">Add team</button>
+            </div>
+            <span class="checkin-add__msg" id="waMsg" role="status" aria-live="polite"></span>
+          </details>
+
           <div class="noms__list" id="twRoster"><p class="noms__msg">Loading roster…</p></div>
         </section>
 
@@ -171,35 +192,102 @@
         box.innerHTML = html;
       }
 
+      // Remember the entry fee per tournament so amounts prefill next time.
+      var FEEK = "fh_fee_" + KEY;
+      function savedFee() { try { return localStorage.getItem(FEEK) || ""; } catch (e) { return ""; } }
+      function money(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+
+      function summarize(recs) {
+        var el = document.getElementById("twSummary");
+        if (!el) return;
+        var inCount = 0, total = 0;
+        recs.forEach(function (r) {
+          var f = r.fields || {};
+          if (f["Checked In"]) inCount++;
+          var a = Number(f["Amount Paid"]); if (!isNaN(a)) total += a;
+        });
+        el.innerHTML = "<strong>" + inCount + " / " + recs.length + "</strong> checked in · <strong>"
+          + money(total) + "</strong> collected";
+      }
+
+      function saveCheckin(id, payload, statusEl, btn) {
+        if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "ci__status"; }
+        if (btn) btn.disabled = true;
+        payload.id = id;
+        fetch(FH_API.url("/api/tournament-checkin"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify(payload),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            if (btn) btn.disabled = false;
+            if (res.j && res.j.ok) { loadRoster(); }
+            else if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't save."; statusEl.className = "ci__status is-error"; }
+          })
+          .catch(function () { if (btn) btn.disabled = false; if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
+      }
+
+      var METHODS = ["Cash", "Check", "Card", "Other"];
+      function methodOptions(sel) {
+        return METHODS.map(function (m) { return '<option' + (m === sel ? " selected" : "") + ">" + m + "</option>"; }).join("");
+      }
+
       function renderRoster(all) {
         var list = document.getElementById("twRoster"), count = document.getElementById("twCount");
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
         actions(recs);
-        if (!recs.length) { list.innerHTML = '<p class="noms__msg">No sign-ups yet.</p>'; count.textContent = ""; return; }
+        summarize(recs);
+        if (!recs.length) { list.innerHTML = '<p class="noms__msg">No sign-ups yet. Add a walk-up team above.</p>'; count.textContent = ""; return; }
         count.textContent = "(" + recs.length + ")";
+
+        var fee = document.getElementById("twFee");
+        var feeVal = fee && fee.value ? fee.value : savedFee();
+
         list.innerHTML = recs.map(function (rec) {
           var f = rec.fields || {};
           var name = esc(f["Player Name"] || "(no name)");
           var team = esc(f["Team / Partners"] || "");
           var email = esc(f["Email"] || ""), phone = esc(f["Phone"] || "");
           var carts = (f["Carts"] !== undefined && f["Carts"] !== "") ? esc(f["Carts"]) : "";
-          var notes = esc(f["Notes"] || "");
-          var status = esc(f["Status"] || "New");
-          var when = fmtDate(rec.created);
+          var isIn = !!f["Checked In"];
+          var paid = (f["Amount Paid"] !== undefined && f["Amount Paid"] !== "") ? Number(f["Amount Paid"]) : "";
+          var method = esc(f["Pay Method"] || "Cash");
           var line = [];
           if (team) line.push("Team: " + team);
           if (carts !== "") line.push(carts + " cart(s)");
-          if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
           if (phone) line.push('<a href="tel:' + phone.replace(/[^0-9+]/g, "") + '">' + phone + "</a>");
-          if (when) line.push(when);
-          var cls = status.toLowerCase().replace(/[^a-z]/g, "");
-          return '<article class="nom">'
-            + '<div class="nom__head"><span class="nom__name">' + name + "</span>"
-            + '<span class="nom__status nom__status--' + cls + '">' + status + "</span></div>"
-            + (notes ? '<p class="nom__why">' + notes + "</p>" : "")
+          if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
+
+          var amtValue = paid !== "" ? paid : esc(feeVal);
+          var ci = '<div class="ci" data-id="' + esc(rec.id) + '">'
+            + '<span class="ci__amtwrap">$<input type="number" class="ci__amt" min="0" step="1" inputmode="numeric" value="' + amtValue + '" /></span>'
+            + '<select class="ci__method">' + methodOptions(paid !== "" ? method : "Cash") + "</select>"
+            + '<button type="button" class="btn ' + (isIn ? "btn--solid" : "btn--primary") + ' ci__save">' + (isIn ? "Update" : "Check in") + "</button>"
+            + (isIn ? '<button type="button" class="btn btn--solid ci__undo">Undo</button>' : "")
+            + '<span class="ci__status"></span></div>';
+
+          return '<article class="nom ci-card' + (isIn ? " is-in" : "") + '">'
+            + '<div class="nom__head"><span class="nom__name">' + name
+            + (isIn ? ' <span class="ci-badge">✓ Checked in' + (paid !== "" ? " · " + money(paid) + " " + method : "") + "</span>" : "")
+            + "</span></div>"
             + (line.length ? '<div class="nom__by">' + line.join(" · ") + "</div>" : "")
-            + "</article>";
+            + ci + "</article>";
         }).join("");
+
+        // Wire the per-team controls.
+        Array.prototype.forEach.call(list.querySelectorAll(".ci"), function (row) {
+          var id = row.getAttribute("data-id");
+          var amt = row.querySelector(".ci__amt"), meth = row.querySelector(".ci__method");
+          var statusEl = row.querySelector(".ci__status");
+          var save = row.querySelector(".ci__save"), undo = row.querySelector(".ci__undo");
+          if (save) save.addEventListener("click", function () {
+            saveCheckin(id, { checkedIn: true, amountPaid: amt.value, payMethod: meth.value, paidAt: new Date().toISOString() }, statusEl, save);
+          });
+          if (undo) undo.addEventListener("click", function () {
+            saveCheckin(id, { checkedIn: false }, statusEl, undo);
+          });
+        });
       }
 
       function loadRoster() {
@@ -215,12 +303,46 @@
           .catch(function () { list.innerHTML = '<p class="noms__msg">Network error loading roster.</p>'; });
       }
 
+      function addWalkup() {
+        var name = document.getElementById("waName"), partner = document.getElementById("waPartner"),
+            phone = document.getElementById("waPhone"), msg = document.getElementById("waMsg"), btn = document.getElementById("waAdd");
+        if (!name.value.trim()) { msg.textContent = "Enter at least a name."; return; }
+        msg.textContent = "Adding…"; btn.disabled = true;
+        var data = { tournament: KEY, name: name.value.trim(), team: partner.value.trim(), phone: phone.value.trim() };
+        fetch(FH_API.url("/api/tournament-signup"), {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            btn.disabled = false;
+            if (j && j.ok) { name.value = ""; partner.value = ""; phone.value = ""; msg.textContent = "Added ✓"; loadRoster(); }
+            else { msg.textContent = (j && j.error) || "Couldn't add team."; }
+          })
+          .catch(function () { btn.disabled = false; msg.textContent = "Network error."; });
+      }
+
       document.addEventListener("DOMContentLoaded", function () {
         header();
         if (!authed()) { gate.hidden = false; panel.hidden = true; return; }
         gate.hidden = true; panel.hidden = false;
+
+        var card = document.getElementById("twCardLink");
+        if (card && window.FH_PAY_URL) card.href = window.FH_PAY_URL;
+
+        var fee = document.getElementById("twFee");
+        if (fee) {
+          fee.value = savedFee();
+          fee.addEventListener("change", function () {
+            try { localStorage.setItem(FEEK, fee.value); } catch (e) {}
+            loadRoster(); // reprice unpaid rows
+          });
+        }
+
         var tr = document.getElementById("twRefresh");
         if (tr) tr.addEventListener("click", loadRoster);
+        var wa = document.getElementById("waAdd");
+        if (wa) wa.addEventListener("click", addWalkup);
+
         loadRoster();
       });
     })();
