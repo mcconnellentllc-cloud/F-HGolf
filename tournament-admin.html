@@ -114,6 +114,20 @@
           <div class="noms__list" id="twScoreList"><p class="noms__msg">Loading…</p></div>
         </section>
 
+        <!-- Calculations (editable formula) -->
+        <section class="noms" id="twCalc" aria-label="Calculations">
+          <div class="noms__bar">
+            <h3 class="noms__title">Calculations</h3>
+            <button class="btn btn--solid" type="button" id="calcReset">Reset to defaults</button>
+          </div>
+          <p class="scaffold__desc">Every formula lives here — change any value and the leaderboard &amp; Calcutta use it immediately. Staff can still manually override any team's numbers on the leaderboard.</p>
+          <div id="calcForm" class="calcform"></div>
+          <div class="sc__foot">
+            <button class="btn btn--primary" type="button" id="calcSave">Save calculations</button>
+            <span class="sc__status" id="calcStatus"></span>
+          </div>
+        </section>
+
         <!-- Leaderboard (in development) -->
         <section class="noms tw-soon" aria-label="Leaderboard">
           <div class="noms__bar">
@@ -441,10 +455,80 @@
           .catch(function () { btn.disabled = false; msg.textContent = "Network error."; });
       }
 
+      // ---- Calculations: editable formula, drives leaderboard + Calcutta ----
+      var CALCK = "fh_calc_" + KEY;
+      var CALC_DEFAULTS = {
+        greenFeePP: 20,                      // $ per person to the course (green fee)
+        mealPP: 30,                          // $ per person for meals
+        handicapMultiplier: 0.8,
+        flights: 4,
+        flightPrize: [100, 60, 40],          // $ to 1st / 2nd / 3rd in each flight (ties split)
+        calcuttaCommission: 10,              // % the club keeps
+        calcuttaSplit: [40, 25, 15, 12, 8],  // % of the payout pool to net places 1–5
+        pars: [4, 4, 3, 4, 5, 4, 3, 4, 5, 4, 4, 3, 4, 5, 4, 3, 4, 5]
+      };
+      function loadCalc() {
+        try { var c = JSON.parse(localStorage.getItem(CALCK) || "null"); if (c) return c; } catch (e) {}
+        return JSON.parse(JSON.stringify(CALC_DEFAULTS));
+      }
+      function numIn(id, val, step) { return '<input type="number" id="' + id + '" value="' + val + '" step="' + (step || "any") + '" class="calc__in" />'; }
+      function renderCalcForm() {
+        var c = loadCalc(), box = document.getElementById("calcForm");
+        if (!box) return;
+        var pars = c.pars && c.pars.length === 18 ? c.pars : CALC_DEFAULTS.pars;
+        var parCells = pars.map(function (p, i) { return '<label class="sc__cell"><span>H' + (i + 1) + "</span><input type=\"number\" min=\"1\" max=\"8\" class=\"calc__par sc__in\" value=\"" + p + "\" /></label>"; }).join("");
+        box.innerHTML =
+          '<div class="calc__grp"><h4>Course take (per person)</h4>'
+          + '<label class="calc__row">Green fee $ ' + numIn("cGreen", c.greenFeePP != null ? c.greenFeePP : 20, "1") + "</label>"
+          + '<label class="calc__row">Meals $ ' + numIn("cMeal", c.mealPP != null ? c.mealPP : 30, "1") + "</label>"
+          + '<p class="calc__note">Comes off the top per player; the rest is the prize pool.</p></div>'
+          + '<div class="calc__grp"><h4>Handicap</h4>'
+          + '<label class="calc__row">Multiplier (× stroke difference) ' + numIn("cMult", c.handicapMultiplier) + "</label>"
+          + '<p class="calc__note">Handicap = floor((team gross − flight-leader gross) × multiplier). Day 1 sets it.</p></div>'
+          + '<div class="calc__grp"><h4>Flights</h4>'
+          + '<label class="calc__row">Number of flights ' + numIn("cFlights", c.flights, "1") + "</label>"
+          + '<label class="calc__row">Prize — 1st $ ' + numIn("cP1", c.flightPrize[0], "1") + "</label>"
+          + '<label class="calc__row">Prize — 2nd $ ' + numIn("cP2", c.flightPrize[1], "1") + "</label>"
+          + '<label class="calc__row">Prize — 3rd $ ' + numIn("cP3", c.flightPrize[2], "1") + "</label>"
+          + '<p class="calc__note">Flight places are by 2-day total gross. Ties split the tied places’ prize money equally.</p></div>'
+          + '<div class="calc__grp"><h4>Calcutta</h4>'
+          + '<label class="calc__row">Club commission % ' + numIn("cComm", c.calcuttaCommission, "1") + "</label>"
+          + '<label class="calc__row">Payout — 1st % ' + numIn("cS1", c.calcuttaSplit[0], "1") + "</label>"
+          + '<label class="calc__row">2nd % ' + numIn("cS2", c.calcuttaSplit[1], "1") + "</label>"
+          + '<label class="calc__row">3rd % ' + numIn("cS3", c.calcuttaSplit[2], "1") + "</label>"
+          + '<label class="calc__row">4th % ' + numIn("cS4", c.calcuttaSplit[3], "1") + "</label>"
+          + '<label class="calc__row">5th % ' + numIn("cS5", c.calcuttaSplit[4], "1") + "</label>"
+          + '<p class="calc__note">Top-5 by net. Club keeps commission; the remainder is split by these percents.</p></div>'
+          + '<div class="calc__grp"><h4>Course pars (per hole)</h4><div class="sc__grid">' + parCells + "</div></div>";
+      }
+      function saveCalc() {
+        var g = function (id) { var el = document.getElementById(id); return el ? parseFloat(el.value) : NaN; };
+        var pars = Array.prototype.map.call(document.querySelectorAll(".calc__par"), function (i) { return parseInt(i.value, 10) || 0; });
+        var c = {
+          greenFeePP: isFinite(g("cGreen")) ? g("cGreen") : 20,
+          mealPP: isFinite(g("cMeal")) ? g("cMeal") : 30,
+          handicapMultiplier: isFinite(g("cMult")) ? g("cMult") : 0.8,
+          flights: parseInt(g("cFlights"), 10) || 4,
+          flightPrize: [g("cP1") || 0, g("cP2") || 0, g("cP3") || 0],
+          calcuttaCommission: isFinite(g("cComm")) ? g("cComm") : 10,
+          calcuttaSplit: [g("cS1") || 0, g("cS2") || 0, g("cS3") || 0, g("cS4") || 0, g("cS5") || 0],
+          pars: pars.length === 18 ? pars : CALC_DEFAULTS.pars.slice()
+        };
+        try { localStorage.setItem(CALCK, JSON.stringify(c)); } catch (e) {}
+        PARS = c.pars.slice(0, 18);
+        var st = document.getElementById("calcStatus");
+        if (st) { st.textContent = "Saved ✓"; setTimeout(function () { st.textContent = ""; }, 2000); }
+      }
+
       document.addEventListener("DOMContentLoaded", function () {
         header();
         if (!authed()) { gate.hidden = false; panel.hidden = true; return; }
         gate.hidden = true; panel.hidden = false;
+
+        PARS = (loadCalc().pars || PARS).slice(0, 18);
+        renderCalcForm();
+        var cs = document.getElementById("calcSave"); if (cs) cs.addEventListener("click", saveCalc);
+        var cr = document.getElementById("calcReset"); if (cr) cr.addEventListener("click", function () { try { localStorage.removeItem(CALCK); } catch (e) {} renderCalcForm(); PARS = CALC_DEFAULTS.pars.slice(); });
 
         var card = document.getElementById("twCardLink");
         if (card && window.FH_PAY_URL) card.href = window.FH_PAY_URL;
