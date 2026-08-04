@@ -57,8 +57,17 @@
 
       <div id="twPanel" hidden>
 
+        <!-- Excel-style workbook tabs -->
+        <div class="wb-tabs" id="wbTabs" role="tablist">
+          <button type="button" class="wb-tab" data-sheet="check" role="tab">Check-In</button>
+          <button type="button" class="wb-tab" data-sheet="scores" role="tab">Scores</button>
+          <button type="button" class="wb-tab" data-sheet="flights" role="tab">Flights &amp; Leaderboard</button>
+          <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
+          <button type="button" class="wb-tab" data-sheet="calc" role="tab">Calc</button>
+        </div>
+
         <!-- Quick actions -->
-        <section class="noms" aria-label="Actions">
+        <section class="noms wb-sheet" data-sheet="check" aria-label="Actions">
           <div class="noms__bar">
             <h3 class="noms__title">This Tournament</h3>
             <a class="btn btn--solid" href="admin.html">&larr; All tournaments</a>
@@ -67,7 +76,7 @@
         </section>
 
         <!-- Check-in & money (live from sign-ups) -->
-        <section class="noms" aria-label="Check-in and payment">
+        <section class="noms wb-sheet" data-sheet="check" aria-label="Check-in and payment">
           <div class="noms__bar">
             <h3 class="noms__title">Check-in &amp; Money <span class="noms__count" id="twCount"></span></h3>
             <button class="btn btn--solid" type="button" id="twRefresh">Refresh</button>
@@ -97,7 +106,7 @@
         </section>
 
         <!-- Expenses & P&L -->
-        <section class="noms" id="twExpenses" aria-label="Expenses and P and L">
+        <section class="noms wb-sheet" data-sheet="money" id="twExpenses" aria-label="Expenses and P and L">
           <div class="noms__bar">
             <h3 class="noms__title">Expenses &amp; P&amp;L</h3>
             <button class="btn btn--solid" type="button" id="expRefresh">Refresh</button>
@@ -116,16 +125,8 @@
           <div class="noms__list" id="expList"><p class="noms__msg">Loading expenses…</p></div>
         </section>
 
-        <!-- Flights (in development) -->
-        <section class="noms tw-soon" aria-label="Flights">
-          <div class="noms__bar">
-            <h3 class="noms__title">Flights <span class="tw-tag">In development</span></h3>
-          </div>
-          <p class="tw-soon__desc">Split the field into flights (by handicap or draw), assign starting holes/tee times, and print pairing sheets. Flights defined here will feed the scorecards and leaderboard.</p>
-        </section>
-
         <!-- Scores (hole-by-hole) -->
-        <section class="noms" id="twScores" aria-label="Scores">
+        <section class="noms wb-sheet" data-sheet="scores" id="twScores" aria-label="Scores">
           <div class="noms__bar">
             <h3 class="noms__title">Scores <span class="noms__count" id="twScoreCount"></span></h3>
             <button class="btn btn--solid" type="button" id="twScoreRefresh">Refresh</button>
@@ -135,7 +136,7 @@
         </section>
 
         <!-- Calculations (editable formula) -->
-        <section class="noms" id="twCalc" aria-label="Calculations">
+        <section class="noms wb-sheet" data-sheet="calc" id="twCalc" aria-label="Calculations">
           <div class="noms__bar">
             <h3 class="noms__title">Calculations</h3>
             <button class="btn btn--solid" type="button" id="calcReset">Reset to defaults</button>
@@ -149,7 +150,7 @@
         </section>
 
         <!-- Flighting + Leaderboard -->
-        <section class="noms" id="twBoard" aria-label="Leaderboard">
+        <section class="noms wb-sheet" data-sheet="flights" id="twBoard" aria-label="Leaderboard">
           <div class="noms__bar">
             <h3 class="noms__title">Flights &amp; Leaderboard</h3>
             <button class="btn btn--solid" type="button" id="lbRefresh">Refresh</button>
@@ -751,6 +752,18 @@
         header();
         if (!authed()) { gate.hidden = false; panel.hidden = true; return; }
         gate.hidden = true; panel.hidden = false;
+
+        // Workbook tabs — show one sheet at a time.
+        function showSheet(s) {
+          Array.prototype.forEach.call(document.querySelectorAll(".wb-sheet"), function (el) { el.hidden = (el.getAttribute("data-sheet") !== s); });
+          Array.prototype.forEach.call(document.querySelectorAll(".wb-tab"), function (b) { b.classList.toggle("is-active", b.getAttribute("data-sheet") === s); });
+          try { localStorage.setItem("fh_wb_tab_" + KEY, s); } catch (e) {}
+        }
+        Array.prototype.forEach.call(document.querySelectorAll(".wb-tab"), function (b) {
+          b.addEventListener("click", function () { showSheet(b.getAttribute("data-sheet")); });
+        });
+        var savedTab = "check"; try { savedTab = localStorage.getItem("fh_wb_tab_" + KEY) || "check"; } catch (e) {}
+        showSheet(savedTab);
 
         PARS = (loadCalc().pars || PARS).slice(0, 18);
         renderCalcForm();
