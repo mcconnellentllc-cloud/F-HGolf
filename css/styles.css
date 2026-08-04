@@ -849,3 +849,17 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .calc__in { width: 6rem; padding: 0.4rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; text-align: right; }
 .calc__par { text-align: center; }
 .calc__note { font-size: 0.78rem; color: var(--muted); font-style: italic; margin-top: 0.3rem; }
+
+/* Expenses & P&L */
+.pl { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-bottom: 1rem; padding: 0.8rem 1rem; background: var(--paper-2); border-radius: 10px; }
+.pl__row { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.95rem; color: var(--muted); }
+.pl__row strong { color: var(--ink); font-size: 1.05rem; }
+.pl__row--net { margin-left: auto; }
+.pl__row--net strong.is-pos { color: var(--primary-green); }
+.pl__row--net strong.is-neg { color: var(--red-deep); }
+.exp__amt { font-weight: 700; color: var(--red-deep); }
+.exp__cat { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--primary-green); background: var(--light-green); border-radius: 999px; padding: 0.1rem 0.5rem; }
+.exp__actions { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.3rem; }
+
+/* Check-number field in the check-in row */
+.ci__checkno { width: 5.5rem; padding: 0.45rem 0.5rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; }

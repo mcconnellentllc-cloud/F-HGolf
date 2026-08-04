@@ -221,7 +221,7 @@ the amount paid + method (Cash/Check/Card/Other), shows a running "X/Y checked i
 - **Add these fields to the `Tournament Signups` Airtable table** (additive; the
   public sign-up flow is unaffected): `Checked In` (checkbox), `Amount Paid`
   (number/currency), `Pay Method` (single select: Cash, Check, Card, Other),
-  `Paid At` (date, include time). Uses the same `AIRTABLE_TOKEN` /
+  `Paid At` (date, include time). Also add `Check Number` (text) so check payments can be reconciled. Uses the same `AIRTABLE_TOKEN` /
   `AIRTABLE_BASE_ID` / `ADMIN_KEY` env vars (the token needs
   `data.records:write`).
 
@@ -238,6 +238,14 @@ Day 2 (18 holes = two loops of the nine; no mulligans).
   `Day1 Gross` (number), `Day2 Gross` (number), `Flight` (number — used by the
   upcoming leaderboard flight slider).
 - Per-hole pars are a placeholder (`4,4,3,4,5,4,3,4,5`); confirm the real layout.
+
+### Expenses & P&L (workspace)
+
+The workspace tracks **per-tournament expenses** and a live **P&L** (money collected − expenses). Add/remove expense entries (description, amount, category).
+
+- `api/tournament-expenses.js` (GET list `?t=`, POST add, POST `{action:"delete"}`), admin-key.
+- **Create an Airtable table `Tournament Expenses`** with fields: `Tournament` (text), `Description` (text), `Amount` (number/currency), `Category` (single select: Food, Prizes, Supplies, Labor, Other). Override the name with the optional `EXPENSES_TABLE` env var.
+- The sign-ups and expenses reads now **paginate** (all records, not just the first 100).
 
 **Still to build for Founders:** the public flighted leaderboard — gross + net
 columns, a staff "flight cut" **slider** (4 flights), flight-relative handicap

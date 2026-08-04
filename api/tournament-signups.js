@@ -23,22 +23,26 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}?pageSize=100`;
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-    if (!r.ok) {
-      const detail = await r.text();
-      console.error("Airtable tournament read error", r.status, detail);
-      const msg = r.status === 403
-        ? "Airtable refused the read. The token likely needs the 'data.records:read' scope."
-        : "Could not load sign-ups right now.";
-      return res.status(502).json({ ok: false, error: msg });
+    const listUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}`;
+    const records = [];
+    let offset = "";
+    // Page through every record (Airtable returns up to 100 per page).
+    for (let guard = 0; guard < 50; guard++) {
+      const url = listUrl + "?pageSize=100" + (offset ? "&offset=" + encodeURIComponent(offset) : "");
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      if (!r.ok) {
+        const detail = await r.text();
+        console.error("Airtable tournament read error", r.status, detail);
+        const msg = r.status === 403
+          ? "Airtable refused the read. The token likely needs the 'data.records:read' scope."
+          : "Could not load sign-ups right now.";
+        return res.status(502).json({ ok: false, error: msg });
+      }
+      const data = await r.json();
+      (data.records || []).forEach((rec) => records.push({ id: rec.id, created: rec.createdTime, fields: rec.fields || {} }));
+      if (!data.offset) break;
+      offset = data.offset;
     }
-    const data = await r.json();
-    const records = (data.records || []).map((rec) => ({
-      id: rec.id,
-      created: rec.createdTime,
-      fields: rec.fields || {},
-    }));
     records.sort((a, b) => String(b.created || "").localeCompare(String(a.created || "")));
     return res.status(200).json({ ok: true, count: records.length, records });
   } catch (e) {
