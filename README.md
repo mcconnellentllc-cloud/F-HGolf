@@ -188,6 +188,28 @@ Cancelled), `Submitted At` (created time). The form also remembers a returning
 golfer's name/email/phone in their own browser (localStorage) to autofill. Override the table name with the optional `TOURNAMENTS_TABLE`
 Vercel env var. Uses the same `AIRTABLE_TOKEN` / `AIRTABLE_BASE_ID` / `ADMIN_KEY`.
 
+## Tournament Manager (Staff Portal)
+
+The Staff Portal has a **Tournaments** panel: one **card per tournament, grouped
+by year** (built from the tournament metadata in `js/tournaments.js`, which
+`admin.html` also loads). Each card shows the format, capacity, and live sign-up
+count (from `api/tournament-signups.js`), an **Email** button (mailto BCC of
+everyone signed up), and an **Open →** link to that tournament's workspace.
+
+`tournament-admin.html?t=<Tournament Key>` is the per-tournament **workspace**. It
+reuses the Staff Portal session (the same `sessionStorage` login — open it from a
+card so the session carries), and shows:
+
+- **Roster** — the live sign-up list for that tournament, with contact info and an
+  "email everyone" action.
+- **Flights**, **Scorecards**, **Leaderboard** — scaffolded panels marked *In
+  development*. These are the next build: define flights, enter hole-by-hole
+  scores against the course par layout, and show live standings/payouts.
+
+Grouping by year is intentional so each event's format can be reused season after
+season. **Roadmap:** a Membership card and a Communications card (message all
+contacts / members / a tournament's field) are planned next.
+
 ## Reviews
 
 `reviews.html` shows: real public reviews (Cam Crabtree @cam_pga's Instagram

@@ -755,3 +755,28 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .founders__scan img { width: 100%; max-width: 640px; border: 1px solid var(--line); border-radius: var(--radius); }
 .founders__scan figcaption { margin-top: 0.5rem; font-size: 0.85rem; font-style: italic; color: var(--muted); }
 .hero__year { font-size: 1rem; margin-top: 0.3rem; opacity: 0.92; }
+
+/* ===================== Staff: Tournament Manager cards ===================== */
+.tm__intro { color: var(--muted); font-size: 0.92rem; margin-bottom: 1.1rem; max-width: 70ch; }
+.tm-year { margin-bottom: 1.6rem; }
+.tm-year__label { color: var(--primary-green); font-family: var(--font-display); font-size: 1.15rem; margin-bottom: 0.7rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--line); }
+.tm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+.tm-card { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--primary-green); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 1.1rem 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.tm-card.is-past { border-left-color: var(--muted); opacity: 0.82; }
+.tm-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; }
+.tm-card__name { color: var(--primary-green); font-size: 1.08rem; margin: 0; }
+.tm-card__date { color: var(--red-deep); font-weight: 700; font-size: 0.8rem; white-space: nowrap; }
+.tm-card__fmt { color: var(--muted); font-size: 0.85rem; }
+.tm-card__count { font-weight: 700; color: var(--ink); font-size: 0.9rem; }
+.tm-card__count.is-full { color: var(--red-deep); }
+.tm-card__chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.2rem 0 0.5rem; }
+.tm-card__chips span { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--primary-green); background: var(--light-green); border-radius: 999px; padding: 0.15rem 0.55rem; }
+.tm-card__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: auto; }
+.tm__btn { padding: 0.5rem 1rem; font-size: 0.85rem; }
+.tm__btn--off { color: var(--muted); font-size: 0.8rem; font-style: italic; align-self: center; }
+
+/* ===================== Staff: Tournament Workspace ===================== */
+.tw-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.tw-soon { opacity: 0.96; }
+.tw-soon__desc { color: var(--muted); font-size: 0.92rem; max-width: 70ch; }
+.tw-tag { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 800; color: #fff; background: var(--red); border-radius: 999px; padding: 0.15rem 0.55rem; vertical-align: middle; }

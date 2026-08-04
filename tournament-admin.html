@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Tournament Workspace — F&amp;H Staff</title>
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1B5E20" />
+  <link rel="apple-touch-icon" href="images/icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="F&amp;H Golf" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ============================ NAV ============================ -->
+  <header class="nav" id="top">
+    <div class="nav__inner">
+      <a href="index.html" class="nav__brand" aria-label="F&H Golf Course home">
+        <img class="nav__mark" src="images/logo.png" alt="" aria-hidden="true" />
+        <span class="nav__wordmark">
+          <span class="nav__name">F&amp;H Golf Course</span>
+          <span class="nav__tagline">Tournament Workspace</span>
+        </span>
+      </a>
+      <nav class="nav__links">
+        <a href="admin.html">&larr; Staff Portal</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero hero--strip">
+    <div class="hero__inner">
+      <div class="hero__content">
+        <p class="hero__kicker" id="twKicker">Tournament Workspace</p>
+        <h1 class="hero__title" id="twName">Tournament</h1>
+        <p class="hero__subtitle" id="twSub"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--alt">
+    <div class="container admin">
+
+      <!-- Sign-in required (uses the Staff Portal session) -->
+      <div class="admin-gate" id="twGate" hidden>
+        <h2>Sign in first</h2>
+        <p>Open this workspace from the <a href="admin.html">Staff Portal</a> after signing in. Your session unlocks it automatically.</p>
+        <p><a class="btn btn--primary" href="admin.html">Go to Staff Portal &rarr;</a></p>
+      </div>
+
+      <div id="twPanel" hidden>
+
+        <!-- Quick actions -->
+        <section class="noms" aria-label="Actions">
+          <div class="noms__bar">
+            <h3 class="noms__title">This Tournament</h3>
+            <a class="btn btn--solid" href="admin.html">&larr; All tournaments</a>
+          </div>
+          <div class="tw-actions" id="twActions"></div>
+        </section>
+
+        <!-- Roster (live from sign-ups) -->
+        <section class="noms" aria-label="Roster">
+          <div class="noms__bar">
+            <h3 class="noms__title">Roster <span class="noms__count" id="twCount"></span></h3>
+            <button class="btn btn--solid" type="button" id="twRefresh">Refresh</button>
+          </div>
+          <div class="noms__list" id="twRoster"><p class="noms__msg">Loading roster…</p></div>
+        </section>
+
+        <!-- Flights (in development) -->
+        <section class="noms tw-soon" aria-label="Flights">
+          <div class="noms__bar">
+            <h3 class="noms__title">Flights <span class="tw-tag">In development</span></h3>
+          </div>
+          <p class="tw-soon__desc">Split the field into flights (by handicap or draw), assign starting holes/tee times, and print pairing sheets. Flights defined here will feed the scorecards and leaderboard.</p>
+        </section>
+
+        <!-- Scorecards (in development) -->
+        <section class="noms tw-soon" aria-label="Scorecards">
+          <div class="noms__bar">
+            <h3 class="noms__title">Scorecards <span class="tw-tag">In development</span></h3>
+          </div>
+          <p class="tw-soon__desc">Enter hole-by-hole scores for each team, with the course's par layout pre-loaded. Scores roll straight into the live leaderboard.</p>
+        </section>
+
+        <!-- Leaderboard (in development) -->
+        <section class="noms tw-soon" aria-label="Leaderboard">
+          <div class="noms__bar">
+            <h3 class="noms__title">Leaderboard <span class="tw-tag">In development</span></h3>
+          </div>
+          <p class="tw-soon__desc">Live standings by flight with net/gross, ties, and payouts — ready to display on the public site or a clubhouse screen during the event.</p>
+        </section>
+
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <a href="index.html" class="site-footer__marklink"><img class="site-footer__mark" src="images/logo.png" alt="F&H Golf Course logo" /></a>
+        <div>
+          <div class="site-footer__name">F&amp;H Golf Course</div>
+          <p class="site-footer__tag">Tournament Workspace</p>
+        </div>
+      </div>
+      <div>
+        <h4>Go to</h4>
+        <ul>
+          <li><a href="admin.html">Staff Portal</a></li>
+          <li><a href="tournaments.html">Public schedule</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="site-footer__bottom">
+      <span>&copy; 2026 F&amp;H Golf Course — F&amp;H Park &amp; Recreation District. Fleming, Colorado.</span>
+      <span>Staff · Tournament Workspace</span>
+    </div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script src="js/tournaments.js"></script>
+  <script>
+    (function () {
+      var FLAG = "fh_admin_ok", KEYK = "fh_admin_key";
+      var gate = document.getElementById("twGate");
+      var panel = document.getElementById("twPanel");
+      function getKey() { try { return sessionStorage.getItem(KEYK) || ""; } catch (e) { return ""; } }
+      function authed() { try { return sessionStorage.getItem(FLAG) === "1"; } catch (e) { return false; } }
+      function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
+      function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); } catch (e) { return ""; } }
+      function param(n) { try { return new URLSearchParams(window.location.search).get(n) || ""; } catch (e) { return ""; } }
+
+      var KEY = param("t");
+      var TMETA = window.FH_TMETA || {};
+      var META = TMETA[KEY] || null;
+
+      function splitName(key) {
+        var mm = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(key);
+        return mm ? { name: mm[1], date: mm[2] } : { name: key, date: "" };
+      }
+
+      function header() {
+        var info = splitName(KEY);
+        document.getElementById("twName").textContent = info.name || "Tournament";
+        var bits = [];
+        if (info.date) bits.push(info.date);
+        if (META && META.format) bits.push(META.format);
+        if (META && META.cap) bits.push(META.cap + " " + (META.unit || "spots") + " max");
+        document.getElementById("twSub").textContent = bits.join(" · ");
+      }
+
+      function actions(records) {
+        var box = document.getElementById("twActions");
+        if (!box) return;
+        var emails = (records || []).map(function (r) { return (r.fields && r.fields["Email"]) || ""; }).filter(Boolean);
+        var info = splitName(KEY);
+        var html = "";
+        html += emails.length
+          ? '<a class="btn btn--primary" href="mailto:?bcc=' + encodeURIComponent(emails.join(",")) + "&subject=" + encodeURIComponent("F&H — " + info.name) + '">Email everyone signed up (' + emails.length + ")</a>"
+          : '<span class="tm__btn tm__btn--off">No emails on file yet</span>';
+        html += ' <a class="btn btn--solid" href="tournaments.html?t=' + encodeURIComponent(KEY) + '" target="_blank" rel="noopener">View public sign-up &rarr;</a>';
+        box.innerHTML = html;
+      }
+
+      function renderRoster(all) {
+        var list = document.getElementById("twRoster"), count = document.getElementById("twCount");
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
+        actions(recs);
+        if (!recs.length) { list.innerHTML = '<p class="noms__msg">No sign-ups yet.</p>'; count.textContent = ""; return; }
+        count.textContent = "(" + recs.length + ")";
+        list.innerHTML = recs.map(function (rec) {
+          var f = rec.fields || {};
+          var name = esc(f["Player Name"] || "(no name)");
+          var team = esc(f["Team / Partners"] || "");
+          var email = esc(f["Email"] || ""), phone = esc(f["Phone"] || "");
+          var carts = (f["Carts"] !== undefined && f["Carts"] !== "") ? esc(f["Carts"]) : "";
+          var notes = esc(f["Notes"] || "");
+          var status = esc(f["Status"] || "New");
+          var when = fmtDate(rec.created);
+          var line = [];
+          if (team) line.push("Team: " + team);
+          if (carts !== "") line.push(carts + " cart(s)");
+          if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
+          if (phone) line.push('<a href="tel:' + phone.replace(/[^0-9+]/g, "") + '">' + phone + "</a>");
+          if (when) line.push(when);
+          var cls = status.toLowerCase().replace(/[^a-z]/g, "");
+          return '<article class="nom">'
+            + '<div class="nom__head"><span class="nom__name">' + name + "</span>"
+            + '<span class="nom__status nom__status--' + cls + '">' + status + "</span></div>"
+            + (notes ? '<p class="nom__why">' + notes + "</p>" : "")
+            + (line.length ? '<div class="nom__by">' + line.join(" · ") + "</div>" : "")
+            + "</article>";
+        }).join("");
+      }
+
+      function loadRoster() {
+        var list = document.getElementById("twRoster");
+        list.innerHTML = '<p class="noms__msg">Loading roster…</p>';
+        fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            if (res.j && res.j.ok) { renderRoster(res.j.records); }
+            else if (res.status === 401) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
+            else { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
+          })
+          .catch(function () { list.innerHTML = '<p class="noms__msg">Network error loading roster.</p>'; });
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        header();
+        if (!authed()) { gate.hidden = false; panel.hidden = true; return; }
+        gate.hidden = true; panel.hidden = false;
+        var tr = document.getElementById("twRefresh");
+        if (tr) tr.addEventListener("click", loadRoster);
+        loadRoster();
+      });
+    })();
+  </script>
+</body>
+</html>
