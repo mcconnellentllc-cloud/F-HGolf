@@ -265,6 +265,7 @@
             + '<select class="ci__method">' + methodOptions(paid !== "" ? method : "Cash") + "</select>"
             + '<button type="button" class="btn ' + (isIn ? "btn--solid" : "btn--primary") + ' ci__save">' + (isIn ? "Update" : "Check in") + "</button>"
             + (isIn ? '<button type="button" class="btn btn--solid ci__undo">Undo</button>' : "")
+            + '<button type="button" class="ci__remove" title="Remove this team">Remove</button>'
             + '<span class="ci__status"></span></div>';
 
           return '<article class="nom ci-card' + (isIn ? " is-in" : "") + '">'
@@ -281,11 +282,18 @@
           var amt = row.querySelector(".ci__amt"), meth = row.querySelector(".ci__method");
           var statusEl = row.querySelector(".ci__status");
           var save = row.querySelector(".ci__save"), undo = row.querySelector(".ci__undo");
+          var remove = row.querySelector(".ci__remove");
           if (save) save.addEventListener("click", function () {
             saveCheckin(id, { checkedIn: true, amountPaid: amt.value, payMethod: meth.value, paidAt: new Date().toISOString() }, statusEl, save);
           });
           if (undo) undo.addEventListener("click", function () {
             saveCheckin(id, { checkedIn: false }, statusEl, undo);
+          });
+          if (remove) remove.addEventListener("click", function () {
+            var card = row.closest(".ci-card");
+            var who = card ? (card.querySelector(".nom__name") || {}).textContent : "this team";
+            if (!window.confirm("Remove " + (who || "this team").trim() + " from this tournament? This can't be undone.")) return;
+            removeTeam(id, statusEl, remove);
           });
         });
       }
@@ -301,6 +309,22 @@
             else { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
           })
           .catch(function () { list.innerHTML = '<p class="noms__msg">Network error loading roster.</p>'; });
+      }
+
+      function removeTeam(id, statusEl, btn) {
+        if (statusEl) { statusEl.textContent = "Removing…"; statusEl.className = "ci__status"; }
+        if (btn) btn.disabled = true;
+        fetch(FH_API.url("/api/tournament-remove"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ id: id }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            if (res.j && res.j.ok) { loadRoster(); }
+            else { if (btn) btn.disabled = false; if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't remove."; statusEl.className = "ci__status is-error"; } }
+          })
+          .catch(function () { if (btn) btn.disabled = false; if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
       }
 
       function addWalkup() {
