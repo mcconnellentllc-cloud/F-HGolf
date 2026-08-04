@@ -75,6 +75,15 @@
           <p class="section__subtitle">Each tool below opens in a new tab and uses its own secure login.</p>
         </div>
 
+        <section class="noms" aria-label="Tournament manager">
+          <div class="noms__bar">
+            <h3 class="noms__title">Tournaments <span class="noms__count" id="tmCount"></span></h3>
+            <button class="btn btn--solid" type="button" id="tmRefresh">Refresh</button>
+          </div>
+          <p class="tm__intro">One card per tournament, grouped by year. Open a tournament to manage its roster, flights, scorecards &amp; leaderboard, and to email everyone signed up. Formats carry over year to year, so each event can be reused season after season.</p>
+          <div id="tmYears"><p class="noms__msg">Loading tournaments…</p></div>
+        </section>
+
         <section class="noms" aria-label="Submitted nominations">
           <div class="noms__bar">
             <h3 class="noms__title">Submitted Nominations <span class="noms__count" id="nomCount"></span></h3>
@@ -227,6 +236,7 @@
   </footer>
 
   <script src="js/api.js"></script>
+  <script src="js/tournaments.js"></script>
   <script>
     (function () {
       var FLAG = "fh_admin_ok";
@@ -377,18 +387,86 @@
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { renderTournaments(res.j.records); }
-            else if (res.status === 401) { touList.innerHTML = '<p class="noms__msg">Session expired — click <strong>Lock</strong> and sign in again.</p>'; }
-            else { touList.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load sign-ups.") + "</p>"; }
+            if (res.j && res.j.ok) { renderTournaments(res.j.records); buildManager(res.j.records); }
+            else if (res.status === 401) { touList.innerHTML = '<p class="noms__msg">Session expired — click <strong>Lock</strong> and sign in again.</p>'; buildManager([]); }
+            else { touList.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load sign-ups.") + "</p>"; buildManager([]); }
           })
-          .catch(function () { touList.innerHTML = '<p class="noms__msg">Network error loading sign-ups.</p>'; });
+          .catch(function () { touList.innerHTML = '<p class="noms__msg">Network error loading sign-ups.</p>'; buildManager([]); });
+      }
+
+      // ---- Tournament Manager: one card per tournament, grouped by year ----
+      var tmYears = document.getElementById("tmYears");
+      var tmCount = document.getElementById("tmCount");
+      var tmRefresh = document.getElementById("tmRefresh");
+
+      function splitName(key) {
+        var mm = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(key);
+        return mm ? { name: mm[1], date: mm[2] } : { name: key, date: "" };
+      }
+      function isPastEnd(end) {
+        if (!end) return false;
+        var today = new Date(); today.setHours(0, 0, 0, 0);
+        return new Date(end + "T00:00:00") < today;
+      }
+
+      function buildManager(records) {
+        if (!tmYears) return;
+        var T = window.FH_TMETA || {};
+        var keys = Object.keys(T);
+        if (!keys.length) { tmYears.innerHTML = '<p class="noms__msg">Tournament list unavailable.</p>'; return; }
+
+        var counts = {}, emails = {};
+        (records || []).forEach(function (rec) {
+          var f = rec.fields || {}, t = f["Tournament"] || "Other";
+          counts[t] = (counts[t] || 0) + 1;
+          if (f["Email"]) (emails[t] = emails[t] || []).push(f["Email"]);
+        });
+
+        var years = {};
+        keys.forEach(function (k) {
+          var m = T[k], y = m.end ? m.end.slice(0, 4) : "Season-long";
+          (years[y] = years[y] || []).push(k);
+        });
+        var ynames = Object.keys(years).sort(function (a, b) {
+          if (a === "Season-long") return 1; if (b === "Season-long") return -1;
+          return b.localeCompare(a);
+        });
+
+        tmCount.textContent = "(" + keys.length + ")";
+        tmYears.innerHTML = ynames.map(function (y) {
+          var items = years[y].slice().sort(function (a, b) {
+            return (T[a].end || "9999").localeCompare(T[b].end || "9999");
+          });
+          var cards = items.map(function (k) {
+            var m = T[k], info = splitName(k), n = counts[k] || 0;
+            var past = isPastEnd(m.end);
+            var capText = m.cap ? (n + " / " + m.cap + " " + (m.unit || "spots")) : (n + " signed up");
+            var full = m.cap && n >= m.cap;
+            var fmt = m.format || (m.team ? m.team + "-player team" : "");
+            var elist = emails[k] || [];
+            var mailBtn = elist.length
+              ? '<a class="btn btn--solid tm__btn" href="mailto:?bcc=' + encodeURIComponent(elist.join(",")) + "&subject=" + encodeURIComponent("F&H — " + info.name) + '">Email (' + elist.length + ")</a>"
+              : '<span class="tm__btn tm__btn--off">No emails yet</span>';
+            return '<article class="tm-card' + (past ? " is-past" : "") + '">'
+              + '<div class="tm-card__head"><h4 class="tm-card__name">' + esc(info.name) + "</h4>"
+              + (info.date ? '<span class="tm-card__date">' + esc(info.date) + "</span>" : "") + "</div>"
+              + (fmt ? '<p class="tm-card__fmt">' + esc(fmt) + "</p>" : "")
+              + '<p class="tm-card__count' + (full ? " is-full" : "") + '">' + esc(capText)
+              + (past ? ' · <strong>Completed</strong>' : "") + "</p>"
+              + '<div class="tm-card__chips"><span>Roster</span><span>Flights</span><span>Scorecards</span><span>Leaderboard</span></div>'
+              + '<div class="tm-card__actions">'
+              + '<a class="btn btn--primary tm__btn" href="tournament-admin.html?t=' + encodeURIComponent(k) + '">Open &rarr;</a>'
+              + mailBtn + "</div></article>";
+          }).join("");
+          return '<div class="tm-year"><h4 class="tm-year__label">' + esc(y) + (y !== "Season-long" ? " Season" : "") + '</h4><div class="tm-grid">' + cards + "</div></div>";
+        }).join("");
       }
 
       function show(authed) {
         gate.hidden = authed;
         panel.hidden = !authed;
         if (logout) logout.hidden = !authed;
-        if (authed) { loadNominations(); loadTournaments(); }
+        if (authed) { buildManager([]); loadNominations(); loadTournaments(); }
       }
       try { show(sessionStorage.getItem(FLAG) === "1"); } catch (e) { show(false); }
 
@@ -406,6 +484,7 @@
 
       if (refresh) refresh.addEventListener("click", loadNominations);
       if (touRefresh) touRefresh.addEventListener("click", loadTournaments);
+      if (tmRefresh) tmRefresh.addEventListener("click", loadTournaments);
 
       if (logout) logout.addEventListener("click", function (e) {
         e.preventDefault();

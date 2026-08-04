@@ -57,6 +57,7 @@ These values are placeholders in the code. Search for the word `PLACEHOLDER` in
 - [ ] **Founder names** — confirm spellings of founder names in the "Our Story" section.
 - [ ] **Audio (optional)** — replace `audio/fh-story.mp3` with a family/Willard human recording.
 - [ ] **Lease article date** — the "Fleming Agrees to Lease F&H" clipping is undated; confirm the year if known.
+- [ ] **Founders Tournament** — year confirmed (2026, Aug 8–9). Remaining open transcription items in `data/founders-tournament-REVIEW.md`. Add nav link and `images/founders-pairings.jpg` once resolved.
 
 ## Content Sources
 
@@ -186,6 +187,46 @@ with fields: `Player Name` (text), `Tournament` (single select or text),
 Cancelled), `Submitted At` (created time). The form also remembers a returning
 golfer's name/email/phone in their own browser (localStorage) to autofill. Override the table name with the optional `TOURNAMENTS_TABLE`
 Vercel env var. Uses the same `AIRTABLE_TOKEN` / `AIRTABLE_BASE_ID` / `ADMIN_KEY`.
+
+## Tournament Manager (Staff Portal)
+
+The Staff Portal has a **Tournaments** panel: one **card per tournament, grouped
+by year** (built from the tournament metadata in `js/tournaments.js`, which
+`admin.html` also loads). Each card shows the format, capacity, and live sign-up
+count (from `api/tournament-signups.js`), an **Email** button (mailto BCC of
+everyone signed up), and an **Open →** link to that tournament's workspace.
+
+`tournament-admin.html?t=<Tournament Key>` is the per-tournament **workspace**. It
+reuses the Staff Portal session (the same `sessionStorage` login — open it from a
+card so the session carries), and shows:
+
+- **Roster** — the live sign-up list for that tournament, with contact info and an
+  "email everyone" action.
+- **Flights**, **Scorecards**, **Leaderboard** — scaffolded panels marked *In
+  development*. These are the next build: define flights, enter hole-by-hole
+  scores against the course par layout, and show live standings/payouts.
+
+Grouping by year is intentional so each event's format can be reused season after
+season. **Roadmap:** a Membership card and a Communications card (message all
+contacts / members / a tournament's field) are planned next.
+
+### Check-in & money (workspace)
+
+The workspace's **Check-in & Money** section marks each team checked in, records
+the amount paid + method (Cash/Check/Card/Other), shows a running "X/Y checked in
+· $Z collected" total, prefills a remembered **entry fee**, links to the Deposyt
+**card payment** page, and can add **walk-up teams** on the spot.
+
+- `api/tournament-checkin.js` (POST, admin-key) PATCHes the sign-up record.
+- **Add these fields to the `Tournament Signups` Airtable table** (additive; the
+  public sign-up flow is unaffected): `Checked In` (checkbox), `Amount Paid`
+  (number/currency), `Pay Method` (single select: Cash, Check, Card, Other),
+  `Paid At` (date, include time). Uses the same `AIRTABLE_TOKEN` /
+  `AIRTABLE_BASE_ID` / `ADMIN_KEY` env vars (the token needs
+  `data.records:write`).
+
+**In progress for Founders:** hole-by-hole scoring and a public flighted
+leaderboard with a staff "flight cut" slider (2-day, no mulligans).
 
 ## Reviews
 

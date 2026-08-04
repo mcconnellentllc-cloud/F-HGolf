@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Founders Tournament — F&amp;H Golf Course</title>
+  <meta name="description" content="Founders Tournament 2-Man Scramble pairings for F&H Golf Course, transcribed from the original pairing sheet." />
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1B5E20" />
+  <link rel="apple-touch-icon" href="images/icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="F&amp;H Golf" />
+
+  <!-- Type pairing: Fraunces (display serif) + Source Sans 3 (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ======================= UNDER-CONSTRUCTION NOTICE ======================= -->
+  <div class="notice" role="alert">
+    <div class="notice__inner">
+      <span class="notice__tag">Under Construction</span>
+      <span class="notice__msg">Our website is still being built. Please call the course at <a href="tel:+19707746362">(970)&nbsp;774-6362</a> to confirm all reservations and tournament sign-ups.</span>
+    </div>
+  </div>
+
+  <!-- ============================ NAV BAR ============================ -->
+  <header class="nav" id="top">
+    <div class="nav__inner">
+      <a href="index.html" class="nav__brand" aria-label="F&H Golf Course home">
+        <img class="nav__mark" src="images/logo.png" alt="" aria-hidden="true" />
+        <span class="nav__wordmark">
+          <span class="nav__name">F&amp;H Golf Course</span>
+          <span class="nav__tagline">Est. 1972 · Fleming, CO</span>
+        </span>
+      </a>
+
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav class="nav__links" id="navLinks">
+        <a href="index.html#course">Course</a>
+        <a href="index.html#story">Our Story</a>
+        <a href="hall-of-fame.html">Hall of Fame</a>
+        <a href="reviews.html">Reviews</a>
+        <a href="tournaments.html">Tournaments</a>
+        <a href="index.html#rates">Rates</a>
+        <a href="index.html#contact">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ============================ HERO STRIP ============================ -->
+  <section class="hero hero--strip">
+    <div class="hero__inner">
+      <div class="hero__content">
+        <p class="hero__kicker">Tournament Pairings</p>
+        <h1 class="hero__title" id="fEvent">Founders Tournament</h1>
+        <p class="hero__subtitle" id="fFormat">2-Man Scramble</p>
+        <p class="hero__year" id="fYear" hidden></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ PAIRINGS ============================ -->
+  <main class="section section--alt">
+    <div class="container founders">
+      <p class="founders__status" id="fStatus">Loading pairings…</p>
+
+      <div id="fFlights"></div>
+      <div id="fMargin"></div>
+
+      <div class="founders__notes">
+        <p>&dagger; Handwritten or unclear on the original sheet; transcription unconfirmed.</p>
+        <p>Counts written on the original sheet: 30 (A.M.), 32 (P.M.).</p>
+      </div>
+
+      <figure class="founders__scan" id="fScan">
+        <img src="images/founders-pairings.jpg" loading="lazy" id="fScanImg"
+             alt="Scanned Founders Tournament pairing sheet showing the A.M. and P.M. flights with handwritten annotations" />
+        <figcaption>Original scanned pairing sheet.</figcaption>
+      </figure>
+    </div>
+  </main>
+
+  <!-- ============================ FOOTER ============================ -->
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <a href="admin.html" class="site-footer__marklink" aria-label="Staff portal"><img class="site-footer__mark" src="images/logo.png" alt="F&H Golf Course logo" /></a>
+        <div>
+          <div class="site-footer__name">F&amp;H Golf Course</div>
+          <p class="site-footer__tag">A true eastern Colorado experience since 1972.</p>
+        </div>
+      </div>
+
+      <div>
+        <h4>Visit</h4>
+        <address>
+          43355 County Rd 30<br />
+          Fleming, CO 80728<br />
+          <a href="tel:+19707746362">(970) 774-6362</a><br />
+          <a href="https://www.facebook.com/fandhgolf/" target="_blank" rel="noopener">Facebook</a>
+        </address>
+      </div>
+
+      <div>
+        <h4>Explore</h4>
+        <ul>
+          <li><a href="index.html">&larr; Back to Home</a></li>
+          <li><a href="index.html#course">The Course</a></li>
+          <li><a href="hall-of-fame.html">Hall of Fame</a></li>
+          <li><a href="projects.html">Projects of F&amp;H</a></li>
+          <li><a href="tournaments.html">Tournaments</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="site-footer__bottom">
+      <span>&copy; 2026 F&amp;H Golf Course — F&amp;H Park &amp; Recreation District. Fleming, Colorado.</span>
+      <span>Public · 9 holes · Par 36</span>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+    (function () {
+      var EMDASH = "—", DAGGER = "†", CHECK = "✓";
+
+      function setText(id, val) { var el = document.getElementById(id); if (el && val != null) el.textContent = val; }
+
+      // A single player cell. null/empty → em dash. `note` (from a team flag)
+      // appends a superscript dagger with the note as its title.
+      function playerCell(value, note) {
+        var td = document.createElement("td");
+        td.appendChild(document.createTextNode(value == null || value === "" ? EMDASH : value));
+        if (note) {
+          td.appendChild(document.createTextNode(" "));
+          var sup = document.createElement("sup");
+          sup.className = "dagger";
+          sup.textContent = DAGGER;
+          sup.setAttribute("title", note);
+          td.appendChild(sup);
+        }
+        return td;
+      }
+
+      function th(label) { var el = document.createElement("th"); el.scope = "col"; el.textContent = label; return el; }
+
+      function renderFlight(flight) {
+        var sec = document.createElement("section");
+        sec.className = "flight";
+
+        var h2 = document.createElement("h2");
+        h2.className = "flight__title";
+        h2.textContent = flight.name;
+        sec.appendChild(h2);
+
+        var count = document.createElement("p");
+        count.className = "flight__count";
+        count.textContent = flight.teams.length + " teams";
+        sec.appendChild(count);
+
+        var scroll = document.createElement("div");
+        scroll.className = "table-scroll";
+
+        var table = document.createElement("table");
+        table.className = "pairings";
+
+        var thead = document.createElement("thead");
+        var trh = document.createElement("tr");
+        if (flight.numbered) trh.appendChild(th("Team"));
+        trh.appendChild(th("Player 1"));
+        trh.appendChild(th("Player 2"));
+        thead.appendChild(trh);
+        table.appendChild(thead);
+
+        var tbody = document.createElement("tbody");
+        flight.teams.forEach(function (team) {
+          var tr = document.createElement("tr");
+          if (flight.numbered) {
+            var tdn = document.createElement("td");
+            tdn.className = "pairings__num";
+            tdn.textContent = (team.n != null ? team.n : "");
+            tr.appendChild(tdn);
+          }
+          var players = team.players || [];
+          var note = team.flag ? (team.note || "Handwritten or unclear on the original sheet; transcription unconfirmed") : null;
+          tr.appendChild(playerCell(players.length > 0 ? players[0] : null, null));
+          // The dagger goes at the end of the row (on Player 2's cell).
+          tr.appendChild(playerCell(players.length > 1 ? players[1] : null, note));
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+
+        scroll.appendChild(table);
+        sec.appendChild(scroll);
+        return sec;
+      }
+
+      function renderMargin(m) {
+        if (!m) return null;
+        var sec = document.createElement("section");
+        sec.className = "flight margin";
+
+        var h2 = document.createElement("h2");
+        h2.className = "flight__title";
+        h2.textContent = m.label;
+        sec.appendChild(h2);
+
+        var ul = document.createElement("ul");
+        ul.className = "margin__list";
+        (m.names || []).forEach(function (item) {
+          var li = document.createElement("li");
+          li.textContent = (item.checked ? CHECK + " " : "") + item.name;
+          if (item.flag) {
+            li.appendChild(document.createTextNode(" "));
+            var sup = document.createElement("sup");
+            sup.className = "dagger";
+            sup.textContent = DAGGER;
+            sup.setAttribute("title", "Handwritten or unclear on the original sheet; transcription unconfirmed");
+            li.appendChild(sup);
+          }
+          ul.appendChild(li);
+        });
+        sec.appendChild(ul);
+
+        if (m.note) {
+          var cap = document.createElement("p");
+          cap.className = "margin__note";
+          cap.textContent = m.note; // verbatim; do not invent a purpose
+          sec.appendChild(cap);
+        }
+        return sec;
+      }
+
+      function render(data) {
+        setText("fEvent", data.event);
+        setText("fFormat", data.format);
+        // Date line: dates and/or year, only when present — never "null" or a stray separator.
+        var yearEl = document.getElementById("fYear");
+        if (yearEl) {
+          var parts = [];
+          if (data.dates) parts.push(data.dates);
+          if (data.year != null && data.year !== "") parts.push(data.year);
+          var line = parts.join(", ");
+          if (line) { yearEl.textContent = line; yearEl.hidden = false; }
+        }
+
+        var status = document.getElementById("fStatus");
+        if (status) status.hidden = true;
+
+        var flightsBox = document.getElementById("fFlights");
+        (data.flights || []).forEach(function (flight) { flightsBox.appendChild(renderFlight(flight)); });
+
+        var marginBox = document.getElementById("fMargin");
+        var mSec = renderMargin(data.marginalList);
+        if (mSec) marginBox.appendChild(mSec);
+      }
+
+      function fail() {
+        var status = document.getElementById("fStatus");
+        if (status) { status.textContent = "Pairings unavailable."; status.hidden = false; }
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        // Archive scan: hide the whole figure if the image is missing (404).
+        var scan = document.getElementById("fScan"), scanImg = document.getElementById("fScanImg");
+        if (scan && scanImg) {
+          var hideScan = function () { scan.hidden = true; };
+          scanImg.addEventListener("error", hideScan);
+          if (scanImg.complete && scanImg.naturalWidth === 0) hideScan();
+        }
+
+        fetch("data/founders-tournament.json")
+          .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+          .then(render)
+          .catch(fail);
+      });
+    })();
+  </script>
+</body>
+</html>
