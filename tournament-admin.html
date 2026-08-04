@@ -380,6 +380,7 @@
         return STARTS.map(function (s) { return '<option value="' + s + '"' + (s === sel ? " selected" : "") + ">" + (s || "— start —") + "</option>"; }).join("");
       }
 
+      function isAltRec(r) { return !!((r.fields || {})["Alternate"]); }
       function teamCard(rec, feeVal) {
         var f = rec.fields || {};
         var name = esc(f["Player Name"] || "(no name)");
@@ -391,23 +392,26 @@
         var method = esc(f["Pay Method"] || "Cash");
         var checkNo = esc(f["Check Number"] || "");
         var start = esc(f["Start"] || "");
+        var isAlt = !!f["Alternate"];
         var line = [];
         if (team) line.push("Team: " + team);
         if (carts !== "") line.push(carts + " cart(s)");
         if (phone) line.push('<a href="tel:' + phone.replace(/[^0-9+]/g, "") + '">' + phone + "</a>");
         if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
         var amtValue = paid !== "" ? paid : esc(feeVal);
-        var ci = '<div class="ci" data-id="' + esc(rec.id) + '">'
+        var ci = '<div class="ci" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
           + '<select class="ci__start" title="Shotgun start">' + startOptions(start) + "</select>"
           + '<span class="ci__amtwrap">$<input type="number" class="ci__amt" min="0" step="1" inputmode="numeric" value="' + amtValue + '" /></span>'
           + '<select class="ci__method">' + methodOptions(paid !== "" ? method : "Cash") + "</select>"
           + '<input type="text" class="ci__checkno" maxlength="40" placeholder="Check #" value="' + checkNo + '" title="Check number (if paid by check)" />'
           + '<button type="button" class="btn ' + (isIn ? "btn--solid" : "btn--primary") + ' ci__save">' + (isIn ? "Update" : "Check in") + "</button>"
           + (isIn ? '<button type="button" class="btn btn--solid ci__undo">Undo</button>' : "")
+          + '<button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + "</button>"
           + '<button type="button" class="ci__remove" title="Remove this team">Remove</button>'
           + '<span class="ci__status"></span></div>';
-        return '<article class="nom ci-card' + (isIn ? " is-in" : "") + '">'
+        return '<article class="nom ci-card' + (isIn ? " is-in" : "") + (isAlt ? " is-alt" : "") + '">'
           + '<div class="nom__head"><span class="nom__name">' + name
+          + (isAlt ? ' <span class="ci-badge ci-badge--alt">ALT</span>' : "")
           + (isIn ? ' <span class="ci-badge">✓ Checked in' + (paid !== "" ? " · " + money(paid) + " " + method : "") + "</span>" : "")
           + "</span></div>"
           + (line.length ? '<div class="nom__by">' + line.join(" · ") + "</div>" : "")
@@ -416,24 +420,31 @@
 
       function renderRoster(all) {
         var list = document.getElementById("twRoster"), count = document.getElementById("twCount");
-        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
-        actions(recs);
-        summarize(recs);
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        var field = recs.filter(function (r) { return !isAltRec(r); });
+        var alts = recs.filter(isAltRec);
+        actions(field);
+        summarize(field);
         if (!recs.length) { list.innerHTML = '<p class="noms__msg">No sign-ups yet. Add a walk-up team above.</p>'; count.textContent = ""; return; }
-        count.textContent = "(" + recs.length + ")";
+        count.textContent = "(" + field.length + (alts.length ? " + " + alts.length + " alt" : "") + ")";
 
         var fee = document.getElementById("twFee");
         var feeVal = fee && fee.value ? fee.value : savedFee();
 
-        // Split into shotgun waves (8 AM / 1 PM / unassigned).
+        // Field split into shotgun waves; alternates listed separately.
         var groups = { "8 AM": [], "1 PM": [], "": [] };
-        recs.forEach(function (r) { var s = (r.fields && r.fields["Start"]) || ""; (groups[s] = groups[s] || []).push(r); });
-        list.innerHTML = ["8 AM", "1 PM", ""].map(function (g) {
+        field.forEach(function (r) { var s = (r.fields && r.fields["Start"]) || ""; (groups[s] = groups[s] || []).push(r); });
+        var html = ["8 AM", "1 PM", ""].map(function (g) {
           var arr = groups[g]; if (!arr || !arr.length) return "";
           var label = g ? (g + " shotgun") : "Unassigned start";
           return '<div class="wave"><h4 class="wave__label">' + label + " <span>(" + arr.length + ")</span></h4>"
             + arr.map(function (r) { return teamCard(r, feeVal); }).join("") + "</div>";
         }).join("");
+        if (alts.length) {
+          html += '<div class="wave wave--alt"><h4 class="wave__label">Alternates — standby <span>(' + alts.length + ")</span></h4>"
+            + alts.map(function (r) { return teamCard(r, feeVal); }).join("") + "</div>";
+        }
+        list.innerHTML = html;
 
         // Wire the per-team controls.
         Array.prototype.forEach.call(list.querySelectorAll(".ci"), function (row) {
@@ -441,12 +452,13 @@
           var amt = row.querySelector(".ci__amt"), meth = row.querySelector(".ci__method"), startSel = row.querySelector(".ci__start");
           var checkno = row.querySelector(".ci__checkno");
           var statusEl = row.querySelector(".ci__status");
-          var save = row.querySelector(".ci__save"), undo = row.querySelector(".ci__undo"), remove = row.querySelector(".ci__remove");
+          var save = row.querySelector(".ci__save"), undo = row.querySelector(".ci__undo"), remove = row.querySelector(".ci__remove"), altBtn = row.querySelector(".ci__alt");
           if (save) save.addEventListener("click", function () {
             saveCheckin(id, { checkedIn: true, amountPaid: amt.value, payMethod: meth.value, checkNumber: checkno ? checkno.value : "", paidAt: new Date().toISOString() }, statusEl, save);
           });
           if (undo) undo.addEventListener("click", function () { saveCheckin(id, { checkedIn: false }, statusEl, undo); });
           if (startSel) startSel.addEventListener("change", function () { saveCheckin(id, { start: startSel.value }, statusEl, startSel); });
+          if (altBtn) altBtn.addEventListener("click", function () { var cur = row.getAttribute("data-alt") === "1"; saveCheckin(id, { alternate: !cur }, statusEl, altBtn); });
           if (remove) remove.addEventListener("click", function () {
             var card = row.closest(".ci-card");
             var who = card ? (card.querySelector(".nom__name") || {}).textContent : "this team";
@@ -464,7 +476,7 @@
       function renderScores(all) {
         var listEl = document.getElementById("twScoreList"), cnt = document.getElementById("twScoreCount");
         if (!listEl) return;
-        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         if (!recs.length) { listEl.innerHTML = '<p class="noms__msg">No teams yet.</p>'; if (cnt) cnt.textContent = ""; return; }
         if (cnt) cnt.textContent = "(" + recs.length + ")";
         listEl.innerHTML = recs.map(function (rec) {
@@ -615,7 +627,7 @@
 
       function renderPairings(all) {
         var board = document.getElementById("prBoard"); if (!board) return;
-        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         if (!recs.length) { board.innerHTML = '<p class="noms__msg">No teams yet. Import the 2026 field above, or add teams on the Check-In sheet.</p>'; return; }
         board.innerHTML = WAVES.map(function (w) {
           var teams = recs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; });
@@ -761,7 +773,7 @@
       }
 
       function renderBoard(all) {
-        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         var cfg = loadCalc(), nF = cfg.flights || 4;
         boardSorted = recs.filter(function (r) { return d1g(r) != null; }).sort(function (a, b) { return d1g(a) - d1g(b); });
         renderCutControls(boardSorted, nF, loadCuts(nF, boardSorted.length));
