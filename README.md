@@ -225,8 +225,25 @@ the amount paid + method (Cash/Check/Card/Other), shows a running "X/Y checked i
   `AIRTABLE_BASE_ID` / `ADMIN_KEY` env vars (the token needs
   `data.records:write`).
 
-**In progress for Founders:** hole-by-hole scoring and a public flighted
-leaderboard with a staff "flight cut" slider (2-day, no mulligans).
+### Shotgun waves & hole-by-hole scoring (workspace)
+
+The workspace also assigns each team a **shotgun start** (8 AM / 1 PM) — the
+roster splits into those waves — and records **hole-by-hole gross** for Day 1 and
+Day 2 (18 holes = two loops of the nine; no mulligans).
+
+- `api/tournament-checkin.js` also writes `Start`.
+- `api/tournament-score.js` (POST, admin-key) writes a round's holes + gross.
+- **Add these fields to the `Tournament Signups` table too:** `Start` (single
+  select: `8 AM`, `1 PM`), `Day1 Scores` (long text), `Day2 Scores` (long text),
+  `Day1 Gross` (number), `Day2 Gross` (number), `Flight` (number — used by the
+  upcoming leaderboard flight slider).
+- Per-hole pars are a placeholder (`4,4,3,4,5,4,3,4,5`); confirm the real layout.
+
+**Still to build for Founders:** the public flighted leaderboard — gross + net
+columns, a staff "flight cut" **slider** (4 flights), flight-relative handicap
+(⌊(team − flight leader) × 0.8⌋), top-3 flight prizes by 2-day gross, and a
+**Calcutta** page (auction teams, track purchaser + amount, club keeps 10% /
+pays 90% to the top-5 net).
 
 ## Reviews
 

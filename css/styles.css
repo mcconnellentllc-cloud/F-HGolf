@@ -816,3 +816,27 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .ci__remove { background: none; border: none; color: var(--red-deep); font: inherit; font-size: 0.82rem; text-decoration: underline; cursor: pointer; padding: 0.45rem 0.4rem; margin-left: auto; }
 .ci__remove:hover { color: var(--red); }
 .ci__remove:disabled { opacity: 0.5; cursor: default; }
+
+/* Shotgun-wave grouping in the check-in roster */
+.wave { margin-bottom: 1.4rem; }
+.wave__label { color: var(--primary-green); font-size: 1rem; margin-bottom: 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--line); }
+.wave__label span { color: var(--muted); font-weight: 400; }
+.ci__start { padding: 0.45rem 0.5rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; }
+
+/* Hole-by-hole score editor */
+.sc__tot { font-size: 0.85rem; color: var(--muted); }
+.sc__tot b { color: var(--primary-green); }
+.sc__team { color: var(--muted); font-weight: 400; font-size: 0.9rem; }
+.sc__days { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+.sc__days .btn { padding: 0.45rem 1rem; font-size: 0.85rem; }
+.sc__editor { margin-top: 0.8rem; }
+.sc__grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 0.4rem; }
+.sc__cell { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.7rem; color: var(--muted); text-align: center; }
+.sc__cell span { display: flex; justify-content: center; gap: 0.2rem; font-weight: 700; color: var(--primary-green); }
+.sc__cell small { color: var(--muted); font-weight: 400; }
+.sc__in { width: 100%; padding: 0.4rem 0.2rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; text-align: center; }
+.sc__foot { margin-top: 0.7rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.sc__foot .sc__gross { color: var(--primary-green); font-size: 1.1rem; }
+.sc__status { font-size: 0.82rem; color: var(--muted); }
+.sc__status.is-error { color: var(--red-deep); }
+@media (max-width: 560px) { .sc__grid { grid-template-columns: repeat(6, 1fr); } }
