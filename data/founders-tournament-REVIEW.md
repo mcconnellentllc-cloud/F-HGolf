@@ -42,5 +42,5 @@ empty slots filled. Check off each item as it's resolved.
 
 ## Unresolved
 
-- [ ] Event year (sheet undated)
+- [x] Event year — confirmed **2026**, August 8–9 (F&H Founders Tournament)
 - [ ] Purpose of the unlabeled margin list

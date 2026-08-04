@@ -1,8 +1,8 @@
 {
   "event": "Founders Tournament",
   "format": "2-Man Scramble",
-  "year": null,
-  "_TODO_year": "Sheet is undated. Confirm before publishing.",
+  "year": 2026,
+  "dates": "August 8–9",
   "source": "Scanned pairing sheet with handwritten annotations",
   "marginalCounts": { "am": 30, "pm": 32 },
   "flights": [
