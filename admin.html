@@ -72,10 +72,30 @@
           <p class="eyebrow">Dashboard</p>
           <h2 class="section__title">Manage F&amp;H</h2>
           <hr class="rule-brass" />
-          <p class="section__subtitle">Each tool below opens in a new tab and uses its own secure login.</p>
+          <p class="section__subtitle">Your F&amp;H command center — pick a section below.</p>
         </div>
 
-        <section class="noms" aria-label="Tournament manager">
+        <nav class="portal-nav" aria-label="Staff sections">
+          <a class="pcard" href="#sec-employees"><span class="pcard__ic">&#129489;&#8205;&#128188;</span><span class="pcard__t">Employees</span><span class="pcard__s">Info &amp; hour tracking</span><span class="pcard__soon">Soon</span></a>
+          <a class="pcard" href="#sec-members"><span class="pcard__ic">&#128100;</span><span class="pcard__t">Members</span><span class="pcard__s">Cards &amp; past years</span><span class="pcard__soon">Soon</span></a>
+          <a class="pcard" href="#sec-tournaments"><span class="pcard__ic">&#9971;</span><span class="pcard__t">Tournaments</span><span class="pcard__s">Run every event</span></a>
+          <a class="pcard" href="#sec-fundraisers"><span class="pcard__ic">&#127881;</span><span class="pcard__t">Fund Raisers</span><span class="pcard__s">Drives &amp; events</span><span class="pcard__soon">Soon</span></a>
+          <a class="pcard" href="#financePanel"><span class="pcard__ic">&#128176;</span><span class="pcard__t">Treasurer</span><span class="pcard__s">Money &amp; payouts</span></a>
+          <a class="pcard" href="#sec-todos"><span class="pcard__ic">&#9989;</span><span class="pcard__t">To Dos</span><span class="pcard__s">Tasks &amp; follow-ups</span><span class="pcard__soon">Soon</span></a>
+          <a class="pcard" href="#sec-halloffame"><span class="pcard__ic">&#127942;</span><span class="pcard__t">Hall of Fame</span><span class="pcard__s">Nominations</span></a>
+        </nav>
+
+        <section class="noms scaffold" id="sec-employees" aria-label="Employees">
+          <div class="noms__bar"><h3 class="noms__title">Employees <span class="tw-tag">In development</span></h3></div>
+          <p class="scaffold__desc">Employee directory with contact and role info for every staff member, plus <strong>hour tracking for hourly employees</strong> — clock in/out and weekly totals ready for payroll.</p>
+        </section>
+
+        <section class="noms scaffold" id="sec-members" aria-label="Members">
+          <div class="noms__bar"><h3 class="noms__title">Members <span class="tw-tag">In development</span></h3></div>
+          <p class="scaffold__desc">Every member on a card, showing current status and <strong>past-years history</strong> (dues, leagues, participation). We'll get here after the tournament tools are solid.</p>
+        </section>
+
+        <section class="noms" id="sec-tournaments" aria-label="Tournament manager">
           <div class="noms__bar">
             <h3 class="noms__title">Tournaments <span class="noms__count" id="tmCount"></span></h3>
             <button class="btn btn--solid" type="button" id="tmRefresh">Refresh</button>
@@ -84,9 +104,19 @@
           <div id="tmYears"><p class="noms__msg">Loading tournaments…</p></div>
         </section>
 
-        <section class="noms" aria-label="Submitted nominations">
+        <section class="noms scaffold" id="sec-fundraisers" aria-label="Fund raisers">
+          <div class="noms__bar"><h3 class="noms__title">Fund Raisers <span class="tw-tag">In development</span></h3></div>
+          <p class="scaffold__desc">Track fundraising drives and events — goals, donors, and totals raised (like the pavilion project) — with one place to thank contributors.</p>
+        </section>
+
+        <section class="noms scaffold" id="sec-todos" aria-label="To dos">
+          <div class="noms__bar"><h3 class="noms__title">To Dos <span class="tw-tag">In development</span></h3></div>
+          <p class="scaffold__desc">A shared staff task list — add, assign, check off, and follow up on course to-dos so nothing slips through the cracks.</p>
+        </section>
+
+        <section class="noms" id="sec-halloffame" aria-label="Hall of Fame nominations">
           <div class="noms__bar">
-            <h3 class="noms__title">Submitted Nominations <span class="noms__count" id="nomCount"></span></h3>
+            <h3 class="noms__title">Hall of Fame Nominations <span class="noms__count" id="nomCount"></span></h3>
             <button class="btn btn--solid" type="button" id="nomRefresh">Refresh</button>
           </div>
           <div class="noms__list" id="nomList"><p class="noms__msg">Loading nominations…</p></div>
@@ -100,10 +130,11 @@
           <div class="noms__list" id="touList"><p class="noms__msg">Loading sign-ups…</p></div>
         </section>
 
-        <section class="noms" aria-label="Tournament finances" id="financePanel">
+        <section class="noms" aria-label="Treasurer" id="financePanel">
           <div class="noms__bar">
-            <h3 class="noms__title">Tournament Finances</h3>
+            <h3 class="noms__title">Treasurer</h3>
           </div>
+          <p class="tm__intro">Tournament payout calculator for now; broader treasurer tools (budgets, dues, expenses) to come.</p>
           <div class="calc">
             <div class="calc__inputs">
               <label class="form__field"><span class="form__label">Players</span><input type="number" id="cPlayers" min="0" step="1" value="0" /></label>
