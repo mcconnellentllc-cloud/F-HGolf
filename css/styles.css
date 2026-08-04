@@ -863,3 +863,20 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 
 /* Check-number field in the check-in row */
 .ci__checkno { width: 5.5rem; padding: 0.45rem 0.5rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+
+/* Flights + Leaderboard */
+.lb-cut { margin-bottom: 1rem; background: var(--paper-2); border-radius: 10px; padding: 0.6rem 0.9rem; }
+.lb-cut summary { cursor: pointer; font-weight: 700; color: var(--primary-green); }
+.lb-slider { display: flex; align-items: center; gap: 0.6rem; margin: 0.6rem 0; font-weight: 600; color: var(--ink); flex-wrap: wrap; }
+.lb-range { flex: 1 1 200px; accent-color: var(--primary-green); }
+.lb-cutval { min-width: 2ch; text-align: right; color: var(--primary-green); }
+.lb-sizes { margin-top: 0.5rem; color: var(--muted); font-size: 0.9rem; }
+.lb-flight { margin-bottom: 1.6rem; }
+.lb-flight__title { color: var(--primary-green); font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.5rem; }
+.lb-table { width: 100%; border-collapse: collapse; font-size: 1rem; }
+.lb-table th { text-align: left; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary-green); padding: 0.5rem 0.7rem; border-bottom: 2px solid var(--line); }
+.lb-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line); }
+.lb-table th:not(:first-child), .lb-table td:not(:first-child) { text-align: center; white-space: nowrap; }
+.lb-table tbody tr:nth-child(odd) { background: var(--paper-2); }
+.lb-place { display: inline-block; background: var(--primary-green); color: #fff; font-size: 0.72rem; font-weight: 800; border-radius: 999px; padding: 0.05rem 0.45rem; }
+.lb-cal { display: inline-block; background: var(--red); color: #fff; font-size: 0.72rem; font-weight: 800; border-radius: 999px; padding: 0.05rem 0.45rem; }
