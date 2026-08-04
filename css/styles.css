@@ -811,3 +811,8 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .pcard__soon { position: absolute; top: 0.6rem; right: 0.6rem; font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); background: var(--paper-2); border-radius: 999px; padding: 0.1rem 0.45rem; }
 .scaffold { border-left: 4px solid var(--paper-2); }
 .scaffold__desc { color: var(--muted); font-size: 0.92rem; max-width: 70ch; }
+
+/* Remove-team button in the check-in roster */
+.ci__remove { background: none; border: none; color: var(--red-deep); font: inherit; font-size: 0.82rem; text-decoration: underline; cursor: pointer; padding: 0.45rem 0.4rem; margin-left: auto; }
+.ci__remove:hover { color: var(--red); }
+.ci__remove:disabled { opacity: 0.5; cursor: default; }
