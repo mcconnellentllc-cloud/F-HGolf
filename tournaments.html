@@ -205,8 +205,8 @@
       </form>
 
       <div class="form__success" id="tourneySuccess" hidden>
-        <h3>You're on the list! &#9971;</h3>
-        <p>Thanks for signing up. We'll be in touch with format and entry-fee details before the event.</p>
+        <h3 id="tourneySuccessTitle">You're on the list! &#9971;</h3>
+        <p id="tourneySuccessLead">Thanks for signing up. We'll be in touch with format and entry-fee details before the event.</p>
 
         <div class="paycard" id="tourneyPay">
           <p class="paycard__amount" id="tourneyPayAmount" hidden></p>
@@ -321,14 +321,27 @@
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
             if (res.j && res.j.ok) {
-              // Set up the card-payment block for the chosen tournament.
-              var payBtn = document.getElementById("tourneyPayBtn");
-              if (payBtn && window.FH_PAY_URL) payBtn.href = window.FH_PAY_URL;
-              var meta = window.FH_TMETA && window.FH_TMETA[data.tournament];
-              var amtEl = document.getElementById("tourneyPayAmount");
-              if (amtEl) {
-                if (meta && meta.fee) { amtEl.hidden = false; amtEl.textContent = "Entry fee: " + meta.fee; }
-                else { amtEl.hidden = true; }
+              var isAlt = !!res.j.alternate;
+              var titleEl = document.getElementById("tourneySuccessTitle");
+              var leadEl = document.getElementById("tourneySuccessLead");
+              var payCard = document.getElementById("tourneyPay");
+              if (isAlt) {
+                if (titleEl) titleEl.innerHTML = "You're on the alternate list &#9971;";
+                if (leadEl) leadEl.textContent = "This tournament is full — you're on the alternate (standby) list, not in the field yet. If a spot opens, we'll text or email you right away. Please don't pay your entry fee until you're confirmed.";
+                if (payCard) payCard.hidden = true;
+              } else {
+                if (titleEl) titleEl.innerHTML = "You're on the list! &#9971;";
+                if (leadEl) leadEl.textContent = "Thanks for signing up. We'll be in touch with format and entry-fee details before the event.";
+                if (payCard) payCard.hidden = false;
+                // Set up the card-payment block for the chosen tournament.
+                var payBtn = document.getElementById("tourneyPayBtn");
+                if (payBtn && window.FH_PAY_URL) payBtn.href = window.FH_PAY_URL;
+                var meta = window.FH_TMETA && window.FH_TMETA[data.tournament];
+                var amtEl = document.getElementById("tourneyPayAmount");
+                if (amtEl) {
+                  if (meta && meta.fee) { amtEl.hidden = false; amtEl.textContent = "Entry fee: " + meta.fee; }
+                  else { amtEl.hidden = true; }
+                }
               }
               form.hidden = true; success.hidden = false; success.scrollIntoView({ behavior: "smooth", block: "center" });
             }
