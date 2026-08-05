@@ -114,6 +114,7 @@
           </div>
           <div class="checkin-add__row">
             <button class="btn btn--primary" type="button" id="prImport">Import 2026 field from pairing sheet</button>
+            <button class="btn btn--solid" type="button" id="prAuto">Auto-place on holes</button>
             <span class="checkin-add__msg" id="prMsg" role="status" aria-live="polite"></span>
           </div>
           <p class="scaffold__desc">Set each team's shotgun wave and starting hole. Change the hole dropdown to move a team between holes — it saves automatically.</p>
@@ -598,6 +599,8 @@
 
       // ---- Pairings: waves + starting holes ----
       var WAVES = [{ k: "8 AM", l: "A.M. — 8:00 shotgun" }, { k: "1 PM", l: "P.M. — 1:00 shotgun" }, { k: "", l: "Unassigned wave" }];
+      var prRecs = [];
+      function byCreated(a, b) { return String(a.created || "").localeCompare(String(b.created || "")); }
       function holeOpts(sel) {
         var o = '<option value="">— hole —</option>';
         for (var h = 1; h <= 9; h++) o += '<option value="' + h + '"' + (Number(sel) === h ? " selected" : "") + ">Hole " + h + "</option>";
@@ -618,19 +621,38 @@
           .catch(function () { if (statusEl) statusEl.textContent = "Network error."; });
       }
 
-      function prTeamCard(r) {
+      function prTeamCard(r, pos) {
         var f = r.fields || {};
-        return '<div class="pr-team" data-id="' + esc(r.id) + '"><span class="pr-team__name">' + esc(f["Player Name"] || "(no name)") + "</span>"
+        var tag = (pos != null) ? '<span class="pr-pos">' + String.fromCharCode(65 + pos) + "</span> " : "";
+        return '<div class="pr-team" data-id="' + esc(r.id) + '">' + tag + '<span class="pr-team__name">' + esc(f["Player Name"] || "(no name)") + "</span>"
           + '<span class="pr-team__ctl"><select class="pr-hole">' + holeOpts(f["Hole"]) + "</select>"
           + '<select class="pr-wave">' + waveOpts(f["Start"] || "") + "</select></span></div>";
+      }
+
+      // Auto-place: keep current order, 2 teams per hole (A/B), cycling holes 1–9.
+      function autoPlaceHoles() {
+        var msg = document.getElementById("prMsg"), btn = document.getElementById("prAuto");
+        var assignments = [];
+        ["8 AM", "1 PM"].forEach(function (w) {
+          var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w; }).sort(byCreated);
+          teams.forEach(function (r, idx) { assignments.push({ id: r.id, hole: (Math.floor(idx / 2) % 9) + 1 }); });
+        });
+        if (!assignments.length) { if (msg) msg.textContent = "Import the field first (sets A.M./P.M.), then auto-place."; return; }
+        if (!window.confirm("Place " + assignments.length + " teams on holes — 2 per hole, in order, cycling 1–9? You can move any team after.")) return;
+        if (msg) msg.textContent = "Placing on holes…"; if (btn) btn.disabled = true;
+        fetch(FH_API.url("/api/tournament-position"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: assignments }) })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) { if (btn) btn.disabled = false; if (res.j && res.j.ok) { if (msg) msg.textContent = "Placed " + res.j.updated + " ✓"; loadRoster(); } else if (msg) { msg.textContent = (res.j && res.j.error) || "Couldn't place."; } })
+          .catch(function () { if (btn) btn.disabled = false; if (msg) msg.textContent = "Network error."; });
       }
 
       function renderPairings(all) {
         var board = document.getElementById("prBoard"); if (!board) return;
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        prRecs = recs;
         if (!recs.length) { board.innerHTML = '<p class="noms__msg">No teams yet. Import the 2026 field above, or add teams on the Check-In sheet.</p>'; return; }
         board.innerHTML = WAVES.map(function (w) {
-          var teams = recs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; });
+          var teams = recs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; }).sort(byCreated);
           if (!teams.length && w.k === "") return "";
           var holes = {};
           teams.forEach(function (t) { var h = (t.fields || {})["Hole"]; var k = (h != null && h !== "") ? Number(h) : 0; (holes[k] = holes[k] || []).push(t); });
@@ -638,10 +660,10 @@
           for (var h = 1; h <= 9; h++) {
             var arr = holes[h] || [];
             boxes += '<div class="pr-hole-box"><div class="pr-hole-box__hd">Hole ' + h + " <span>(" + arr.length + ")</span></div>"
-              + arr.map(prTeamCard).join("") + "</div>";
+              + arr.map(function (t, i) { return prTeamCard(t, i); }).join("") + "</div>";
           }
           var un = holes[0] || [];
-          var unBox = un.length ? '<div class="pr-hole-box pr-hole-box--un"><div class="pr-hole-box__hd">No hole yet <span>(' + un.length + ")</span></div>" + un.map(prTeamCard).join("") + "</div>" : "";
+          var unBox = un.length ? '<div class="pr-hole-box pr-hole-box--un"><div class="pr-hole-box__hd">No hole yet <span>(' + un.length + ")</span></div>" + un.map(function (t) { return prTeamCard(t); }).join("") + "</div>" : "";
           return '<div class="pr-wave"><h4 class="pr-wave__title">' + w.l + " <span>(" + teams.length + " teams)</span></h4>"
             + unBox + '<div class="pr-holes">' + boxes + "</div></div>";
         }).join("");
@@ -906,6 +928,8 @@
         if (prr) prr.addEventListener("click", loadRoster);
         var pri = document.getElementById("prImport");
         if (pri) pri.addEventListener("click", importField);
+        var pra = document.getElementById("prAuto");
+        if (pra) pra.addEventListener("click", autoPlaceHoles);
 
         loadRoster();
         loadExpenses();
