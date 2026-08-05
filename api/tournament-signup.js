@@ -19,7 +19,7 @@ const CAPS = {
   "Junior Golf Camp (July 15–17)": 50,
   "2-Lady Scramble (July 23)": 22,
   "Haxtun Bulldog (July 25)": 22,
-  "Founder’s Tournament (Aug 8–9)": 64,
+  "Founder's Tournament (Aug 8–9)": 64,
   "Couple's Tournament (Aug 22)": 24,
   "Haxtun Fire (Sept 19)": 22,
   "Cornfest Tournament (Sept 27)": 22,
