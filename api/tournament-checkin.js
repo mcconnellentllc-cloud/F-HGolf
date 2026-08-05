@@ -51,6 +51,9 @@ module.exports = async (req, res) => {
   if (typeof body.alternate === "boolean") fields["Alternate"] = body.alternate;
   // Cart: Rental or Owned — needs a "Cart Type" single-select field.
   if (typeof body.cartType === "string") fields["Cart Type"] = body.cartType ? body.cartType.slice(0, 20) : null;
+  // Per-player payment (Cash/Check/Card) — needs "Player 1 Paid" / "Player 2 Paid" fields.
+  if (typeof body.player1Paid === "string") fields["Player 1 Paid"] = body.player1Paid ? body.player1Paid.slice(0, 20) : null;
+  if (typeof body.player2Paid === "string") fields["Player 2 Paid"] = body.player2Paid ? body.player2Paid.slice(0, 20) : null;
 
   if (!Object.keys(fields).length) {
     return res.status(400).json({ ok: false, error: "Nothing to update." });

@@ -924,3 +924,21 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .golfer { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.3rem 0; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
 .golfer__name { font-weight: 600; }
 .golfer__meta { color: var(--muted); font-size: 0.8rem; text-align: right; }
+
+/* Check-In spreadsheet table (single-line rows) */
+.ci-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.ci-table th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary-green); padding: 0.4rem 0.5rem; border-bottom: 2px solid var(--line); white-space: nowrap; }
+.ci-table td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.ci-table tbody tr:nth-child(odd) { background: var(--paper-2); }
+.ci-c-name { font-weight: 600; white-space: nowrap; }
+.ci-table select { padding: 0.35rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.85rem; background: #fff; max-width: 8.5rem; }
+.paysel { font-weight: 700; }
+.ci-c-act { white-space: nowrap; text-align: right; }
+.ci-c-act .ci__alt { background: none; border: 1px solid var(--line); color: var(--primary-green); font: inherit; font-size: 0.78rem; border-radius: 6px; padding: 0.3rem 0.55rem; cursor: pointer; }
+.ci-c-act .ci__remove { background: none; border: none; color: var(--red-deep); font-size: 1rem; cursor: pointer; padding: 0.2rem 0.4rem; }
+.ci__status { font-size: 0.78rem; color: var(--muted); }
+.ci__status.is-error { color: var(--red-deep); }
+.ci-fold { margin-top: 1rem; background: var(--paper-2); border-radius: 10px; padding: 0.5rem 0.8rem; }
+.ci-fold > summary { cursor: pointer; font-weight: 700; color: var(--primary-green); }
+.ci-fold > summary span { color: var(--muted); font-weight: 400; }
+.ci-fold--alt > summary { color: var(--red-deep); }
