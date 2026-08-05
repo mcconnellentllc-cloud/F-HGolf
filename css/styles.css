@@ -913,3 +913,6 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .ci__alt { background: none; border: 1px solid var(--line); color: var(--primary-green); font: inherit; font-size: 0.8rem; border-radius: 8px; padding: 0.4rem 0.7rem; cursor: pointer; }
 .ci__alt:hover { border-color: var(--primary-green); }
 .wave--alt .wave__label { color: var(--red-deep); border-bottom-color: var(--red); }
+
+/* A/B/C position labels on the pairings board */
+.pr-pos { display: inline-block; min-width: 1.3rem; text-align: center; background: var(--primary-green); color: #fff; font-weight: 800; font-size: 0.72rem; border-radius: 4px; padding: 0.05rem 0.3rem; margin-right: 0.35rem; }
