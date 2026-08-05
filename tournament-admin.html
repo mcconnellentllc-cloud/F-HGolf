@@ -646,7 +646,7 @@
       function positionSave(id, payload, statusEl) {
         if (statusEl) statusEl.textContent = "Saving…";
         payload.id = id;
-        fetch(FH_API.url("/api/tournament-position"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: [payload] }) })
+        fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: [payload] }) })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) { if (res.j && res.j.ok) { loadRoster(); } else if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't save."; } })
           .catch(function () { if (statusEl) statusEl.textContent = "Network error."; });
@@ -671,7 +671,7 @@
         if (!assignments.length) { if (msg) msg.textContent = "Import the field first (sets A.M./P.M.), then auto-place."; return; }
         if (!window.confirm("Place " + assignments.length + " teams on holes — 4 per hole (A group + B group, 2 teams each), in order, cycling 1–9? You can move any team after.")) return;
         if (msg) msg.textContent = "Placing on holes…"; if (btn) btn.disabled = true;
-        fetch(FH_API.url("/api/tournament-position"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: assignments }) })
+        fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: assignments }) })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) { if (btn) btn.disabled = false; if (res.j && res.j.ok) { if (msg) msg.textContent = "Placed " + res.j.updated + " ✓"; loadRoster(); } else if (msg) { msg.textContent = (res.j && res.j.error) || "Couldn't place."; } })
           .catch(function () { if (btn) btn.disabled = false; if (msg) msg.textContent = "Network error."; });
@@ -721,7 +721,7 @@
           if (!teams.length) { msg.textContent = "No teams found in the pairing sheet."; return; }
           if (!window.confirm("Add " + teams.length + " teams from the 2026 pairing sheet (A.M./P.M. waves)? This creates new team records.")) { msg.textContent = ""; return; }
           msg.textContent = "Importing " + teams.length + " teams…"; if (btn) btn.disabled = true;
-          fetch(FH_API.url("/api/tournament-position"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ action: "import", tournament: KEY, teams: teams }) })
+          fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ action: "import", tournament: KEY, teams: teams }) })
             .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
             .then(function (res) { if (btn) btn.disabled = false; if (res.j && res.j.ok) { msg.textContent = "Imported " + res.j.created + " teams ✓"; loadRoster(); } else { msg.textContent = (res.j && res.j.error) || "Import failed."; } })
             .catch(function () { if (btn) btn.disabled = false; msg.textContent = "Network error importing."; });
