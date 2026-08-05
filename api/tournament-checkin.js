@@ -49,6 +49,8 @@ module.exports = async (req, res) => {
   if (typeof body.start === "string") fields["Start"] = body.start ? body.start.slice(0, 20) : null;
   // Alternate (standby, not in the active field) — needs an "Alternate" checkbox field.
   if (typeof body.alternate === "boolean") fields["Alternate"] = body.alternate;
+  // Cart: Rental or Owned — needs a "Cart Type" single-select field.
+  if (typeof body.cartType === "string") fields["Cart Type"] = body.cartType ? body.cartType.slice(0, 20) : null;
 
   if (!Object.keys(fields).length) {
     return res.status(400).json({ ok: false, error: "Nothing to update." });
