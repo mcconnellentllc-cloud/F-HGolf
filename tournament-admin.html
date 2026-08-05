@@ -385,6 +385,9 @@
       function startOptions(sel) {
         return STARTS.map(function (s) { return '<option value="' + s + '"' + (s === sel ? " selected" : "") + ">" + (s || "— start —") + "</option>"; }).join("");
       }
+      function cartOptions(sel) {
+        return ["", "Rental", "Owned"].map(function (c) { return '<option value="' + c + '"' + (c === sel ? " selected" : "") + ">" + (c || "— cart —") + "</option>"; }).join("");
+      }
 
       function isAltRec(r) { return !!((r.fields || {})["Alternate"]); }
 
@@ -428,6 +431,7 @@
         var method = esc(f["Pay Method"] || "Cash");
         var checkNo = esc(f["Check Number"] || "");
         var start = esc(f["Start"] || "");
+        var cartType = esc(f["Cart Type"] || "");
         var isAlt = !!f["Alternate"];
         var line = [];
         if (team) line.push("Team: " + team);
@@ -437,6 +441,7 @@
         var amtValue = paid !== "" ? paid : esc(feeVal);
         var ci = '<div class="ci" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
           + '<select class="ci__start" title="Shotgun start">' + startOptions(start) + "</select>"
+          + '<select class="ci__cart" title="Cart: rental or owned">' + cartOptions(cartType) + "</select>"
           + '<span class="ci__amtwrap">$<input type="number" class="ci__amt" min="0" step="1" inputmode="numeric" value="' + amtValue + '" /></span>'
           + '<select class="ci__method">' + methodOptions(paid !== "" ? method : "Cash") + "</select>"
           + '<input type="text" class="ci__checkno" maxlength="40" placeholder="Check #" value="' + checkNo + '" title="Check number (if paid by check)" />'
@@ -486,7 +491,7 @@
         // Wire the per-team controls.
         Array.prototype.forEach.call(list.querySelectorAll(".ci"), function (row) {
           var id = row.getAttribute("data-id");
-          var amt = row.querySelector(".ci__amt"), meth = row.querySelector(".ci__method"), startSel = row.querySelector(".ci__start");
+          var amt = row.querySelector(".ci__amt"), meth = row.querySelector(".ci__method"), startSel = row.querySelector(".ci__start"), cartSel = row.querySelector(".ci__cart");
           var checkno = row.querySelector(".ci__checkno");
           var statusEl = row.querySelector(".ci__status");
           var save = row.querySelector(".ci__save"), undo = row.querySelector(".ci__undo"), remove = row.querySelector(".ci__remove"), altBtn = row.querySelector(".ci__alt");
@@ -495,6 +500,7 @@
           });
           if (undo) undo.addEventListener("click", function () { saveCheckin(id, { checkedIn: false }, statusEl, undo); });
           if (startSel) startSel.addEventListener("change", function () { saveCheckin(id, { start: startSel.value }, statusEl, startSel); });
+          if (cartSel) cartSel.addEventListener("change", function () { saveCheckin(id, { cartType: cartSel.value }, statusEl, cartSel); });
           if (altBtn) altBtn.addEventListener("click", function () { var cur = row.getAttribute("data-alt") === "1"; saveCheckin(id, { alternate: !cur }, statusEl, altBtn); });
           if (remove) remove.addEventListener("click", function () {
             var card = row.closest(".ci-card");
