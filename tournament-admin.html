@@ -632,6 +632,23 @@
       var WAVES = [{ k: "8 AM", l: "A.M. — 8:00 shotgun" }, { k: "1 PM", l: "P.M. — 1:00 shotgun" }, { k: "", l: "Unassigned wave" }];
       var prRecs = [];
       function byCreated(a, b) { return String(a.created || "").localeCompare(String(b.created || "")); }
+      // "Rydge Peterson" -> "R. Peterson"; "Foor" -> "Foor"; "A. Guglert" -> "A. Guglert"
+      // (leaves paper-sheet abbreviations and single-word surnames alone).
+      function shortName(n) {
+        n = String(n == null ? "" : n).trim();
+        if (!n) return "";
+        if (/\./.test(n)) return n;
+        var parts = n.split(/\s+/);
+        if (parts.length < 2) return n;
+        var last = parts[parts.length - 1];
+        return parts[0].charAt(0).toUpperCase() + ". " + last.charAt(0).toUpperCase() + last.slice(1);
+      }
+      function teamShortNames(f) {
+        var names = [shortName(f["Player Name"] || "")];
+        String(f["Team / Partners"] || "").split(/\s*\/\s*/).forEach(function (p) { var s = shortName(p); if (s) names.push(s); });
+        names = names.filter(Boolean);
+        return names.length ? names.join(" / ") : "(no name)";
+      }
       function holeOpts(sel) {
         var o = '<option value="">— hole —</option>';
         for (var h = 1; h <= 9; h++) o += '<option value="' + h + '"' + (Number(sel) === h ? " selected" : "") + ">Hole " + h + "</option>";
@@ -655,7 +672,7 @@
       function prTeamCard(r, pos) {
         var f = r.fields || {};
         var tag = (pos != null) ? '<span class="pr-pos">' + String.fromCharCode(65 + Math.floor(pos / 2)) + "</span> " : "";
-        return '<div class="pr-team" data-id="' + esc(r.id) + '">' + tag + '<span class="pr-team__name">' + esc(f["Player Name"] || "(no name)") + "</span>"
+        return '<div class="pr-team" data-id="' + esc(r.id) + '">' + tag + '<span class="pr-team__name">' + esc(teamShortNames(f)) + "</span>"
           + '<span class="pr-team__ctl"><select class="pr-hole">' + holeOpts(f["Hole"]) + "</select>"
           + '<select class="pr-wave">' + waveOpts(f["Start"] || "") + "</select></span></div>";
       }
