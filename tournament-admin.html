@@ -430,7 +430,7 @@
         }).join("");
       }
       function paidOptions(sel) {
-        return ["", "Cash", "Check", "Card"].map(function (m) { return '<option value="' + m + '"' + (m === sel ? " selected" : "") + ">" + (m || "— paid —") + "</option>"; }).join("");
+        return ["", "Cash", "Check"].map(function (m) { return '<option value="' + m + '"' + (m === sel ? " selected" : "") + ">" + (m || "— paid —") + "</option>"; }).join("");
       }
       // P1 = Player Name, P2 = Team/Partners; falls back to splitting a combined
       // "A / B" name (imported teams sometimes store both in Player Name).
