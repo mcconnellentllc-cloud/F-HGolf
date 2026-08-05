@@ -85,8 +85,8 @@
 
           <div class="checkin-bar">
             <label class="form__field checkin-fee">
-              <span class="form__label">Entry fee / team</span>
-              <input type="number" id="twFee" min="0" step="1" inputmode="numeric" placeholder="e.g. 200" />
+              <span class="form__label">Entry fee / player</span>
+              <input type="number" id="twFee" min="0" step="1" inputmode="numeric" placeholder="e.g. 120" />
             </label>
             <div class="checkin-summary" id="twSummary"></div>
             <a class="btn btn--solid" id="twCardLink" target="_blank" rel="noopener" href="#">Card payment page &rarr;</a>
@@ -268,22 +268,31 @@
       function money(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
 
       var collectedTotal = 0, expensesTotal = 0, cashTotal = 0, checkTotal = 0, cardTotal = 0;
+      function perPlayerFee() {
+        var el = document.getElementById("twFee");
+        var v = el && el.value !== "" ? Number(el.value) : NaN;
+        if (isFinite(v) && v > 0) return v;
+        var c = loadCalc(); return c.entryPP || 0;
+      }
       function summarize(recs) {
-        var inCount = 0, total = 0; cashTotal = 0; checkTotal = 0; cardTotal = 0;
+        var fee = perPlayerFee();
+        cashTotal = 0; checkTotal = 0; cardTotal = 0;
+        var paidCount = 0, players = 0;
         recs.forEach(function (r) {
-          var f = r.fields || {};
-          if (f["Checked In"]) inCount++;
-          var a = Number(f["Amount Paid"]);
-          if (!isNaN(a)) {
-            total += a;
-            var m = (f["Pay Method"] || "").toLowerCase();
-            if (m === "cash") cashTotal += a; else if (m === "check") checkTotal += a; else if (m === "card") cardTotal += a;
-          }
+          var f = r.fields || {}, pp = teamPlayers(f, r);
+          [["Player 1 Paid", true], ["Player 2 Paid", pp.hasP2]].forEach(function (s) {
+            if (!s[1]) return;
+            players++;
+            var m = (f[s[0]] || "").toLowerCase();
+            if (!m) return;
+            paidCount++;
+            if (m === "check") checkTotal += fee; else if (m === "card") cardTotal += fee; else cashTotal += fee;
+          });
         });
-        collectedTotal = total;
+        collectedTotal = cashTotal + checkTotal + cardTotal;
         var el = document.getElementById("twSummary");
-        if (el) el.innerHTML = "<strong>" + inCount + " / " + recs.length + "</strong> checked in · <strong>"
-          + money(total) + "</strong> collected";
+        if (el) el.innerHTML = "<strong>" + paidCount + " / " + players + "</strong> players paid · <strong>"
+          + money(collectedTotal) + "</strong> collected";
         renderPL();
       }
 
@@ -420,92 +429,72 @@
             + '<span class="golfer__meta">' + meta.join(" · ") + "</span></div>";
         }).join("");
       }
-      function teamCard(rec, feeVal) {
-        var f = rec.fields || {};
-        var name = esc(f["Player Name"] || "(no name)");
-        var team = esc(f["Team / Partners"] || "");
-        var email = esc(f["Email"] || ""), phone = esc(f["Phone"] || "");
-        var carts = (f["Carts"] !== undefined && f["Carts"] !== "") ? esc(f["Carts"]) : "";
-        var isIn = !!f["Checked In"];
-        var paid = (f["Amount Paid"] !== undefined && f["Amount Paid"] !== "") ? Number(f["Amount Paid"]) : "";
-        var method = esc(f["Pay Method"] || "Cash");
-        var checkNo = esc(f["Check Number"] || "");
-        var start = esc(f["Start"] || "");
-        var cartType = esc(f["Cart Type"] || "");
-        var isAlt = !!f["Alternate"];
-        var line = [];
-        if (team) line.push("Team: " + team);
-        if (carts !== "") line.push(carts + " cart(s)");
-        if (phone) line.push('<a href="tel:' + phone.replace(/[^0-9+]/g, "") + '">' + phone + "</a>");
-        if (email) line.push('<a href="mailto:' + email + '">' + email + "</a>");
-        var amtValue = paid !== "" ? paid : esc(feeVal);
-        var ci = '<div class="ci" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
-          + '<select class="ci__start" title="Shotgun start">' + startOptions(start) + "</select>"
-          + '<select class="ci__cart" title="Cart: rental or owned">' + cartOptions(cartType) + "</select>"
-          + '<span class="ci__amtwrap">$<input type="number" class="ci__amt" min="0" step="1" inputmode="numeric" value="' + amtValue + '" /></span>'
-          + '<select class="ci__method">' + methodOptions(paid !== "" ? method : "Cash") + "</select>"
-          + '<input type="text" class="ci__checkno" maxlength="40" placeholder="Check #" value="' + checkNo + '" title="Check number (if paid by check)" />'
-          + '<button type="button" class="btn ' + (isIn ? "btn--solid" : "btn--primary") + ' ci__save">' + (isIn ? "Update" : "Check in") + "</button>"
-          + (isIn ? '<button type="button" class="btn btn--solid ci__undo">Undo</button>' : "")
-          + '<button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + "</button>"
-          + '<button type="button" class="ci__remove" title="Remove this team">Remove</button>'
-          + '<span class="ci__status"></span></div>';
-        return '<article class="nom ci-card' + (isIn ? " is-in" : "") + (isAlt ? " is-alt" : "") + '">'
-          + '<div class="nom__head"><span class="nom__name">' + name
-          + (isAlt ? ' <span class="ci-badge ci-badge--alt">ALT</span>' : "")
-          + (isIn ? ' <span class="ci-badge">✓ Checked in' + (paid !== "" ? " · " + money(paid) + " " + method : "") + "</span>" : "")
-          + "</span></div>"
-          + (line.length ? '<div class="nom__by">' + line.join(" · ") + "</div>" : "")
-          + ci + "</article>";
+      function paidOptions(sel) {
+        return ["", "Cash", "Check", "Card"].map(function (m) { return '<option value="' + m + '"' + (m === sel ? " selected" : "") + ">" + (m || "— paid —") + "</option>"; }).join("");
+      }
+      // P1 = Player Name, P2 = Team/Partners; falls back to splitting a combined
+      // "A / B" name (imported teams sometimes store both in Player Name).
+      function teamPlayers(f, rec) {
+        var p1 = f["Player Name"] || "", p2 = f["Team / Partners"] || "";
+        if (!p2 && /[\/&]| and /i.test(p1)) { var parts = splitGolfers(rec); if (parts.length > 1) { p1 = parts[0]; p2 = parts.slice(1).join(" / "); } }
+        return { p1: p1, p2: p2, hasP2: !!p2 };
+      }
+      function fullyPaid(rec) {
+        var f = rec.fields || {}, pp = teamPlayers(f, rec);
+        return !!f["Player 1 Paid"] && (pp.hasP2 ? !!f["Player 2 Paid"] : true);
+      }
+      function ciRow(rec) {
+        var f = rec.fields || {}, pp = teamPlayers(f, rec), isAlt = !!f["Alternate"];
+        return '<tr class="ci-row" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
+          + '<td class="ci-c-name">' + esc(pp.p1 || "(no name)") + "</td>"
+          + '<td class="ci-c-name">' + esc(pp.p2 || "—") + "</td>"
+          + '<td><select class="ci__start" title="Wave">' + startOptions(esc(f["Start"] || "")) + "</select></td>"
+          + '<td><select class="ci__cart" title="Cart">' + cartOptions(esc(f["Cart Type"] || "")) + "</select></td>"
+          + '<td><select class="ci__p1 paysel">' + paidOptions(esc(f["Player 1 Paid"] || "")) + "</select></td>"
+          + '<td><select class="ci__p2 paysel"' + (pp.hasP2 ? "" : " disabled") + ">" + paidOptions(esc(f["Player 2 Paid"] || "")) + "</select></td>"
+          + '<td class="ci-c-act"><button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + "</button>"
+          + '<button type="button" class="ci__remove" title="Remove team">✕</button>'
+          + '<span class="ci__status"></span></td></tr>';
+      }
+      function ciTable(rows) {
+        return '<div class="table-scroll"><table class="ci-table"><thead><tr><th>Player 1</th><th>Player 2</th><th>Wave</th><th>Cart</th><th>P1 Paid</th><th>P2 Paid</th><th></th></tr></thead><tbody>'
+          + rows.map(ciRow).join("") + "</tbody></table></div>";
       }
 
       function renderRoster(all) {
         var list = document.getElementById("twRoster"), count = document.getElementById("twCount");
-        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
         var field = recs.filter(function (r) { return !isAltRec(r); });
         var alts = recs.filter(isAltRec);
         actions(field);
         summarize(field);
         renderGolfers(field);
         if (!recs.length) { list.innerHTML = '<p class="noms__msg">No sign-ups yet. Add a walk-up team above.</p>'; count.textContent = ""; return; }
-        count.textContent = "(" + field.length + (alts.length ? " + " + alts.length + " alt" : "") + ")";
 
-        var fee = document.getElementById("twFee");
-        var feeVal = fee && fee.value ? fee.value : savedFee();
+        var unpaid = field.filter(function (r) { return !fullyPaid(r); });
+        var paid = field.filter(fullyPaid);
+        count.textContent = "(" + field.length + " · " + paid.length + " paid" + (alts.length ? " · " + alts.length + " alt" : "") + ")";
 
-        // Field split into shotgun waves; alternates listed separately.
-        var groups = { "8 AM": [], "1 PM": [], "": [] };
-        field.forEach(function (r) { var s = (r.fields && r.fields["Start"]) || ""; (groups[s] = groups[s] || []).push(r); });
-        var html = ["8 AM", "1 PM", ""].map(function (g) {
-          var arr = groups[g]; if (!arr || !arr.length) return "";
-          var label = g ? (g + " shotgun") : "Unassigned start";
-          return '<div class="wave"><h4 class="wave__label">' + label + " <span>(" + arr.length + ")</span></h4>"
-            + arr.map(function (r) { return teamCard(r, feeVal); }).join("") + "</div>";
-        }).join("");
-        if (alts.length) {
-          html += '<div class="wave wave--alt"><h4 class="wave__label">Alternates — standby <span>(' + alts.length + ")</span></h4>"
-            + alts.map(function (r) { return teamCard(r, feeVal); }).join("") + "</div>";
-        }
+        var html = unpaid.length ? ciTable(unpaid) : '<p class="noms__msg">Everyone checked in has paid. 🎉</p>';
+        if (paid.length) html += '<details class="ci-fold" open><summary>Paid &amp; done <span>(' + paid.length + ")</span></summary>" + ciTable(paid) + "</details>";
+        if (alts.length) html += '<details class="ci-fold ci-fold--alt"><summary>Alternates — standby <span>(' + alts.length + ")</span></summary>" + ciTable(alts) + "</details>";
         list.innerHTML = html;
 
-        // Wire the per-team controls.
-        Array.prototype.forEach.call(list.querySelectorAll(".ci"), function (row) {
+        // Wire per-team controls across all tables.
+        Array.prototype.forEach.call(list.querySelectorAll(".ci-row"), function (row) {
           var id = row.getAttribute("data-id");
-          var amt = row.querySelector(".ci__amt"), meth = row.querySelector(".ci__method"), startSel = row.querySelector(".ci__start"), cartSel = row.querySelector(".ci__cart");
-          var checkno = row.querySelector(".ci__checkno");
+          var startSel = row.querySelector(".ci__start"), cartSel = row.querySelector(".ci__cart");
+          var p1 = row.querySelector(".ci__p1"), p2 = row.querySelector(".ci__p2");
           var statusEl = row.querySelector(".ci__status");
-          var save = row.querySelector(".ci__save"), undo = row.querySelector(".ci__undo"), remove = row.querySelector(".ci__remove"), altBtn = row.querySelector(".ci__alt");
-          if (save) save.addEventListener("click", function () {
-            saveCheckin(id, { checkedIn: true, amountPaid: amt.value, payMethod: meth.value, checkNumber: checkno ? checkno.value : "", paidAt: new Date().toISOString() }, statusEl, save);
-          });
-          if (undo) undo.addEventListener("click", function () { saveCheckin(id, { checkedIn: false }, statusEl, undo); });
+          var remove = row.querySelector(".ci__remove"), altBtn = row.querySelector(".ci__alt");
           if (startSel) startSel.addEventListener("change", function () { saveCheckin(id, { start: startSel.value }, statusEl, startSel); });
           if (cartSel) cartSel.addEventListener("change", function () { saveCheckin(id, { cartType: cartSel.value }, statusEl, cartSel); });
+          if (p1) p1.addEventListener("change", function () { saveCheckin(id, { player1Paid: p1.value }, statusEl, p1); });
+          if (p2) p2.addEventListener("change", function () { saveCheckin(id, { player2Paid: p2.value }, statusEl, p2); });
           if (altBtn) altBtn.addEventListener("click", function () { var cur = row.getAttribute("data-alt") === "1"; saveCheckin(id, { alternate: !cur }, statusEl, altBtn); });
           if (remove) remove.addEventListener("click", function () {
-            var card = row.closest(".ci-card");
-            var who = card ? (card.querySelector(".nom__name") || {}).textContent : "this team";
-            if (!window.confirm("Remove " + (who || "this team").trim() + " from this tournament? This can't be undone.")) return;
+            var who = (row.querySelector(".ci-c-name") || {}).textContent || "this team";
+            if (!window.confirm("Remove " + who.trim() + " from this tournament? This can't be undone.")) return;
             removeTeam(id, statusEl, remove);
           });
         });
@@ -725,8 +714,8 @@
           (data.flights || []).forEach(function (fl) {
             var start = /^A/i.test(fl.name) ? "8 AM" : (/^P/i.test(fl.name) ? "1 PM" : "");
             (fl.teams || []).forEach(function (t) {
-              var nm = (t.players || []).filter(Boolean).join(" / ");
-              if (nm) teams.push({ name: nm, start: start });
+              var ps = (t.players || []).filter(Boolean);
+              if (ps.length) teams.push({ name: ps[0], partner: ps.slice(1).join(" / "), start: start });
             });
           });
           if (!teams.length) { msg.textContent = "No teams found in the pairing sheet."; return; }

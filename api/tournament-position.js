@@ -39,6 +39,7 @@ module.exports = async (req, res) => {
           if (!name) return null;
           const fields = { "Player Name": name, Tournament: tournament, Status: "New" };
           const start = clean(t.start, 20); if (start) fields.Start = start;
+          const partner = clean(t.partner, 200); if (partner) fields["Team / Partners"] = partner;
           return { fields };
         })
         .filter(Boolean);
