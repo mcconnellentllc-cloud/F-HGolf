@@ -623,7 +623,7 @@
 
       function prTeamCard(r, pos) {
         var f = r.fields || {};
-        var tag = (pos != null) ? '<span class="pr-pos">' + String.fromCharCode(65 + pos) + "</span> " : "";
+        var tag = (pos != null) ? '<span class="pr-pos">' + String.fromCharCode(65 + Math.floor(pos / 2)) + "</span> " : "";
         return '<div class="pr-team" data-id="' + esc(r.id) + '">' + tag + '<span class="pr-team__name">' + esc(f["Player Name"] || "(no name)") + "</span>"
           + '<span class="pr-team__ctl"><select class="pr-hole">' + holeOpts(f["Hole"]) + "</select>"
           + '<select class="pr-wave">' + waveOpts(f["Start"] || "") + "</select></span></div>";
@@ -635,10 +635,10 @@
         var assignments = [];
         ["8 AM", "1 PM"].forEach(function (w) {
           var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w; }).sort(byCreated);
-          teams.forEach(function (r, idx) { assignments.push({ id: r.id, hole: (Math.floor(idx / 2) % 9) + 1 }); });
+          teams.forEach(function (r, idx) { assignments.push({ id: r.id, hole: (Math.floor(idx / 4) % 9) + 1 }); });
         });
         if (!assignments.length) { if (msg) msg.textContent = "Import the field first (sets A.M./P.M.), then auto-place."; return; }
-        if (!window.confirm("Place " + assignments.length + " teams on holes — 2 per hole, in order, cycling 1–9? You can move any team after.")) return;
+        if (!window.confirm("Place " + assignments.length + " teams on holes — 4 per hole (A group + B group, 2 teams each), in order, cycling 1–9? You can move any team after.")) return;
         if (msg) msg.textContent = "Placing on holes…"; if (btn) btn.disabled = true;
         fetch(FH_API.url("/api/tournament-position"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: assignments }) })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
