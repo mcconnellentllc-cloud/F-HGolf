@@ -103,6 +103,11 @@
             <span class="checkin-add__msg" id="waMsg" role="status" aria-live="polite"></span>
           </details>
 
+          <details class="golfers" id="twGolfers">
+            <summary>All golfers, A–Z <span class="noms__count" id="twGolfersCount"></span></summary>
+            <div id="golferList"></div>
+          </details>
+
           <div class="noms__list" id="twRoster"><p class="noms__msg">Loading roster…</p></div>
         </section>
 
@@ -382,6 +387,36 @@
       }
 
       function isAltRec(r) { return !!((r.fields || {})["Alternate"]); }
+
+      // Expand a team record into individual golfer names (Player Name + partners).
+      function splitGolfers(rec) {
+        var f = rec.fields || {}, names = [];
+        function add(s) {
+          if (!s) return;
+          if (/looking for/i.test(s)) { var m = s.split(/have so far:/i); if (m[1]) s = m[1]; else return; }
+          s.split(/\s*(?:\/|&|,| and )\s*/i).forEach(function (p) { p = p.trim(); if (p && !/^looking/i.test(p)) names.push(p); });
+        }
+        add(f["Player Name"]); add(f["Team / Partners"]);
+        return names;
+      }
+
+      function renderGolfers(field) {
+        var box = document.getElementById("golferList"); if (!box) return;
+        var rows = [];
+        field.forEach(function (r) { splitGolfers(r).forEach(function (nm) { rows.push({ name: nm, rec: r }); }); });
+        rows.sort(function (a, b) { return a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
+        var cnt = document.getElementById("twGolfersCount"); if (cnt) cnt.textContent = "(" + rows.length + ")";
+        if (!rows.length) { box.innerHTML = '<p class="noms__msg">No golfers yet.</p>'; return; }
+        box.innerHTML = rows.map(function (x) {
+          var f = x.rec.fields || {}, meta = [];
+          if (f["Player Name"]) meta.push(esc(f["Player Name"]));
+          if (f["Start"]) meta.push(esc(f["Start"]));
+          if (f["Hole"] != null && f["Hole"] !== "") meta.push("Hole " + esc(f["Hole"]));
+          if (f["Checked In"]) meta.push("✓ in");
+          return '<div class="golfer"><span class="golfer__name">' + esc(x.name) + "</span>"
+            + '<span class="golfer__meta">' + meta.join(" · ") + "</span></div>";
+        }).join("");
+      }
       function teamCard(rec, feeVal) {
         var f = rec.fields || {};
         var name = esc(f["Player Name"] || "(no name)");
@@ -426,6 +461,7 @@
         var alts = recs.filter(isAltRec);
         actions(field);
         summarize(field);
+        renderGolfers(field);
         if (!recs.length) { list.innerHTML = '<p class="noms__msg">No sign-ups yet. Add a walk-up team above.</p>'; count.textContent = ""; return; }
         count.textContent = "(" + field.length + (alts.length ? " + " + alts.length + " alt" : "") + ")";
 
