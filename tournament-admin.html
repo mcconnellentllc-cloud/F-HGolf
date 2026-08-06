@@ -111,18 +111,17 @@
           <div class="noms__list" id="twRoster"><p class="noms__msg">Loading roster…</p></div>
         </section>
 
-        <!-- Pairings: waves + starting holes -->
+        <!-- Pairings: tee sheet (per-hole A/B slots, drag-and-drop) -->
         <section class="noms wb-sheet" data-sheet="pairings" id="twPairings" aria-label="Pairings" hidden>
           <div class="noms__bar">
-            <h3 class="noms__title">Pairings — waves &amp; starting holes</h3>
+            <h3 class="noms__title">Pairings — tee sheet</h3>
             <button class="btn btn--solid" type="button" id="prRefresh">Refresh</button>
           </div>
           <div class="checkin-add__row">
             <button class="btn btn--primary" type="button" id="prImport">Import 2026 field from pairing sheet</button>
-            <button class="btn btn--solid" type="button" id="prAuto">Auto-place on holes</button>
             <span class="checkin-add__msg" id="prMsg" role="status" aria-live="polite"></span>
           </div>
-          <p class="scaffold__desc">Set each team's shotgun wave and starting hole. Change the hole dropdown to move a team between holes — it saves automatically.</p>
+          <p class="scaffold__desc">Two teams to a tee. For each wave, tap a hole up top to cycle it through <em>off &rarr; A &rarr; A+B</em>, then hit Autofill. Drag any team onto another to swap seats.</p>
           <div id="prBoard"><p class="noms__msg">Loading…</p></div>
         </section>
 
@@ -218,7 +217,7 @@
         <div class="pm-row">
           <label class="pm-field">
             <span>Phone</span>
-            <input type="tel" id="pmPhone" autocomplete="tel" />
+            <input type="tel" id="pmPhone" autocomplete="tel" inputmode="tel" placeholder="(970) 555-1234" maxlength="14" />
           </label>
           <label class="pm-field">
             <span>Email</span>
@@ -653,7 +652,7 @@
         var signup = (rosterRecs || []).find(function (r) { return r.id === signupId; });
         if (signup && signup.fields) {
           if (role === "p1" && signup.fields.Email) pmSetVal("pmEmail", signup.fields.Email);
-          if (role === "p1" && signup.fields.Phone) pmSetVal("pmPhone", signup.fields.Phone);
+          if (role === "p1" && signup.fields.Phone) pmSetVal("pmPhone", formatPhone(signup.fields.Phone));
         }
         if (!currentName) { if (status) { status.textContent = "New player — fill in the card and save."; status.className = "pm-status is-info"; } return; }
         // Look up in Players table by name.
@@ -670,7 +669,7 @@
               var f = recs[0].fields || {};
               pmCurrent.playerId = recs[0].id;
               pmSetVal("pmName", f.Name || currentName);
-              pmSetVal("pmPhone", f.Phone || pmVal("pmPhone"));
+              pmSetVal("pmPhone", formatPhone(f.Phone || pmVal("pmPhone")));
               pmSetVal("pmEmail", f.Email || pmVal("pmEmail"));
               pmSetVal("pmStreet", f.Street || "");
               pmSetVal("pmCity", f.City || "");
@@ -721,10 +720,22 @@
               return;
             }
             pmCurrent.playerId = j.id;
+            // Re-populate the form from the server's response so what you see IS
+            // what saved (surfaces any silent field drop from Airtable).
+            var savedF = j.fields || {};
+            pmSetVal("pmPhone", formatPhone(savedF.Phone || ""));
+            pmSetVal("pmEmail", savedF.Email || "");
+            pmSetVal("pmStreet", savedF.Street || "");
+            pmSetVal("pmCity", savedF.City || "");
+            pmSetVal("pmState", savedF.State || "");
+            pmSetVal("pmZip", savedF.Zip || "");
+            pmSetVal("pmNotes", savedF.Notes || "");
+            var memEl = document.getElementById("pmMember"); if (memEl) memEl.checked = !!savedF.Member;
             if (status) { status.textContent = "Saved ✓"; status.className = "pm-status is-ok"; }
             // Link the signup to this Player + reflect renamed name back on the roster.
             var link = { id: pmCurrent.signupId, playerId: j.id };
             if (pmCurrent.role === "p1") link.playerName = name;
+            else if (pmCurrent.role === "p2") link.teamPartners = name;
             fetch(FH_API.url("/api/tournament-checkin"), {
               method: "POST",
               headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
@@ -732,10 +743,21 @@
             })
               .then(function () { loadRoster(); })
               .catch(function () { loadRoster(); })
-              .finally(function () { setTimeout(closePlayerCard, 400); });
+              .finally(function () { setTimeout(closePlayerCard, 500); });
           })
           .catch(function () { if (status) { status.textContent = "Network error."; status.className = "pm-status is-error"; } });
       }
+
+      // "9705551234" -> "(970) 555-1234"; partial input renders progressively.
+      function formatPhone(v) {
+        var d = String(v || "").replace(/\D+/g, "").slice(0, 10);
+        if (!d.length) return "";
+        if (d.length < 4) return "(" + d;
+        if (d.length < 7) return "(" + d.slice(0, 3) + ") " + d.slice(3);
+        return "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6);
+      }
+      function formatState(v) { return String(v || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2); }
+      function formatZip(v) { return String(v || "").replace(/[^\d-]/g, "").slice(0, 10); }
 
       // Modal wiring (once at boot).
       (function wirePlayerModal() {
@@ -748,6 +770,13 @@
         if (saveBtn) saveBtn.addEventListener("click", savePlayerCard);
         if (modal) modal.addEventListener("click", function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute("data-close") === "1") closePlayerCard(); });
         document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal && !modal.hidden) closePlayerCard(); });
+        // Live input formatters — force phone into (XXX) XXX-XXXX, State to 2 caps, Zip to digits.
+        var phEl = document.getElementById("pmPhone");
+        if (phEl) phEl.addEventListener("input", function () { phEl.value = formatPhone(phEl.value); });
+        var stEl = document.getElementById("pmState");
+        if (stEl) stEl.addEventListener("input", function () { stEl.value = formatState(stEl.value); });
+        var zpEl = document.getElementById("pmZip");
+        if (zpEl) zpEl.addEventListener("input", function () { zpEl.value = formatZip(zpEl.value); });
       })();
 
       // ---- Hole-by-hole scoring (18 holes = two loops of the nine) ----
@@ -878,12 +907,13 @@
           .catch(function () { btn.disabled = false; msg.textContent = "Network error."; });
       }
 
-      // ---- Pairings: waves + starting holes ----
-      var WAVES = [{ k: "8 AM", l: "A.M. — 8:00 shotgun" }, { k: "1 PM", l: "P.M. — 1:00 shotgun" }, { k: "", l: "Unassigned wave" }];
+      // ---- Pairings: tee sheet (A/B slots per hole, autofill, drag-and-drop) ----
+      var WAVES = [{ k: "8 AM", l: "A.M. — 8:00 shotgun" }, { k: "1 PM", l: "P.M. — 1:00 shotgun" }];
+      var TEAMS_PER_TEE = 2;
       var prRecs = [];
+      var prDrag = null; // { id, srcHole, srcSlot, srcWave }
+
       function byCreated(a, b) { return String(a.created || "").localeCompare(String(b.created || "")); }
-      // "Rydge Peterson" -> "R. Peterson"; "Foor" -> "Foor"; "A. Guglert" -> "A. Guglert"
-      // (leaves paper-sheet abbreviations and single-word surnames alone).
       function shortName(n) {
         n = String(n == null ? "" : n).trim();
         if (!n) return "";
@@ -899,15 +929,24 @@
         names = names.filter(Boolean);
         return names.length ? names.join(" / ") : "(no name)";
       }
-      function holeOpts(sel) {
-        var o = '<option value="">— hole —</option>';
-        for (var h = 1; h <= 9; h++) o += '<option value="' + h + '"' + (Number(sel) === h ? " selected" : "") + ">Hole " + h + "</option>";
-        return o;
+
+      // Persist slot layout (which holes have A / A+B) per tournament + wave.
+      function slotsKey(wave) { return "fh_slots_" + KEY + "_" + wave; }
+      function loadSlotCfg(wave) {
+        try { var j = JSON.parse(localStorage.getItem(slotsKey(wave)) || "null"); if (j && typeof j === "object") return j; } catch (e) {}
+        return {}; // default: all holes off
       }
-      function waveOpts(sel) {
-        return ['<option value="">— wave —</option>',
-          '<option value="8 AM"' + (sel === "8 AM" ? " selected" : "") + ">A.M.</option>",
-          '<option value="1 PM"' + (sel === "1 PM" ? " selected" : "") + ">P.M.</option>"].join("");
+      function saveSlotCfg(wave, cfg) { try { localStorage.setItem(slotsKey(wave), JSON.stringify(cfg)); } catch (e) {} }
+      function cycleState(s) { return s === "AB" ? "off" : (s === "A" ? "AB" : "A"); }
+      // Fill order: hole 1 A, hole 1 B, hole 2 A, hole 2 B, ...
+      function activeSlots(cfg) {
+        var out = [];
+        for (var h = 1; h <= 9; h++) {
+          var s = cfg[h] || "off";
+          if (s === "A" || s === "AB") out.push({ hole: h, slot: "A" });
+          if (s === "AB") out.push({ hole: h, slot: "B" });
+        }
+        return out;
       }
 
       function positionSave(id, payload, statusEl) {
@@ -918,30 +957,80 @@
           .then(function (res) { if (res.j && res.j.ok) { loadRoster(); } else if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't save."; } })
           .catch(function () { if (statusEl) statusEl.textContent = "Network error."; });
       }
-
-      function prTeamCard(r, pos) {
-        var f = r.fields || {};
-        var tag = (pos != null) ? '<span class="pr-pos">' + String.fromCharCode(65 + Math.floor(pos / 2)) + "</span> " : "";
-        return '<div class="pr-team" data-id="' + esc(r.id) + '">' + tag + '<span class="pr-team__name">' + esc(teamShortNames(f)) + "</span>"
-          + '<span class="pr-team__ctl"><select class="pr-hole">' + holeOpts(f["Hole"]) + "</select>"
-          + '<select class="pr-wave">' + waveOpts(f["Start"] || "") + "</select></span></div>";
+      function positionSaveMany(assignments) {
+        var msg = document.getElementById("prMsg"); if (msg) msg.textContent = "Saving " + assignments.length + " move" + (assignments.length === 1 ? "" : "s") + "…";
+        fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: assignments }) })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) { if (j && j.ok) { if (msg) msg.textContent = "Saved " + j.updated + " ✓"; loadRoster(); } else if (msg) { msg.textContent = (j && j.error) || "Save failed."; } })
+          .catch(function () { if (msg) msg.textContent = "Network error saving."; });
       }
 
-      // Auto-place: keep current order, 2 teams per hole (A/B), cycling holes 1–9.
-      function autoPlaceHoles() {
-        var msg = document.getElementById("prMsg"), btn = document.getElementById("prAuto");
-        var assignments = [];
-        ["8 AM", "1 PM"].forEach(function (w) {
-          var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w; }).sort(byCreated);
-          teams.forEach(function (r, idx) { assignments.push({ id: r.id, hole: (Math.floor(idx / 4) % 9) + 1 }); });
+      function prTeamCard(r) {
+        var f = r.fields || {};
+        return '<div class="pr-team" draggable="true" data-id="' + esc(r.id) + '"><span class="pr-team__nm">' + esc(teamShortNames(f)) + "</span></div>";
+      }
+
+      function renderWaveBlock(w, teams) {
+        var cfg = loadSlotCfg(w.k);
+        var slots = activeSlots(cfg);
+        var placed = {};
+        slots.forEach(function (s) { placed[s.hole + s.slot] = []; });
+        var pool = [];
+        teams.forEach(function (t) {
+          var f = t.fields || {};
+          var h = Number(f.Hole);
+          var sl = String(f.Slot || "").toUpperCase();
+          var k = h + sl;
+          if (h && (sl === "A" || sl === "B") && placed[k] && placed[k].length < TEAMS_PER_TEE) placed[k].push(t);
+          else pool.push(t);
         });
-        if (!assignments.length) { if (msg) msg.textContent = "Import the field first (sets A.M./P.M.), then auto-place."; return; }
-        if (!window.confirm("Place " + assignments.length + " teams on holes — 4 per hole (A group + B group, 2 teams each), in order, cycling 1–9? You can move any team after.")) return;
-        if (msg) msg.textContent = "Placing on holes…"; if (btn) btn.disabled = true;
-        fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: assignments }) })
-          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
-          .then(function (res) { if (btn) btn.disabled = false; if (res.j && res.j.ok) { if (msg) msg.textContent = "Placed " + res.j.updated + " ✓"; loadRoster(); } else if (msg) { msg.textContent = (res.j && res.j.error) || "Couldn't place."; } })
-          .catch(function () { if (btn) btn.disabled = false; if (msg) msg.textContent = "Network error."; });
+
+        // Config row — each hole cycles off / A / A+B.
+        var btns = "";
+        for (var h = 1; h <= 9; h++) {
+          var st = cfg[h] || "off";
+          var lbl = st === "off" ? "&mdash;" : st;
+          btns += '<button type="button" class="pr-hb pr-hb--' + st.toLowerCase() + '" data-hole="' + h + '" data-wave="' + w.k + '" title="Cycle off / A / A+B"><span class="pr-hb__n">' + h + '</span><span class="pr-hb__s">' + lbl + '</span></button>';
+        }
+        var tees = slots.length;
+        var seats = tees * TEAMS_PER_TEE;
+        var teamCount = teams.length;
+        var enough = seats >= teamCount;
+        var openSeats = seats - teamCount;
+        var shortSeats = teamCount - seats;
+        var tail = "";
+        if (teamCount > 0 && enough) tail = ' <span class="pr-cfg__ok">' + openSeats + ' seat' + (openSeats === 1 ? "" : "s") + ' open</span>';
+        else if (teamCount > 0 && !enough) tail = ' <span class="pr-cfg__short">need ' + shortSeats + ' more seat' + (shortSeats === 1 ? "" : "s") + '</span>';
+        var summary = tees + ' tees &times; ' + TEAMS_PER_TEE + ' teams = <strong>' + seats + '</strong> seats &middot; ' + teamCount + ' teams' + tail;
+        var canAutofill = teamCount > 0 && enough;
+
+        // Tee cards.
+        var teeHtml = slots.map(function (s) {
+          var arr = placed[s.hole + s.slot];
+          var seatEls = "";
+          for (var i = 0; i < TEAMS_PER_TEE; i++) {
+            seatEls += arr[i] ? prTeamCard(arr[i]) : '<div class="pr-team pr-team--empty" data-empty="1">seat open</div>';
+          }
+          return '<div class="pr-tee" data-hole="' + s.hole + '" data-slot="' + s.slot + '" data-wave="' + w.k + '"><div class="pr-tee__hd"><span class="pr-tee__hole">Hole ' + s.hole + '</span><span class="pr-tee__slot">Tee ' + s.slot + '</span></div>' + seatEls + '</div>';
+        }).join("");
+
+        // Unplaced pool.
+        var poolHtml = "";
+        if (pool.length) {
+          poolHtml = '<div class="pr-pool" data-wave="' + w.k + '"><div class="pr-pool__hd">Unplaced <span>(' + pool.length + ')</span></div><div class="pr-pool__list">' + pool.map(prTeamCard).join("") + "</div></div>";
+        }
+
+        return '<div class="pr-wave-block" data-wave="' + w.k + '">'
+          + '<h4 class="pr-wave-block__title">' + w.l + ' <span>(' + teamCount + ' teams)</span></h4>'
+          + '<div class="pr-cfg">'
+          + '<span class="pr-cfg__lbl">Tees per hole &mdash; tap to cycle</span>'
+          + '<div class="pr-hbs">' + btns + '</div>'
+          + '<div class="pr-cfg__sum">' + summary + '</div>'
+          + '<button type="button" class="btn btn--primary pr-autofill" data-wave="' + w.k + '"' + (canAutofill ? "" : " disabled") + '>Autofill this wave</button>'
+          + '</div>'
+          + poolHtml
+          + '<div class="pr-teegrid">' + teeHtml + '</div>'
+          + '</div>';
       }
 
       function renderPairings(all) {
@@ -951,26 +1040,113 @@
         if (!recs.length) { board.innerHTML = '<p class="noms__msg">No teams yet. Import the 2026 field above, or add teams on the Check-In sheet.</p>'; return; }
         board.innerHTML = WAVES.map(function (w) {
           var teams = recs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; }).sort(byCreated);
-          if (!teams.length && w.k === "") return "";
-          var holes = {};
-          teams.forEach(function (t) { var h = (t.fields || {})["Hole"]; var k = (h != null && h !== "") ? Number(h) : 0; (holes[k] = holes[k] || []).push(t); });
-          var boxes = "";
-          for (var h = 1; h <= 9; h++) {
-            var arr = holes[h] || [];
-            boxes += '<div class="pr-hole-box"><div class="pr-hole-box__hd">Hole ' + h + " <span>(" + arr.length + ")</span></div>"
-              + arr.map(function (t, i) { return prTeamCard(t, i); }).join("") + "</div>";
-          }
-          var un = holes[0] || [];
-          var unBox = un.length ? '<div class="pr-hole-box pr-hole-box--un"><div class="pr-hole-box__hd">No hole yet <span>(' + un.length + ")</span></div>" + un.map(function (t) { return prTeamCard(t); }).join("") + "</div>" : "";
-          return '<div class="pr-wave"><h4 class="pr-wave__title">' + w.l + " <span>(" + teams.length + " teams)</span></h4>"
-            + unBox + '<div class="pr-holes">' + boxes + "</div></div>";
+          return renderWaveBlock(w, teams);
         }).join("");
-        Array.prototype.forEach.call(board.querySelectorAll(".pr-team"), function (row) {
-          var id = row.getAttribute("data-id");
-          var hs = row.querySelector(".pr-hole"), ws = row.querySelector(".pr-wave");
-          if (hs) hs.addEventListener("change", function () { positionSave(id, { hole: hs.value }, document.getElementById("prMsg")); });
-          if (ws) ws.addEventListener("change", function () { positionSave(id, { start: ws.value }, document.getElementById("prMsg")); });
+        wirePairings(board);
+      }
+
+      function wirePairings(board) {
+        // Hole config buttons — cycle state and re-render.
+        Array.prototype.forEach.call(board.querySelectorAll(".pr-hb"), function (btn) {
+          btn.addEventListener("click", function () {
+            var h = Number(btn.getAttribute("data-hole")), w = btn.getAttribute("data-wave");
+            var cfg = loadSlotCfg(w);
+            cfg[h] = cycleState(cfg[h] || "off");
+            saveSlotCfg(w, cfg);
+            renderPairings(prRecs.length ? prRecs : []);
+          });
         });
+        // Autofill per wave.
+        Array.prototype.forEach.call(board.querySelectorAll(".pr-autofill"), function (btn) {
+          btn.addEventListener("click", function () { autofillWave(btn.getAttribute("data-wave")); });
+        });
+        // Drag-and-drop.
+        Array.prototype.forEach.call(board.querySelectorAll(".pr-team[draggable='true']"), function (el) {
+          el.addEventListener("dragstart", function (e) {
+            var tee = el.closest(".pr-tee");
+            var wave = tee ? tee.getAttribute("data-wave") : (el.closest(".pr-pool") || {}).getAttribute && el.closest(".pr-pool").getAttribute("data-wave");
+            prDrag = {
+              id: el.getAttribute("data-id"),
+              srcHole: tee ? Number(tee.getAttribute("data-hole")) : null,
+              srcSlot: tee ? tee.getAttribute("data-slot") : "",
+              srcWave: wave || ""
+            };
+            el.classList.add("is-drag");
+            try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", prDrag.id); } catch (err) {}
+          });
+          el.addEventListener("dragend", function () { el.classList.remove("is-drag"); });
+        });
+        Array.prototype.forEach.call(board.querySelectorAll(".pr-tee, .pr-pool"), function (zone) {
+          zone.addEventListener("dragover", function (e) { if (!prDrag) return; e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch (err) {} zone.classList.add("is-drop"); });
+          zone.addEventListener("dragleave", function () { zone.classList.remove("is-drop"); });
+          zone.addEventListener("drop", function (e) {
+            e.preventDefault(); zone.classList.remove("is-drop");
+            if (!prDrag) return;
+            handleDrop(zone, prDrag);
+            prDrag = null;
+          });
+        });
+      }
+
+      function handleDrop(zone, drag) {
+        if (zone.classList.contains("pr-pool")) {
+          // Dropped onto pool → clear position (also normalize wave to the pool's wave).
+          var w = zone.getAttribute("data-wave") || drag.srcWave || "";
+          positionSaveMany([{ id: drag.id, hole: "", slot: "", start: w }]);
+          return;
+        }
+        var tgtHole = Number(zone.getAttribute("data-hole"));
+        var tgtSlot = zone.getAttribute("data-slot");
+        var tgtWave = zone.getAttribute("data-wave") || drag.srcWave;
+        // No-op if same target as source
+        if (drag.srcHole === tgtHole && drag.srcSlot === tgtSlot && drag.srcWave === tgtWave) return;
+        // Occupants of the target tee (excluding the dragged team if it was already there).
+        var occupants = Array.prototype.map.call(zone.querySelectorAll(".pr-team[draggable='true']"), function (el) { return el.getAttribute("data-id"); })
+          .filter(function (id) { return id !== drag.id; });
+        var assignments = [{ id: drag.id, hole: tgtHole, slot: tgtSlot, start: tgtWave }];
+        if (occupants.length >= TEAMS_PER_TEE) {
+          // Swap: displaced team goes to drag source (or unplaced if source was pool).
+          var displacedId = occupants[0];
+          if (drag.srcHole) {
+            assignments.push({ id: displacedId, hole: drag.srcHole, slot: drag.srcSlot, start: drag.srcWave });
+          } else {
+            assignments.push({ id: displacedId, hole: "", slot: "", start: drag.srcWave || tgtWave });
+          }
+        }
+        positionSaveMany(assignments);
+      }
+
+      function autofillWave(wave) {
+        var msg = document.getElementById("prMsg");
+        var cfg = loadSlotCfg(wave);
+        var slots = activeSlots(cfg);
+        if (!slots.length) { if (msg) msg.textContent = "Turn on some A/B slots at the top of this wave first."; return; }
+        var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === wave; }).sort(byCreated);
+        if (!teams.length) { if (msg) msg.textContent = "No teams in this wave (check the Check-In sheet)."; return; }
+        var totalSeats = slots.length * TEAMS_PER_TEE;
+        if (totalSeats < teams.length) {
+          if (msg) msg.textContent = "Need " + (teams.length - totalSeats) + " more seat(s) — add more A/B slots first.";
+          return;
+        }
+        // Preserve teams already seated at active slots; fill the rest from unplaced pool in order.
+        var placed = {}, seated = {};
+        slots.forEach(function (s) { placed[s.hole + s.slot] = []; });
+        teams.forEach(function (t) {
+          var f = t.fields || {}, h = Number(f.Hole), sl = String(f.Slot || "").toUpperCase(), k = h + sl;
+          if (h && (sl === "A" || sl === "B") && placed[k] && placed[k].length < TEAMS_PER_TEE) { placed[k].push(t); seated[t.id] = true; }
+        });
+        var unplaced = teams.filter(function (t) { return !seated[t.id]; });
+        var assignments = [];
+        slots.forEach(function (s) {
+          var arr = placed[s.hole + s.slot];
+          while (arr.length < TEAMS_PER_TEE && unplaced.length) {
+            var t = unplaced.shift();
+            arr.push(t);
+            assignments.push({ id: t.id, hole: s.hole, slot: s.slot, start: wave });
+          }
+        });
+        if (!assignments.length) { if (msg) msg.textContent = "All teams already seated in " + wave + " — nothing to fill."; return; }
+        positionSaveMany(assignments);
       }
 
       function importField() {
@@ -1226,8 +1402,6 @@
         if (prr) prr.addEventListener("click", loadRoster);
         var pri = document.getElementById("prImport");
         if (pri) pri.addEventListener("click", importField);
-        var pra = document.getElementById("prAuto");
-        if (pra) pra.addEventListener("click", autoPlaceHoles);
 
         loadRoster();
         loadExpenses();

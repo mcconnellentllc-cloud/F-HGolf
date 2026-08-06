@@ -893,19 +893,53 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .wb-sheet .lb-table th, .wb-sheet .lb-table td { border: 1px solid var(--line); }
 .wb-sheet .sc__grid .sc__cell, .wb-sheet .calc__grp { background: #fff; }
 
-/* Pairings board — waves + starting holes */
-.pr-wave { margin-bottom: 1.6rem; }
-.pr-wave__title { color: var(--primary-green); font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.6rem; padding-bottom: 0.3rem; border-bottom: 2px solid var(--primary-green); }
-.pr-wave__title span, .pr-hole-box__hd span { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
-.pr-holes { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.7rem; }
-.pr-hole-box { border: 1px solid var(--line); border-radius: 6px; background: #fff; padding: 0.5rem 0.6rem; }
-.pr-hole-box--un { background: rgba(177,30,45,0.05); border-color: var(--red); margin-bottom: 0.7rem; }
-.pr-hole-box__hd { font-weight: 800; color: var(--primary-green); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--line); padding-bottom: 0.25rem; margin-bottom: 0.35rem; }
-.pr-team { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem; padding: 0.35rem 0; border-bottom: 1px solid var(--line); }
-.pr-team:last-child { border-bottom: none; }
-.pr-team__name { font-weight: 600; font-size: 0.92rem; }
-.pr-team__ctl { display: flex; gap: 0.3rem; }
-.pr-hole, .pr-wave select, .pr-team select { padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; }
+/* Pairings tee sheet — per-wave config + tees with A/B slots + drag-drop */
+.pr-wave-block { margin-bottom: 2rem; }
+.pr-wave-block__title { color: var(--primary-green); font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.6rem; padding-bottom: 0.3rem; border-bottom: 2px solid var(--primary-green); }
+.pr-wave-block__title span { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+
+/* Config row: TEES PER HOLE buttons + summary + autofill */
+.pr-cfg { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; background: var(--paper-2); border-radius: 10px; padding: 0.7rem 0.9rem; margin-bottom: 0.9rem; }
+.pr-cfg__lbl { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; color: var(--muted); }
+.pr-hbs { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.pr-hb { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 2.6rem; padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 8px; background: #fff; font: inherit; font-size: 0.78rem; cursor: pointer; line-height: 1.1; }
+.pr-hb:hover { border-color: var(--primary-green); }
+.pr-hb__n { font-weight: 800; font-size: 0.95rem; }
+.pr-hb__s { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+.pr-hb--a { background: var(--light-green); border-color: var(--primary-green); }
+.pr-hb--a .pr-hb__s { color: var(--primary-green); }
+.pr-hb--ab { background: var(--primary-green); border-color: var(--primary-green); color: #fff; }
+.pr-hb--ab .pr-hb__s { color: #fff; }
+.pr-cfg__sum { font-size: 0.9rem; color: var(--ink); margin-left: auto; }
+.pr-cfg__sum strong { color: var(--primary-green); }
+.pr-cfg__ok { color: var(--primary-green); font-weight: 700; }
+.pr-cfg__short { color: var(--red-deep); font-weight: 700; }
+.pr-autofill { padding: 0.5rem 0.9rem; font-size: 0.85rem; }
+.pr-autofill:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Unplaced pool */
+.pr-pool { border: 1px dashed var(--red); background: rgba(177,30,45,0.05); border-radius: 10px; padding: 0.6rem 0.8rem; margin-bottom: 0.9rem; }
+.pr-pool.is-drop { background: rgba(177,30,45,0.15); }
+.pr-pool__hd { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; color: var(--red-deep); margin-bottom: 0.35rem; }
+.pr-pool__hd span { color: var(--muted); font-weight: 400; }
+.pr-pool__list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.pr-pool .pr-team { flex: 0 1 auto; }
+
+/* Tee grid — one card per active (hole, slot) */
+.pr-teegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.65rem; }
+.pr-tee { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0.45rem 0.55rem; display: flex; flex-direction: column; gap: 0.35rem; min-height: 6.4rem; }
+.pr-tee.is-drop { background: var(--light-green); border-color: var(--primary-green); }
+.pr-tee__hd { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 0.25rem; }
+.pr-tee__hole { font-weight: 800; color: var(--primary-green); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.pr-tee__slot { font-size: 0.72rem; font-weight: 800; color: #fff; background: var(--primary-green); border-radius: 4px; padding: 0.05rem 0.35rem; letter-spacing: 0.02em; }
+
+/* Team card — draggable */
+.pr-team { display: block; padding: 0.35rem 0.5rem; border-radius: 6px; background: var(--paper-2); font-size: 0.9rem; cursor: grab; user-select: none; }
+.pr-team:hover { background: var(--light-green); }
+.pr-team.is-drag { opacity: 0.35; cursor: grabbing; }
+.pr-team__nm { font-weight: 600; }
+.pr-team--empty { background: transparent; border: 1px dashed var(--line); color: var(--muted); font-style: italic; text-align: center; cursor: default; font-size: 0.78rem; }
+.pr-team--empty:hover { background: transparent; }
 
 /* Alternates (standby, not in the active field) */
 .ci-badge--alt { background: var(--red); }
