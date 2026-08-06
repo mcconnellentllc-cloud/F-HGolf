@@ -68,6 +68,7 @@
           <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
           <button type="button" class="wb-tab" data-sheet="calc" role="tab">Calc</button>
+          <button type="button" class="wb-tab wb-tab--history" data-sheet="history" role="tab">History</button>
           <span class="wb-tabs__spacer" aria-hidden="true"></span>
           <button type="button" class="wb-tab wb-tab--disp" data-sheet="dispCalcutta" role="tab">Calcutta Disp</button>
           <button type="button" class="wb-tab wb-tab--disp" data-sheet="dispLeaderboard" role="tab">Leaderboard Disp</button>
@@ -149,6 +150,10 @@
           </div>
           <span class="checkin-add__msg" id="expMsg" role="status" aria-live="polite"></span>
           <div class="noms__list" id="expList"><p class="noms__msg">Loading expenses…</p></div>
+          <div class="pl-commit">
+            <button class="btn btn--danger" type="button" id="plCommit">Commit to History &rarr;</button>
+            <p class="pl-commit__hint">Snapshots this year's leaderboard, Calcutta, payouts, and P&amp;L to the History tab, then clears operational data (scores + Calcutta buyers + flights + paid marks) so the card is ready for next year. Team roster stays.</p>
+          </div>
         </section>
 
         <!-- Scores — spreadsheet grid (18 holes, both days) + CSV import -->
@@ -245,6 +250,16 @@
           </div>
           <p class="scaffold__desc">Every check to write, computed from Flights + Calcutta. Prize totals come from the Calc tab. Ties get split evenly. Total at the bottom.</p>
           <div id="poBody"><p class="noms__msg">Loading…</p></div>
+        </section>
+
+        <!-- History — archived past tournaments -->
+        <section class="noms wb-sheet" data-sheet="history" id="twHistory" aria-label="History" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Tournament History</h3>
+            <button class="btn btn--solid" type="button" id="histRefresh">Refresh</button>
+          </div>
+          <p class="scaffold__desc">Past tournaments — every year committed from the $ Summary page lives here as a full snapshot (leaderboard, calcutta, payouts, P&amp;L). Read-only.</p>
+          <div class="hist" id="histBody"><p class="noms__msg">Loading archived tournaments…</p></div>
         </section>
 
         <!-- Calcutta Display — public broadcast board -->
@@ -640,6 +655,163 @@
           + '</div>'
           + '<div class="pl__row pl__row--net"><span>Net P&amp;L (course keeps)</span><strong class="' + (net < 0 ? "is-neg" : "is-pos") + '">' + money(net) + "</strong></div>"
           + '</div>';
+      }
+
+      // ---- Tournament History (archived years) ----
+      function loadHistory() {
+        var body = document.getElementById("histBody"); if (!body) return;
+        body.innerHTML = '<p class="noms__msg">Loading archived tournaments…</p>';
+        fetch(FH_API.url("/api/tournament-signups?archives=1"), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) { body.innerHTML = '<p class="noms__msg">' + esc((j && j.error) || "Couldn't load history.") + '</p>'; return; }
+            renderHistory(j.records || []);
+          })
+          .catch(function () { body.innerHTML = '<p class="noms__msg">Network error loading history.</p>'; });
+      }
+      function renderHistory(recs) {
+        var body = document.getElementById("histBody");
+        if (!recs.length) { body.innerHTML = '<p class="noms__msg">No archived tournaments yet. Commit a completed tournament from the $ Summary tab.</p>'; return; }
+        body.innerHTML = recs.map(function (r) {
+          var f = r.fields || {};
+          var snap = null; try { snap = f.Snapshot ? JSON.parse(f.Snapshot) : null; } catch (e) {}
+          var champion = f.Champion || (snap && snap.champion) || "—";
+          var teams = f.Teams || (snap && snap.teams) || "—";
+          var pool = (typeof f["Total Pool"] === "number" ? f["Total Pool"] : (snap && snap.totalPool)) || 0;
+          var calc = (typeof f["Calcutta Pool"] === "number" ? f["Calcutta Pool"] : (snap && snap.calcuttaPool)) || 0;
+          var committedAt = f["Committed At"] ? new Date(f["Committed At"]).toLocaleDateString() : "—";
+          var lb = snap && snap.leaderboard;
+          var lbHtml = "";
+          if (lb && lb.length) {
+            lbHtml = '<h5 class="hist__sub">Leaderboard</h5><div class="table-scroll"><table class="hist__tbl"><thead><tr><th>Flight</th><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+              + lb.map(function (row) {
+                  return "<tr><td>" + esc(row.flight || "") + "</td><td>" + esc(row.name || "") + "</td>"
+                    + "<td>" + (row.d1 == null ? "—" : row.d1) + "</td><td>" + (row.d2 == null ? "—" : row.d2) + "</td>"
+                    + "<td><b>" + (row.gross == null ? "—" : row.gross) + "</b></td><td>" + (row.hcp == null ? "—" : row.hcp) + "</td>"
+                    + "<td><b>" + (row.net == null ? "—" : row.net) + "</b></td></tr>";
+                }).join("")
+              + '</tbody></table></div>';
+          }
+          var pay = snap && snap.payouts;
+          var payHtml = "";
+          if (pay && pay.length) {
+            payHtml = '<h5 class="hist__sub">Payouts</h5><div class="table-scroll"><table class="hist__tbl"><thead><tr><th>Recipient</th><th>Team</th><th>Reason</th><th>Amount</th></tr></thead><tbody>'
+              + pay.map(function (p) {
+                  return "<tr><td>" + esc(p.recipient || "") + "</td><td>" + esc(p.teamName || "") + "</td>"
+                    + "<td>" + esc(p.note || "") + "</td><td><b>" + money(p.amount || 0) + "</b></td></tr>";
+                }).join("")
+              + '</tbody></table></div>';
+          }
+          return '<details class="hist__row" data-id="' + esc(r.id) + '">'
+            + '<summary class="hist__sum">'
+            + '<span class="hist__year">' + esc(String(f.Year || "—")) + '</span>'
+            + '<span class="hist__name">' + esc(String(f.Name || "")) + '</span>'
+            + '<span class="hist__meta"><b>' + esc(String(teams)) + '</b> teams · pool <b>' + money(pool) + '</b> · calcutta <b>' + money(calc) + '</b></span>'
+            + '<span class="hist__champ">Champion: <b>' + esc(String(champion)) + '</b></span>'
+            + '</summary>'
+            + '<div class="hist__body">'
+            + '<p class="hist__meta2">Dates: ' + esc(String(f.Dates || "")) + ' · Committed ' + esc(committedAt) + '</p>'
+            + lbHtml + payHtml
+            + '</div></details>';
+        }).join("");
+      }
+
+      // ---- Commit-to-history: snapshot + archive + clear operational data ----
+      function buildSnapshot() {
+        var recs = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        var m = computeMoney(scAllCache);
+        var data = computeLeaderboardData(recs, m.cfg);
+        var leaderboard = [];
+        var champion = "—";
+        data.flights.forEach(function (fl) {
+          fl.rows.slice().sort(function (a, b) { return (a.gross == null ? 1e9 : a.gross) - (b.gross == null ? 1e9 : b.gross); }).forEach(function (row) {
+            leaderboard.push({ flight: fl.name, name: row.name, d1: row.d1, d2: row.d2, gross: row.gross, hcp: row.hcp, net: row.net, grossPlace: row.grossPlace, netPlace: row.netPlace });
+            if (fl.name === "Champ" && row.grossPlace === 1 && champion === "—") champion = row.name;
+          });
+        });
+        // Compact payouts list — flight + calcutta.
+        var payouts = [];
+        var comm = m.calcuttaCommissionPct / 100;
+        data.flights.forEach(function (fl) {
+          fl.rows.forEach(function (row) {
+            if (row.grossPlace && row.grossPlace <= m.flightSplit.length) {
+              var amt = m.flightPrizes[row.grossPlace - 1] || 0;
+              payouts.push({ recipient: row.name, teamName: row.name, note: fl.name + " — " + row.grossPlace + " place gross", amount: amt });
+            }
+          });
+          var caPool = fl.rows.reduce(function (s, r) { var v = r.rec && r.rec.fields && r.rec.fields["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
+          var caPayout = Math.max(0, caPool * (1 - comm));
+          m.calSplit.forEach(function (pct, idx) {
+            var row = fl.rows.find(function (r) { return r.netPlace === (idx + 1); });
+            if (row) {
+              var buyer = (row.rec && row.rec.fields && row.rec.fields["Buyer"]) || "(no buyer)";
+              payouts.push({ recipient: buyer, teamName: row.name, note: fl.name + " Calcutta — " + (idx + 1) + " net (team " + row.name + ")", amount: caPayout * (pct / 100) });
+            }
+          });
+        });
+        return {
+          champion: champion,
+          teams: m.teamCount,
+          players: m.players,
+          totalPool: m.flightPrizePool + m.calcuttaPool,
+          entryIncome: m.entryIncome,
+          calcuttaPool: m.calcuttaPool,
+          flightPrizePool: m.flightPrizePool,
+          calcuttaPayout: m.calcuttaPayout,
+          courseRevenue: m.courseRevenue,
+          leaderboard: leaderboard,
+          payouts: payouts,
+        };
+      }
+      function commitToHistory() {
+        var m = computeMoney(scAllCache);
+        if (!m.teamCount) { alert("No teams in the field yet — nothing to archive."); return; }
+        // Founders KEY = "Founder's Tournament (Aug 8–9)" — extract year from dates.
+        var year = String(new Date().getFullYear());
+        var name = KEY.replace(/\s*\([^)]*\)\s*$/, "").trim();
+        var dates = (KEY.match(/\(([^)]*)\)/) || [])[1] || "";
+        openConfirmModal({
+          title: "Commit " + year + " " + name + " to History?",
+          body: "This snapshots the current leaderboard, Calcutta, payouts, and P&L to the History tab, then clears operational data (scores, Calcutta buyers, flights, paid marks) on all " + m.teamCount + " signups so the card is ready for next year. Team roster stays. This can't be undone.",
+          confirmLabel: "Yes, commit + clear",
+          onConfirm: function () { doCommit(name, year, dates); }
+        });
+      }
+      function doCommit(name, year, dates) {
+        var snapshot = buildSnapshot();
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "archive", name: name, year: year, dates: dates, snapshot: snapshot }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) throw new Error(j && j.error || "archive failed");
+            return clearOperationalData(snapshot);
+          })
+          .then(function () {
+            alert("Committed to history. Roster kept, operational data cleared. Switch to the History tab to see the archive.");
+            loadRoster();
+          })
+          .catch(function (e) {
+            alert("Could not commit to history: " + (e && e.message ? e.message : e));
+          });
+      }
+      // Clear per-team: scores, calcutta, flight, paid, check numbers, extra
+      // meals. Team + partner names stay. Runs serially with a small delay
+      // so Airtable doesn't rate-limit us on 64 requests.
+      function clearOperationalData() {
+        var teams = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        var NULL_ROUND = new Array(18).fill(null);
+        return teams.reduce(function (chain, t) {
+          return chain.then(function () {
+            return fetch(FH_API.url("/api/tournament-score"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ id: t.id, day: 1, scores: NULL_ROUND }) })
+              .then(function () { return fetch(FH_API.url("/api/tournament-score"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ id: t.id, day: 2, scores: NULL_ROUND }) }); })
+              .then(function () { return fetch(FH_API.url("/api/tournament-checkin"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ id: t.id, buyer: "", buyAmount: "", flightCheck: "", calcuttaCheck: "", player1Paid: "", player2Paid: "", extraMeals: "" }) }); })
+              .then(function () { return fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: [{ id: t.id, flight: null, hole: null, slot: null }] }) }).catch(function () {}); })
+              .then(function () { return new Promise(function (resolve) { setTimeout(resolve, 120); }); });
+          });
+        }, Promise.resolve());
       }
 
       function renderExpenses(records) {
@@ -2878,6 +3050,7 @@
           try { localStorage.setItem("fh_wb_tab_" + KEY, s); } catch (e) {}
           // Load the public-display iframes lazily — only when their tab opens.
           if (s === "dispCalcutta" || s === "dispLeaderboard") mountDisplayTab(s);
+          if (s === "history") loadHistory();
         }
         Array.prototype.forEach.call(document.querySelectorAll(".wb-tab"), function (b) {
           b.addEventListener("click", function () { showSheet(b.getAttribute("data-sheet")); });
@@ -2939,6 +3112,10 @@
         if (er) er.addEventListener("click", loadExpenses);
         var ea = document.getElementById("expAdd");
         if (ea) ea.addEventListener("click", addExpense);
+        var hr = document.getElementById("histRefresh");
+        if (hr) hr.addEventListener("click", loadHistory);
+        var pc = document.getElementById("plCommit");
+        if (pc) pc.addEventListener("click", commitToHistory);
         var lbs = document.getElementById("lbSaveFlights");
         if (lbs) lbs.addEventListener("click", saveFlights);
         var lbInc = document.getElementById("lbFlInc");
