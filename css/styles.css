@@ -1202,11 +1202,12 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 
 /* QR block in the Calcutta / Leaderboard Display workbook tabs. */
 .disp-tab__qr { display: flex; align-items: center; justify-content: center; gap: 1.2rem; padding: 1.2rem; margin-top: 0.5rem; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
-.disp-tab__qr-img { width: 240px; height: 240px; max-width: 60vw; object-fit: contain; border-radius: 8px; background: #fff; }
-.disp-tab__qr-lbl { margin: 0; text-align: left; font-size: 1rem; color: var(--ink); max-width: 22rem; }
-.disp-tab__qr-lbl b { display: block; font-family: var(--font-display); font-weight: 800; color: var(--primary-green); font-size: 1.35rem; margin-bottom: 0.3rem; }
+.disp-tab__qr-img { width: 240px; height: 240px; max-width: 60vw; object-fit: contain; border-radius: 8px; background: #fff; flex: 0 0 auto; }
+.disp-tab__qr-lbl { margin: 0; text-align: left; font-size: 1rem; color: var(--ink); max-width: 22rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.disp-tab__qr-lbl b { font-family: var(--font-display); font-weight: 800; color: var(--primary-green); font-size: 1.35rem; }
 .disp-tab__qr-lbl small { color: var(--muted); font-size: 0.88rem; }
-@media (max-width: 560px) { .disp-tab__qr { flex-direction: column; text-align: center; } .disp-tab__qr-lbl { text-align: center; } }
+.disp-tab__qr-url { display: block; padding: 0.55rem 0.75rem; background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; color: var(--primary-green); font-weight: 700; word-break: break-all; user-select: all; }
+@media (max-width: 560px) { .disp-tab__qr { flex-direction: column; text-align: center; } .disp-tab__qr-lbl { text-align: center; align-items: stretch; } }
 .wb-sheet.noms { border: 1px solid var(--line); background: #fff; border-radius: 4px; box-shadow: var(--shadow-sm); padding: 1.1rem 1.2rem; margin: 0 0 1rem; }
 .wb-sheet .noms__bar { border-bottom: 2px solid var(--primary-green); margin-bottom: 0.9rem; padding-bottom: 0.5rem; }
 /* Gridlines + tabular numerals across workspace tables (spreadsheet feel) */
