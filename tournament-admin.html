@@ -62,8 +62,10 @@
           <button type="button" class="wb-tab" data-sheet="check" role="tab">Check-In</button>
           <button type="button" class="wb-tab" data-sheet="pairings" role="tab">Pairings</button>
           <button type="button" class="wb-tab" data-sheet="scores" role="tab">Scores</button>
-          <button type="button" class="wb-tab" data-sheet="flights" role="tab">Flights &amp; Leaderboard</button>
+          <button type="button" class="wb-tab" data-sheet="flights" role="tab">Flights</button>
+          <button type="button" class="wb-tab" data-sheet="leaderboard" role="tab">Leaderboard</button>
           <button type="button" class="wb-tab" data-sheet="calcutta" role="tab">Calcutta</button>
+          <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
           <button type="button" class="wb-tab" data-sheet="calc" role="tab">Calc</button>
         </div>
@@ -189,10 +191,10 @@
           <div id="caBody"><p class="noms__msg">Loading…</p></div>
         </section>
 
-        <!-- Flighting + Leaderboard -->
-        <section class="noms wb-sheet" data-sheet="flights" id="twBoard" aria-label="Leaderboard" hidden>
+        <!-- Flights — cut setup + Save flights (no full standings; see Leaderboard tab) -->
+        <section class="noms wb-sheet" data-sheet="flights" id="twBoard" aria-label="Flights" hidden>
           <div class="noms__bar">
-            <h3 class="noms__title">Flights &amp; Leaderboard</h3>
+            <h3 class="noms__title">Flights</h3>
             <div class="noms__bar-actions">
               <button class="btn btn--primary" type="button" id="lbPrint">Print now</button>
             </div>
@@ -218,9 +220,51 @@
           <div id="lbBody"><p class="noms__msg">Loading…</p></div>
         </section>
 
+        <!-- Leaderboard — full standings + winner flags -->
+        <section class="noms wb-sheet" data-sheet="leaderboard" id="twLeaderboard" aria-label="Leaderboard" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Leaderboard</h3>
+            <div class="noms__bar-actions">
+              <button class="btn btn--primary" type="button" id="lbdPrint">Print now</button>
+            </div>
+          </div>
+          <p class="scaffold__desc">Day 1 + Day 2 gross, handicap, net. Flight winners (top-3 gross) and Calcutta winners (top-4 net) are flagged, with ties handled properly.</p>
+          <div id="lbdBody"><p class="noms__msg">Loading…</p></div>
+        </section>
+
+        <!-- Payout — clean list of checks to write -->
+        <section class="noms wb-sheet" data-sheet="payout" id="twPayout" aria-label="Payout" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Payout</h3>
+            <div class="noms__bar-actions">
+              <button class="btn btn--primary" type="button" id="poPrint">Print now</button>
+            </div>
+          </div>
+          <p class="scaffold__desc">Every check to write, computed from Flights + Calcutta. Prize totals come from the Calc tab. Ties get split evenly. Total at the bottom.</p>
+          <div id="poBody"><p class="noms__msg">Loading…</p></div>
+        </section>
+
       </div>
     </div>
   </section>
+
+  <!-- ==================== CONFIRM (DESTRUCTIVE) MODAL ==================== -->
+  <div class="pm-modal cd-modal" id="confirmModal" hidden aria-hidden="true" role="alertdialog" aria-modal="true" aria-labelledby="cdTitle">
+    <div class="pm-modal__backdrop" data-close="1"></div>
+    <div class="pm-modal__panel cd-panel">
+      <div class="pm-modal__head">
+        <h3 id="cdTitle">Are you sure?</h3>
+        <button type="button" class="pm-modal__close" id="cdClose" aria-label="Cancel">&times;</button>
+      </div>
+      <div class="pm-modal__body">
+        <p class="cd-body" id="cdBody">This can't be undone.</p>
+      </div>
+      <div class="pm-modal__foot">
+        <button type="button" class="btn btn--solid" id="cdCancel">Cancel</button>
+        <button type="button" class="btn cd-confirm" id="cdConfirm">Delete</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ==================== PLAYER CARD MODAL ==================== -->
   <div class="pm-modal" id="playerModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="pmTitle">
@@ -320,6 +364,36 @@
       function getKey() { try { return sessionStorage.getItem(KEYK) || ""; } catch (e) { return ""; } }
       function authed() { try { return sessionStorage.getItem(FLAG) === "1"; } catch (e) { return false; } }
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
+
+      // Shared filter-bar helper. Prepends a search input to `host`, filters
+      // rows matching `rowSelector` by their text content. When `parentSelector`
+      // is set, also hides parents that end up with no visible children.
+      function attachRowFilter(host, opts) {
+        var placeholder = (opts && opts.placeholder) || "Filter teams by name…";
+        var rowSelector = opts.rowSelector;
+        var parentSelector = opts.parentSelector || null;
+        var toolbar = document.createElement("div");
+        toolbar.className = "tab-toolbar";
+        toolbar.innerHTML = '<input type="search" class="tab-filter" placeholder="' + esc(placeholder) + '" autocomplete="off" />';
+        host.insertBefore(toolbar, host.firstChild);
+        var filt = toolbar.querySelector(".tab-filter");
+        filt.addEventListener("input", function () {
+          var q = filt.value.trim().toLowerCase();
+          Array.prototype.forEach.call(host.querySelectorAll(rowSelector), function (row) {
+            var text = String(row.textContent || "").toLowerCase();
+            var hit = !q || text.indexOf(q) !== -1;
+            row.style.display = hit ? "" : "none";
+          });
+          if (parentSelector) {
+            Array.prototype.forEach.call(host.querySelectorAll(parentSelector), function (par) {
+              var kids = par.querySelectorAll(rowSelector);
+              var any = false;
+              for (var i = 0; i < kids.length; i++) { if (kids[i].style.display !== "none") { any = true; break; } }
+              par.style.display = any ? "" : "none";
+            });
+          }
+        });
+      }
       function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); } catch (e) { return ""; } }
       function param(n) { try { return new URLSearchParams(window.location.search).get(n) || ""; } catch (e) { return ""; } }
 
@@ -583,6 +657,7 @@
         if (paid.length) html += '<details class="ci-fold" open><summary>Paid &amp; done <span>(' + paid.length + ")</span></summary>" + ciTable(paid) + "</details>";
         if (alts.length) html += '<details class="ci-fold ci-fold--alt"><summary>Alternates — standby <span>(' + alts.length + ")</span></summary>" + ciTable(alts) + "</details>";
         list.innerHTML = html;
+        attachRowFilter(list, { rowSelector: ".ci-row" });
 
         // Wire per-team controls across all tables.
         Array.prototype.forEach.call(list.querySelectorAll(".ci-row"), function (row) {
@@ -840,6 +915,39 @@
       function formatState(v) { return String(v || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2); }
       function formatZip(v) { return String(v || "").replace(/[^\d-]/g, "").slice(0, 10); }
 
+      // Shared "are you sure?" modal for destructive actions (delete-all buttons).
+      // Usage: confirmDestructive({ title, body, confirmLabel, onConfirm })
+      var _cdOnConfirm = null;
+      function confirmDestructive(opts) {
+        var modal = document.getElementById("confirmModal"); if (!modal) return;
+        var t = document.getElementById("cdTitle"); if (t) t.textContent = opts.title || "Are you sure?";
+        var b = document.getElementById("cdBody"); if (b) b.textContent = opts.body || "This can't be undone.";
+        var c = document.getElementById("cdConfirm"); if (c) c.textContent = opts.confirmLabel || "Delete";
+        _cdOnConfirm = typeof opts.onConfirm === "function" ? opts.onConfirm : null;
+        modal.hidden = false; modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("modal-open");
+      }
+      function closeConfirm() {
+        var modal = document.getElementById("confirmModal");
+        if (modal) { modal.hidden = true; modal.setAttribute("aria-hidden", "true"); }
+        document.body.classList.remove("modal-open");
+        _cdOnConfirm = null;
+      }
+      (function wireConfirmModal() {
+        var modal = document.getElementById("confirmModal");
+        var close = document.getElementById("cdClose");
+        var cancel = document.getElementById("cdCancel");
+        var confirmBtn = document.getElementById("cdConfirm");
+        if (close) close.addEventListener("click", closeConfirm);
+        if (cancel) cancel.addEventListener("click", closeConfirm);
+        if (confirmBtn) confirmBtn.addEventListener("click", function () {
+          var fn = _cdOnConfirm; closeConfirm();
+          if (fn) try { fn(); } catch (e) { console.error("confirm handler failed", e); }
+        });
+        if (modal) modal.addEventListener("click", function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute("data-close") === "1") closeConfirm(); });
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal && !modal.hidden) closeConfirm(); });
+      })();
+
       // Modal wiring (once at boot).
       (function wirePlayerModal() {
         var closeBtn = document.getElementById("pmClose");
@@ -892,7 +1000,7 @@
         for (var h = 1; h <= 9; h++) head += '<th class="sc-tbl__h">' + h + '<br><small>p' + PAR9[h - 1] + '</small></th>';
         head += '<th class="sc-tbl__loop">Out</th>';
         for (var h2 = 1; h2 <= 9; h2++) head += '<th class="sc-tbl__h">' + h2 + '<br><small>p' + PAR9[h2 - 1] + '</small></th>';
-        head += '<th class="sc-tbl__loop">In</th><th class="sc-tbl__total">Total</th></tr></thead>';
+        head += '<th class="sc-tbl__loop">In</th><th class="sc-tbl__total">Total</th><th class="sc-tbl__x" aria-label="Clear row"></th></tr></thead>';
 
         var body = scRecs.map(function (rec) {
           var f = rec.fields || {};
@@ -906,12 +1014,13 @@
           }
           cells += '<td class="sc-tbl__loop" data-loop="in">&mdash;</td>';
           cells += '<td class="sc-tbl__total"><span class="sc-tbl__totVal">&mdash;</span><span class="sc-tbl__save" title="Save state"></span></td>';
+          cells += '<td class="sc-tbl__x"><button type="button" class="sc-clear" data-id="' + esc(rec.id) + '" title="Clear this row">&times;</button></td>';
           return '<tr data-id="' + esc(rec.id) + '"><td class="sc-tbl__team">' + esc(scTeamLabel(rec)) + '</td>' + cells + '</tr>';
         }).join("");
 
-        host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /></div>'
+        host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /><button type="button" class="btn btn--solid sc-toolbar__dangerBtn" id="scClearAll">Delete all Day ' + day + ' scores</button></div>'
           + '<div class="sc-tbl-wrap"><table class="sc-tbl">' + head + '<tbody>' + body + '</tbody></table></div>'
-          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right.</p>';
+          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right. Click × on any row to clear that team.</p>';
 
         wireScoresGrid(host, day);
         Array.prototype.forEach.call(host.querySelectorAll("tr[data-id]"), function (row) {
@@ -967,6 +1076,37 @@
             else if (e.key === "ArrowDown") { scFocusCell(host, rowIdx + 1, colIdx); moved = true; }
             else if (e.key === "ArrowUp") { scFocusCell(host, rowIdx - 1, colIdx); moved = true; }
             if (moved) e.preventDefault();
+          });
+        });
+
+        // Per-row clear: reset cells + save an all-null scores array.
+        Array.prototype.forEach.call(host.querySelectorAll(".sc-clear"), function (btn) {
+          btn.addEventListener("click", function () {
+            var row = btn.closest("tr");
+            Array.prototype.forEach.call(row.querySelectorAll(".sc-cell"), function (i) { i.value = ""; });
+            recomputeRow(row);
+            row.classList.remove("is-saved", "is-error");
+            row.classList.add("is-dirty");
+            saveScoreRow(row, day);
+          });
+        });
+
+        // Delete all Day N — confirmed by the shared modal.
+        var clearAllBtn = host.querySelector("#scClearAll");
+        if (clearAllBtn) clearAllBtn.addEventListener("click", function () {
+          confirmDestructive({
+            title: "Delete all Day " + day + " scores?",
+            body: "This clears every team's Day " + day + " scores across the whole tournament. This can't be undone.",
+            confirmLabel: "Delete all Day " + day,
+            onConfirm: function () {
+              var rows = Array.prototype.slice.call(host.querySelectorAll("tbody tr[data-id]"));
+              rows.forEach(function (row) {
+                Array.prototype.forEach.call(row.querySelectorAll(".sc-cell"), function (i) { i.value = ""; });
+                recomputeRow(row);
+                row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
+                saveScoreRow(row, day);
+              });
+            }
           });
         });
       }
@@ -1161,7 +1301,7 @@
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderCalcutta(res.j.records); renderPairings(res.j.records); }
+            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderLeaderboard(res.j.records); renderCalcutta(res.j.records); renderPayout(res.j.records); renderPairings(res.j.records); }
             else if (res.status === 401) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
             else { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
           })
@@ -1364,6 +1504,7 @@
           var teams = recs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; }).sort(byCreated);
           return renderWaveBlock(w, teams);
         }).join("");
+        attachRowFilter(board, { rowSelector: ".pr-team[draggable='true']", parentSelector: ".pr-tee", placeholder: "Filter — find a team's tee" });
         wirePairings(board);
       }
 
@@ -1545,9 +1686,9 @@
       function flightName(n) { return FLIGHT_NAMES[n - 1] || ("Flight " + n); }
       function d1g(r) { var f = r.fields || {}; return (f["Day1 Scores"] && typeof f["Day1 Gross"] === "number") ? f["Day1 Gross"] : null; }
       function d2g(r) { var f = r.fields || {}; return (f["Day2 Scores"] && typeof f["Day2 Gross"] === "number") ? f["Day2 Gross"] : null; }
-      function teamName(r) { return (r.fields && r.fields["Player Name"]) || "(no name)"; }
+      function teamName(r) { return teamShortNames((r && r.fields) || {}); }
 
-      var CUTK = "fh_cuts_" + KEY, boardSorted = [];
+      var CUTK = "fh_cuts_" + KEY, boardSorted = [], lbFilteredRecs = [];
       // Score-based cuts. For N flights, cuts is an array of N-1 score
       // thresholds. A team's Day-1 gross <= cuts[i] goes into flight i+1;
       // above the last cut, it goes into the last flight.
@@ -1615,6 +1756,10 @@
             Array.prototype.forEach.call(box.querySelectorAll(".lb-range"), function (r2) { var k = parseInt(r2.getAttribute("data-i"), 10); r2.value = cuts[k]; });
             Array.prototype.forEach.call(box.querySelectorAll(".lb-cutval"), function (b) { var k = parseInt(b.getAttribute("data-i"), 10); b.textContent = cuts[k]; });
             saveCuts(cuts); sizes();
+            // Live re-render the standings so teams shift between flights as
+            // the sliders move — same for Calcutta (its per-flight pools rely
+            // on the same grouping).
+            try { renderStandings(lbFilteredRecs || [], loadCalc()); renderCalcutta(scAllCache); } catch (e) {}
           });
         });
         sizes();
@@ -1640,9 +1785,41 @@
       function renderStandings(recs, cfg) {
         var body = document.getElementById("lbBody"); if (!body) return;
         var mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
+        // Preview grouping from current cut sliders so teams show up in flights
+        // as soon as scores are entered — no need to click Save flights first.
+        var sortedScores = recs.map(d1g).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
+        var cuts = loadCuts(nF, sortedScores);
+        var scoreMin = sortedScores.length ? sortedScores[0] : null;
+        var scoreMax = sortedScores.length ? sortedScores[sortedScores.length - 1] : null;
         var groups = {};
-        recs.forEach(function (r) { var fl = (r.fields || {})["Flight"]; var k = (fl != null && fl !== "") ? Number(fl) : 0; (groups[k] = groups[k] || []).push(r); });
+        var dirty = false;
+        recs.forEach(function (r) {
+          var s = d1g(r);
+          var saved = (r.fields || {})["Flight"];
+          var computed = (s != null && sortedScores.length) ? flightForScore(s, cuts) : null;
+          var k;
+          if (computed != null) {
+            k = computed;
+            if (saved == null || saved === "" || Number(saved) !== computed) dirty = true;
+          } else {
+            k = 0; // no score yet
+          }
+          (groups[k] = groups[k] || []).push(r);
+        });
         var order = []; for (var i = 1; i <= nF; i++) order.push(i); if (groups[0]) order.push(0);
+
+        // Top summary banner — every flight's count + score spread at a glance.
+        var stripHtml = '';
+        if (sortedScores.length) {
+          stripHtml = '<div class="lb-strip">' + order.filter(function (fl) { return fl !== 0; }).map(function (fl) {
+            var arr = groups[fl] || [];
+            var scores = arr.map(d1g).filter(function (v) { return v != null; });
+            var lo = scores.length ? Math.min.apply(null, scores) : null;
+            var hi = scores.length ? Math.max.apply(null, scores) : null;
+            var rng = scores.length ? (lo === hi ? String(lo) : lo + "&ndash;" + hi) : "empty";
+            return '<span class="lb-strip__flight"><b>' + esc(flightName(fl)) + '</b> ' + arr.length + ' teams <span class="lb-strip__range">(' + rng + ')</span></span>';
+          }).join('<span class="lb-strip__sep">&middot;</span>') + '</div>';
+        }
         var out = order.map(function (fl) {
           var arr = groups[fl]; if (!arr || !arr.length) return "";
           var leader = null;
@@ -1658,20 +1835,57 @@
           var byNet = rows.slice().filter(function (x) { return x.net != null; }).sort(function (x, y) { return x.net - y.net; });
           rows.forEach(function (x) { x.place = byGross.indexOf(x) >= 0 ? byGross.indexOf(x) + 1 : null; x.cplace = byNet.indexOf(x) >= 0 ? byNet.indexOf(x) + 1 : null; });
           rows.sort(function (x, y) { return (x.overall == null ? 1e9 : x.overall) - (y.overall == null ? 1e9 : y.overall); });
+          // Flights tab: Day 1 focus — team, D1 gross, handicap. Full standings
+          // (D2, total gross, net) live on the Leaderboard tab instead.
           var trs = rows.map(function (x) {
-            var placeTag = (x.place && x.place <= 3) ? ' <span class="lb-place" title="Flight place (gross)">' + x.place + "</span>" : "";
-            var calTag = (x.cplace && x.cplace <= 4) ? ' <span class="lb-cal" title="Calcutta place (net)">C' + x.cplace + "</span>" : "";
-            return "<tr><td>" + esc(x.name) + placeTag + calTag + "</td>"
-              + "<td>" + (x.a == null ? "—" : x.a) + "</td><td>" + (x.b == null ? "—" : x.b) + "</td>"
-              + "<td><b>" + (x.overall == null ? "—" : x.overall) + "</b></td><td>" + (x.hcp == null ? "—" : x.hcp) + "</td>"
-              + "<td><b>" + (x.net == null ? "—" : x.net) + "</b></td></tr>";
+            return "<tr><td>" + esc(x.name) + "</td>"
+              + "<td><b>" + (x.a == null ? "—" : x.a) + "</b></td>"
+              + "<td>" + (x.hcp == null ? "—" : x.hcp) + "</td></tr>";
           }).join("");
-          var title = fl === 0 ? "Unassigned" : (flightName(fl) + " Flight");
-          return '<div class="lb-flight"><h4 class="lb-flight__title">' + title + "</h4>"
-            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+          var title = fl === 0 ? "Unassigned (no Day-1 score yet)" : (flightName(fl) + " Flight");
+          var count = ' <span class="lb-flight__count">' + rows.length + ' team' + (rows.length === 1 ? "" : "s") + '</span>';
+          return '<div class="lb-flight"><h4 class="lb-flight__title">' + title + count + "</h4>"
+            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>Day 1</th><th>HCP</th></tr></thead><tbody>'
             + trs + "</tbody></table></div></div>";
-        }).join("");
-        body.innerHTML = out || '<p class="noms__msg">No Day-1 scores yet — enter scores, then set the flight cuts above.</p>';
+        });
+        // Weave inline cut sliders between flight sections (drag to shift the
+        // line between flights up/down). Only between real numbered flights,
+        // and only when there's a valid score range.
+        var withDividers = [];
+        var numberedFlights = order.filter(function (fl) { return fl !== 0; });
+        for (var i = 0; i < out.length; i++) {
+          withDividers.push(out[i]);
+          if (scoreMin != null && numberedFlights[i] && numberedFlights[i + 1] && (i < cuts.length)) {
+            var cutIdx = numberedFlights[i] - 1; // cuts[0] separates flight 1↔2, etc.
+            withDividers.push(
+              '<div class="lb-inline-cut" data-cut-idx="' + cutIdx + '">'
+              + '<span class="lb-inline-cut__lbl">' + esc(flightName(numberedFlights[i])) + ' &rarr; ' + esc(flightName(numberedFlights[i + 1])) + ' &mdash; cut at score</span>'
+              + '<input type="range" class="lb-inline-cut__range" min="' + scoreMin + '" max="' + scoreMax + '" value="' + cuts[cutIdx] + '" data-cut-idx="' + cutIdx + '" />'
+              + '<b class="lb-inline-cut__val">' + cuts[cutIdx] + '</b>'
+              + '</div>'
+            );
+          }
+        }
+        var joined = withDividers.filter(Boolean).join("");
+        var note = dirty ? '<p class="lb-preview-note">Preview based on current cut sliders — the flights below reflect what a Save flights click would persist.</p>' : "";
+        body.innerHTML = stripHtml + note + (joined || '<p class="noms__msg">No Day-1 scores yet — enter scores on the Scores tab.</p>');
+        attachRowFilter(body, { rowSelector: ".lb-table tbody tr" });
+
+        // Wire inline slider adjustments — writes cuts[i], persists, re-renders
+        // everything (leaderboard + calcutta) so the change ripples through.
+        Array.prototype.forEach.call(body.querySelectorAll(".lb-inline-cut__range"), function (rg) {
+          rg.addEventListener("input", function () {
+            var idx = Number(rg.getAttribute("data-cut-idx"));
+            var v = parseInt(rg.value, 10);
+            if (isNaN(v)) return;
+            var latest = loadCuts(nF, sortedScores);
+            latest[idx] = v;
+            for (var j = 0; j < latest.length; j++) { if (j < idx && latest[j] > v) latest[j] = v; if (j > idx && latest[j] < v) latest[j] = v; }
+            saveCuts(latest);
+            renderBoard(scAllCache);
+            renderCalcutta(scAllCache);
+          });
+        });
       }
 
       // ---- Calcutta — buyers, amounts, per-flight running payouts ----
@@ -1754,14 +1968,17 @@
               + '<td><b>' + (x.hcp == null ? "—" : x.hcp) + '</b></td>'
               + '<td><b>' + (x.net == null ? "—" : x.net) + '</b></td>'
               + '<td class="ca-tbl__save"><span class="sc-tbl__save" title="Save state"></span></td>'
+              + '<td class="ca-tbl__x"><button type="button" class="ca-clear" data-id="' + esc(x.id) + '" title="Clear buyer + amount">&times;</button></td>'
               + '</tr>';
           }).join("");
           return '<div class="lb-flight ca-flight">' + header
-            + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th>Team</th><th>Buyer</th><th>Amount</th><th>D1</th><th>D2</th><th>HCP</th><th>Net</th><th></th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th>Team</th><th>Buyer</th><th>Amount</th><th>D1</th><th>D2</th><th>HCP</th><th>Net</th><th></th><th></th></tr></thead><tbody>'
             + tbody + '</tbody></table></div></div>';
         }).join("");
-        body.innerHTML = strip + (out || '<p class="noms__msg">Flights aren\'t assigned yet — set the cuts on the Flights &amp; Leaderboard tab first.</p>');
-
+        body.innerHTML = strip
+          + (out || '<p class="noms__msg">Flights aren\'t assigned yet — set the cuts on the Flights tab first.</p>')
+          + '<div class="ca-footer"><button type="button" class="btn btn--solid ca-clear-all" id="caClearAll">Delete all Calcutta data</button></div>';
+        attachRowFilter(body, { rowSelector: ".ca-tbl tbody tr" });
         wireCalcutta(body);
       }
 
@@ -1774,6 +1991,36 @@
           caPending[id] = setTimeout(function () { saveCalcuttaRow(id, row); }, 700);
         }
         Array.prototype.forEach.call(host.querySelectorAll(".ca-buyer"), function (inp) { inp.addEventListener("input", function () { onEdit(inp, "buyer"); }); });
+        Array.prototype.forEach.call(host.querySelectorAll(".ca-clear"), function (btn) {
+          btn.addEventListener("click", function () {
+            var row = btn.closest("tr");
+            var buyer = row.querySelector(".ca-buyer"), amt = row.querySelector(".ca-amt");
+            if (buyer) buyer.value = "";
+            if (amt) amt.value = "";
+            row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
+            recomputeCalcuttaTotals(host);
+            saveCalcuttaRow(row.getAttribute("data-id"), row);
+          });
+        });
+        var caAll = host.querySelector("#caClearAll");
+        if (caAll) caAll.addEventListener("click", function () {
+          confirmDestructive({
+            title: "Delete all Calcutta data?",
+            body: "This clears every team's Buyer + Buy Amount across the whole tournament. This can't be undone.",
+            confirmLabel: "Delete all Calcutta",
+            onConfirm: function () {
+              var rows = Array.prototype.slice.call(host.querySelectorAll("tr[data-id]"));
+              rows.forEach(function (row) {
+                var buyer = row.querySelector(".ca-buyer"), amt = row.querySelector(".ca-amt");
+                if (buyer) buyer.value = "";
+                if (amt) amt.value = "";
+                row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
+                saveCalcuttaRow(row.getAttribute("data-id"), row);
+              });
+              recomputeCalcuttaTotals(host);
+            }
+          });
+        });
         Array.prototype.forEach.call(host.querySelectorAll(".ca-amt"), function (inp) {
           inp.addEventListener("input", function () {
             onEdit(inp, "amount");
@@ -1837,6 +2084,268 @@
         });
       }
 
+      // ---- Leaderboard + Payout: shared per-team computation ----
+      // Returns { flights:[{num,name,leader,rows:[{name,d1,d2,gross,hcp,net,buyer,buyAmount,grossPlace,netPlace}]}], unassigned:[...] }
+      function computeLeaderboardData(recs, cfg) {
+        var mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
+        var sortedScores = recs.map(d1g).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
+        var cuts = loadCuts(nF, sortedScores);
+        var flights = [];
+        for (var i = 1; i <= nF; i++) flights.push({ num: i, name: flightName(i), leader: null, rows: [] });
+        var unassigned = [];
+        recs.forEach(function (r) {
+          var f = r.fields || {};
+          var d1 = d1g(r), d2 = d2g(r);
+          var row = {
+            id: r.id, rec: r,
+            name: teamShortNames(f),
+            d1: d1, d2: d2,
+            gross: (d1 != null || d2 != null) ? ((d1 == null ? 0 : d1) + (d2 == null ? 0 : d2)) : null,
+            hcp: null, net: null,
+            grossPlace: null, netPlace: null,
+            buyer: f.Buyer || "",
+            buyAmount: (typeof f["Buy Amount"] === "number") ? f["Buy Amount"] : 0
+          };
+          if (d1 != null && sortedScores.length) {
+            var fnum = flightForScore(d1, cuts);
+            flights[fnum - 1].rows.push(row);
+          } else {
+            unassigned.push(row);
+          }
+        });
+        // For each flight: leader D1 = min D1 among that flight's teams.
+        flights.forEach(function (fl) {
+          var leader = null;
+          fl.rows.forEach(function (r) { if (r.d1 != null && (leader == null || r.d1 < leader)) leader = r.d1; });
+          fl.leader = leader;
+          fl.rows.forEach(function (row) {
+            if (row.d1 != null && leader != null) {
+              row.hcp = Math.floor((row.d1 - leader) * mult);
+              if (row.d2 != null) row.net = row.d2 - row.hcp;
+            }
+          });
+          // Place by 2-day gross (ascending), ties get same place, next place skips.
+          rankPlaces(fl.rows, "gross", "grossPlace");
+          // Place by net (ascending) — Calcutta ranks.
+          rankPlaces(fl.rows, "net", "netPlace");
+          // Display sort: lowest gross first, nulls at the bottom.
+          fl.rows.sort(function (a, b) { return (a.gross == null ? 1e9 : a.gross) - (b.gross == null ? 1e9 : b.gross); });
+        });
+        return { flights: flights, unassigned: unassigned, cuts: cuts, sortedScores: sortedScores };
+      }
+
+      // Assign p.place = 1 for lowest key, ties share a place; next rank skips over ties.
+      function rankPlaces(rows, key, outField) {
+        var scored = rows.slice().filter(function (r) { return r[key] != null; }).sort(function (a, b) { return a[key] - b[key]; });
+        var rank = 1, i = 0;
+        while (i < scored.length) {
+          var val = scored[i][key], tied = [];
+          while (i < scored.length && scored[i][key] === val) { tied.push(scored[i]); i++; }
+          tied.forEach(function (t) { t[outField] = rank; });
+          rank += tied.length;
+        }
+      }
+
+      // ---- Leaderboard tab (full standings + winner flags) ----
+      function renderLeaderboard(all) {
+        var body = document.getElementById("lbdBody"); if (!body) return;
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        if (!recs.length) { body.innerHTML = '<p class="noms__msg">No teams yet.</p>'; return; }
+        var cfg = loadCalc();
+        var data = computeLeaderboardData(recs, cfg);
+        var nFlightPrizes = (cfg.flightSplit || [50, 30, 20]).length; // usually 3
+        var nCalcuttaPrizes = (cfg.calcuttaSplit || [40, 30, 20, 10]).length; // usually 4
+
+        // Top summary strip (matches Flights strip).
+        var stripHtml = '';
+        if (data.sortedScores.length) {
+          stripHtml = '<div class="lb-strip">' + data.flights.map(function (fl) {
+            var scores = fl.rows.map(function (r) { return r.d1; }).filter(function (v) { return v != null; });
+            var lo = scores.length ? Math.min.apply(null, scores) : null;
+            var hi = scores.length ? Math.max.apply(null, scores) : null;
+            var rng = scores.length ? (lo === hi ? String(lo) : lo + "&ndash;" + hi) : "empty";
+            return '<span class="lb-strip__flight"><b>' + esc(fl.name) + '</b> ' + fl.rows.length + ' teams <span class="lb-strip__range">(' + rng + ')</span></span>';
+          }).join('<span class="lb-strip__sep">&middot;</span>') + '</div>';
+        }
+
+        var out = data.flights.map(function (fl) {
+          if (!fl.rows.length) return "";
+          var trs = fl.rows.map(function (row) {
+            var flags = [];
+            if (row.grossPlace && row.grossPlace <= nFlightPrizes) {
+              // Detect tie by counting rows at same gross place.
+              var ties = fl.rows.filter(function (r) { return r.grossPlace === row.grossPlace; }).length;
+              flags.push('<span class="lbd-flag lbd-flag--gross" title="Flight winner (gross)">' + (ties > 1 ? "T" : "") + ordinal(row.grossPlace) + " Gross</span>");
+            }
+            if (row.netPlace && row.netPlace <= nCalcuttaPrizes) {
+              var netTies = fl.rows.filter(function (r) { return r.netPlace === row.netPlace; }).length;
+              flags.push('<span class="lbd-flag lbd-flag--calc" title="Calcutta winner (net)">' + (netTies > 1 ? "T" : "") + ordinal(row.netPlace) + " Calcutta</span>");
+            }
+            return "<tr>"
+              + '<td class="lbd-name">' + esc(row.name) + (flags.length ? ' <span class="lbd-flags">' + flags.join(" ") + '</span>' : '') + "</td>"
+              + "<td>" + (row.d1 == null ? "—" : row.d1) + "</td>"
+              + "<td>" + (row.d2 == null ? "—" : row.d2) + "</td>"
+              + "<td><b>" + (row.gross == null ? "—" : row.gross) + "</b></td>"
+              + "<td>" + (row.hcp == null ? "—" : row.hcp) + "</td>"
+              + "<td><b>" + (row.net == null ? "—" : row.net) + "</b></td>"
+              + "</tr>";
+          }).join("");
+          return '<div class="lb-flight lbd-flight">'
+            + '<h4 class="lb-flight__title">' + esc(fl.name) + ' Flight <span class="lb-flight__count">' + fl.rows.length + ' teams' + (fl.leader != null ? ', leader ' + fl.leader : '') + '</span></h4>'
+            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + trs + '</tbody></table></div></div>';
+        }).join("");
+        var unHtml = "";
+        if (data.unassigned.length) {
+          var unTrs = data.unassigned.map(function (row) {
+            return "<tr><td>" + esc(row.name) + "</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";
+          }).join("");
+          unHtml = '<div class="lb-flight"><h4 class="lb-flight__title">Unassigned <span class="lb-flight__count">' + data.unassigned.length + ' teams (no Day-1 score yet)</span></h4>'
+            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + unTrs + '</tbody></table></div></div>';
+        }
+        body.innerHTML = stripHtml + (out || '<p class="noms__msg">No Day-1 scores yet — enter scores on the Scores tab.</p>') + unHtml;
+        attachRowFilter(body, { rowSelector: ".lb-table tbody tr" });
+      }
+
+      function ordinal(n) {
+        if (n === 1) return "1st"; if (n === 2) return "2nd"; if (n === 3) return "3rd";
+        return n + "th";
+      }
+
+      // ---- Payout tab (checks to write) ----
+      function renderPayout(all) {
+        var body = document.getElementById("poBody"); if (!body) return;
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        if (!recs.length) { body.innerHTML = '<p class="noms__msg">No teams yet.</p>'; return; }
+        var cfg = loadCalc();
+        var data = computeLeaderboardData(recs, cfg);
+        var flightSplit = cfg.flightSplit || [50, 30, 20];
+        var calSplit = cfg.calcuttaSplit || [40, 30, 20, 10];
+        var comm = (cfg.calcuttaCommission || 0) / 100;
+        var perPP = (cfg.entryPP || 0) - (cfg.greenFeePP || 0) - (cfg.mealPP || 0) - (cfg.otherPP || 0);
+        var players = recs.length * 2;
+        var totalPrizePool = perPP * players;
+        var nF = data.flights.length || 1;
+        // Prize per place per flight = pool × (pct/100) ÷ #flights, plus additional
+        // spread (add ÷ flights ÷ #places).
+        var addPerFlight = (cfg.additionalFlight || 0) / nF;
+        var flightPrizes = flightSplit.map(function (pct) {
+          return (totalPrizePool * (pct / 100) / nF) + (addPerFlight / flightSplit.length);
+        });
+
+        var flightPayouts = [];   // { recipient, amount, flight, place, teamName, note }
+        var calPayouts = [];
+
+        data.flights.forEach(function (fl) {
+          // ---- Flight winnings (by 2-day gross) ----
+          var byPlace = {};
+          fl.rows.forEach(function (r) { if (r.grossPlace && r.grossPlace <= flightSplit.length) (byPlace[r.grossPlace] = byPlace[r.grossPlace] || []).push(r); });
+          Object.keys(byPlace).forEach(function (p) {
+            var place = Number(p), teams = byPlace[p];
+            var combined = 0;
+            for (var i = 0; i < teams.length; i++) {
+              var rank = place - 1 + i;
+              if (rank < flightPrizes.length) combined += flightPrizes[rank];
+            }
+            var each = combined / teams.length;
+            teams.forEach(function (t) {
+              flightPayouts.push({
+                signupId: t.id,
+                savedCheck: (t.rec && t.rec.fields && t.rec.fields["Flight Check #"]) || "",
+                recipient: t.name, teamName: t.name, amount: each,
+                flight: fl.name, place: place, tied: teams.length > 1,
+                note: fl.name + " Flight — " + ordinal(place) + " place gross" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
+              });
+            });
+          });
+
+          // ---- Calcutta payouts (by net, top-4) ----
+          var caPool = fl.rows.reduce(function (s, r) { return s + (r.buyAmount || 0); }, 0);
+          var caPayout = Math.max(0, caPool * (1 - comm));
+          var caPrizes = calSplit.map(function (pct) { return caPayout * (pct / 100); });
+          var byNet = {};
+          fl.rows.forEach(function (r) { if (r.netPlace && r.netPlace <= calSplit.length) (byNet[r.netPlace] = byNet[r.netPlace] || []).push(r); });
+          Object.keys(byNet).forEach(function (p) {
+            var place = Number(p), teams = byNet[p];
+            var combined = 0;
+            for (var i = 0; i < teams.length; i++) {
+              var rank = place - 1 + i;
+              if (rank < caPrizes.length) combined += caPrizes[rank];
+            }
+            var each = combined / teams.length;
+            teams.forEach(function (t) {
+              calPayouts.push({
+                signupId: t.id,
+                savedCheck: (t.rec && t.rec.fields && t.rec.fields["Calcutta Check #"]) || "",
+                recipient: (t.buyer && t.buyer.trim()) || "(no buyer)",
+                teamName: t.name, amount: each,
+                flight: fl.name, place: place, tied: teams.length > 1,
+                note: fl.name + " Flight Calcutta — " + ordinal(place) + " net (team " + t.name + ")" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
+              });
+            });
+          });
+        });
+
+        // Check #s persist on the signup record. Flight winnings → "Flight Check #",
+        // Calcutta payouts → "Calcutta Check #". Debounced PATCH via tournament-checkin.
+        function renderPayoutTable(list, kind, category) {
+          if (!list.length) return '<p class="noms__msg">Nothing to pay in this category yet.</p>';
+          var trs = list.map(function (p) {
+            p.category = category;
+            return '<tr data-signup-id="' + esc(p.signupId || "") + '" data-category="' + esc(category) + '">'
+              + "<td>" + esc(p.recipient) + (p.recipient === "(no buyer)" ? ' <span class="po-warn">no buyer set</span>' : "") + "</td>"
+              + "<td>" + esc(p.teamName) + "</td>"
+              + "<td>" + esc(p.note) + "</td>"
+              + '<td class="po-tbl__amt"><b>' + money(p.amount) + "</b></td>"
+              + '<td class="po-tbl__chk"><input type="text" class="po-check" data-signup-id="' + esc(p.signupId || "") + '" data-category="' + esc(category) + '" value="' + esc(p.savedCheck || "") + '" placeholder="—" autocomplete="off" maxlength="12" /></td>'
+              + "</tr>";
+          }).join("");
+          var total = list.reduce(function (s, p) { return s + p.amount; }, 0);
+          return '<div class="table-scroll"><table class="po-tbl"><thead><tr><th>Recipient (check to)</th><th>Team</th><th>Reason</th><th>Amount</th><th class="po-tbl__chkH">Check #</th></tr></thead><tbody>'
+            + trs
+            + '<tr class="po-tbl__total"><td colspan="3">' + esc(kind) + ' subtotal</td><td>' + money(total) + '</td><td></td></tr>'
+            + '</tbody></table></div>';
+        }
+
+        // Header summary — prize pool math at a glance.
+        var summary = '<div class="po-summary">'
+          + '<div><span>Total prize pool</span><b>' + money(totalPrizePool) + '</b></div>'
+          + '<div><span>Per player contribution</span><b>' + money(perPP) + '</b></div>'
+          + '<div><span>Players</span><b>' + players + '</b></div>'
+          + '<div><span>Flights</span><b>' + nF + '</b></div>'
+          + '</div>';
+
+        var grand = flightPayouts.reduce(function (s, p) { return s + p.amount; }, 0) + calPayouts.reduce(function (s, p) { return s + p.amount; }, 0);
+        body.innerHTML = summary
+          + '<h4 class="po-hdr">Flight winnings (by 2-day gross)</h4>' + renderPayoutTable(flightPayouts, "Flight winnings", "flight")
+          + '<h4 class="po-hdr">Calcutta payouts (by net, top-' + calSplit.length + ')</h4>' + renderPayoutTable(calPayouts, "Calcutta", "calcutta")
+          + '<div class="po-grand">Grand total to pay out: <b>' + money(grand) + '</b></div>';
+
+        // Wire the Check # inputs — debounced PATCH via tournament-checkin.
+        // Flight Check # / Calcutta Check # both live on the signup record.
+        var poPending = {};
+        Array.prototype.forEach.call(body.querySelectorAll(".po-check"), function (inp) {
+          inp.addEventListener("input", function () {
+            var id = inp.getAttribute("data-signup-id");
+            var cat = inp.getAttribute("data-category");
+            if (!id) return;
+            var payload = { id: id };
+            payload[cat === "flight" ? "flightCheck" : "calcuttaCheck"] = inp.value.trim();
+            var k = id + ":" + cat;
+            if (poPending[k]) clearTimeout(poPending[k]);
+            poPending[k] = setTimeout(function () {
+              fetch(FH_API.url("/api/tournament-checkin"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+                body: JSON.stringify(payload)
+              }).catch(function () {});
+            }, 600);
+          });
+          inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } });
+        });
+      }
+
       // Bump the flight count up or down (min 1, max 8), persist via loadCalc/saveCalc,
       // then re-render so the sliders + standings pick up the new count immediately.
       function bumpFlights(delta) {
@@ -1851,6 +2360,7 @@
 
       function renderBoard(all) {
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        lbFilteredRecs = recs;
         var cfg = loadCalc(), nF = cfg.flights || 4;
         var nEl = document.getElementById("lbFlNum"); if (nEl) nEl.textContent = nF;
         boardSorted = recs.filter(function (r) { return d1g(r) != null; }).sort(function (a, b) { return d1g(a) - d1g(b); });
@@ -2001,6 +2511,22 @@
         if (caPr) caPr.addEventListener("click", function () {
           document.body.classList.add("is-print-ca");
           function cleanup() { document.body.classList.remove("is-print-ca"); window.removeEventListener("afterprint", cleanup); }
+          window.addEventListener("afterprint", cleanup);
+          setTimeout(function () { window.print(); }, 30);
+          setTimeout(cleanup, 2000);
+        });
+        var lbdPr = document.getElementById("lbdPrint");
+        if (lbdPr) lbdPr.addEventListener("click", function () {
+          document.body.classList.add("is-print-lbd");
+          function cleanup() { document.body.classList.remove("is-print-lbd"); window.removeEventListener("afterprint", cleanup); }
+          window.addEventListener("afterprint", cleanup);
+          setTimeout(function () { window.print(); }, 30);
+          setTimeout(cleanup, 2000);
+        });
+        var poPr = document.getElementById("poPrint");
+        if (poPr) poPr.addEventListener("click", function () {
+          document.body.classList.add("is-print-po");
+          function cleanup() { document.body.classList.remove("is-print-po"); window.removeEventListener("afterprint", cleanup); }
           window.addEventListener("afterprint", cleanup);
           setTimeout(function () { window.print(); }, 30);
           setTimeout(cleanup, 2000);

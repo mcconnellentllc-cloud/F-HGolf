@@ -956,6 +956,75 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .lb-cutval { min-width: 2ch; text-align: right; color: var(--primary-green); }
 .lb-range__extent { font-size: 0.85rem; color: var(--muted); margin: 0.4rem 0; }
 .lb-range__extent b { color: var(--primary-green); }
+.lb-flight__count { color: var(--muted); font-weight: 400; font-size: 0.85rem; margin-left: 0.5rem; }
+.lb-preview-note { background: #fff6d9; border: 1px solid #d19a00; border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.9rem; color: #6b4d00; margin: 0 0 1rem; }
+.lb-preview-note b { color: var(--red-deep); }
+
+/* Leaderboard — top summary strip (count + score range per flight) */
+.lb-strip { display: flex; flex-wrap: wrap; gap: 0.4rem 0.7rem; align-items: center; background: var(--primary-green); color: #fff; border-radius: 10px; padding: 0.7rem 1rem; margin-bottom: 1rem; font-size: 0.95rem; }
+.lb-strip__flight { white-space: nowrap; }
+.lb-strip__flight b { color: #fff; }
+.lb-strip__range { color: rgba(255,255,255,0.85); font-weight: 400; }
+.lb-strip__sep { color: rgba(255,255,255,0.5); }
+
+/* Leaderboard — inline cut sliders between flight sections */
+.lb-inline-cut { display: flex; align-items: center; gap: 0.7rem; background: var(--paper-2); border: 2px dashed var(--primary-green); border-radius: 8px; padding: 0.5rem 0.85rem; margin: 0.35rem 0 0.65rem; }
+.lb-inline-cut__lbl { font-size: 0.85rem; font-weight: 700; color: var(--primary-green); white-space: nowrap; }
+.lb-inline-cut__range { flex: 1; min-width: 8rem; accent-color: var(--primary-green); }
+.lb-inline-cut__val { min-width: 2ch; text-align: right; color: var(--primary-green); font-size: 1.05rem; }
+
+/* Leaderboard tab — winner flags next to team names */
+.lbd-flag { display: inline-block; font-size: 0.7rem; font-weight: 800; padding: 0.12rem 0.5rem; border-radius: 999px; margin-left: 0.35rem; letter-spacing: 0.02em; text-transform: uppercase; }
+.lbd-flag--gross { background: #f6c945; color: #6b4d00; }
+.lbd-flag--calc { background: var(--red); color: #fff; }
+.lbd-name { min-width: 12rem; }
+.lbd-flags { display: inline-block; }
+
+/* Payout tab */
+.po-summary { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; background: var(--paper-2); border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 1rem; }
+.po-summary > div { display: flex; flex-direction: column; }
+.po-summary span { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 800; }
+.po-summary b { font-size: 1.1rem; color: var(--primary-green); font-family: var(--font-display); }
+.po-hdr { color: var(--primary-green); font-family: var(--font-display); font-size: 1.1rem; margin: 1.2rem 0 0.5rem; padding-bottom: 0.3rem; border-bottom: 2px solid var(--primary-green); }
+.po-tbl { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.po-tbl th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--primary-green); padding: 0.5rem 0.7rem; border-bottom: 2px solid var(--line); }
+.po-tbl td { padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.po-tbl tbody tr:nth-child(odd) { background: var(--paper-2); }
+.po-tbl__amt { text-align: right; white-space: nowrap; color: var(--primary-green); font-size: 1rem; }
+.po-tbl__total { background: var(--light-green) !important; font-weight: 800; }
+.po-tbl__total td { padding: 0.6rem 0.7rem; border-top: 2px solid var(--primary-green); }
+.po-tbl__total td:last-child { text-align: right; color: var(--primary-green); font-size: 1.1rem; }
+.po-grand { background: var(--primary-green); color: #fff; border-radius: 10px; padding: 0.8rem 1rem; margin-top: 1rem; font-size: 1.05rem; text-align: right; }
+.po-grand b { font-size: 1.4rem; font-family: var(--font-display); }
+.po-warn { color: var(--red-deep); font-size: 0.72rem; font-weight: 700; margin-left: 0.3rem; }
+.po-tbl__chkH { width: 7rem; text-align: right; }
+.po-tbl__chk { text-align: right; }
+.po-check { width: 6.5rem; padding: 0.3rem 0.4rem; border: 1px dashed var(--line); border-radius: 4px; font: inherit; font-size: 0.9rem; background: #fff; text-align: right; }
+.po-check:focus { border-color: var(--primary-green); border-style: solid; outline: none; }
+
+/* Per-row × delete buttons (Scores + Calcutta) */
+.sc-clear, .ca-clear { border: 1px solid var(--line); background: #fff; color: var(--red-deep); border-radius: 6px; width: 1.7rem; height: 1.7rem; padding: 0; line-height: 1; font-size: 0.9rem; cursor: pointer; }
+.sc-clear:hover, .ca-clear:hover { background: var(--red); color: #fff; border-color: var(--red); }
+.sc-tbl__x { width: 2rem; text-align: center; }
+.ca-tbl__x { width: 2rem; text-align: center; }
+
+/* Delete-all buttons on Scores + Calcutta */
+.sc-toolbar__dangerBtn { color: var(--red-deep); border-color: var(--red); background: #fff; }
+.sc-toolbar__dangerBtn:hover { background: var(--red); color: #fff; }
+.ca-footer { display: flex; justify-content: flex-end; margin-top: 1rem; }
+.ca-clear-all { color: var(--red-deep); border-color: var(--red); background: #fff; }
+.ca-clear-all:hover { background: var(--red); color: #fff; }
+
+/* Destructive confirm modal (reuses pm-modal skeleton) */
+.cd-panel { max-width: 480px; }
+.cd-body { font-size: 0.98rem; color: var(--ink); margin: 0; }
+.cd-confirm { background: var(--red); color: #fff; border: 1px solid var(--red); }
+.cd-confirm:hover { background: var(--red-deep); border-color: var(--red-deep); }
+
+/* Shared "Filter teams by name…" toolbar (Check-In, Pairings, Flights, Calcutta, Leaderboard) */
+.tab-toolbar { display: flex; gap: 0.5rem; align-items: center; margin: 0 0 0.7rem 0; }
+.tab-filter { flex: 1; max-width: 24rem; padding: 0.55rem 0.8rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.92rem; background: #fff; }
+.tab-filter:focus { border-color: var(--primary-green); outline: none; }
 .lb-sizes { margin-top: 0.5rem; color: var(--muted); font-size: 0.9rem; }
 .lb-flight { margin-bottom: 1.6rem; }
 .lb-flight__title { color: var(--primary-green); font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.5rem; }
@@ -1184,6 +1253,34 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
   body.is-print-ca .lb-table th { font-size: 10pt; padding: 3pt 5pt; }
   body.is-print-ca .lb-table td { padding: 3pt 5pt; }
   body.is-print-ca .lb-table tbody tr:nth-child(odd) { background: #f5f5f5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Leaderboard print — every flight on its own page */
+  body.is-print-lbd .wb-sheet:not([data-sheet="leaderboard"]) { display: none !important; }
+  body.is-print-lbd .wb-sheet[data-sheet="leaderboard"] { display: block !important; }
+  body.is-print-lbd .noms__bar, body.is-print-lbd .scaffold__desc { display: none !important; }
+  body.is-print-lbd .lb-strip { background: #fff !important; color: #000 !important; border: 2pt solid #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 6pt; margin-bottom: 8pt; font-size: 10pt; }
+  body.is-print-lbd .lb-strip__flight, body.is-print-lbd .lb-strip__flight b, body.is-print-lbd .lb-strip__range, body.is-print-lbd .lb-strip__sep { color: #000 !important; }
+  body.is-print-lbd .lb-flight { page-break-after: always; page-break-inside: avoid; }
+  body.is-print-lbd .lb-flight:last-child { page-break-after: auto; }
+  body.is-print-lbd .lb-flight__title { font-size: 20pt; text-align: center; color: #000; border-bottom: 3pt solid #000; padding-bottom: 4pt; margin-bottom: 8pt; }
+  body.is-print-lbd .lb-table { width: 100%; font-size: 11pt; }
+  body.is-print-lbd .lb-table th { padding: 3pt 5pt; font-size: 10pt; }
+  body.is-print-lbd .lb-table td { padding: 3pt 5pt; }
+  body.is-print-lbd .lb-table tbody tr:nth-child(odd) { background: #f5f5f5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-lbd .lbd-flag { border: 1pt solid #000; background: transparent !important; color: #000 !important; padding: 1pt 4pt; }
+
+  /* Payout print — one page (or few) with all checks */
+  body.is-print-po .wb-sheet:not([data-sheet="payout"]) { display: none !important; }
+  body.is-print-po .wb-sheet[data-sheet="payout"] { display: block !important; }
+  body.is-print-po .noms__bar, body.is-print-po .scaffold__desc { display: none !important; }
+  body.is-print-po .po-summary { background: transparent !important; border: 1pt solid #000; padding: 6pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-po .po-summary b { color: #000 !important; }
+  body.is-print-po .po-hdr { font-size: 16pt; color: #000; border-bottom-color: #000; margin-top: 12pt; }
+  body.is-print-po .po-tbl { font-size: 11pt; }
+  body.is-print-po .po-tbl__amt, body.is-print-po .po-tbl__total td:last-child { color: #000 !important; }
+  body.is-print-po .po-tbl__total { background: #eaeaea !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-po .po-grand { background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-po .po-check { border: none !important; background: transparent !important; padding: 0 !important; width: auto; font-weight: 700; color: #000 !important; }
 
   @page { margin: 0.5in; size: portrait; }
 }
