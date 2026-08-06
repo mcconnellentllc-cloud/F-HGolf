@@ -1547,7 +1547,7 @@
       function d2g(r) { var f = r.fields || {}; return (f["Day2 Scores"] && typeof f["Day2 Gross"] === "number") ? f["Day2 Gross"] : null; }
       function teamName(r) { return (r.fields && r.fields["Player Name"]) || "(no name)"; }
 
-      var CUTK = "fh_cuts_" + KEY, boardSorted = [];
+      var CUTK = "fh_cuts_" + KEY, boardSorted = [], lbFilteredRecs = [];
       // Score-based cuts. For N flights, cuts is an array of N-1 score
       // thresholds. A team's Day-1 gross <= cuts[i] goes into flight i+1;
       // above the last cut, it goes into the last flight.
@@ -1615,6 +1615,10 @@
             Array.prototype.forEach.call(box.querySelectorAll(".lb-range"), function (r2) { var k = parseInt(r2.getAttribute("data-i"), 10); r2.value = cuts[k]; });
             Array.prototype.forEach.call(box.querySelectorAll(".lb-cutval"), function (b) { var k = parseInt(b.getAttribute("data-i"), 10); b.textContent = cuts[k]; });
             saveCuts(cuts); sizes();
+            // Live re-render the standings so teams shift between flights as
+            // the sliders move — same for Calcutta (its per-flight pools rely
+            // on the same grouping).
+            try { renderStandings(lbFilteredRecs || [], loadCalc()); renderCalcutta(scAllCache); } catch (e) {}
           });
         });
         sizes();
@@ -1640,8 +1644,25 @@
       function renderStandings(recs, cfg) {
         var body = document.getElementById("lbBody"); if (!body) return;
         var mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
+        // Preview grouping from current cut sliders so teams show up in flights
+        // as soon as scores are entered — no need to click Save flights first.
+        var sortedScores = recs.map(d1g).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
+        var cuts = loadCuts(nF, sortedScores);
         var groups = {};
-        recs.forEach(function (r) { var fl = (r.fields || {})["Flight"]; var k = (fl != null && fl !== "") ? Number(fl) : 0; (groups[k] = groups[k] || []).push(r); });
+        var dirty = false;
+        recs.forEach(function (r) {
+          var s = d1g(r);
+          var saved = (r.fields || {})["Flight"];
+          var computed = (s != null && sortedScores.length) ? flightForScore(s, cuts) : null;
+          var k;
+          if (computed != null) {
+            k = computed;
+            if (saved == null || saved === "" || Number(saved) !== computed) dirty = true;
+          } else {
+            k = 0; // no score yet
+          }
+          (groups[k] = groups[k] || []).push(r);
+        });
         var order = []; for (var i = 1; i <= nF; i++) order.push(i); if (groups[0]) order.push(0);
         var out = order.map(function (fl) {
           var arr = groups[fl]; if (!arr || !arr.length) return "";
@@ -1666,12 +1687,14 @@
               + "<td><b>" + (x.overall == null ? "—" : x.overall) + "</b></td><td>" + (x.hcp == null ? "—" : x.hcp) + "</td>"
               + "<td><b>" + (x.net == null ? "—" : x.net) + "</b></td></tr>";
           }).join("");
-          var title = fl === 0 ? "Unassigned" : (flightName(fl) + " Flight");
-          return '<div class="lb-flight"><h4 class="lb-flight__title">' + title + "</h4>"
+          var title = fl === 0 ? "Unassigned (no Day-1 score yet)" : (flightName(fl) + " Flight");
+          var count = ' <span class="lb-flight__count">' + rows.length + ' team' + (rows.length === 1 ? "" : "s") + '</span>';
+          return '<div class="lb-flight"><h4 class="lb-flight__title">' + title + count + "</h4>"
             + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
             + trs + "</tbody></table></div></div>";
         }).join("");
-        body.innerHTML = out || '<p class="noms__msg">No Day-1 scores yet — enter scores, then set the flight cuts above.</p>';
+        var note = dirty ? '<p class="lb-preview-note">Preview based on current cut sliders — the flights below reflect what a Save flights click would persist.</p>' : "";
+        body.innerHTML = note + (out || '<p class="noms__msg">No Day-1 scores yet — enter scores on the Scores tab.</p>');
       }
 
       // ---- Calcutta — buyers, amounts, per-flight running payouts ----
@@ -1851,6 +1874,7 @@
 
       function renderBoard(all) {
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        lbFilteredRecs = recs;
         var cfg = loadCalc(), nF = cfg.flights || 4;
         var nEl = document.getElementById("lbFlNum"); if (nEl) nEl.textContent = nF;
         boardSorted = recs.filter(function (r) { return d1g(r) != null; }).sort(function (a, b) { return d1g(a) - d1g(b); });
