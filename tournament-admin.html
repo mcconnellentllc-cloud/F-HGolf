@@ -1076,10 +1076,12 @@
         var p2Name = (players[1] && players[1].name) || "P2";
         var shortLabel = function (n) { n = String(n || "").trim().split(/\s+/); return n[0] || ""; };
         var needRental = String(f["Cart Type"] || "").trim().toLowerCase() === "rental";
+        // Compact P1 / P2 labels so long partner names never bump Need rental
+        // onto its own line.
         var cartLine = '<div class="ci-cartline">'
           + '<span class="ci-cartline__lbl">Cart</span>'
-          + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p1"' + (p1Cart === 0.5 ? " checked" : "") + ' /><span>' + esc(shortLabel(p1Name) || "P1") + ' ½ <small>' + money(cartFee / 2) + '</small></span></label>'
-          + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p2"' + (p2Cart === 0.5 ? " checked" : "") + ' /><span>' + esc(shortLabel(p2Name) || "P2") + ' ½ <small>' + money(cartFee / 2) + '</small></span></label>'
+          + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p1"' + (p1Cart === 0.5 ? " checked" : "") + ' /><span>P1 ½ <small>' + money(cartFee / 2) + '</small></span></label>'
+          + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p2"' + (p2Cart === 0.5 ? " checked" : "") + ' /><span>P2 ½ <small>' + money(cartFee / 2) + '</small></span></label>'
           + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-full"' + (p1Cart === 1 || p2Cart === 1 ? " checked" : "") + ' /><span>Full <small>' + money(cartFee) + '</small></span></label>'
           + '<label class="ci-check ci-check--cart ci-check--need"><input type="checkbox" class="ci-cart-need"' + (needRental ? " checked" : "") + ' /><span>Need rental</span></label>'
           + '</div>';
