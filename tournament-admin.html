@@ -63,6 +63,7 @@
           <button type="button" class="wb-tab" data-sheet="pairings" role="tab">Pairings</button>
           <button type="button" class="wb-tab" data-sheet="scores" role="tab">Scores</button>
           <button type="button" class="wb-tab" data-sheet="flights" role="tab">Flights &amp; Leaderboard</button>
+          <button type="button" class="wb-tab" data-sheet="calcutta" role="tab">Calcutta</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
           <button type="button" class="wb-tab" data-sheet="calc" role="tab">Calc</button>
         </div>
@@ -174,6 +175,18 @@
             <button class="btn btn--primary" type="button" id="calcSave">Save calculations</button>
             <span class="sc__status" id="calcStatus"></span>
           </div>
+        </section>
+
+        <!-- Calcutta — buyers + payouts per flight -->
+        <section class="noms wb-sheet" data-sheet="calcutta" id="twCalcutta" aria-label="Calcutta" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Calcutta</h3>
+            <div class="noms__bar-actions">
+              <button class="btn btn--primary" type="button" id="caPrint">Print now</button>
+            </div>
+          </div>
+          <p class="scaffold__desc">Buyer + amount per team. Each flight shows its running pool, club commission, payout total, and split for the top-4 net (edit the split under the Calc tab).</p>
+          <div id="caBody"><p class="noms__msg">Loading…</p></div>
         </section>
 
         <!-- Flighting + Leaderboard -->
@@ -1134,7 +1147,7 @@
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderPairings(res.j.records); }
+            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderCalcutta(res.j.records); renderPairings(res.j.records); }
             else if (res.status === 401) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
             else { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
           })
@@ -1610,6 +1623,169 @@
         body.innerHTML = out || '<p class="noms__msg">No Day-1 scores yet — enter scores, then set the flight cuts above.</p>';
       }
 
+      // ---- Calcutta — buyers, amounts, per-flight running payouts ----
+      var caPending = {}; // signupId -> save timeout
+
+      function money(n) {
+        if (n == null || !isFinite(n)) return "$0";
+        return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+      }
+
+      function renderCalcutta(all) {
+        var body = document.getElementById("caBody"); if (!body) return;
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        if (!recs.length) { body.innerHTML = '<p class="noms__msg">No teams yet.</p>'; return; }
+        var cfg = loadCalc(), mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
+        var comm = (cfg.calcuttaCommission || 0) / 100;
+        var split = cfg.calcuttaSplit || [40, 30, 20, 10];
+        // Group by Flight (fall through to unassigned as 0).
+        var groups = {};
+        recs.forEach(function (r) { var fl = (r.fields || {})["Flight"]; var k = (fl != null && fl !== "") ? Number(fl) : 0; (groups[k] = groups[k] || []).push(r); });
+        var order = []; for (var i = 1; i <= nF; i++) order.push(i); if (groups[0]) order.push(0);
+
+        // Precompute per-flight pool + payout for the top summary strip.
+        var poolBy = {};
+        order.forEach(function (fl) {
+          var arr = groups[fl] || [];
+          var pool = arr.reduce(function (a, r) { var v = (r.fields || {})["Buy Amount"]; return a + (typeof v === "number" ? v : 0); }, 0);
+          poolBy[fl] = { pool: pool, payout: Math.max(0, pool * (1 - comm)) };
+        });
+
+        // Top summary strip — every flight's payout total at a glance.
+        var strip = '<div class="ca-strip">'
+          + order.map(function (fl) {
+              var title = fl === 0 ? "Unassigned" : flightName(fl);
+              var p = poolBy[fl];
+              return '<span class="ca-strip__flight"><b>' + esc(title) + '</b> pool ' + money(p.pool) + ' &rarr; payout <b class="ca-strip__pay">' + money(p.payout) + "</b></span>";
+            }).join('<span class="ca-strip__sep">&middot;</span>')
+          + '</div>';
+
+        var out = order.map(function (fl) {
+          var arr = groups[fl]; if (!arr || !arr.length) return "";
+          // Handicap leader (min D1 gross in flight) for net computation.
+          var leader = null;
+          arr.forEach(function (r) { var v = d1g(r); if (v != null && (leader == null || v < leader)) leader = v; });
+          var rows = arr.map(function (r) {
+            var f = r.fields || {};
+            var a = d1g(r), b = d2g(r);
+            var hcp = (a != null && leader != null) ? Math.floor((a - leader) * mult) : null;
+            var net = (b != null && hcp != null) ? (b - hcp) : null;
+            var buyer = String(f.Buyer || "");
+            var amt = (typeof f["Buy Amount"] === "number") ? f["Buy Amount"] : null;
+            return { id: r.id, name: teamShortNames(f), buyer: buyer, amount: amt, a: a, b: b, hcp: hcp, net: net };
+          });
+          // Calcutta ranks by net (lowest net = 1st). Ties get the same place.
+          var byNet = rows.slice().filter(function (x) { return x.net != null; }).sort(function (x, y) { return x.net - y.net; });
+          byNet.forEach(function (x, i) { x.cplace = i + 1; });
+          rows.sort(function (x, y) { return (x.net == null ? 1e9 : x.net) - (y.net == null ? 1e9 : y.net); });
+
+          var p = poolBy[fl];
+          var payoutParts = split.map(function (pct, idx) {
+            var amount = p.payout * (pct / 100);
+            return '<span class="ca-fl__prize">' + (idx + 1) + '<sup>' + (idx === 0 ? "st" : idx === 1 ? "nd" : idx === 2 ? "rd" : "th") + '</sup> ' + money(amount) + '</span>';
+          }).join(" ");
+          var pctText = split.reduce(function (s, v) { return s + v; }, 0);
+          var header = ''
+            + '<div class="ca-fl__hdr">'
+            + '<h4 class="lb-flight__title">' + (fl === 0 ? "Unassigned" : (flightName(fl) + " Flight")) + '</h4>'
+            + '<div class="ca-fl__totals">Pool <b>' + money(p.pool) + '</b> · Commission ' + (comm * 100) + '% · Payout <b class="ca-fl__pay">' + money(p.payout) + '</b></div>'
+            + '<div class="ca-fl__split">' + payoutParts + ' <small>(' + pctText + '% of payout)</small></div>'
+            + '</div>';
+
+          var tbody = rows.map(function (x) {
+            var placeTag = (x.cplace && x.cplace <= 4) ? ' <span class="lb-cal">C' + x.cplace + '</span>' : "";
+            return '<tr data-id="' + esc(x.id) + '">'
+              + '<td class="ca-tbl__team">' + esc(x.name) + placeTag + '</td>'
+              + '<td><input type="text" class="ca-buyer" data-id="' + esc(x.id) + '" value="' + esc(x.buyer) + '" placeholder="Buyer name" autocomplete="off" /></td>'
+              + '<td><input type="number" inputmode="decimal" min="0" step="1" class="ca-amt" data-id="' + esc(x.id) + '" value="' + (x.amount == null ? "" : x.amount) + '" placeholder="$0" /></td>'
+              + '<td>' + (x.a == null ? "—" : x.a) + '</td>'
+              + '<td>' + (x.b == null ? "—" : x.b) + '</td>'
+              + '<td><b>' + (x.hcp == null ? "—" : x.hcp) + '</b></td>'
+              + '<td><b>' + (x.net == null ? "—" : x.net) + '</b></td>'
+              + '<td class="ca-tbl__save"><span class="sc-tbl__save" title="Save state"></span></td>'
+              + '</tr>';
+          }).join("");
+          return '<div class="lb-flight ca-flight">' + header
+            + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th>Team</th><th>Buyer</th><th>Amount</th><th>D1</th><th>D2</th><th>HCP</th><th>Net</th><th></th></tr></thead><tbody>'
+            + tbody + '</tbody></table></div></div>';
+        }).join("");
+        body.innerHTML = strip + (out || '<p class="noms__msg">Flights aren\'t assigned yet — set the cuts on the Flights &amp; Leaderboard tab first.</p>');
+
+        wireCalcutta(body);
+      }
+
+      function wireCalcutta(host) {
+        function onEdit(inp, field) {
+          var id = inp.getAttribute("data-id");
+          var row = inp.closest("tr");
+          row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
+          if (caPending[id]) clearTimeout(caPending[id]);
+          caPending[id] = setTimeout(function () { saveCalcuttaRow(id, row); }, 700);
+        }
+        Array.prototype.forEach.call(host.querySelectorAll(".ca-buyer"), function (inp) { inp.addEventListener("input", function () { onEdit(inp, "buyer"); }); });
+        Array.prototype.forEach.call(host.querySelectorAll(".ca-amt"), function (inp) {
+          inp.addEventListener("input", function () {
+            onEdit(inp, "amount");
+            // Live-update the pool + payout summaries as user types.
+            recomputeCalcuttaTotals(host);
+          });
+        });
+      }
+
+      function saveCalcuttaRow(id, row) {
+        var buyer = row.querySelector(".ca-buyer");
+        var amt = row.querySelector(".ca-amt");
+        var payload = { id: id };
+        if (buyer) payload.buyer = buyer.value.trim();
+        if (amt) {
+          var v = amt.value.trim();
+          payload.buyAmount = (v === "" || v == null) ? "" : Number(v);
+        }
+        row.classList.remove("is-dirty", "is-saved", "is-error");
+        row.classList.add("is-saving");
+        fetch(FH_API.url("/api/tournament-checkin"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify(payload)
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            row.classList.remove("is-saving");
+            if (j && j.ok) { row.classList.add("is-saved"); setTimeout(function () { row.classList.remove("is-saved"); }, 1500); }
+            else { row.classList.add("is-error"); }
+          })
+          .catch(function () { row.classList.remove("is-saving"); row.classList.add("is-error"); });
+      }
+
+      // As the user types amounts, recompute pool/payout numbers in place without
+      // a full re-render (which would blow away focus + partial edits).
+      function recomputeCalcuttaTotals(host) {
+        var cfg = loadCalc(), comm = (cfg.calcuttaCommission || 0) / 100;
+        var split = cfg.calcuttaSplit || [40, 30, 20, 10];
+        var flightBlocks = host.querySelectorAll(".ca-flight");
+        var stripSpans = host.querySelectorAll(".ca-strip__flight");
+        Array.prototype.forEach.call(flightBlocks, function (block, idx) {
+          var pool = 0;
+          Array.prototype.forEach.call(block.querySelectorAll(".ca-amt"), function (inp) { var v = Number(inp.value); if (isFinite(v)) pool += v; });
+          var payout = Math.max(0, pool * (1 - comm));
+          var totalsEl = block.querySelector(".ca-fl__totals");
+          var payEl = block.querySelector(".ca-fl__pay");
+          if (totalsEl) totalsEl.innerHTML = 'Pool <b>' + money(pool) + '</b> · Commission ' + (comm * 100) + '% · Payout <b class="ca-fl__pay">' + money(payout) + '</b>';
+          var splitEl = block.querySelector(".ca-fl__split");
+          if (splitEl) {
+            var parts = split.map(function (pct, i) { return '<span class="ca-fl__prize">' + (i + 1) + '<sup>' + (i === 0 ? "st" : i === 1 ? "nd" : i === 2 ? "rd" : "th") + '</sup> ' + money(payout * (pct / 100)) + '</span>'; }).join(" ");
+            var pctText = split.reduce(function (s, v) { return s + v; }, 0);
+            splitEl.innerHTML = parts + ' <small>(' + pctText + '% of payout)</small>';
+          }
+          var stripSpan = stripSpans[idx];
+          if (stripSpan) {
+            var b = stripSpan.querySelector("b:first-child");
+            var payB = stripSpan.querySelector(".ca-strip__pay");
+            stripSpan.innerHTML = '<b>' + (b ? b.textContent : "") + '</b> pool ' + money(pool) + ' &rarr; payout <b class="ca-strip__pay">' + money(payout) + '</b>';
+          }
+        });
+      }
+
       // Bump the flight count up or down (min 1, max 8), persist via loadCalc/saveCalc,
       // then re-render so the sliders + standings pick up the new count immediately.
       function bumpFlights(delta) {
@@ -1765,6 +1941,14 @@
         if (lbPr) lbPr.addEventListener("click", function () {
           document.body.classList.add("is-print-lb");
           function cleanup() { document.body.classList.remove("is-print-lb"); window.removeEventListener("afterprint", cleanup); }
+          window.addEventListener("afterprint", cleanup);
+          setTimeout(function () { window.print(); }, 30);
+          setTimeout(cleanup, 2000);
+        });
+        var caPr = document.getElementById("caPrint");
+        if (caPr) caPr.addEventListener("click", function () {
+          document.body.classList.add("is-print-ca");
+          function cleanup() { document.body.classList.remove("is-print-ca"); window.removeEventListener("afterprint", cleanup); }
           window.addEventListener("afterprint", cleanup);
           setTimeout(function () { window.print(); }, 30);
           setTimeout(cleanup, 2000);

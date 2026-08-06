@@ -60,6 +60,13 @@ module.exports = async (req, res) => {
   // Link this signup to a canonical Players table row. Needs a "Player" linked
   // field on Tournament Signups. Empty string clears the link.
   if (typeof body.playerId === "string") fields["Player"] = body.playerId ? [body.playerId] : [];
+  // Calcutta — buyer text + amount. Needs Buyer (text) + Buy Amount (number)
+  // fields on Tournament Signups.
+  if (typeof body.buyer === "string") fields["Buyer"] = body.buyer ? body.buyer.slice(0, 120) : null;
+  if (body.buyAmount !== undefined) {
+    if (body.buyAmount === null || body.buyAmount === "") fields["Buy Amount"] = null;
+    else { var amt = Number(body.buyAmount); if (isFinite(amt) && amt >= 0) fields["Buy Amount"] = amt; }
+  }
 
   if (!Object.keys(fields).length) {
     return res.status(400).json({ ok: false, error: "Nothing to update." });
