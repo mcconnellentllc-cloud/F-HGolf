@@ -1972,7 +1972,7 @@
             var net = (gross != null && hcp != null) ? (gross - hcp) : null;
             var buyer = String(f.Buyer || "");
             var amt = (typeof f["Buy Amount"] === "number") ? f["Buy Amount"] : null;
-            return { id: r.id, name: teamShortNames(f), buyer: buyer, amount: amt, a: a, b: b, hcp: hcp, net: net };
+            return { id: r.id, rec: r, name: teamShortNames(f), buyer: buyer, amount: amt, a: a, b: b, hcp: hcp, net: net };
           });
           // Calcutta ranks by net (lowest net = 1st). Ties get the same place.
           var byNet = rows.slice().filter(function (x) { return x.net != null; }).sort(function (x, y) { return x.net - y.net; });
@@ -1993,28 +1993,50 @@
             + '</div>';
 
           var tbody = rows.map(function (x) {
-            var placeTag = (x.cplace && x.cplace <= 4) ? ' <span class="lb-cal">C' + x.cplace + '</span>' : "";
             var tnum = caTeamNumbers[x.id];
-            var tnBadge = tnum ? '<span class="lb-tnum">T-' + String(tnum).padStart(2, "0") + '</span> ' : '';
+            var tnBadge = tnum ? '<span class="lb-tnum">T-' + String(tnum).padStart(2, "0") + '</span>' : '';
+            // Day-1 hole-by-hole scores + Out/In loop totals.
+            var _sc = parseScores(((x.rec && x.rec.fields) || {})["Day1 Scores"]);
+            var holes = "", outSum = 0, inSum = 0, outFull = true, inFull = true;
+            for (var _h = 0; _h < 9; _h++) {
+              var _v = _sc[_h];
+              holes += '<td class="ca-hole">' + (_v == null ? "&mdash;" : _v) + '</td>';
+              if (_v == null) outFull = false; else outSum += _v;
+            }
+            holes += '<td class="ca-loop"><b>' + (outFull ? outSum : "&mdash;") + '</b></td>';
+            for (var _h2 = 9; _h2 < 18; _h2++) {
+              var _v2 = _sc[_h2];
+              holes += '<td class="ca-hole">' + (_v2 == null ? "&mdash;" : _v2) + '</td>';
+              if (_v2 == null) inFull = false; else inSum += _v2;
+            }
+            holes += '<td class="ca-loop"><b>' + (inFull ? inSum : "&mdash;") + '</b></td>';
             return '<tr data-id="' + esc(x.id) + '">'
-              + '<td class="ca-tbl__team">' + tnBadge + esc(x.name) + placeTag + '</td>'
-              + '<td><input type="text" class="ca-buyer" data-id="' + esc(x.id) + '" value="' + esc(x.buyer) + '" placeholder="Buyer name" autocomplete="off" /></td>'
-              + '<td><input type="number" inputmode="decimal" min="0" step="1" class="ca-amt" data-id="' + esc(x.id) + '" value="' + (x.amount == null ? "" : x.amount) + '" placeholder="$0" /></td>'
-              + '<td>' + (x.a == null ? "—" : x.a) + '</td>'
-              + '<td>' + (x.b == null ? "—" : x.b) + '</td>'
-              + '<td><b>' + (x.hcp == null ? "—" : x.hcp) + '</b></td>'
-              + '<td><b>' + (x.net == null ? "—" : x.net) + '</b></td>'
+              + '<td class="ca-num">' + tnBadge + '</td>'
+              + '<td class="ca-tbl__team">' + esc(x.name) + '</td>'
+              + holes
+              + '<td class="ca-d1"><b>' + (x.a == null ? "&mdash;" : x.a) + '</b></td>'
+              + '<td class="ca-tbl__amt"><input type="number" inputmode="decimal" min="0" step="1" class="ca-amt" data-id="' + esc(x.id) + '" value="' + (x.amount == null ? "" : x.amount) + '" placeholder="$0" /></td>'
+              + '<td class="ca-tbl__buyer"><input type="text" class="ca-buyer" data-id="' + esc(x.id) + '" value="' + esc(x.buyer) + '" placeholder="Buyer name" autocomplete="off" /></td>'
               + '<td class="ca-tbl__save"><span class="sc-tbl__save" title="Save state"></span></td>'
               + '<td class="ca-tbl__x"><button type="button" class="ca-clear" data-id="' + esc(x.id) + '" title="Clear buyer + amount">&times;</button></td>'
               + '</tr>';
           }).join("");
+          var holeHead = "";
+          for (var _hh = 1; _hh <= 9; _hh++) holeHead += '<th class="ca-hole">' + _hh + '</th>';
+          holeHead += '<th class="ca-loop">Out</th>';
+          for (var _hh2 = 10; _hh2 <= 18; _hh2++) holeHead += '<th class="ca-hole">' + _hh2 + '</th>';
+          holeHead += '<th class="ca-loop">In</th>';
           return '<div class="lb-flight ca-flight">' + header
-            + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th>Team</th><th>Buyer</th><th>Amount</th><th>D1</th><th>D2</th><th>HCP</th><th>Net</th><th></th><th></th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th class="ca-num">#</th><th>Team</th>' + holeHead + '<th class="ca-d1">D1</th><th class="ca-tbl__amt">$ Buy</th><th class="ca-tbl__buyer">Buyer</th><th></th><th></th></tr></thead><tbody>'
             + tbody + '</tbody></table></div></div>';
         }).join("");
         body.innerHTML = strip
           + (out || '<p class="noms__msg">Flights aren\'t assigned yet — set the cuts on the Flights tab first.</p>')
           + '<div class="ca-footer"><button type="button" class="btn btn--solid ca-clear-all" id="caClearAll">Delete all Calcutta data</button></div>';
+        // Mark every 2nd flight as a print page break so 2 flights land per landscape page.
+        Array.prototype.forEach.call(body.querySelectorAll(".ca-flight"), function (el, idx) {
+          if ((idx + 1) % 2 === 0) el.classList.add("ca-flight--pagebreak");
+        });
         attachRowFilter(body, { rowSelector: ".ca-tbl tbody tr" });
         wireCalcutta(body);
       }
@@ -2549,7 +2571,16 @@
         var caPr = document.getElementById("caPrint");
         if (caPr) caPr.addEventListener("click", function () {
           document.body.classList.add("is-print-ca");
-          function cleanup() { document.body.classList.remove("is-print-ca"); window.removeEventListener("afterprint", cleanup); }
+          // Landscape page needed to fit 18 hole columns + team info.
+          var pageStyle = document.createElement("style");
+          pageStyle.id = "ca-print-page";
+          pageStyle.textContent = "@page { size: landscape; margin: 0.4in; }";
+          document.head.appendChild(pageStyle);
+          function cleanup() {
+            document.body.classList.remove("is-print-ca");
+            var ps = document.getElementById("ca-print-page"); if (ps) ps.remove();
+            window.removeEventListener("afterprint", cleanup);
+          }
           window.addEventListener("afterprint", cleanup);
           setTimeout(function () { window.print(); }, 30);
           setTimeout(cleanup, 2000);
