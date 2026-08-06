@@ -2167,10 +2167,12 @@
         }).join("");
         attachRowFilter(board, { rowSelector: ".pr-team[draggable='true']", parentSelector: ".pr-tee", placeholder: "Filter — find a team's tee or team number" });
         wirePairings(board);
-        // If a wave has active slots but any team is unplaced, silently
-        // autofill so teams don't sit in the Unplaced pool waiting for a
-        // manual click. Once a team is placed (auto or by drag), the
-        // Hole/Slot fields persist and the next render leaves them alone.
+        // Only auto-autofill a wave when it's completely empty (initial
+        // set-up). Once any team has a Hole+Slot the wave is considered
+        // "operator-owned" — cycling a hole or dragging a card should NOT
+        // trigger a re-shuffle of the whole field. Manual drags + the
+        // per-wave Autofill this wave button are the way to move things
+        // after that.
         setTimeout(function () {
           WAVES.forEach(function (w) {
             var cfg = loadSlotCfg(w.k);
@@ -2178,12 +2180,12 @@
             if (!slots.length) return;
             var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; });
             if (!teams.length) return;
-            var unplaced = teams.filter(function (t) {
+            var anyPlaced = teams.some(function (t) {
               var f = t.fields || {};
               var h = Number(f.Hole), sl = String(f.Slot || "").toUpperCase();
-              return !(h && (sl === "A" || sl === "B"));
+              return h && (sl === "A" || sl === "B");
             });
-            if (unplaced.length) autofillWave(w.k, /*silent=*/true);
+            if (!anyPlaced) autofillWave(w.k, /*silent=*/true);
           });
         }, 60);
       }
