@@ -28,45 +28,61 @@
     body { background: radial-gradient(ellipse at top, var(--bg-2) 0%, var(--bg) 60%); }
 
     .disp { min-height: 100vh; display: flex; flex-direction: column; }
-    .disp__hero { text-align: center; padding: clamp(0.75rem, 2vw, 1.5rem) 1rem 0.5rem; }
-    .disp__eyebrow { font-family: "Source Sans 3", sans-serif; text-transform: uppercase; letter-spacing: 0.35em; color: var(--gold); font-weight: 700; font-size: clamp(0.75rem, 1.2vw, 0.95rem); }
-    .disp__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(2.4rem, 6vw, 5.2rem); margin: 0.15em 0 0.05em; line-height: 1; letter-spacing: 0.01em; }
-    .disp__sub { color: var(--muted); font-size: clamp(1rem, 1.6vw, 1.3rem); margin: 0; }
+    .disp__hero { text-align: center; padding: clamp(0.5rem, 1.5vw, 1rem) 1rem 0.35rem; }
+    .disp__eyebrow { text-transform: uppercase; letter-spacing: 0.35em; color: var(--gold); font-weight: 700; font-size: clamp(0.7rem, 1.1vw, 0.9rem); }
+    .disp__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(1.9rem, 4.6vw, 3.8rem); margin: 0.1em 0 0; line-height: 1; letter-spacing: 0.01em; }
+    .disp__sub { color: var(--muted); font-size: clamp(0.85rem, 1.3vw, 1.1rem); margin: 0.15em 0 0; }
 
-    .disp__strip { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: clamp(0.4rem, 1vw, 0.9rem); padding: clamp(0.5rem, 1.4vw, 1rem) clamp(0.8rem, 2vw, 1.6rem); }
-    .disp__flight-tot { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: clamp(0.5rem, 1.2vw, 1rem); text-align: center; }
-    .disp__flight-tot__name { text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700; font-size: clamp(0.75rem, 1.15vw, 0.95rem); color: var(--muted); }
-    .disp__flight-tot__amt { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(1.8rem, 3.4vw, 3rem); line-height: 1.05; color: var(--gold); margin-top: 0.15em; }
-    .disp__flight-tot__count { color: var(--muted); font-size: clamp(0.8rem, 1.05vw, 0.95rem); margin-top: 0.1em; }
-    .disp__flight-tot--grand { background: rgba(245,197,66,0.12); border-color: rgba(245,197,66,0.5); }
-    .disp__flight-tot--grand .disp__flight-tot__name { color: #f5c542; }
+    .disp__strip { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: clamp(0.35rem, 0.8vw, 0.7rem); padding: clamp(0.4rem, 1vw, 0.75rem) clamp(0.8rem, 1.8vw, 1.4rem); }
+    .disp__strip--stacked { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr)); }
+    .disp__ftot { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: clamp(0.4rem, 0.9vw, 0.75rem); text-align: center; }
+    .disp__ftot__name { text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700; font-size: clamp(0.65rem, 1vw, 0.85rem); color: var(--muted); }
+    .disp__ftot__amt { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(1.35rem, 2.6vw, 2.2rem); line-height: 1.05; color: var(--gold); margin-top: 0.15em; }
+    .disp__ftot__count { color: var(--muted); font-size: clamp(0.7rem, 0.95vw, 0.85rem); margin-top: 0.05em; }
+    .disp__ftot--grand { background: rgba(245,197,66,0.12); border-color: rgba(245,197,66,0.5); }
+    .disp__ftot--grand .disp__ftot__name { color: var(--gold); }
 
-    .disp__body { flex: 1; padding: clamp(0.5rem, 1.4vw, 1rem) clamp(0.8rem, 2vw, 1.6rem) 3rem; }
-    .disp__section-h { display: flex; justify-content: space-between; align-items: baseline; margin: clamp(0.8rem, 1.5vw, 1.2rem) 0 0.5rem; padding: 0 0.2rem; border-bottom: 1px solid var(--line); }
-    .disp__section-h h2 { font-family: "Fraunces", Georgia, serif; font-weight: 700; margin: 0; font-size: clamp(1.3rem, 2.2vw, 2rem); }
-    .disp__section-h .disp__pool { color: var(--gold); font-weight: 800; font-size: clamp(1rem, 1.6vw, 1.4rem); }
+    .disp__body { flex: 1; padding: clamp(0.4rem, 1vw, 0.8rem) clamp(0.8rem, 1.8vw, 1.4rem) 3rem; }
 
-    .disp__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr)); gap: clamp(0.35rem, 0.8vw, 0.6rem); }
-    .disp__team { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.75rem; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: clamp(0.55rem, 1.1vw, 0.85rem) clamp(0.7rem, 1.3vw, 1rem); }
-    .disp__tnum { background: #fff; color: #0b1a10; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 6px; font-size: clamp(0.85rem, 1.15vw, 1rem); font-family: "Source Sans 3", monospace; letter-spacing: 0.05em; min-width: 3.4rem; text-align: center; }
-    .disp__team-name { font-weight: 700; font-size: clamp(1rem, 1.5vw, 1.35rem); }
+    /* Band = "Available" or "Sold" header + section list. */
+    .band { margin-top: clamp(0.5rem, 1vw, 0.8rem); }
+    .band__hdr { display: flex; justify-content: space-between; align-items: baseline; padding: 0.35rem 0.4rem 0.4rem; border-bottom: 2px solid var(--line); margin-bottom: 0.55rem; }
+    .band__hdr h2 { font-family: "Fraunces", Georgia, serif; font-weight: 700; margin: 0; font-size: clamp(1.05rem, 1.9vw, 1.6rem); }
+    .band__hdr .band__meta { color: var(--muted); font-size: clamp(0.75rem, 1.05vw, 0.95rem); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+    .band--sold { opacity: 0.9; }
+    .band--sold .band__hdr h2 { color: var(--gold); }
 
-    .disp__empty-msg { text-align: center; color: var(--muted); padding: 2rem 1rem; font-style: italic; }
-    .disp__empty-msg--all { padding: 4rem 1rem; font-size: 1.4rem; color: var(--green); font-style: normal; font-weight: 700; }
+    /* Sections inside a band. If flights are assigned, one section per flight;
+       otherwise a single "All teams" section. */
+    .sec { margin-bottom: 0.9rem; }
+    .sec__hdr { display: flex; justify-content: space-between; align-items: baseline; padding: 0 0.2rem 0.2rem; border-bottom: 1px dashed var(--line); margin-bottom: 0.35rem; }
+    .sec__hdr h3 { margin: 0; font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: clamp(0.95rem, 1.4vw, 1.2rem); color: var(--ink); }
+    .sec__hdr .sec__meta { color: var(--muted); font-size: clamp(0.75rem, 1vw, 0.9rem); }
 
-    .disp__foot { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0.6rem 1rem 1.2rem; letter-spacing: 0.08em; }
+    /* DENSE grid — designed to fit 64 team cards on one 1080p screen. */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr)); gap: clamp(0.25rem, 0.5vw, 0.4rem); }
+    .grid--sold { grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr)); }
+
+    .team { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.45rem; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.35rem 0.55rem; }
+    .team__tnum { background: #fff; color: #0b1a10; font-weight: 800; padding: 0.1rem 0.4rem; border-radius: 5px; font-size: clamp(0.7rem, 0.95vw, 0.85rem); letter-spacing: 0.05em; min-width: 2.8rem; text-align: center; }
+    .team__name { font-weight: 700; font-size: clamp(0.85rem, 1.15vw, 1rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Sold cards: darker, shows buyer + amount on the right. */
+    .team--sold { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); grid-template-columns: auto 1fr auto; }
+    .team--sold .team__tnum { background: rgba(255,255,255,0.55); }
+    .team__buyer { text-align: right; font-size: clamp(0.75rem, 1vw, 0.9rem); line-height: 1.15; }
+    .team__buyer__name { color: var(--muted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 8rem; }
+    .team__buyer__amt { color: var(--gold); font-weight: 800; }
+
+    .disp__empty-msg { text-align: center; color: var(--muted); padding: 1.5rem 1rem; font-style: italic; }
+    .disp__empty-msg--all { padding: 3rem 1rem; font-size: 1.3rem; color: var(--green); font-style: normal; font-weight: 700; }
+
+    .disp__foot { text-align: center; color: var(--muted); font-size: 0.75rem; padding: 0.4rem 1rem 0.8rem; letter-spacing: 0.08em; }
     .disp__foot .live-dot { display: inline-block; width: 0.55rem; height: 0.55rem; background: var(--green); border-radius: 50%; margin-right: 0.35rem; vertical-align: middle; animation: pulse 1.8s ease-in-out infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
-    /* Hide the cursor on TV displays after inactivity. */
     body.idle { cursor: none; }
-
-    @media (max-width: 720px) {
-      .disp__strip { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 420px) {
-      .disp__strip { grid-template-columns: 1fr 1fr; }
-    }
+    @media (max-width: 720px) { .disp__strip { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); } .team--sold { grid-template-columns: auto 1fr; } .team__buyer { grid-column: 1 / -1; text-align: left; margin-top: 0.15rem; } .team__buyer__name { max-width: none; } }
   </style>
 </head>
 <body>
@@ -74,7 +90,7 @@
     <header class="disp__hero">
       <div class="disp__eyebrow">Live Calcutta Auction</div>
       <h1 class="disp__title">2026 Founders</h1>
-      <p class="disp__sub" id="dispSub">F&amp;H Golf Course · Aug 8&ndash;9</p>
+      <p class="disp__sub">F&amp;H Golf Course · Aug 8&ndash;9</p>
     </header>
 
     <div class="disp__strip" id="dispStrip"></div>
@@ -93,34 +109,24 @@
       var FLIGHT_NAMES = { 1: "Champ", 2: "First", 3: "Second", 4: "Third" };
       var REFRESH_MS = 15000;
 
-      // ---- utilities ----
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
       function money(n) { if (n == null || !isFinite(n)) return "$0"; return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
       function teamShortNames(f) {
-        // "First-initial . Last" for each partner where possible, joined with " / ".
-        function shrt(n) {
-          n = String(n || "").trim(); if (!n) return "";
-          var parts = n.split(/\s+/);
-          if (parts.length === 1) return parts[0];
-          return parts[0].charAt(0).toUpperCase() + ". " + parts[parts.length - 1];
-        }
+        function shrt(n) { n = String(n || "").trim(); if (!n) return ""; var parts = n.split(/\s+/); if (parts.length === 1) return parts[0]; return parts[0].charAt(0).toUpperCase() + ". " + parts[parts.length - 1]; }
         var p1 = shrt(f["Player Name"]);
         var partners = String(f["Team / Partners"] || "").split(/\s*[\/,&]\s*|\s+and\s+/i).map(shrt).filter(Boolean);
-        var joined = [p1].concat(partners).filter(Boolean);
-        return joined.join(" / ");
+        return [p1].concat(partners).filter(Boolean).join(" / ");
       }
-      // Team numbers: AM = 1..N by created order; PM restarts at 1.
       function computeTeamNumbers(recs) {
         var out = {};
         ["8 AM", "1 PM"].forEach(function (w) {
-          var arr = (recs || []).filter(function (r) {
-            var f = r.fields || {};
-            return (f.Start || "") === w && !(f.Alternate === true || String(f.Alternate) === "true");
-          }).sort(function (a, b) { return String(a.created || "").localeCompare(String(b.created || "")); });
+          var arr = (recs || []).filter(function (r) { var f = r.fields || {}; return (f.Start || "") === w && !(f.Alternate === true || String(f.Alternate) === "true"); }).sort(function (a, b) { return String(a.created || "").localeCompare(String(b.created || "")); });
           arr.forEach(function (r, i) { out[r.id] = i + 1; });
         });
         return out;
       }
+      function buyAmount(r) { var v = (r.fields || {})["Buy Amount"]; return typeof v === "number" ? v : 0; }
+      function isSold(r) { return String((r.fields || {}).Buyer || "").trim() !== ""; }
 
       function fetchAll() {
         return fetch(FH_API.url("/api/tournament-signups"), { cache: "no-store" })
@@ -128,91 +134,100 @@
           .then(function (j) { if (!j || !j.ok) throw new Error(j && j.error || "Load failed"); return j.records || []; });
       }
 
+      function teamCard(r, teamNumbers, sold) {
+        var f = r.fields || {};
+        var tn = teamNumbers[r.id];
+        var badge = tn ? ('T-' + String(tn).padStart(2, "0")) : '—';
+        var name = teamShortNames(f);
+        if (sold) {
+          var amt = buyAmount(r);
+          var buyer = String(f.Buyer || "").trim();
+          return '<div class="team team--sold"><span class="team__tnum">' + esc(badge) + '</span>'
+            + '<span class="team__name">' + esc(name) + '</span>'
+            + '<span class="team__buyer"><span class="team__buyer__name">' + esc(buyer) + '</span><span class="team__buyer__amt">' + money(amt) + '</span></span></div>';
+        }
+        return '<div class="team"><span class="team__tnum">' + esc(badge) + '</span><span class="team__name">' + esc(name) + '</span></div>';
+      }
+
+      function sectionsFor(recs, teamNumbers, sold, hasFlights) {
+        // Group by flight when flights exist; otherwise one big "All Teams".
+        if (!hasFlights) {
+          if (!recs.length) return "";
+          var pool = recs.reduce(function (a, r) { return a + buyAmount(r); }, 0);
+          var cards = recs.map(function (r) { return teamCard(r, teamNumbers, sold); }).join("");
+          var metaBits = [recs.length + ' teams'];
+          if (sold) metaBits.push(money(pool) + ' in');
+          return '<div class="sec"><div class="sec__hdr"><h3>All Teams</h3><span class="sec__meta">' + metaBits.join(' · ') + '</span></div><div class="grid ' + (sold ? 'grid--sold' : '') + '">' + cards + '</div></div>';
+        }
+        var groups = {};
+        recs.forEach(function (r) { var fl = Number((r.fields || {}).Flight); (groups[fl] = groups[fl] || []).push(r); });
+        return [1, 2, 3, 4].map(function (fl) {
+          var arr = groups[fl] || []; if (!arr.length) return "";
+          var pool = arr.reduce(function (a, r) { return a + buyAmount(r); }, 0);
+          var cards = arr.map(function (r) { return teamCard(r, teamNumbers, sold); }).join("");
+          var metaBits = [arr.length + (arr.length === 1 ? ' team' : ' teams')];
+          if (sold) metaBits.push(money(pool));
+          return '<div class="sec"><div class="sec__hdr"><h3>' + esc(FLIGHT_NAMES[fl]) + ' Flight</h3><span class="sec__meta">' + metaBits.join(' · ') + '</span></div><div class="grid ' + (sold ? 'grid--sold' : '') + '">' + cards + '</div></div>';
+        }).join("");
+      }
+
       function render(records) {
-        var recs = records.filter(function (r) {
-          var f = r.fields || {};
-          if (f.Tournament !== KEY) return false;
-          if (f.Alternate === true || String(f.Alternate) === "true") return false;
-          return true;
-        });
+        var recs = records.filter(function (r) { var f = r.fields || {}; if (f.Tournament !== KEY) return false; if (f.Alternate === true || String(f.Alternate) === "true") return false; return true; });
         var teamNumbers = computeTeamNumbers(recs);
 
-        // Group by flight.
-        var groups = { 0: [], 1: [], 2: [], 3: [], 4: [] };
-        recs.forEach(function (r) {
-          var fl = (r.fields || {}).Flight;
-          var k = (fl != null && fl !== "") ? Number(fl) : 0;
-          if (!groups[k]) groups[k] = [];
-          groups[k].push(r);
-        });
+        // Do any teams have a flight assigned? Drives strip layout + section grouping.
+        var hasFlights = recs.some(function (r) { var v = (r.fields || {}).Flight; return v != null && v !== "" && !isNaN(Number(v)); });
 
-        // Pool per flight = sum of Buy Amount.
-        var pools = {};
-        var grand = 0;
-        [1, 2, 3, 4].forEach(function (fl) {
-          var arr = groups[fl] || [];
-          var pool = arr.reduce(function (acc, r) { var v = (r.fields || {})["Buy Amount"]; return acc + (typeof v === "number" ? v : 0); }, 0);
-          pools[fl] = pool; grand += pool;
-        });
-
-        // Top strip.
+        // Top strip: per-flight pools if cut, or a single "All Flights" tile
+        // showing the grand pool otherwise. Grand-total always on the right.
         var strip = document.getElementById("dispStrip");
-        var stripHtml = [1, 2, 3, 4].map(function (fl) {
-          var arr = groups[fl] || [];
-          var sold = arr.filter(function (r) { return String((r.fields || {}).Buyer || "").trim() !== ""; }).length;
-          return '<div class="disp__flight-tot"><div class="disp__flight-tot__name">' + esc(FLIGHT_NAMES[fl]) + ' Flight</div>'
-            + '<div class="disp__flight-tot__amt">' + money(pools[fl]) + '</div>'
-            + '<div class="disp__flight-tot__count">' + sold + ' / ' + arr.length + ' sold</div></div>';
-        }).join("") + '<div class="disp__flight-tot disp__flight-tot--grand"><div class="disp__flight-tot__name">Total Pool</div>'
-          + '<div class="disp__flight-tot__amt">' + money(grand) + '</div>'
-          + '<div class="disp__flight-tot__count">across all flights</div></div>';
+        var grandPool = recs.reduce(function (a, r) { return a + buyAmount(r); }, 0);
+        var grandSold = recs.filter(isSold).length;
+        var stripHtml = "";
+        if (hasFlights) {
+          strip.classList.remove("disp__strip--stacked");
+          stripHtml = [1, 2, 3, 4].map(function (fl) {
+            var arr = recs.filter(function (r) { return Number((r.fields || {}).Flight) === fl; });
+            var pool = arr.reduce(function (a, r) { return a + buyAmount(r); }, 0);
+            var sold = arr.filter(isSold).length;
+            return '<div class="disp__ftot"><div class="disp__ftot__name">' + esc(FLIGHT_NAMES[fl]) + ' Flight</div>'
+              + '<div class="disp__ftot__amt">' + money(pool) + '</div>'
+              + '<div class="disp__ftot__count">' + sold + ' / ' + arr.length + ' sold</div></div>';
+          }).join("");
+        } else {
+          strip.classList.add("disp__strip--stacked");
+          stripHtml = '<div class="disp__ftot"><div class="disp__ftot__name">All Flights</div>'
+            + '<div class="disp__ftot__amt">' + money(grandPool) + '</div>'
+            + '<div class="disp__ftot__count">' + grandSold + ' / ' + recs.length + ' sold · flights not cut yet</div></div>';
+        }
+        stripHtml += '<div class="disp__ftot disp__ftot--grand"><div class="disp__ftot__name">Total Pool</div>'
+          + '<div class="disp__ftot__amt">' + money(grandPool) + '</div>'
+          + '<div class="disp__ftot__count">' + grandSold + ' / ' + recs.length + ' sold</div></div>';
         strip.innerHTML = stripHtml;
 
-        // Available-teams sections (Buyer empty), one per flight.
+        // Two bands: available (top), sold (bottom).
         var body = document.getElementById("dispBody");
-        var totalAvail = 0;
-        var sections = [1, 2, 3, 4].map(function (fl) {
-          var arr = (groups[fl] || []).filter(function (r) { return String((r.fields || {}).Buyer || "").trim() === ""; });
-          arr.sort(function (a, b) { return (teamNumbers[a.id] || 999) - (teamNumbers[b.id] || 999); });
-          totalAvail += arr.length;
-          if (!arr.length) {
-            return '<div class="disp__section-h"><h2>' + esc(FLIGHT_NAMES[fl]) + ' Flight</h2><span class="disp__pool">' + money(pools[fl]) + ' pool</span></div>'
-              + '<p class="disp__empty-msg">All ' + esc(FLIGHT_NAMES[fl]) + ' teams sold.</p>';
-          }
-          var cards = arr.map(function (r) {
-            var f = r.fields || {};
-            var tn = teamNumbers[r.id];
-            var badge = tn ? ('T-' + String(tn).padStart(2, "0")) : '—';
-            return '<div class="disp__team"><span class="disp__tnum">' + esc(badge) + '</span>'
-              + '<span class="disp__team-name">' + esc(teamShortNames(f)) + '</span></div>';
-          }).join("");
-          return '<div class="disp__section-h"><h2>' + esc(FLIGHT_NAMES[fl]) + ' Flight</h2><span class="disp__pool">' + money(pools[fl]) + ' pool · ' + arr.length + ' available</span></div>'
-            + '<div class="disp__grid">' + cards + '</div>';
+        if (!recs.length) { body.innerHTML = '<p class="disp__empty-msg">No teams registered yet.</p>'; return; }
+
+        var available = recs.filter(function (r) { return !isSold(r); });
+        var sold = recs.filter(isSold);
+        available.sort(function (a, b) { return (teamNumbers[a.id] || 999) - (teamNumbers[b.id] || 999); });
+        // Sold band ordered high-to-low $ so the marquee sales sit on top.
+        sold.sort(function (a, b) {
+          var diff = buyAmount(b) - buyAmount(a); if (diff) return diff;
+          return (teamNumbers[a.id] || 999) - (teamNumbers[b.id] || 999);
         });
 
-        // Unassigned teams (before flights are cut on Day 1).
-        var una = (groups[0] || []).filter(function (r) { return String((r.fields || {}).Buyer || "").trim() === ""; });
-        if (una.length) {
-          una.sort(function (a, b) { return (teamNumbers[a.id] || 999) - (teamNumbers[b.id] || 999); });
-          totalAvail += una.length;
-          var cards = una.map(function (r) {
-            var f = r.fields || {};
-            var tn = teamNumbers[r.id];
-            var badge = tn ? ('T-' + String(tn).padStart(2, "0")) : '—';
-            return '<div class="disp__team"><span class="disp__tnum">' + esc(badge) + '</span>'
-              + '<span class="disp__team-name">' + esc(teamShortNames(f)) + '</span></div>';
-          }).join("");
-          sections.push('<div class="disp__section-h"><h2>Unassigned</h2><span class="disp__pool">' + una.length + ' teams</span></div>'
-            + '<div class="disp__grid">' + cards + '</div>');
-        }
-
-        if (totalAvail === 0 && recs.length > 0) {
-          body.innerHTML = '<p class="disp__empty-msg disp__empty-msg--all">All teams sold. Enjoy the auction!</p>';
-        } else if (recs.length === 0) {
-          body.innerHTML = '<p class="disp__empty-msg">No teams registered yet.</p>';
+        var html = "";
+        if (available.length) {
+          html += '<div class="band band--avail"><div class="band__hdr"><h2>Available</h2><span class="band__meta">' + available.length + ' teams · up for bid</span></div>' + sectionsFor(available, teamNumbers, false, hasFlights) + '</div>';
         } else {
-          body.innerHTML = sections.join("");
+          html += '<p class="disp__empty-msg disp__empty-msg--all">All teams sold. Enjoy the auction!</p>';
         }
+        if (sold.length) {
+          html += '<div class="band band--sold"><div class="band__hdr"><h2>Sold</h2><span class="band__meta">' + sold.length + ' teams · ' + money(grandPool) + ' in the pool</span></div>' + sectionsFor(sold, teamNumbers, true, hasFlights) + '</div>';
+        }
+        body.innerHTML = html;
       }
 
       function updateFooter() {
@@ -232,7 +247,6 @@
       refresh();
       setInterval(refresh, REFRESH_MS);
 
-      // Hide cursor after idle.
       var idleT = null;
       function nudge() { document.body.classList.remove("idle"); clearTimeout(idleT); idleT = setTimeout(function () { document.body.classList.add("idle"); }, 4000); }
       ["mousemove", "keydown", "touchstart"].forEach(function (ev) { window.addEventListener(ev, nudge, { passive: true }); });
