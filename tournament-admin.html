@@ -177,15 +177,24 @@
         </section>
 
         <!-- Flighting + Leaderboard -->
-        <section class="noms wb-sheet" data-sheet="flights" id="twBoard" aria-label="Leaderboard">
+        <section class="noms wb-sheet" data-sheet="flights" id="twBoard" aria-label="Leaderboard" hidden>
           <div class="noms__bar">
             <h3 class="noms__title">Flights &amp; Leaderboard</h3>
-            <button class="btn btn--solid" type="button" id="lbRefresh">Refresh</button>
+            <div class="noms__bar-actions">
+              <button class="btn btn--primary" type="button" id="lbPrint">Print now</button>
+            </div>
           </div>
 
-          <details class="lb-cut" id="lbCut">
+          <details class="lb-cut" id="lbCut" open>
             <summary>Set the flight cuts (after Day 1)</summary>
-            <p class="scaffold__desc">Teams are ranked by Day-1 gross. Drag the sliders to choose how many teams go in each flight, then save.</p>
+            <div class="lb-flcount">
+              <span class="lb-flcount__lbl">Flights</span>
+              <button class="lb-flcount__btn" type="button" id="lbFlDec" aria-label="Remove a flight">&minus;</button>
+              <b class="lb-flcount__n" id="lbFlNum">4</b>
+              <button class="lb-flcount__btn" type="button" id="lbFlInc" aria-label="Add a flight">+</button>
+              <span class="lb-flcount__note">Sliders below update to match &mdash; then Save flights.</span>
+            </div>
+            <p class="scaffold__desc">Teams are ranked by Day-1 gross. Drag each cut to size the flights, then save.</p>
             <div id="lbCutControls"></div>
             <div class="sc__foot">
               <button class="btn btn--primary" type="button" id="lbSaveFlights">Save flights</button>
@@ -887,8 +896,9 @@
           return '<tr data-id="' + esc(rec.id) + '"><td class="sc-tbl__team">' + esc(scTeamLabel(rec)) + '</td>' + cells + '</tr>';
         }).join("");
 
-        host.innerHTML = '<div class="sc-tbl-wrap"><table class="sc-tbl">' + head + '<tbody>' + body + '</tbody></table></div>'
-          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error.</p>';
+        host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /></div>'
+          + '<div class="sc-tbl-wrap"><table class="sc-tbl">' + head + '<tbody>' + body + '</tbody></table></div>'
+          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right.</p>';
 
         wireScoresGrid(host, day);
         Array.prototype.forEach.call(host.querySelectorAll("tr[data-id]"), function (row) {
@@ -896,8 +906,31 @@
         });
       }
 
+      // Focus the numeric input at (rowIdx, colIdx) in the currently-visible rows.
+      function scFocusCell(host, rowIdx, colIdx) {
+        var visRows = Array.prototype.filter.call(host.querySelectorAll("tbody tr[data-id]"), function (r) { return !r.hasAttribute("data-hidden"); });
+        var row = visRows[rowIdx]; if (!row) return;
+        var cell = row.querySelectorAll(".sc-cell")[colIdx]; if (!cell) return;
+        cell.focus(); try { cell.select(); } catch (e) {}
+      }
+
       function wireScoresGrid(host, day) {
+        // Row filter — hide rows whose team name doesn't match (case-insensitive substring).
+        var filt = host.querySelector("#scFilter");
+        if (filt) {
+          filt.addEventListener("input", function () {
+            var q = filt.value.trim().toLowerCase();
+            Array.prototype.forEach.call(host.querySelectorAll("tbody tr[data-id]"), function (tr) {
+              var nm = String(tr.querySelector(".sc-tbl__team").textContent || "").toLowerCase();
+              var hit = !q || nm.indexOf(q) !== -1;
+              tr.style.display = hit ? "" : "none";
+              if (hit) tr.removeAttribute("data-hidden"); else tr.setAttribute("data-hidden", "1");
+            });
+          });
+        }
+
         Array.prototype.forEach.call(host.querySelectorAll(".sc-cell"), function (inp) {
+          inp.addEventListener("focus", function () { try { inp.select(); } catch (e) {} });
           inp.addEventListener("input", function () {
             var row = inp.closest("tr");
             var id = row.getAttribute("data-id");
@@ -907,14 +940,20 @@
             if (scPendingSave[id + ":" + day]) clearTimeout(scPendingSave[id + ":" + day]);
             scPendingSave[id + ":" + day] = setTimeout(function () { saveScoreRow(row, day); }, 900);
           });
-          // Tab-friendly: Enter jumps to the next cell horizontally, then next row.
+          // Spreadsheet keys: Arrows move around; Enter = right; Tab = right (native).
+          // Up/Down override the number-input increment (a golfer doesn't want +1 on a scorecard).
           inp.addEventListener("keydown", function (e) {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              var cells = Array.prototype.slice.call(host.querySelectorAll(".sc-cell"));
-              var idx = cells.indexOf(inp);
-              var next = cells[idx + 1]; if (next) next.focus();
-            }
+            var row = inp.closest("tr");
+            var visRows = Array.prototype.filter.call(host.querySelectorAll("tbody tr[data-id]"), function (r) { return !r.hasAttribute("data-hidden"); });
+            var rowIdx = visRows.indexOf(row);
+            var rowCells = Array.prototype.slice.call(row.querySelectorAll(".sc-cell"));
+            var colIdx = rowCells.indexOf(inp);
+            var moved = false;
+            if (e.key === "Enter" || e.key === "ArrowRight") { scFocusCell(host, rowIdx, colIdx + 1); moved = true; }
+            else if (e.key === "ArrowLeft") { scFocusCell(host, rowIdx, colIdx - 1); moved = true; }
+            else if (e.key === "ArrowDown") { scFocusCell(host, rowIdx + 1, colIdx); moved = true; }
+            else if (e.key === "ArrowUp") { scFocusCell(host, rowIdx - 1, colIdx); moved = true; }
+            if (moved) e.preventDefault();
           });
         });
       }
@@ -1571,9 +1610,22 @@
         body.innerHTML = out || '<p class="noms__msg">No Day-1 scores yet — enter scores, then set the flight cuts above.</p>';
       }
 
+      // Bump the flight count up or down (min 1, max 8), persist via loadCalc/saveCalc,
+      // then re-render so the sliders + standings pick up the new count immediately.
+      function bumpFlights(delta) {
+        var cfg = loadCalc();
+        var nF = Math.max(1, Math.min(8, (cfg.flights || 4) + delta));
+        cfg.flights = nF;
+        try { localStorage.setItem(CALCK, JSON.stringify(cfg)); } catch (e) {}
+        // Reset stored cuts so loadCuts() recomputes them evenly for the new count.
+        try { localStorage.removeItem(CUTK); } catch (e) {}
+        renderBoard(scAllCache);
+      }
+
       function renderBoard(all) {
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         var cfg = loadCalc(), nF = cfg.flights || 4;
+        var nEl = document.getElementById("lbFlNum"); if (nEl) nEl.textContent = nF;
         boardSorted = recs.filter(function (r) { return d1g(r) != null; }).sort(function (a, b) { return d1g(a) - d1g(b); });
         renderCutControls(boardSorted, nF, loadCuts(nF, boardSorted.length));
         renderStandings(recs, cfg);
@@ -1703,10 +1755,20 @@
         if (er) er.addEventListener("click", loadExpenses);
         var ea = document.getElementById("expAdd");
         if (ea) ea.addEventListener("click", addExpense);
-        var lbr = document.getElementById("lbRefresh");
-        if (lbr) lbr.addEventListener("click", loadRoster);
         var lbs = document.getElementById("lbSaveFlights");
         if (lbs) lbs.addEventListener("click", saveFlights);
+        var lbInc = document.getElementById("lbFlInc");
+        if (lbInc) lbInc.addEventListener("click", function () { bumpFlights(+1); });
+        var lbDec = document.getElementById("lbFlDec");
+        if (lbDec) lbDec.addEventListener("click", function () { bumpFlights(-1); });
+        var lbPr = document.getElementById("lbPrint");
+        if (lbPr) lbPr.addEventListener("click", function () {
+          document.body.classList.add("is-print-lb");
+          function cleanup() { document.body.classList.remove("is-print-lb"); window.removeEventListener("afterprint", cleanup); }
+          window.addEventListener("afterprint", cleanup);
+          setTimeout(function () { window.print(); }, 30);
+          setTimeout(cleanup, 2000);
+        });
         var prp = document.getElementById("prPrint");
         if (prp) prp.addEventListener("click", function () {
           var sel = document.getElementById("prPrintWhich");

@@ -830,18 +830,36 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .sc-tab:hover { border-color: var(--primary-green); }
 .sc-tab.is-active { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
 
-/* Scores — spreadsheet grid (sticky team column, sticky header row) */
-.sc-tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+/* Scores — filter toolbar above the grid */
+.sc-toolbar { display: flex; gap: 0.5rem; align-items: center; margin: 0 0 0.6rem 0; }
+.sc-filter { flex: 1; max-width: 24rem; padding: 0.55rem 0.8rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.92rem; background: #fff; }
+.sc-filter:focus { border-color: var(--primary-green); outline: none; }
+
+/* Scores — spreadsheet grid (sticky team column, sticky header row).
+   Breaks out of the 1140px container to use the full viewport width so a
+   32-team roster with 20 hole columns fits without heroic side-scrolling. */
+.sc-tbl-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  margin-left: calc(50% - 50vw + 1rem);
+  margin-right: calc(50% - 50vw + 1rem);
+  width: calc(100vw - 2rem);
+  max-width: calc(100vw - 2rem);
+  box-sizing: border-box;
+}
 .sc-tbl { border-collapse: separate; border-spacing: 0; font-size: 0.88rem; width: 100%; }
-.sc-tbl th, .sc-tbl td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 0.35rem 0.4rem; text-align: center; white-space: nowrap; background: #fff; }
-.sc-tbl thead th { position: sticky; top: 0; z-index: 3; background: var(--paper-2); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--primary-green); }
-.sc-tbl thead th small { display: block; color: var(--muted); font-weight: 400; font-size: 0.65rem; text-transform: none; letter-spacing: 0; }
-.sc-tbl th.sc-tbl__team, .sc-tbl td.sc-tbl__team { position: sticky; left: 0; z-index: 2; text-align: left; min-width: 12rem; max-width: 14rem; font-weight: 700; background: var(--paper-2); }
+.sc-tbl th, .sc-tbl td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 0.3rem 0.35rem; text-align: center; white-space: nowrap; background: #fff; }
+.sc-tbl thead th { position: sticky; top: 0; z-index: 3; background: var(--paper-2); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--primary-green); padding: 0.35rem 0.25rem; }
+.sc-tbl thead th small { display: block; color: var(--muted); font-weight: 400; font-size: 0.62rem; text-transform: none; letter-spacing: 0; }
+.sc-tbl th.sc-tbl__team, .sc-tbl td.sc-tbl__team { position: sticky; left: 0; z-index: 2; text-align: left; min-width: 11rem; max-width: 13rem; font-weight: 700; background: var(--paper-2); }
 .sc-tbl thead th.sc-tbl__team { z-index: 4; }
-.sc-tbl__loop { font-weight: 800; color: var(--primary-green); background: var(--paper-2) !important; }
-.sc-tbl__total { font-weight: 800; color: var(--primary-green); background: var(--paper-2) !important; min-width: 4.6rem; position: relative; }
-.sc-tbl__c { padding: 0.15rem !important; }
-.sc-cell { width: 2.6rem; padding: 0.35rem 0.15rem; border: 1px solid transparent; border-radius: 4px; font: inherit; font-size: 0.95rem; text-align: center; background: transparent; color: var(--ink); }
+.sc-tbl__h { min-width: 2.6rem; }
+.sc-tbl__loop { font-weight: 800; color: var(--primary-green); background: var(--paper-2) !important; min-width: 2.8rem; }
+.sc-tbl__total { font-weight: 800; color: var(--primary-green); background: var(--paper-2) !important; min-width: 4rem; position: relative; }
+.sc-tbl__c { padding: 0.1rem !important; }
+.sc-cell { width: 100%; min-width: 2.2rem; max-width: 2.6rem; padding: 0.4rem 0.1rem; border: 1px solid transparent; border-radius: 4px; font: inherit; font-size: 0.95rem; text-align: center; background: transparent; color: var(--ink); }
 .sc-cell:hover, .sc-cell:focus { border-color: var(--primary-green); outline: none; background: #fff; }
 .sc-cell.is-under { background: rgba(43,122,61,0.18); color: #1e5c2d; font-weight: 700; }
 .sc-cell.is-over { background: rgba(177,30,45,0.15); color: var(--red-deep); font-weight: 700; }
@@ -901,6 +919,14 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 /* Flights + Leaderboard */
 .lb-cut { margin-bottom: 1rem; background: var(--paper-2); border-radius: 10px; padding: 0.6rem 0.9rem; }
 .lb-cut summary { cursor: pointer; font-weight: 700; color: var(--primary-green); }
+
+/* Flight count +/- control (Leaderboard) */
+.lb-flcount { display: flex; align-items: center; gap: 0.5rem; margin: 0.6rem 0 0.4rem; flex-wrap: wrap; }
+.lb-flcount__lbl { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; color: var(--muted); }
+.lb-flcount__btn { width: 2rem; height: 2rem; border: 1px solid var(--primary-green); background: #fff; color: var(--primary-green); border-radius: 50%; font: inherit; font-size: 1.1rem; font-weight: 800; cursor: pointer; line-height: 1; padding: 0; }
+.lb-flcount__btn:hover { background: var(--primary-green); color: #fff; }
+.lb-flcount__n { min-width: 1.4rem; text-align: center; font-family: var(--font-display); font-size: 1.4rem; color: var(--primary-green); }
+.lb-flcount__note { font-size: 0.82rem; color: var(--muted); margin-left: 0.4rem; }
 .lb-slider { display: flex; align-items: center; gap: 0.6rem; margin: 0.6rem 0; font-weight: 600; color: var(--ink); flex-wrap: wrap; }
 .lb-range { flex: 1 1 200px; accent-color: var(--primary-green); }
 .lb-cutval { min-width: 2ch; text-align: right; color: var(--primary-green); }
@@ -1095,6 +1121,21 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
   body[class*="is-print-"] .pr-tee__amp { font-size: 13pt; font-weight: 800; padding: 0; }
   body[class*="is-print-"] .pr-team--empty { display: none !important; }
   body[class*="is-print-"] .pr-team__move { display: none !important; }
+
+  /* Leaderboard print — one flight per page */
+  body.is-print-lb .wb-sheet:not([data-sheet="flights"]) { display: none !important; }
+  body.is-print-lb .wb-sheet[data-sheet="flights"] { display: block !important; }
+  body.is-print-lb .lb-cut, body.is-print-lb .noms__bar { display: none !important; }
+  body.is-print-lb .lb-flight { page-break-after: always; page-break-inside: avoid; margin: 0 0 0.4rem 0; }
+  body.is-print-lb .lb-flight:last-child { page-break-after: auto; }
+  body.is-print-lb .lb-flight__title { font-size: 22pt; text-align: center; border-bottom: 3pt solid #000; padding-bottom: 6pt; margin-bottom: 10pt; color: #000; font-weight: 800; }
+  body.is-print-lb .lb-table { width: 100%; border-collapse: collapse; font-size: 12pt; }
+  body.is-print-lb .lb-table th { text-align: left; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.04em; color: #000; padding: 4pt 6pt; border-bottom: 2pt solid #000; }
+  body.is-print-lb .lb-table td { padding: 4pt 6pt; border-bottom: 1pt solid #444; }
+  body.is-print-lb .lb-table th:not(:first-child), body.is-print-lb .lb-table td:not(:first-child) { text-align: center; }
+  body.is-print-lb .lb-table tbody tr:nth-child(odd) { background: #f5f5f5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-lb .lb-place, body.is-print-lb .lb-cal { display: inline-block; padding: 1pt 4pt; font-size: 9pt; font-weight: 800; margin-left: 4pt; border: 1pt solid #000; border-radius: 3pt; }
+
   @page { margin: 0.5in; size: portrait; }
 }
 
