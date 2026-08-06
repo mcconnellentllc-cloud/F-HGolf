@@ -28,14 +28,13 @@
     body { background: radial-gradient(ellipse at top, var(--bg-2) 0%, var(--bg) 60%); }
 
     .disp { min-height: 100vh; display: flex; flex-direction: column; }
-    .disp__hero { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: clamp(0.75rem, 2vw, 1.5rem); padding: clamp(0.6rem, 1.5vw, 1.1rem) clamp(1rem, 2vw, 1.75rem) 0; }
-    .disp__hero::after { content: ""; grid-column: 1 / -1; height: 2px; background: linear-gradient(90deg, transparent 0%, var(--gold) 20%, var(--gold) 80%, transparent 100%); margin-top: clamp(0.4rem, 1vw, 0.7rem); }
-    .disp__logo { width: clamp(3.2rem, 6vw, 5rem); height: clamp(3.2rem, 6vw, 5rem); border-radius: 50%; background: #fff; padding: clamp(0.25rem, 0.5vw, 0.4rem); box-shadow: 0 0 0 2px var(--gold), 0 0 0 4px rgba(245,197,66,0.15); object-fit: contain; }
+    .disp__hero { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: clamp(0.75rem, 2vw, 1.5rem); padding: clamp(0.8rem, 1.6vw, 1.2rem) clamp(1rem, 2vw, 1.75rem); background: #000; border-bottom: 3px solid #000; }
+    .disp__logo { width: clamp(3.2rem, 6vw, 5rem); height: clamp(3.2rem, 6vw, 5rem); border-radius: 50%; background: #fff; padding: clamp(0.25rem, 0.5vw, 0.4rem); box-shadow: 0 0 0 3px #000, 0 0 0 5px rgba(255,255,255,0.15); object-fit: contain; }
     .disp__logo--r { justify-self: end; }
     .disp__hero__title { text-align: center; }
-    .disp__eyebrow { text-transform: uppercase; letter-spacing: 0.4em; color: var(--gold); font-weight: 700; font-size: clamp(0.65rem, 1vw, 0.9rem); }
-    .disp__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(1.9rem, 4.6vw, 3.8rem); margin: 0.1em 0 0; line-height: 1; letter-spacing: 0.01em; }
-    .disp__sub { color: var(--muted); font-size: clamp(0.85rem, 1.3vw, 1.1rem); margin: 0.15em 0 0; font-style: italic; }
+    .disp__eyebrow { text-transform: uppercase; letter-spacing: 0.4em; color: #fff; font-weight: 800; font-size: clamp(0.65rem, 1vw, 0.9rem); }
+    .disp__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(1.9rem, 4.6vw, 3.8rem); margin: 0.1em 0 0; line-height: 1; letter-spacing: 0.01em; color: #fff; }
+    .disp__sub { color: rgba(255,255,255,0.75); font-size: clamp(0.85rem, 1.3vw, 1.1rem); margin: 0.15em 0 0; font-style: italic; }
 
     .disp__strip { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: clamp(0.35rem, 0.8vw, 0.7rem); padding: clamp(0.4rem, 1vw, 0.75rem) clamp(0.8rem, 1.8vw, 1.4rem); }
     .disp__strip--stacked { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr)); }
@@ -102,7 +101,7 @@
       <div class="disp__hero__title">
         <div class="disp__eyebrow">Live Calcutta Auction</div>
         <h1 class="disp__title">2026 Founders</h1>
-        <p class="disp__sub">F&amp;H Golf Course · Fleming, Colorado · Aug 8&ndash;9</p>
+        <p class="disp__sub">F&amp;H Golf Course · Aug 8&ndash;9</p>
       </div>
       <img class="disp__logo disp__logo--r" src="images/logo.png" alt="" aria-hidden="true" />
     </header>
