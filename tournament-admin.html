@@ -497,16 +497,70 @@
         renderPL();
       }
 
-      // ---- Expenses & P&L (with register reconciliation) ----
+      // ---- Tournament P&L (assumption: 2 players / team, all paid) ----
+      // Course perspective — income vs course expenses. Player payouts (flight
+      // prizes + Calcutta payouts) are surfaced separately as a sanity check
+      // that "money in = money out" for the tournament pot itself.
       function renderPL() {
         var el = document.getElementById("twPL"); if (!el) return;
-        var net = collectedTotal - expensesTotal;
-        el.innerHTML = '<div class="pl__row"><span>Collected</span><strong>' + money(collectedTotal) + "</strong></div>"
-          + '<div class="pl__row"><span>Cash</span><strong>' + money(cashTotal) + "</strong></div>"
-          + '<div class="pl__row"><span>Checks</span><strong>' + money(checkTotal) + "</strong></div>"
-          + (cardTotal ? '<div class="pl__row"><span>Card</span><strong>' + money(cardTotal) + "</strong></div>" : "")
-          + '<div class="pl__row"><span>Expenses</span><strong>' + money(expensesTotal) + "</strong></div>"
-          + '<div class="pl__row pl__row--net"><span>Net (P&amp;L)</span><strong class="' + (net < 0 ? "is-neg" : "is-pos") + '">' + money(net) + "</strong></div>";
+        var cfg = loadCalc();
+        var teams = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        var teamCount = teams.length;
+        var players = teamCount * 2;
+
+        var entryPP = cfg.entryPP || 0, greenPP = cfg.greenFeePP || 0, mealPP = cfg.mealPP || 0, otherPP = cfg.otherPP || 0;
+        var entryIncome = players * entryPP;
+        var calcuttaPool = teams.reduce(function (s, r) { var v = (r.fields || {})["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
+        var totalIncome = entryIncome + calcuttaPool;
+
+        var greenFees = players * greenPP;
+        var meals = players * mealPP;
+        var otherPerPlayer = players * otherPP;
+        var comm = (cfg.calcuttaCommission || 0) / 100;
+        var calcuttaCommission = calcuttaPool * comm;
+        var calcuttaPayout = Math.max(0, calcuttaPool - calcuttaCommission);
+        var flightPrizePool = Math.max(0, (entryPP - greenPP - mealPP - otherPP) * players);
+        var totalPlayerPayouts = flightPrizePool + calcuttaPayout;
+
+        var courseRevenue = greenFees + meals + otherPerPlayer + calcuttaCommission;
+        var manualExp = expensesTotal;
+        var courseNet = courseRevenue - manualExp;
+
+        function row(label, amt, cls) { return '<div class="pl__row' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><strong>' + money(amt) + '</strong></div>'; }
+        function subtotal(label, amt) { return '<div class="pl__row pl__row--sub"><span>' + label + '</span><strong>' + money(amt) + '</strong></div>'; }
+
+        el.innerHTML =
+          '<div class="pl__meta">Field: <b>' + teamCount + '</b> teams &middot; <b>' + players + '</b> players (2 / team assumed)</div>'
+          + '<div class="pl__section pl__section--in">'
+          + '<h4 class="pl__hdr">Income</h4>'
+          + row("Entry fees (" + players + " × " + money(entryPP) + ")", entryIncome)
+          + row("Calcutta pool", calcuttaPool)
+          + subtotal("Total income", totalIncome)
+          + '</div>'
+
+          + '<div class="pl__section pl__section--out">'
+          + '<h4 class="pl__hdr">Player payouts</h4>'
+          + row("Flight prize pool (goes back to players)", flightPrizePool)
+          + row("Calcutta payouts (pool − commission)", calcuttaPayout)
+          + subtotal("Total to players", totalPlayerPayouts)
+          + '</div>'
+
+          + '<div class="pl__section pl__section--rev">'
+          + '<h4 class="pl__hdr">Course revenue</h4>'
+          + row("Green fees (" + players + " × " + money(greenPP) + ")", greenFees)
+          + row("Meals (" + players + " × " + money(mealPP) + ")", meals)
+          + (otherPerPlayer ? row("Other (" + players + " × " + money(otherPP) + ")", otherPerPlayer) : "")
+          + row("Calcutta commission (" + (comm * 100) + "%)", calcuttaCommission)
+          + subtotal("Gross course revenue", courseRevenue)
+          + '</div>'
+
+          + '<div class="pl__section pl__section--exp">'
+          + '<h4 class="pl__hdr">Course expenses</h4>'
+          + row("Steaks / trophies / supplies (from expense list below)", manualExp)
+          + subtotal("Total expenses", manualExp)
+          + '</div>'
+
+          + '<div class="pl__row pl__row--net"><span>Net P&amp;L (course)</span><strong class="' + (courseNet < 0 ? "is-neg" : "is-pos") + '">' + money(courseNet) + "</strong></div>";
       }
 
       function renderExpenses(records) {
@@ -2089,7 +2143,7 @@
           var row = inp.closest("tr");
           row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
           if (caPending[id]) clearTimeout(caPending[id]);
-          caPending[id] = setTimeout(function () { saveCalcuttaRow(id, row); }, 700);
+          caPending[id] = setTimeout(function () { updateCacheBuys(id, row); saveCalcuttaRow(id, row); renderPL(); }, 700);
         }
         Array.prototype.forEach.call(host.querySelectorAll(".ca-buyer"), function (inp) { inp.addEventListener("input", function () { onEdit(inp, "buyer"); }); });
         Array.prototype.forEach.call(host.querySelectorAll(".ca-clear"), function (btn) {
@@ -2157,7 +2211,21 @@
       }
 
       // As the user types amounts, recompute pool/payout numbers in place without
-      // a full re-render (which would blow away focus + partial edits).
+      // a full re-render (which would blow away focus + partial edits). Also
+      // rewrite the Calcutta rows in scAllCache so the $ Summary P&L stays live.
+      function updateCacheBuys(id, row) {
+        var i;
+        for (i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) break;
+        if (i >= scAllCache.length) return;
+        var f = scAllCache[i].fields || {};
+        var amt = row.querySelector(".ca-amt"), buyer = row.querySelector(".ca-buyer");
+        if (amt) {
+          var v = amt.value.trim();
+          f["Buy Amount"] = (v === "" ? null : Number(v));
+        }
+        if (buyer) f["Buyer"] = buyer.value;
+        scAllCache[i].fields = f;
+      }
       function recomputeCalcuttaTotals(host) {
         var cfg = loadCalc(), comm = (cfg.calcuttaCommission || 0) / 100;
         var split = cfg.calcuttaSplit || [40, 30, 20, 10];
@@ -2501,41 +2569,127 @@
         return JSON.parse(JSON.stringify(CALC_DEFAULTS));
       }
       function numIn(id, val, step) { return '<input type="number" id="' + id + '" value="' + val + '" step="' + (step || "any") + '" class="calc__in" />'; }
+
+      // How many teams are actually in the field (Founders excludes alternates).
+      // Assumption per the Calc tab: every team has 2 players, all paid.
+      function fieldTeamCount() {
+        var recs = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        return recs.length;
+      }
+      function money(n) { if (n == null || !isFinite(n)) return "$0"; return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+
       function renderCalcForm() {
         var c = loadCalc(), box = document.getElementById("calcForm");
         if (!box) return;
-        var pars = c.pars && c.pars.length === 18 ? c.pars : CALC_DEFAULTS.pars;
-        var parCells = pars.map(function (p, i) { return '<label class="sc__cell"><span>H' + (i + 1) + "</span><input type=\"number\" min=\"1\" max=\"8\" class=\"calc__par sc__in\" value=\"" + p + "\" /></label>"; }).join("");
         var gv = function (k, d) { return c[k] != null ? c[k] : d; };
         box.innerHTML =
-          '<div class="calc__grp"><h4>Money (per person)</h4>'
+          // Field summary — teams & players (assumption: 2 players per team, all paid).
+          '<div class="calc__summary" id="calcSummary"></div>'
+
+          + '<div class="calc__grp"><h4>Money (per person)</h4>'
+          + '<div class="calc__totals" id="calcMoneyTotals"></div>'
           + '<label class="calc__row">Entry fee $ ' + numIn("cEntry", gv("entryPP", 120), "1") + "</label>"
           + '<label class="calc__row">Green fee $ ' + numIn("cGreen", gv("greenFeePP", 20), "1") + "</label>"
           + '<label class="calc__row">Meals $ ' + numIn("cMeal", gv("mealPP", 30), "1") + "</label>"
           + '<label class="calc__row">Other $ ' + numIn("cOther", gv("otherPP", 0), "1") + "</label>"
-          + '<p class="calc__note">Prize pool = (entry − green − meal − other) × players. Green & meals go to the course.</p></div>'
+          + '<p class="calc__note">Assumes 2 players / team, all paid. Prize pool = (entry − green − meal − other) × players. Green &amp; meals go to the course.</p></div>'
+
           + '<div class="calc__grp"><h4>Handicap</h4>'
           + '<label class="calc__row">Multiplier (× stroke difference) ' + numIn("cMult", c.handicapMultiplier) + "</label>"
-          + '<p class="calc__note">HCP = (team Day-1 gross − flight-leader Day-1 gross) × multiplier. Net = Day-2 gross − HCP.</p></div>'
+          + '<p class="calc__note">HCP = (team Day-1 gross − flight-leader Day-1 gross) × multiplier. Net = 2-day gross − HCP.</p></div>'
+
           + '<div class="calc__grp"><h4>Flight prizes</h4>'
+          + '<div class="calc__totals" id="calcFlightTotals"></div>'
           + '<label class="calc__row">Number of flights ' + numIn("cFlights", c.flights, "1") + "</label>"
           + '<label class="calc__row">Pool — 1st % ' + numIn("cF1", c.flightSplit[0], "1") + "</label>"
           + '<label class="calc__row">2nd % ' + numIn("cF2", c.flightSplit[1], "1") + "</label>"
           + '<label class="calc__row">3rd % ' + numIn("cF3", c.flightSplit[2], "1") + "</label>"
           + '<label class="calc__row">Additional $ (added) ' + numIn("cAdd", gv("additionalFlight", 0), "1") + "</label>"
-          + '<p class="calc__note">Pool split by these %, ÷ # flights = each flight’s 1st/2nd/3rd. Additional $ is spread (add ÷ flights) ÷ 3 per place. Places by 2-day gross; ties split.</p></div>'
+          + '<p class="calc__note">Every flight pays the same 1st / 2nd / 3rd dollar amount. Flight budget = pool ÷ # flights. Each budget splits by these %. Places by 2-day gross; ties split.</p></div>'
+
           + '<div class="calc__grp"><h4>Calcutta (top 4 net)</h4>'
+          + '<div class="calc__totals" id="calcCalTotals"></div>'
           + '<label class="calc__row">Club commission % ' + numIn("cComm", c.calcuttaCommission, "1") + "</label>"
           + '<label class="calc__row">Payout — 1st % ' + numIn("cS1", c.calcuttaSplit[0], "1") + "</label>"
           + '<label class="calc__row">2nd % ' + numIn("cS2", c.calcuttaSplit[1], "1") + "</label>"
           + '<label class="calc__row">3rd % ' + numIn("cS3", c.calcuttaSplit[2], "1") + "</label>"
           + '<label class="calc__row">4th % ' + numIn("cS4", c.calcuttaSplit[3], "1") + "</label>"
-          + '<p class="calc__note">Per flight: pool × (100 − commission)%, split by these percents to the top 4 net.</p></div>'
-          + '<div class="calc__grp"><h4>Course pars (per hole)</h4><div class="sc__grid">' + parCells + "</div></div>";
+          + '<p class="calc__note">Per flight: pool × (100 − commission)%, split by these percents to the top 4 net.</p></div>';
+
+        // Live totals — recompute the summary + each section's header block
+        // any time a number changes so the math is always visible.
+        function readInputs() {
+          var g = function (id) { var el = document.getElementById(id); return el ? parseFloat(el.value) : NaN; };
+          return {
+            teams: fieldTeamCount(),
+            entryPP: isFinite(g("cEntry")) ? g("cEntry") : 0,
+            greenFeePP: isFinite(g("cGreen")) ? g("cGreen") : 0,
+            mealPP: isFinite(g("cMeal")) ? g("cMeal") : 0,
+            otherPP: isFinite(g("cOther")) ? g("cOther") : 0,
+            flights: parseInt(g("cFlights"), 10) || 1,
+            f1: g("cF1") || 0, f2: g("cF2") || 0, f3: g("cF3") || 0,
+            add: isFinite(g("cAdd")) ? g("cAdd") : 0,
+            comm: isFinite(g("cComm")) ? g("cComm") : 0,
+          };
+        }
+        function refreshTotals() {
+          var v = readInputs();
+          var players = v.teams * 2;
+          var entryTotal = players * v.entryPP;
+          var courseTotal = players * (v.greenFeePP + v.mealPP);
+          var otherTotal = players * v.otherPP;
+          var pool = Math.max(0, entryTotal - courseTotal - otherTotal);
+          var perFlight = v.flights > 0 ? (pool / v.flights) : 0;
+          var pctSum = v.f1 + v.f2 + v.f3;
+          var addPerFlight = v.flights > 0 ? (v.add / v.flights) : 0;
+
+          var sum = document.getElementById("calcSummary");
+          if (sum) {
+            sum.innerHTML =
+              '<div class="calc__sum-row">'
+              + '<span class="calc__sum-cell"><b>' + v.teams + '</b><small>teams</small></span>'
+              + '<span class="calc__sum-cell"><b>' + players + '</b><small>players (2 per team)</small></span>'
+              + '<span class="calc__sum-cell"><b>' + money(entryTotal) + '</b><small>total entry collected</small></span>'
+              + '<span class="calc__sum-cell calc__sum-cell--good"><b>' + money(pool) + '</b><small>prize pool</small></span>'
+              + '</div>';
+          }
+          var mt = document.getElementById("calcMoneyTotals");
+          if (mt) {
+            mt.innerHTML =
+              '<div class="calc__tot-row">'
+              + '<span class="calc__tot"><small>Entry in</small><b>' + money(entryTotal) + '</b></span>'
+              + '<span class="calc__tot calc__tot--neg"><small>To course (green + meal)</small><b>&minus; ' + money(courseTotal) + '</b></span>'
+              + (otherTotal ? '<span class="calc__tot calc__tot--neg"><small>Other</small><b>&minus; ' + money(otherTotal) + '</b></span>' : '')
+              + '<span class="calc__tot calc__tot--pool"><small>Prize pool</small><b>' + money(pool) + '</b></span>'
+              + '</div>';
+          }
+          var ft = document.getElementById("calcFlightTotals");
+          if (ft) {
+            var perPlaceHtml = "";
+            [v.f1, v.f2, v.f3].forEach(function (pct, i) {
+              var lbl = ["1st", "2nd", "3rd"][i];
+              var amt = (perFlight * (pct / 100)) + (addPerFlight / 3);
+              perPlaceHtml += '<span class="calc__prize"><small>' + lbl + '</small><b>' + money(amt) + '</b></span>';
+            });
+            ft.innerHTML =
+              '<div class="calc__tot-row">'
+              + '<span class="calc__tot calc__tot--pool"><small>Prize pool</small><b>' + money(pool) + '</b></span>'
+              + '<span class="calc__tot"><small>÷ ' + v.flights + ' flights</small><b>' + money(perFlight) + '</b></span>'
+              + '</div><div class="calc__prizes">' + perPlaceHtml + '</div>'
+              + (pctSum !== 100 ? '<p class="calc__warn">Split % add to ' + pctSum + '% (should be 100%).</p>' : '');
+          }
+          var ct = document.getElementById("calcCalTotals");
+          if (ct) {
+            ct.innerHTML = '<div class="calc__tot-row"><span class="calc__tot"><small>Course commission</small><b>' + v.comm + '%</b></span></div>';
+          }
+        }
+        refreshTotals();
+        Array.prototype.forEach.call(box.querySelectorAll("input.calc__in"), function (el) {
+          el.addEventListener("input", refreshTotals);
+        });
       }
       function saveCalc() {
         var g = function (id) { var el = document.getElementById(id); return el ? parseFloat(el.value) : NaN; };
-        var pars = Array.prototype.map.call(document.querySelectorAll(".calc__par"), function (i) { return parseInt(i.value, 10) || 0; });
         var c = {
           entryPP: isFinite(g("cEntry")) ? g("cEntry") : 120,
           greenFeePP: isFinite(g("cGreen")) ? g("cGreen") : 20,
@@ -2547,12 +2701,15 @@
           additionalFlight: isFinite(g("cAdd")) ? g("cAdd") : 0,
           calcuttaCommission: isFinite(g("cComm")) ? g("cComm") : 10,
           calcuttaSplit: [g("cS1") || 0, g("cS2") || 0, g("cS3") || 0, g("cS4") || 0],
-          pars: pars.length === 18 ? pars : CALC_DEFAULTS.pars.slice()
+          pars: (loadCalc().pars || CALC_DEFAULTS.pars).slice()
         };
         try { localStorage.setItem(CALCK, JSON.stringify(c)); } catch (e) {}
         PARS = c.pars.slice(0, 18);
         var st = document.getElementById("calcStatus");
         if (st) { st.textContent = "Saved ✓"; setTimeout(function () { st.textContent = ""; }, 2000); }
+        // Refresh anything downstream that reads the Calc values live.
+        try { renderPL(); } catch (e) {}
+        try { renderBoard(scAllCache); renderLeaderboard(scAllCache); renderCalcutta(scAllCache); renderPayout(scAllCache); } catch (e) {}
       }
 
       document.addEventListener("DOMContentLoaded", function () {
