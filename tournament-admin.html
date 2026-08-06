@@ -2562,6 +2562,22 @@
 
       // ---- Calcutta — buyers, amounts, per-flight running payouts ----
       var caPending = {}; // signupId -> save timeout
+      // Flush every pending Calcutta save immediately (no wait for the 700ms
+      // debounce). Used when switching tabs so the Summary reflects the
+      // latest edits the moment it opens.
+      function flushCalcuttaPending() {
+        Object.keys(caPending).forEach(function (id) {
+          var t = caPending[id]; if (!t) return;
+          clearTimeout(t);
+          caPending[id] = null;
+          var host = document.getElementById("caBody");
+          var row = host && host.querySelector('tr[data-id="' + id + '"]');
+          if (!row) return;
+          updateCacheBuys(id, row);
+          saveCalcuttaRow(id, row);
+        });
+        try { renderPL(); } catch (e) {}
+      }
 
       function money(n) {
         if (n == null || !isFinite(n)) return "$0";
@@ -3558,6 +3574,13 @@
           // Load the public-display iframes lazily — only when their tab opens.
           if (s === "dispCalcutta" || s === "dispLeaderboard") mountDisplayTab(s);
           if (s === "history") loadHistory();
+          // Force a fresh Summary render on tab open. Flush any pending
+          // Calcutta saves first so buyers just typed on the Calcutta tab
+          // show up immediately here — no 700ms debounce wait.
+          if (s === "calcuttaSummary") {
+            try { flushCalcuttaPending(); } catch (e) {}
+            try { renderCalcuttaSummary(scAllCache); } catch (e) {}
+          }
         }
         Array.prototype.forEach.call(document.querySelectorAll(".wb-tab"), function (b) {
           b.addEventListener("click", function () { showSheet(b.getAttribute("data-sheet")); });
