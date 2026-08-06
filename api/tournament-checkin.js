@@ -68,9 +68,15 @@ module.exports = async (req, res) => {
     const n = Number(body[k]);
     if (!isNaN(n) && n >= 0 && n <= 1) fields[target] = n;
   });
+  // Per-player extra meal count (0..N). Accepts number or a boolean-ish value
+  // from older callers (true → 1, false → 0).
   ["p1ExtraMeal", "p2ExtraMeal"].forEach((k, i) => {
-    if (typeof body[k] !== "boolean") return;
-    fields[i === 0 ? "Player 1 Extra Meal" : "Player 2 Extra Meal"] = body[k];
+    if (body[k] === undefined) return;
+    const target = i === 0 ? "Player 1 Extra Meal" : "Player 2 Extra Meal";
+    if (body[k] === null || body[k] === "") { fields[target] = 0; return; }
+    if (typeof body[k] === "boolean") { fields[target] = body[k] ? 1 : 0; return; }
+    const n = Number(body[k]);
+    if (!isNaN(n) && n >= 0) fields[target] = Math.floor(n);
   });
   if (typeof body.playerName === "string") fields["Player Name"] = body.playerName.slice(0, 200);
   if (typeof body.teamPartners === "string") fields["Team / Partners"] = body.teamPartners.slice(0, 500);
@@ -80,6 +86,9 @@ module.exports = async (req, res) => {
   // Calcutta — buyer text + amount. Needs Buyer (text) + Buy Amount (number)
   // fields on Tournament Signups.
   if (typeof body.buyer === "string") fields["Buyer"] = body.buyer ? body.buyer.slice(0, 120) : null;
+  // Calcutta Paid — track that the buyer settled up (Cash / Check / Card /
+  // Online). Empty string clears it.
+  if (typeof body.calcuttaPaid === "string") fields["Calcutta Paid"] = body.calcuttaPaid ? body.calcuttaPaid.slice(0, 20) : null;
   if (body.buyAmount !== undefined) {
     if (body.buyAmount === null || body.buyAmount === "") fields["Buy Amount"] = null;
     else { var amt = Number(body.buyAmount); if (isFinite(amt) && amt >= 0) fields["Buy Amount"] = amt; }

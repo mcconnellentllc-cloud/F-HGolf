@@ -64,6 +64,7 @@
           <button type="button" class="wb-tab" data-sheet="scores" role="tab">Scores</button>
           <button type="button" class="wb-tab" data-sheet="flights" role="tab">Flights</button>
           <button type="button" class="wb-tab" data-sheet="calcutta" role="tab">Calcutta</button>
+          <button type="button" class="wb-tab" data-sheet="calcuttaSummary" role="tab">Calcutta Summary</button>
           <button type="button" class="wb-tab" data-sheet="leaderboard" role="tab">Leaderboard</button>
           <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
@@ -226,6 +227,15 @@
           </details>
 
           <div id="lbBody"><p class="noms__msg">Loading…</p></div>
+        </section>
+
+        <!-- Calcutta Summary — buyers grouped, teams they bought, payment status -->
+        <section class="noms wb-sheet" data-sheet="calcuttaSummary" id="twCalcuttaSummary" aria-label="Calcutta Summary" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Calcutta Summary</h3>
+          </div>
+          <p class="scaffold__desc">One card per buyer. Shows every team they bought, the running total they owe, and a paid check + method dropdown so you can track cash coming in the same way you check in entry fees.</p>
+          <div id="caSumBody"><p class="noms__msg">Loading…</p></div>
         </section>
 
         <!-- Leaderboard — full standings + winner flags -->
@@ -554,10 +564,15 @@
         var entryIncome = players * entryPP;
         var fullyPaid = paidPlayers >= players && players > 0;
         var calcuttaPool = teams.reduce(function (s, r) { var v = (r.fields || {})["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
-        // Extra meals — per-player checkboxes at check-in. Sum both players.
+        // Extra meals — per-player numeric counts at check-in. Sum both.
+        var mealNum = function (v) {
+          if (typeof v === "number") return Math.max(0, v);
+          if (v === true) return 1;
+          return 0;
+        };
         var extraMealsCount = teams.reduce(function (s, r) {
           var f = r.fields || {};
-          return s + (f["Player 1 Extra Meal"] === true ? 1 : 0) + (f["Player 2 Extra Meal"] === true ? 1 : 0);
+          return s + mealNum(f["Player 1 Extra Meal"]) + mealNum(f["Player 2 Extra Meal"]);
         }, 0);
         var extraMealsRevenue = extraMealsCount * extraMealFee;
         // Cart rental revenue = sum of per-player cart shares × cartFee.
@@ -571,13 +586,19 @@
         var cartRentalsCount = Math.round(cartSharesTotal); // whole carts (fractional halves add up)
         var totalIncome = entryIncome + calcuttaPool + extraMealsRevenue + cartRentalRevenue;
 
-        var greenFees = players * greenPP;
-        var meals = players * mealPP;
-        var otherRevenue = players * otherPP;
+        // Entry fees are the source of green + meal + other + prize pool. Each
+        // dollar coming into the course is tied to a paid entry, so revenue
+        // scales with paidPlayers — not the assumption model.
+        var greenFees = paidPlayers * greenPP;
+        var meals = paidPlayers * mealPP;
+        var otherRevenue = paidPlayers * otherPP;
         var calcuttaCommission = calcuttaPool * comm;
         var courseRevenue = greenFees + meals + extraMealsRevenue + cartRentalRevenue + otherRevenue + calcuttaCommission;
 
-        var flightPrizePool = Math.max(0, (entryPP - greenPP - mealPP - otherPP) * players);
+        // Flight prize pool is sized by the number of ENTRIES ACTUALLY
+        // COLLECTED — each paid player's contribution (entry − green − meal −
+        // other) goes into the prize pool. Unpaid players don't inflate it.
+        var flightPrizePool = Math.max(0, (entryPP - greenPP - mealPP - otherPP) * paidPlayers);
         var perFlightBudget = nFlights > 0 ? (flightPrizePool / nFlights) : 0;
         var addPerFlight = nFlights > 0 ? (addFlight / nFlights) : 0;
         var flightPrizes = flightSplit.map(function (pct) {
@@ -1013,8 +1034,10 @@
         var extraMealFee = cfg.extraMealFee || 0;
         var p1Cart = typeof f["Player 1 Cart Share"] === "number" ? f["Player 1 Cart Share"] : 0;
         var p2Cart = typeof f["Player 2 Cart Share"] === "number" ? f["Player 2 Cart Share"] : 0;
-        var p1Meal = f["Player 1 Extra Meal"] === true;
-        var p2Meal = f["Player 2 Extra Meal"] === true;
+        // Field is a Number now (used to be Checkbox). Keep coercion so a
+        // stray `true` from an older row still reads as 1.
+        var p1Meal = typeof f["Player 1 Extra Meal"] === "number" ? f["Player 1 Extra Meal"] : (f["Player 1 Extra Meal"] === true ? 1 : 0);
+        var p2Meal = typeof f["Player 2 Extra Meal"] === "number" ? f["Player 2 Extra Meal"] : (f["Player 2 Extra Meal"] === true ? 1 : 0);
         var m1 = f["Player 1 Paid"] || "", m2 = f["Player 2 Paid"] || "";
         // Every team is a pair — always render both slots, even if the second
         // partner name hasn't been entered yet (staff can add via the pencil
@@ -1023,7 +1046,7 @@
           { name: pp.p1, role: "p1", method: m1, cart: p1Cart, meal: p1Meal },
           { name: pp.p2, role: "p2", method: m2, cart: p2Cart, meal: p2Meal }
         ];
-        var playerOwed = function (t) { return entryPP + (t.cart * cartFee) + (t.meal ? extraMealFee : 0); };
+        var playerOwed = function (t) { return entryPP + (t.cart * cartFee) + (Number(t.meal) || 0) * extraMealFee; };
         var playerPaid = function (t) { return t.method ? playerOwed(t) : 0; };
         var totalOwed = players.reduce(function (s, t) { return s + playerOwed(t); }, 0);
         var totalPaid = players.reduce(function (s, t) { return s + playerPaid(t); }, 0);
@@ -1031,17 +1054,15 @@
         var tnBadge = teamNum != null ? String(teamNum).padStart(2, "0") : "—";
         var methodOpts = function (sel) {
           return ["", "Cash", "Check", "Card", "Online"].map(function (m) {
-            return '<option value="' + m + '"' + (m === sel ? " selected" : "") + ">" + (m || "not paid") + "</option>";
+            return '<option value="' + m + '"' + (m === sel ? " selected" : "") + ">" + (m || "method") + "</option>";
           }).join("");
         };
         var playerRows = players.map(function (t) {
           var paidCk = t.method ? " checked" : "";
-          var mealCk = t.meal ? " checked" : "";
-          var shortLabel = function (n) { n = String(n || "").trim().split(/\s+/); return n[0] || "Player"; };
           return '<div class="ci-p" data-role="' + esc(t.role) + '">'
             + '<div class="ci-p__name">' + nameCell(t.role, t.name) + '</div>'
             + '<label class="ci-check" title="Mark paid"><input type="checkbox" class="ci-paid-box" data-role="' + esc(t.role) + '"' + paidCk + ' /><span>Paid</span></label>'
-            + '<label class="ci-check" title="Extra meal ' + money(extraMealFee) + '"><input type="checkbox" class="ci__extra-meal" data-role="' + esc(t.role) + '"' + mealCk + ' /><span>+Meal</span></label>'
+            + '<label class="ci-meal" title="Extra meals × ' + money(extraMealFee) + '"><input type="number" min="0" max="10" step="1" class="ci__extra-meal" data-role="' + esc(t.role) + '" value="' + (Number(t.meal) || 0) + '" /><span>Meals</span></label>'
             + '<select class="ci-p__method" data-role="' + esc(t.role) + '">' + methodOpts(t.method) + '</select>'
             + '</div>';
         }).join("");
@@ -1051,11 +1072,13 @@
         var p1Name = (players[0] && players[0].name) || "P1";
         var p2Name = (players[1] && players[1].name) || "P2";
         var shortLabel = function (n) { n = String(n || "").trim().split(/\s+/); return n[0] || ""; };
+        var needRental = String(f["Cart Type"] || "").trim().toLowerCase() === "rental";
         var cartLine = '<div class="ci-cartline">'
           + '<span class="ci-cartline__lbl">Cart</span>'
           + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p1"' + (p1Cart === 0.5 ? " checked" : "") + ' /><span>' + esc(shortLabel(p1Name) || "P1") + ' ½ <small>' + money(cartFee / 2) + '</small></span></label>'
           + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p2"' + (p2Cart === 0.5 ? " checked" : "") + ' /><span>' + esc(shortLabel(p2Name) || "P2") + ' ½ <small>' + money(cartFee / 2) + '</small></span></label>'
           + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-full"' + (p1Cart === 1 || p2Cart === 1 ? " checked" : "") + ' /><span>Full <small>' + money(cartFee) + '</small></span></label>'
+          + '<label class="ci-check ci-check--cart ci-check--need"><input type="checkbox" class="ci-cart-need"' + (needRental ? " checked" : "") + ' /><span>Need rental</span></label>'
           + '</div>';
 
         return '<article class="ci-card' + (isAlt ? " is-alt" : "") + (totalPaid >= totalOwed && totalOwed > 0 ? " is-fully-paid" : "") + '" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
@@ -1180,22 +1203,41 @@
             });
           });
 
-          // Per-player extra meal checkbox.
+          // Per-player extra meal count (number input — 0..N).
           Array.prototype.forEach.call(card.querySelectorAll(".ci__extra-meal"), function (box) {
             var role = box.getAttribute("data-role");
             var payloadKey = role === "p1" ? "p1ExtraMeal" : "p2ExtraMeal";
             var cacheField = role === "p1" ? "Player 1 Extra Meal" : "Player 2 Extra Meal";
-            box.addEventListener("change", function () {
-              var p = {}; p[payloadKey] = box.checked;
-              saveCheckin(id, p, statusEl, box);
-              for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
-                scAllCache[i].fields = scAllCache[i].fields || {};
-                scAllCache[i].fields[cacheField] = box.checked;
-                break;
-              }
-              refreshCardTotals(card);
-              try { renderPL(); } catch (e) {}
+            var t = null;
+            box.addEventListener("input", function () {
+              clearTimeout(t);
+              t = setTimeout(function () {
+                var n = Math.max(0, Math.floor(Number(box.value) || 0));
+                var p = {}; p[payloadKey] = n;
+                saveCheckin(id, p, statusEl, box);
+                for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
+                  scAllCache[i].fields = scAllCache[i].fields || {};
+                  scAllCache[i].fields[cacheField] = n;
+                  break;
+                }
+                refreshCardTotals(card);
+                try { renderPL(); } catch (e) {}
+              }, 400);
             });
+          });
+
+          // Need Rental checkbox — writes "Rental" or "" to Cart Type. Purely
+          // informational (course inventory planning); billing stays on ½/Full.
+          var needBox = card.querySelector(".ci-cart-need");
+          if (needBox) needBox.addEventListener("change", function () {
+            var v = needBox.checked ? "Rental" : "";
+            saveCheckin(id, { cartType: v }, statusEl, needBox);
+            for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
+              scAllCache[i].fields = scAllCache[i].fields || {};
+              scAllCache[i].fields["Cart Type"] = v;
+              break;
+            }
+            try { renderPL(); } catch (e) {}
           });
 
           // Update button — recompute totals in-place from current state.
@@ -1261,8 +1303,9 @@
           var meth = pRow.querySelector(".ci-p__method");
           var mealBox = pRow.querySelector(".ci__extra-meal");
           var paidBox = pRow.querySelector(".ci-paid-box");
+          var mealCount = mealBox && mealBox.value ? Math.max(0, Number(mealBox.value) || 0) : 0;
           var cart = cartByRole[role] || 0;
-          var pOwed = entryPP + cart * cartFee + (mealBox && mealBox.checked ? extraMealFee : 0);
+          var pOwed = entryPP + cart * cartFee + mealCount * extraMealFee;
           owed += pOwed;
           if (meth && meth.value) paid += pOwed;
           if (paidBox) paidBox.checked = !!(meth && meth.value);
@@ -1881,7 +1924,7 @@
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderLeaderboard(res.j.records); renderCalcutta(res.j.records); renderPayout(res.j.records); renderPairings(res.j.records); }
+            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderLeaderboard(res.j.records); renderCalcutta(res.j.records); renderCalcuttaSummary(res.j.records); renderPayout(res.j.records); renderPairings(res.j.records); }
             else if (res.status === 401) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
             else { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
           })
@@ -2815,6 +2858,132 @@
         }
       }
 
+      // ---- Calcutta Summary tab ------------------------------------------
+      // Group signups by Buyer name → one card per buyer showing every team
+      // they bought + total owed + a Paid pill and Method dropdown. Paying
+      // a buyer marks Calcutta Paid on every signup with that name.
+      function renderCalcuttaSummary(all) {
+        var body = document.getElementById("caSumBody"); if (!body) return;
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        var caTeamNumbers = computeTeamNumbers(recs);
+        // Only rows with a Buyer + Buy Amount are auction items sold.
+        var sold = recs.filter(function (r) {
+          var f = r.fields || {};
+          return String(f["Buyer"] || "").trim() !== "" && typeof f["Buy Amount"] === "number";
+        });
+        if (!sold.length) { body.innerHTML = '<p class="noms__msg">No Calcutta buys yet. Once buyers are entered on the Calcutta tab they show up here.</p>'; return; }
+
+        // Bucket by normalized buyer name (case-insensitive trim); preserve
+        // whatever display casing showed up first.
+        var buckets = {};
+        var order = [];
+        sold.forEach(function (r) {
+          var f = r.fields || {};
+          var raw = String(f["Buyer"] || "").trim();
+          var key = raw.toLowerCase();
+          if (!buckets[key]) { buckets[key] = { display: raw, items: [], total: 0, paidMethod: "" }; order.push(key); }
+          buckets[key].items.push(r);
+          buckets[key].total += Number(f["Buy Amount"]) || 0;
+          // Any paid method on any of the buyer's items counts them paid.
+          var pm = String(f["Calcutta Paid"] || "").trim();
+          if (pm && !buckets[key].paidMethod) buckets[key].paidMethod = pm;
+        });
+        // Alphabetize by display name.
+        order.sort(function (a, b) { return buckets[a].display.toLowerCase().localeCompare(buckets[b].display.toLowerCase()); });
+
+        var methods = ["", "Cash", "Check", "Card", "Online"];
+        var methodOpts = function (sel) {
+          return methods.map(function (m) { return '<option value="' + m + '"' + (m === sel ? " selected" : "") + '>' + (m || "method") + '</option>'; }).join("");
+        };
+        var totalOwed = 0, totalPaid = 0;
+        var cards = order.map(function (k) {
+          var b = buckets[k];
+          totalOwed += b.total;
+          if (b.paidMethod) totalPaid += b.total;
+          var itemsHtml = b.items.slice().sort(function (x, y) { return (caTeamNumbers[x.id] || 0) - (caTeamNumbers[y.id] || 0); }).map(function (r) {
+            var f = r.fields || {};
+            var tn = caTeamNumbers[r.id];
+            var tag = tn ? 'T-' + String(tn).padStart(2, "0") : '—';
+            var team = teamShortNames(f);
+            return '<div class="cs-item"><span class="cs-item__tn">' + esc(tag) + '</span>'
+              + '<span class="cs-item__team">' + esc(team) + '</span>'
+              + '<span class="cs-item__amt">' + money(Number(f["Buy Amount"]) || 0) + '</span></div>';
+          }).join("");
+          var isPaid = !!b.paidMethod;
+          return '<article class="cs-card' + (isPaid ? " is-paid" : "") + '" data-buyer="' + esc(b.display) + '">'
+            + '<header class="cs-card__hd">'
+            + '<h4 class="cs-card__buyer">' + esc(b.display) + '</h4>'
+            + '<span class="cs-card__count">' + b.items.length + (b.items.length === 1 ? " team" : " teams") + '</span>'
+            + '<span class="ci__status cs-card__status"></span>'
+            + '</header>'
+            + '<div class="cs-card__items">' + itemsHtml + '</div>'
+            + '<footer class="cs-card__ft">'
+            + '<div class="cs-tot"><small>Total owed</small><b>' + money(b.total) + '</b></div>'
+            + '<label class="ci-check cs-paid" title="Mark buyer paid"><input type="checkbox" class="cs-paid-box"' + (isPaid ? " checked" : "") + ' /><span>Paid</span></label>'
+            + '<select class="cs-method">' + methodOpts(b.paidMethod) + '</select>'
+            + '</footer>'
+            + '</article>';
+        }).join("");
+
+        var strip = '<div class="cs-strip">'
+          + '<span><small>Buyers</small><b>' + order.length + '</b></span>'
+          + '<span><small>Teams sold</small><b>' + sold.length + '</b></span>'
+          + '<span><small>Total owed</small><b>' + money(totalOwed) + '</b></span>'
+          + '<span><small>Collected</small><b class="cs-strip__paid">' + money(totalPaid) + '</b></span>'
+          + '<span><small>Outstanding</small><b class="cs-strip__owe">' + money(Math.max(0, totalOwed - totalPaid)) + '</b></span>'
+          + '</div>';
+        body.innerHTML = strip + '<div class="cs-grid">' + cards + '</div>';
+
+        // Wire per-card paid checkbox + method dropdown. Applying a change
+        // patches Calcutta Paid on every signup with that buyer name.
+        Array.prototype.forEach.call(body.querySelectorAll(".cs-card"), function (card) {
+          var buyer = card.getAttribute("data-buyer");
+          var box = card.querySelector(".cs-paid-box");
+          var meth = card.querySelector(".cs-method");
+          var statusEl = card.querySelector(".cs-card__status");
+          function applyMethod(method) {
+            // Update the cache immediately so a re-render doesn't undo it.
+            var updated = 0;
+            scAllCache.forEach(function (r) {
+              var f = r.fields || {};
+              if (String(f["Buyer"] || "").trim().toLowerCase() === buyer.trim().toLowerCase()) {
+                f["Calcutta Paid"] = method || null;
+                updated++;
+              }
+            });
+            card.classList.toggle("is-paid", !!method);
+            if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "ci__status"; }
+            // Persist to Airtable — one PATCH per signup with a small delay.
+            var ids = scAllCache.filter(function (r) {
+              return String((r.fields || {})["Buyer"] || "").trim().toLowerCase() === buyer.trim().toLowerCase();
+            }).map(function (r) { return r.id; });
+            ids.reduce(function (chain, id) {
+              return chain.then(function () {
+                return fetch(FH_API.url("/api/tournament-checkin"), {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+                  body: JSON.stringify({ id: id, calcuttaPaid: method || "" })
+                }).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function () { return new Promise(function (r) { setTimeout(r, 100); }); });
+              });
+            }, Promise.resolve()).then(function () {
+              if (statusEl) { statusEl.textContent = "Saved ✓"; statusEl.className = "ci__status is-ok"; setTimeout(function () { statusEl.textContent = ""; }, 1500); }
+              renderCalcuttaSummary(scAllCache);
+            }).catch(function () {
+              if (statusEl) { statusEl.textContent = "Save error"; statusEl.className = "ci__status is-error"; }
+            });
+          }
+          if (box) box.addEventListener("change", function () {
+            var v = box.checked ? (meth.value || "Cash") : "";
+            if (meth) meth.value = v;
+            applyMethod(v);
+          });
+          if (meth) meth.addEventListener("change", function () {
+            if (box) box.checked = !!meth.value;
+            applyMethod(meth.value);
+          });
+        });
+      }
+
       // ---- Leaderboard tab (full standings + winner flags) ----
       function renderLeaderboard(all) {
         var body = document.getElementById("lbdBody"); if (!body) return;
@@ -3235,7 +3404,7 @@
         if (st) { st.textContent = "Saved ✓"; setTimeout(function () { st.textContent = ""; }, 2000); }
         // Refresh anything downstream that reads the Calc values live.
         try { renderPL(); } catch (e) {}
-        try { renderBoard(scAllCache); renderLeaderboard(scAllCache); renderCalcutta(scAllCache); renderPayout(scAllCache); } catch (e) {}
+        try { renderBoard(scAllCache); renderLeaderboard(scAllCache); renderCalcutta(scAllCache); renderCalcuttaSummary(scAllCache); renderPayout(scAllCache); } catch (e) {}
       }
 
       document.addEventListener("DOMContentLoaded", function () {
