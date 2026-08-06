@@ -1247,7 +1247,7 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
   /* Leaderboard print — one flight per page */
   body.is-print-lb .wb-sheet:not([data-sheet="flights"]) { display: none !important; }
   body.is-print-lb .wb-sheet[data-sheet="flights"] { display: block !important; }
-  body.is-print-lb .lb-cut, body.is-print-lb .noms__bar { display: none !important; }
+  body.is-print-lb .lb-cut, body.is-print-lb .noms__bar, body.is-print-lb .lb-strip, body.is-print-lb .lb-preview-note, body.is-print-lb .lb-inline-cut, body.is-print-lb .lb-slider, body.is-print-lb .tab-toolbar { display: none !important; }
   body.is-print-lb .lb-flight { page-break-after: always; page-break-inside: avoid; margin: 0 0 0.4rem 0; }
   body.is-print-lb .lb-flight:last-child { page-break-after: auto; }
   body.is-print-lb .lb-flight__title { font-size: 22pt; text-align: center; border-bottom: 3pt solid #000; padding-bottom: 6pt; margin-bottom: 10pt; color: #000; font-weight: 800; }
