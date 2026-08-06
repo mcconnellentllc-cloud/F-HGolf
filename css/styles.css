@@ -1529,6 +1529,35 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .past-tournaments__title { font-family: var(--font-display); font-size: clamp(1.3rem, 2.4vw, 1.7rem); color: var(--primary-green); margin: 0.15rem 0 0.5rem; }
 .past-tournaments__lead { color: var(--muted); margin: 0 0 1.1rem; font-size: 1rem; }
 
+/* ---- Calcutta Summary tab (one card per buyer) ---- */
+.cs-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.5rem; padding: 0.7rem 0.9rem; background: var(--primary-green); color: #fff; border-radius: 10px; margin-bottom: 1rem; }
+.cs-strip span { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.cs-strip small { color: rgba(255,255,255,0.75); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.cs-strip b { font-family: var(--font-display); font-size: 1.3rem; }
+.cs-strip__paid { color: #d7f5c8; }
+.cs-strip__owe { color: #ffe08a; }
+
+.cs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr)); gap: 0.9rem; align-items: start; }
+.cs-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-sm); overflow: hidden; }
+.cs-card.is-paid { border-color: var(--primary-green); box-shadow: 0 0 0 1px var(--primary-green) inset, var(--shadow-sm); background: #f6faf1; }
+.cs-card__hd { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.55rem 0.85rem; background: var(--paper-2); border-bottom: 1px solid var(--line); }
+.cs-card__buyer { margin: 0; font-family: var(--font-display); font-weight: 800; color: var(--primary-green); font-size: 1.1rem; }
+.cs-card__count { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+.cs-card__status { margin-left: auto; font-size: 0.78rem; }
+.cs-card__items { padding: 0.35rem 0.85rem; display: flex; flex-direction: column; }
+.cs-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-bottom: 1px dotted var(--line); font-size: 0.9rem; }
+.cs-item:last-child { border-bottom: none; }
+.cs-item__tn { display: inline-block; background: #1e2530; color: #fff; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; min-width: 2.6rem; text-align: center; }
+.cs-item__team { font-weight: 600; }
+.cs-item__amt { font-family: var(--font-display); font-weight: 700; color: var(--primary-green); }
+.cs-card__ft { display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem 0.65rem; align-items: center; padding: 0.55rem 0.85rem; background: var(--paper-2); border-top: 1px solid var(--line); }
+.cs-tot { display: flex; flex-direction: column; }
+.cs-tot small { color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem; font-weight: 700; }
+.cs-tot b { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; color: var(--ink); }
+.cs-card.is-paid .cs-tot b { color: var(--primary-green); }
+.cs-method { padding: 0.3rem 0.45rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; font-weight: 600; }
+.cs-paid { padding: 0.3rem 0.6rem; }
+
 /* ---- Check-In team cards (Bulldog-style) ---- */
 .ci-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr)); gap: 0.9rem; align-items: start; }
 .ci-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.15s, box-shadow 0.15s; }

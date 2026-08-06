@@ -80,6 +80,9 @@ module.exports = async (req, res) => {
   // Calcutta — buyer text + amount. Needs Buyer (text) + Buy Amount (number)
   // fields on Tournament Signups.
   if (typeof body.buyer === "string") fields["Buyer"] = body.buyer ? body.buyer.slice(0, 120) : null;
+  // Calcutta Paid — track that the buyer settled up (Cash / Check / Card /
+  // Online). Empty string clears it.
+  if (typeof body.calcuttaPaid === "string") fields["Calcutta Paid"] = body.calcuttaPaid ? body.calcuttaPaid.slice(0, 20) : null;
   if (body.buyAmount !== undefined) {
     if (body.buyAmount === null || body.buyAmount === "") fields["Buy Amount"] = null;
     else { var amt = Number(body.buyAmount); if (isFinite(amt) && amt >= 0) fields["Buy Amount"] = amt; }

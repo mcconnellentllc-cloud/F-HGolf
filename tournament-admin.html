@@ -64,6 +64,7 @@
           <button type="button" class="wb-tab" data-sheet="scores" role="tab">Scores</button>
           <button type="button" class="wb-tab" data-sheet="flights" role="tab">Flights</button>
           <button type="button" class="wb-tab" data-sheet="calcutta" role="tab">Calcutta</button>
+          <button type="button" class="wb-tab" data-sheet="calcuttaSummary" role="tab">Calcutta Summary</button>
           <button type="button" class="wb-tab" data-sheet="leaderboard" role="tab">Leaderboard</button>
           <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
@@ -226,6 +227,15 @@
           </details>
 
           <div id="lbBody"><p class="noms__msg">Loading…</p></div>
+        </section>
+
+        <!-- Calcutta Summary — buyers grouped, teams they bought, payment status -->
+        <section class="noms wb-sheet" data-sheet="calcuttaSummary" id="twCalcuttaSummary" aria-label="Calcutta Summary" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Calcutta Summary</h3>
+          </div>
+          <p class="scaffold__desc">One card per buyer. Shows every team they bought, the running total they owe, and a paid check + method dropdown so you can track cash coming in the same way you check in entry fees.</p>
+          <div id="caSumBody"><p class="noms__msg">Loading…</p></div>
         </section>
 
         <!-- Leaderboard — full standings + winner flags -->
@@ -1881,7 +1891,7 @@
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderLeaderboard(res.j.records); renderCalcutta(res.j.records); renderPayout(res.j.records); renderPairings(res.j.records); }
+            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderLeaderboard(res.j.records); renderCalcutta(res.j.records); renderCalcuttaSummary(res.j.records); renderPayout(res.j.records); renderPairings(res.j.records); }
             else if (res.status === 401) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
             else { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
           })
@@ -2815,6 +2825,132 @@
         }
       }
 
+      // ---- Calcutta Summary tab ------------------------------------------
+      // Group signups by Buyer name → one card per buyer showing every team
+      // they bought + total owed + a Paid pill and Method dropdown. Paying
+      // a buyer marks Calcutta Paid on every signup with that name.
+      function renderCalcuttaSummary(all) {
+        var body = document.getElementById("caSumBody"); if (!body) return;
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        var caTeamNumbers = computeTeamNumbers(recs);
+        // Only rows with a Buyer + Buy Amount are auction items sold.
+        var sold = recs.filter(function (r) {
+          var f = r.fields || {};
+          return String(f["Buyer"] || "").trim() !== "" && typeof f["Buy Amount"] === "number";
+        });
+        if (!sold.length) { body.innerHTML = '<p class="noms__msg">No Calcutta buys yet. Once buyers are entered on the Calcutta tab they show up here.</p>'; return; }
+
+        // Bucket by normalized buyer name (case-insensitive trim); preserve
+        // whatever display casing showed up first.
+        var buckets = {};
+        var order = [];
+        sold.forEach(function (r) {
+          var f = r.fields || {};
+          var raw = String(f["Buyer"] || "").trim();
+          var key = raw.toLowerCase();
+          if (!buckets[key]) { buckets[key] = { display: raw, items: [], total: 0, paidMethod: "" }; order.push(key); }
+          buckets[key].items.push(r);
+          buckets[key].total += Number(f["Buy Amount"]) || 0;
+          // Any paid method on any of the buyer's items counts them paid.
+          var pm = String(f["Calcutta Paid"] || "").trim();
+          if (pm && !buckets[key].paidMethod) buckets[key].paidMethod = pm;
+        });
+        // Alphabetize by display name.
+        order.sort(function (a, b) { return buckets[a].display.toLowerCase().localeCompare(buckets[b].display.toLowerCase()); });
+
+        var methods = ["", "Cash", "Check", "Card", "Online"];
+        var methodOpts = function (sel) {
+          return methods.map(function (m) { return '<option value="' + m + '"' + (m === sel ? " selected" : "") + '>' + (m || "method") + '</option>'; }).join("");
+        };
+        var totalOwed = 0, totalPaid = 0;
+        var cards = order.map(function (k) {
+          var b = buckets[k];
+          totalOwed += b.total;
+          if (b.paidMethod) totalPaid += b.total;
+          var itemsHtml = b.items.slice().sort(function (x, y) { return (caTeamNumbers[x.id] || 0) - (caTeamNumbers[y.id] || 0); }).map(function (r) {
+            var f = r.fields || {};
+            var tn = caTeamNumbers[r.id];
+            var tag = tn ? 'T-' + String(tn).padStart(2, "0") : '—';
+            var team = teamShortNames(f);
+            return '<div class="cs-item"><span class="cs-item__tn">' + esc(tag) + '</span>'
+              + '<span class="cs-item__team">' + esc(team) + '</span>'
+              + '<span class="cs-item__amt">' + money(Number(f["Buy Amount"]) || 0) + '</span></div>';
+          }).join("");
+          var isPaid = !!b.paidMethod;
+          return '<article class="cs-card' + (isPaid ? " is-paid" : "") + '" data-buyer="' + esc(b.display) + '">'
+            + '<header class="cs-card__hd">'
+            + '<h4 class="cs-card__buyer">' + esc(b.display) + '</h4>'
+            + '<span class="cs-card__count">' + b.items.length + (b.items.length === 1 ? " team" : " teams") + '</span>'
+            + '<span class="ci__status cs-card__status"></span>'
+            + '</header>'
+            + '<div class="cs-card__items">' + itemsHtml + '</div>'
+            + '<footer class="cs-card__ft">'
+            + '<div class="cs-tot"><small>Total owed</small><b>' + money(b.total) + '</b></div>'
+            + '<label class="ci-check cs-paid" title="Mark buyer paid"><input type="checkbox" class="cs-paid-box"' + (isPaid ? " checked" : "") + ' /><span>Paid</span></label>'
+            + '<select class="cs-method">' + methodOpts(b.paidMethod) + '</select>'
+            + '</footer>'
+            + '</article>';
+        }).join("");
+
+        var strip = '<div class="cs-strip">'
+          + '<span><small>Buyers</small><b>' + order.length + '</b></span>'
+          + '<span><small>Teams sold</small><b>' + sold.length + '</b></span>'
+          + '<span><small>Total owed</small><b>' + money(totalOwed) + '</b></span>'
+          + '<span><small>Collected</small><b class="cs-strip__paid">' + money(totalPaid) + '</b></span>'
+          + '<span><small>Outstanding</small><b class="cs-strip__owe">' + money(Math.max(0, totalOwed - totalPaid)) + '</b></span>'
+          + '</div>';
+        body.innerHTML = strip + '<div class="cs-grid">' + cards + '</div>';
+
+        // Wire per-card paid checkbox + method dropdown. Applying a change
+        // patches Calcutta Paid on every signup with that buyer name.
+        Array.prototype.forEach.call(body.querySelectorAll(".cs-card"), function (card) {
+          var buyer = card.getAttribute("data-buyer");
+          var box = card.querySelector(".cs-paid-box");
+          var meth = card.querySelector(".cs-method");
+          var statusEl = card.querySelector(".cs-card__status");
+          function applyMethod(method) {
+            // Update the cache immediately so a re-render doesn't undo it.
+            var updated = 0;
+            scAllCache.forEach(function (r) {
+              var f = r.fields || {};
+              if (String(f["Buyer"] || "").trim().toLowerCase() === buyer.trim().toLowerCase()) {
+                f["Calcutta Paid"] = method || null;
+                updated++;
+              }
+            });
+            card.classList.toggle("is-paid", !!method);
+            if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "ci__status"; }
+            // Persist to Airtable — one PATCH per signup with a small delay.
+            var ids = scAllCache.filter(function (r) {
+              return String((r.fields || {})["Buyer"] || "").trim().toLowerCase() === buyer.trim().toLowerCase();
+            }).map(function (r) { return r.id; });
+            ids.reduce(function (chain, id) {
+              return chain.then(function () {
+                return fetch(FH_API.url("/api/tournament-checkin"), {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+                  body: JSON.stringify({ id: id, calcuttaPaid: method || "" })
+                }).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function () { return new Promise(function (r) { setTimeout(r, 100); }); });
+              });
+            }, Promise.resolve()).then(function () {
+              if (statusEl) { statusEl.textContent = "Saved ✓"; statusEl.className = "ci__status is-ok"; setTimeout(function () { statusEl.textContent = ""; }, 1500); }
+              renderCalcuttaSummary(scAllCache);
+            }).catch(function () {
+              if (statusEl) { statusEl.textContent = "Save error"; statusEl.className = "ci__status is-error"; }
+            });
+          }
+          if (box) box.addEventListener("change", function () {
+            var v = box.checked ? (meth.value || "Cash") : "";
+            if (meth) meth.value = v;
+            applyMethod(v);
+          });
+          if (meth) meth.addEventListener("change", function () {
+            if (box) box.checked = !!meth.value;
+            applyMethod(meth.value);
+          });
+        });
+      }
+
       // ---- Leaderboard tab (full standings + winner flags) ----
       function renderLeaderboard(all) {
         var body = document.getElementById("lbdBody"); if (!body) return;
@@ -3235,7 +3371,7 @@
         if (st) { st.textContent = "Saved ✓"; setTimeout(function () { st.textContent = ""; }, 2000); }
         // Refresh anything downstream that reads the Calc values live.
         try { renderPL(); } catch (e) {}
-        try { renderBoard(scAllCache); renderLeaderboard(scAllCache); renderCalcutta(scAllCache); renderPayout(scAllCache); } catch (e) {}
+        try { renderBoard(scAllCache); renderLeaderboard(scAllCache); renderCalcutta(scAllCache); renderCalcuttaSummary(scAllCache); renderPayout(scAllCache); } catch (e) {}
       }
 
       document.addEventListener("DOMContentLoaded", function () {
