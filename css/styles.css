@@ -1080,21 +1080,31 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .pr-pool__list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .pr-pool .pr-team { flex: 0 1 auto; }
 
-/* Tee grid — one bordered card per active (hole, slot) with a green header bar */
-.pr-teegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; }
-.pr-tee { border: 2px solid var(--primary-green); border-radius: 12px; background: #fff; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-.pr-tee.is-drop { background: var(--light-green); box-shadow: 0 0 0 3px var(--primary-green); }
-.pr-tee__hd { background: var(--primary-green); color: #fff; padding: 0.4rem 0.75rem; font-family: var(--font-display); font-size: 1rem; font-weight: 800; letter-spacing: 0.05em; text-align: center; text-transform: uppercase; }
-.pr-tee__seats { padding: 0.55rem 0.7rem; display: flex; flex-direction: column; align-items: stretch; gap: 0.35rem; }
-.pr-tee__amp { text-align: center; color: var(--primary-green); font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; line-height: 1; }
+/* Tee sheet — Bulldog-style rows: dark left column with Hole/Tee/Thru + team cards on the right */
+.pr-teegrid { display: flex; flex-direction: column; gap: 0.55rem; }
+.pr-tee { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.pr-tee.is-drop { box-shadow: 0 0 0 3px var(--primary-green); }
+.pr-tee__side { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.7rem 0.8rem; min-width: 5.5rem; background: #1e2530; color: #fff; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pr-tee__side-hole { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.65; font-weight: 700; }
+.pr-tee__side-num { font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; line-height: 1; margin: 0.1rem 0; }
+.pr-tee__side-slot { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
+.pr-tee__side-thru { font-size: 0.65rem; margin-top: 0.35rem; opacity: 0.65; letter-spacing: 0.05em; text-transform: uppercase; }
+.pr-tee__cards { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0.55rem 0.7rem; align-items: stretch; }
 
-/* Team card — draggable pill */
-.pr-team { display: block; padding: 0.6rem 0.7rem; border-radius: 8px; background: var(--paper-2); font-size: 0.98rem; font-weight: 700; text-align: center; cursor: grab; user-select: none; border: 1px solid transparent; }
-.pr-team:hover { background: var(--light-green); border-color: var(--primary-green); }
+/* Team card — Bulldog-style (Team # header + player list). Draggable. */
+.pr-team { display: flex; flex-direction: column; padding: 0.5rem 0.6rem; border-radius: 8px; background: #fff; border: 1px solid var(--line); cursor: grab; user-select: none; text-align: left; }
+.pr-team:hover { border-color: var(--primary-green); }
 .pr-team.is-drag { opacity: 0.35; cursor: grabbing; }
-.pr-team__nm { font-weight: 700; color: var(--ink); }
-.pr-team--empty { background: transparent; border: 1px dashed var(--line); color: var(--muted); font-style: italic; font-size: 0.82rem; font-weight: 400; cursor: default; }
-.pr-team--empty:hover { background: transparent; border-color: var(--line); }
+.pr-team__hd { border-bottom: 1px solid var(--line); margin-bottom: 0.3rem; padding-bottom: 0.25rem; display: flex; align-items: baseline; gap: 0.5rem; }
+.pr-team__num { font-family: var(--font-display); font-weight: 800; font-size: 0.95rem; color: var(--ink); }
+.pr-team__players { display: flex; flex-direction: column; gap: 0.05rem; font-size: 0.9rem; }
+.pr-team__player { color: var(--ink); font-weight: 600; }
+.pr-team--empty { background: transparent; border: 1px dashed var(--line); color: var(--muted); font-style: italic; font-size: 0.82rem; font-weight: 400; text-align: center; display: flex; align-items: center; justify-content: center; padding: 1rem 0.5rem; cursor: default; }
+.pr-team--empty:hover { border-color: var(--line); }
+@media (max-width: 640px) { .pr-tee__cards { grid-template-columns: 1fr; } }
+
+/* Team-number badge used on Calcutta / Leaderboard / Flights / Payout rows */
+.lb-tnum { display: inline-block; background: #1e2530; color: #fff; font-family: var(--font-display); font-size: 0.72rem; font-weight: 800; padding: 0.12rem 0.4rem; border-radius: 4px; letter-spacing: 0.03em; margin-right: 0.35rem; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
 /* Per-team move-to dropdown — hidden on print, visible on screen. */
 .pr-team__move { width: 100%; margin-top: 0.35rem; padding: 0.25rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.75rem; background: #fff; color: var(--ink); cursor: pointer; }

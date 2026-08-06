@@ -87,13 +87,10 @@
           </div>
 
           <div class="checkin-bar">
-            <label class="form__field checkin-fee">
-              <span class="form__label">Entry fee / player</span>
-              <input type="number" id="twFee" min="0" step="1" inputmode="numeric" placeholder="e.g. 120" />
-            </label>
             <div class="checkin-summary" id="twSummary"></div>
             <a class="btn btn--solid" id="twCardLink" target="_blank" rel="noopener" href="#">Card payment page &rarr;</a>
           </div>
+          <p class="scaffold__desc" style="margin-top:0.4rem">Entry fee is set on the <b>Calc</b> tab (currently: <b id="twFeeReadout">—</b> / player). Change it there so it flows through the whole workbook.</p>
 
           <details class="checkin-add">
             <summary>+ Add a walk-up team</summary>
@@ -429,20 +426,15 @@
         box.innerHTML = html;
       }
 
-      // Remember the entry fee per tournament so amounts prefill next time.
-      var FEEK = "fh_fee_" + KEY;
-      function savedFee() { try { return localStorage.getItem(FEEK) || ""; } catch (e) { return ""; } }
       function money(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
 
       var collectedTotal = 0, expensesTotal = 0, cashTotal = 0, checkTotal = 0, cardTotal = 0;
-      function perPlayerFee() {
-        var el = document.getElementById("twFee");
-        var v = el && el.value !== "" ? Number(el.value) : NaN;
-        if (isFinite(v) && v > 0) return v;
-        var c = loadCalc(); return c.entryPP || 0;
-      }
+      // Entry fee is now single-source-of-truth on the Calc tab. Removed the
+      // Check-In fee input so nobody accidentally overrides it locally.
+      function perPlayerFee() { var c = loadCalc(); return c.entryPP || 0; }
       function summarize(recs) {
         var fee = perPlayerFee();
+        var feeReadout = document.getElementById("twFeeReadout"); if (feeReadout) feeReadout.textContent = fee ? money(fee) : "—";
         cashTotal = 0; checkTotal = 0; cardTotal = 0;
         var paidCount = 0, players = 0;
         recs.forEach(function (r) {
@@ -1400,6 +1392,30 @@
           .catch(function () { if (msg) msg.textContent = "Network error saving."; });
       }
 
+      // Auto-assign a stable Team number per wave, sorted by created time (so a
+      // team's number doesn't change when it's dragged around the tee sheet).
+      // AM = 1..N in each wave; PM restarts at 1. Used on Pairings, Calcutta,
+      // Leaderboard, Payout — the number is the auction / roll-call handle.
+      function computeTeamNumbers(recs) {
+        var numbers = {};
+        ["8 AM", "1 PM"].forEach(function (w) {
+          var arr = (recs || []).filter(function (r) { return ((r.fields || {}).Start || "") === w && !isAltRec(r); }).sort(byCreated);
+          arr.forEach(function (r, i) { numbers[r.id] = i + 1; });
+        });
+        return numbers;
+      }
+      // Shotgun: start on hole H, play H, H+1, …, wrap to H-1 (last hole).
+      function thruHole(h) { return ((Number(h) - 2 + 9) % 9) + 1; }
+      // Prefer the full name for the Bulldog-style card (not the compact "F. Last"
+      // form used by tables). Splits Team / Partners on " / " into individual rows.
+      function fullPlayerNames(f) {
+        var names = [];
+        var p1 = String((f && f["Player Name"]) || "").trim();
+        if (p1) names.push(p1);
+        String((f && f["Team / Partners"]) || "").split(/\s*\/\s*/).forEach(function (p) { p = p.trim(); if (p) names.push(p); });
+        return names.length ? names : ["(no name)"];
+      }
+
       // Build the move-to <select> options for a given wave's active slot list.
       // "" = Unplaced. Slot values are encoded as "1A", "1B", etc.
       function moveOptions(slots, curH, curS) {
@@ -1412,12 +1428,15 @@
         return out.join("");
       }
 
-      function prTeamCard(r, slots, wave) {
+      function prTeamCard(r, slots, wave, teamNum) {
         var f = r.fields || {};
         var curH = Number(f.Hole), curS = String(f.Slot || "").toUpperCase();
         var opts = moveOptions(slots || [], curH, curS);
+        var players = fullPlayerNames(f).map(function (n) { return '<div class="pr-team__player">' + esc(n) + '</div>'; }).join("");
+        var badge = teamNum ? '<span class="pr-team__num">Team ' + String(teamNum).padStart(2, "0") + '</span>' : '';
         return '<div class="pr-team" draggable="true" data-id="' + esc(r.id) + '" data-wave="' + esc(wave || "") + '">'
-          + '<span class="pr-team__nm">' + esc(teamShortNames(f)) + "</span>"
+          + '<div class="pr-team__hd">' + badge + '</div>'
+          + '<div class="pr-team__players">' + players + '</div>'
           + '<select class="pr-team__move" data-id="' + esc(r.id) + '" data-wave="' + esc(wave || "") + '" aria-label="Move team to a different tee">' + opts + "</select>"
           + "</div>";
       }
@@ -1457,29 +1476,32 @@
         var summary = tees + ' tees &times; ' + TEAMS_PER_TEE + ' teams = <strong>' + seats + '</strong> seats &middot; ' + teamCount + ' teams' + tail;
         var canAutofill = teamCount > 0 && enough;
 
-        // Tee cards — "HOLE X · TEE A" header bar, two team cards, ampersand between.
-        // Each card carries a per-hole color class (pr-tee--h1 .. pr-tee--h9) so
-        // the sheet doesn't read as one uniform green wall.
+        // Bulldog-style tee rows — dark left column (HOLE X · TEE A · THRU Y),
+        // team cards to the right. Per-hole color class carried through so the
+        // 9 holes still read as 9 distinct groups.
+        var teamNumbers = window.__prTeamNumbers || {};
         var teeHtml = slots.map(function (s) {
           var arr = placed[s.hole + s.slot];
+          var thru = thruHole(s.hole);
           var seatEls = [];
           for (var i = 0; i < TEAMS_PER_TEE; i++) {
-            seatEls.push(arr[i] ? prTeamCard(arr[i], slots, w.k) : '<div class="pr-team pr-team--empty" data-empty="1">seat open</div>');
+            seatEls.push(arr[i] ? prTeamCard(arr[i], slots, w.k, teamNumbers[arr[i].id]) : '<div class="pr-team pr-team--empty" data-empty="1">seat open</div>');
           }
           return '<div class="pr-tee pr-tee--h' + s.hole + '" data-hole="' + s.hole + '" data-slot="' + s.slot + '" data-wave="' + w.k + '">'
-            + '<div class="pr-tee__hd">HOLE ' + s.hole + ' &middot; TEE ' + s.slot + '</div>'
-            + '<div class="pr-tee__seats">'
-            + seatEls[0]
-            + '<span class="pr-tee__amp" aria-hidden="true">&amp;</span>'
-            + seatEls[1]
+            + '<div class="pr-tee__side">'
+            + '<span class="pr-tee__side-hole">Hole</span>'
+            + '<span class="pr-tee__side-num">' + s.hole + '</span>'
+            + '<span class="pr-tee__side-slot">Tee ' + s.slot + '</span>'
+            + '<span class="pr-tee__side-thru">Thru ' + thru + '</span>'
             + '</div>'
+            + '<div class="pr-tee__cards">' + seatEls[0] + seatEls[1] + '</div>'
             + '</div>';
         }).join("");
 
         // Unplaced pool.
         var poolHtml = "";
         if (pool.length) {
-          poolHtml = '<div class="pr-pool" data-wave="' + w.k + '"><div class="pr-pool__hd">Unplaced <span>(' + pool.length + ')</span></div><div class="pr-pool__list">' + pool.map(function (t) { return prTeamCard(t, slots, w.k); }).join("") + "</div></div>";
+          poolHtml = '<div class="pr-pool" data-wave="' + w.k + '"><div class="pr-pool__hd">Unplaced <span>(' + pool.length + ')</span></div><div class="pr-pool__list">' + pool.map(function (t) { return prTeamCard(t, slots, w.k, teamNumbers[t.id]); }).join("") + "</div></div>";
         }
 
         return '<div class="pr-wave-block" data-wave="' + w.k + '">'
@@ -1500,11 +1522,12 @@
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         prRecs = recs;
         if (!recs.length) { board.innerHTML = '<p class="noms__msg">No teams yet. Import the 2026 field above, or add teams on the Check-In sheet.</p>'; return; }
+        window.__prTeamNumbers = computeTeamNumbers(recs);
         board.innerHTML = WAVES.map(function (w) {
           var teams = recs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; }).sort(byCreated);
           return renderWaveBlock(w, teams);
         }).join("");
-        attachRowFilter(board, { rowSelector: ".pr-team[draggable='true']", parentSelector: ".pr-tee", placeholder: "Filter — find a team's tee" });
+        attachRowFilter(board, { rowSelector: ".pr-team[draggable='true']", parentSelector: ".pr-tee", placeholder: "Filter — find a team's tee or team number" });
         wirePairings(board);
       }
 
@@ -1824,12 +1847,13 @@
           var arr = groups[fl]; if (!arr || !arr.length) return "";
           var leader = null;
           arr.forEach(function (r) { var v = d1g(r); if (v != null && (leader == null || v < leader)) leader = v; });
+          var lbTeamNumbers = computeTeamNumbers(recs);
           var rows = arr.map(function (r) {
             var a = d1g(r), b = d2g(r);
             var hcp = (a != null && leader != null) ? Math.floor((a - leader) * mult) : null;
             var overall = (a != null || b != null) ? (a != null ? a : 0) + (b != null ? b : 0) : null;
             var net = (b != null && hcp != null) ? (b - hcp) : null;
-            return { name: teamName(r), a: a, b: b, overall: overall, hcp: hcp, net: net };
+            return { name: teamName(r), teamNumber: lbTeamNumbers[r.id], a: a, b: b, overall: overall, hcp: hcp, net: net };
           });
           var byGross = rows.slice().filter(function (x) { return x.overall != null; }).sort(function (x, y) { return x.overall - y.overall; });
           var byNet = rows.slice().filter(function (x) { return x.net != null; }).sort(function (x, y) { return x.net - y.net; });
@@ -1838,7 +1862,8 @@
           // Flights tab: Day 1 focus — team, D1 gross, handicap. Full standings
           // (D2, total gross, net) live on the Leaderboard tab instead.
           var trs = rows.map(function (x) {
-            return "<tr><td>" + esc(x.name) + "</td>"
+            var tnB = x.teamNumber ? '<span class="lb-tnum">T-' + String(x.teamNumber).padStart(2, "0") + '</span> ' : '';
+            return "<tr><td>" + tnB + esc(x.name) + "</td>"
               + "<td><b>" + (x.a == null ? "—" : x.a) + "</b></td>"
               + "<td>" + (x.hcp == null ? "—" : x.hcp) + "</td></tr>";
           }).join("");
@@ -1900,6 +1925,7 @@
         var body = document.getElementById("caBody"); if (!body) return;
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         if (!recs.length) { body.innerHTML = '<p class="noms__msg">No teams yet.</p>'; return; }
+        var caTeamNumbers = computeTeamNumbers(recs);
         var cfg = loadCalc(), mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
         var comm = (cfg.calcuttaCommission || 0) / 100;
         var split = cfg.calcuttaSplit || [40, 30, 20, 10];
@@ -1959,8 +1985,10 @@
 
           var tbody = rows.map(function (x) {
             var placeTag = (x.cplace && x.cplace <= 4) ? ' <span class="lb-cal">C' + x.cplace + '</span>' : "";
+            var tnum = caTeamNumbers[x.id];
+            var tnBadge = tnum ? '<span class="lb-tnum">T-' + String(tnum).padStart(2, "0") + '</span> ' : '';
             return '<tr data-id="' + esc(x.id) + '">'
-              + '<td class="ca-tbl__team">' + esc(x.name) + placeTag + '</td>'
+              + '<td class="ca-tbl__team">' + tnBadge + esc(x.name) + placeTag + '</td>'
               + '<td><input type="text" class="ca-buyer" data-id="' + esc(x.id) + '" value="' + esc(x.buyer) + '" placeholder="Buyer name" autocomplete="off" /></td>'
               + '<td><input type="number" inputmode="decimal" min="0" step="1" class="ca-amt" data-id="' + esc(x.id) + '" value="' + (x.amount == null ? "" : x.amount) + '" placeholder="$0" /></td>'
               + '<td>' + (x.a == null ? "—" : x.a) + '</td>'
@@ -2090,6 +2118,7 @@
         var mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
         var sortedScores = recs.map(d1g).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
         var cuts = loadCuts(nF, sortedScores);
+        var teamNumbers = computeTeamNumbers(recs);
         var flights = [];
         for (var i = 1; i <= nF; i++) flights.push({ num: i, name: flightName(i), leader: null, rows: [] });
         var unassigned = [];
@@ -2098,6 +2127,7 @@
           var d1 = d1g(r), d2 = d2g(r);
           var row = {
             id: r.id, rec: r,
+            teamNumber: teamNumbers[r.id] || null,
             name: teamShortNames(f),
             d1: d1, d2: d2,
             gross: (d1 != null || d2 != null) ? ((d1 == null ? 0 : d1) + (d2 == null ? 0 : d2)) : null,
@@ -2182,7 +2212,7 @@
               flags.push('<span class="lbd-flag lbd-flag--calc" title="Calcutta winner (net)">' + (netTies > 1 ? "T" : "") + ordinal(row.netPlace) + " Calcutta</span>");
             }
             return "<tr>"
-              + '<td class="lbd-name">' + esc(row.name) + (flags.length ? ' <span class="lbd-flags">' + flags.join(" ") + '</span>' : '') + "</td>"
+              + '<td class="lbd-name">' + (row.teamNumber ? '<span class="lb-tnum">T-' + String(row.teamNumber).padStart(2, "0") + '</span> ' : '') + esc(row.name) + (flags.length ? ' <span class="lbd-flags">' + flags.join(" ") + '</span>' : '') + "</td>"
               + "<td>" + (row.d1 == null ? "—" : row.d1) + "</td>"
               + "<td>" + (row.d2 == null ? "—" : row.d2) + "</td>"
               + "<td><b>" + (row.gross == null ? "—" : row.gross) + "</b></td>"
@@ -2467,15 +2497,6 @@
 
         var card = document.getElementById("twCardLink");
         if (card && window.FH_PAY_URL) card.href = window.FH_PAY_URL;
-
-        var fee = document.getElementById("twFee");
-        if (fee) {
-          fee.value = savedFee();
-          fee.addEventListener("change", function () {
-            try { localStorage.setItem(FEEK, fee.value); } catch (e) {}
-            loadRoster(); // reprice unpaid rows
-          });
-        }
 
         var tr = document.getElementById("twRefresh");
         if (tr) tr.addEventListener("click", loadRoster);
