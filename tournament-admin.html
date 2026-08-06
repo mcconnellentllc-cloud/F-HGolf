@@ -122,14 +122,9 @@
                 <option value="pm">Print P.M. only</option>
               </select>
               <button class="btn btn--primary" type="button" id="prPrint">Print now</button>
-              <button class="btn btn--solid" type="button" id="prRefresh">Refresh</button>
             </div>
           </div>
-          <div class="checkin-add__row">
-            <button class="btn btn--primary" type="button" id="prImport">Import 2026 field from pairing sheet</button>
-            <span class="checkin-add__msg" id="prMsg" role="status" aria-live="polite"></span>
-          </div>
-          <p class="scaffold__desc">Two teams to a tee. For each wave, tap a hole up top to cycle it through <em>off &rarr; A &rarr; A+B</em>, then hit Autofill. Drag any team onto another to swap seats.</p>
+          <p class="scaffold__desc">Two teams to a tee. Tap a hole up top to add a <em>Tee A</em> or <em>A+B</em> &mdash; teams auto-fill from Unplaced. Drag a team onto another (or use its dropdown) to swap seats. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
           <div id="prBoard"><p class="noms__msg">Loading…</p></div>
         </section>
 
@@ -1305,28 +1300,6 @@
         positionSaveMany(assignments);
       }
 
-      function importField() {
-        var msg = document.getElementById("prMsg"), btn = document.getElementById("prImport");
-        msg.textContent = "Reading pairing sheet…";
-        fetch("data/founders-tournament.json").then(function (r) { return r.json(); }).then(function (data) {
-          var teams = [];
-          (data.flights || []).forEach(function (fl) {
-            var start = /^A/i.test(fl.name) ? "8 AM" : (/^P/i.test(fl.name) ? "1 PM" : "");
-            (fl.teams || []).forEach(function (t) {
-              var ps = (t.players || []).filter(Boolean);
-              if (ps.length) teams.push({ name: ps[0], partner: ps.slice(1).join(" / "), start: start });
-            });
-          });
-          if (!teams.length) { msg.textContent = "No teams found in the pairing sheet."; return; }
-          if (!window.confirm("Add " + teams.length + " teams from the 2026 pairing sheet (A.M./P.M. waves)? This creates new team records.")) { msg.textContent = ""; return; }
-          msg.textContent = "Importing " + teams.length + " teams…"; if (btn) btn.disabled = true;
-          fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ action: "import", tournament: KEY, teams: teams }) })
-            .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
-            .then(function (res) { if (btn) btn.disabled = false; if (res.j && res.j.ok) { msg.textContent = "Imported " + res.j.created + " teams ✓"; loadRoster(); } else { msg.textContent = (res.j && res.j.error) || "Import failed."; } })
-            .catch(function () { if (btn) btn.disabled = false; msg.textContent = "Network error importing."; });
-        }).catch(function () { msg.textContent = "Couldn't read the pairing sheet."; });
-      }
-
       // ---- Flights + Leaderboard ----
       var FLIGHT_NAMES = ["Champ", "First", "Second", "Third", "5th", "6th", "7th", "8th"];
       function flightName(n) { return FLIGHT_NAMES[n - 1] || ("Flight " + n); }
@@ -1554,10 +1527,6 @@
         if (lbr) lbr.addEventListener("click", loadRoster);
         var lbs = document.getElementById("lbSaveFlights");
         if (lbs) lbs.addEventListener("click", saveFlights);
-        var prr = document.getElementById("prRefresh");
-        if (prr) prr.addEventListener("click", loadRoster);
-        var pri = document.getElementById("prImport");
-        if (pri) pri.addEventListener("click", importField);
         var prp = document.getElementById("prPrint");
         if (prp) prp.addEventListener("click", function () {
           var sel = document.getElementById("prPrintWhich");
