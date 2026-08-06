@@ -177,15 +177,24 @@
         </section>
 
         <!-- Flighting + Leaderboard -->
-        <section class="noms wb-sheet" data-sheet="flights" id="twBoard" aria-label="Leaderboard">
+        <section class="noms wb-sheet" data-sheet="flights" id="twBoard" aria-label="Leaderboard" hidden>
           <div class="noms__bar">
             <h3 class="noms__title">Flights &amp; Leaderboard</h3>
-            <button class="btn btn--solid" type="button" id="lbRefresh">Refresh</button>
+            <div class="noms__bar-actions">
+              <button class="btn btn--primary" type="button" id="lbPrint">Print now</button>
+            </div>
           </div>
 
-          <details class="lb-cut" id="lbCut">
+          <details class="lb-cut" id="lbCut" open>
             <summary>Set the flight cuts (after Day 1)</summary>
-            <p class="scaffold__desc">Teams are ranked by Day-1 gross. Drag the sliders to choose how many teams go in each flight, then save.</p>
+            <div class="lb-flcount">
+              <span class="lb-flcount__lbl">Flights</span>
+              <button class="lb-flcount__btn" type="button" id="lbFlDec" aria-label="Remove a flight">&minus;</button>
+              <b class="lb-flcount__n" id="lbFlNum">4</b>
+              <button class="lb-flcount__btn" type="button" id="lbFlInc" aria-label="Add a flight">+</button>
+              <span class="lb-flcount__note">Sliders below update to match &mdash; then Save flights.</span>
+            </div>
+            <p class="scaffold__desc">Teams are ranked by Day-1 gross. Drag each cut to size the flights, then save.</p>
             <div id="lbCutControls"></div>
             <div class="sc__foot">
               <button class="btn btn--primary" type="button" id="lbSaveFlights">Save flights</button>
@@ -1571,9 +1580,22 @@
         body.innerHTML = out || '<p class="noms__msg">No Day-1 scores yet — enter scores, then set the flight cuts above.</p>';
       }
 
+      // Bump the flight count up or down (min 1, max 8), persist via loadCalc/saveCalc,
+      // then re-render so the sliders + standings pick up the new count immediately.
+      function bumpFlights(delta) {
+        var cfg = loadCalc();
+        var nF = Math.max(1, Math.min(8, (cfg.flights || 4) + delta));
+        cfg.flights = nF;
+        try { localStorage.setItem(CALCK, JSON.stringify(cfg)); } catch (e) {}
+        // Reset stored cuts so loadCuts() recomputes them evenly for the new count.
+        try { localStorage.removeItem(CUTK); } catch (e) {}
+        renderBoard(scAllCache);
+      }
+
       function renderBoard(all) {
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         var cfg = loadCalc(), nF = cfg.flights || 4;
+        var nEl = document.getElementById("lbFlNum"); if (nEl) nEl.textContent = nF;
         boardSorted = recs.filter(function (r) { return d1g(r) != null; }).sort(function (a, b) { return d1g(a) - d1g(b); });
         renderCutControls(boardSorted, nF, loadCuts(nF, boardSorted.length));
         renderStandings(recs, cfg);
@@ -1703,10 +1725,20 @@
         if (er) er.addEventListener("click", loadExpenses);
         var ea = document.getElementById("expAdd");
         if (ea) ea.addEventListener("click", addExpense);
-        var lbr = document.getElementById("lbRefresh");
-        if (lbr) lbr.addEventListener("click", loadRoster);
         var lbs = document.getElementById("lbSaveFlights");
         if (lbs) lbs.addEventListener("click", saveFlights);
+        var lbInc = document.getElementById("lbFlInc");
+        if (lbInc) lbInc.addEventListener("click", function () { bumpFlights(+1); });
+        var lbDec = document.getElementById("lbFlDec");
+        if (lbDec) lbDec.addEventListener("click", function () { bumpFlights(-1); });
+        var lbPr = document.getElementById("lbPrint");
+        if (lbPr) lbPr.addEventListener("click", function () {
+          document.body.classList.add("is-print-lb");
+          function cleanup() { document.body.classList.remove("is-print-lb"); window.removeEventListener("afterprint", cleanup); }
+          window.addEventListener("afterprint", cleanup);
+          setTimeout(function () { window.print(); }, 30);
+          setTimeout(cleanup, 2000);
+        });
         var prp = document.getElementById("prPrint");
         if (prp) prp.addEventListener("click", function () {
           var sel = document.getElementById("prPrintWhich");

@@ -901,6 +901,14 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 /* Flights + Leaderboard */
 .lb-cut { margin-bottom: 1rem; background: var(--paper-2); border-radius: 10px; padding: 0.6rem 0.9rem; }
 .lb-cut summary { cursor: pointer; font-weight: 700; color: var(--primary-green); }
+
+/* Flight count +/- control (Leaderboard) */
+.lb-flcount { display: flex; align-items: center; gap: 0.5rem; margin: 0.6rem 0 0.4rem; flex-wrap: wrap; }
+.lb-flcount__lbl { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; color: var(--muted); }
+.lb-flcount__btn { width: 2rem; height: 2rem; border: 1px solid var(--primary-green); background: #fff; color: var(--primary-green); border-radius: 50%; font: inherit; font-size: 1.1rem; font-weight: 800; cursor: pointer; line-height: 1; padding: 0; }
+.lb-flcount__btn:hover { background: var(--primary-green); color: #fff; }
+.lb-flcount__n { min-width: 1.4rem; text-align: center; font-family: var(--font-display); font-size: 1.4rem; color: var(--primary-green); }
+.lb-flcount__note { font-size: 0.82rem; color: var(--muted); margin-left: 0.4rem; }
 .lb-slider { display: flex; align-items: center; gap: 0.6rem; margin: 0.6rem 0; font-weight: 600; color: var(--ink); flex-wrap: wrap; }
 .lb-range { flex: 1 1 200px; accent-color: var(--primary-green); }
 .lb-cutval { min-width: 2ch; text-align: right; color: var(--primary-green); }
@@ -1095,6 +1103,21 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
   body[class*="is-print-"] .pr-tee__amp { font-size: 13pt; font-weight: 800; padding: 0; }
   body[class*="is-print-"] .pr-team--empty { display: none !important; }
   body[class*="is-print-"] .pr-team__move { display: none !important; }
+
+  /* Leaderboard print — one flight per page */
+  body.is-print-lb .wb-sheet:not([data-sheet="flights"]) { display: none !important; }
+  body.is-print-lb .wb-sheet[data-sheet="flights"] { display: block !important; }
+  body.is-print-lb .lb-cut, body.is-print-lb .noms__bar { display: none !important; }
+  body.is-print-lb .lb-flight { page-break-after: always; page-break-inside: avoid; margin: 0 0 0.4rem 0; }
+  body.is-print-lb .lb-flight:last-child { page-break-after: auto; }
+  body.is-print-lb .lb-flight__title { font-size: 22pt; text-align: center; border-bottom: 3pt solid #000; padding-bottom: 6pt; margin-bottom: 10pt; color: #000; font-weight: 800; }
+  body.is-print-lb .lb-table { width: 100%; border-collapse: collapse; font-size: 12pt; }
+  body.is-print-lb .lb-table th { text-align: left; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.04em; color: #000; padding: 4pt 6pt; border-bottom: 2pt solid #000; }
+  body.is-print-lb .lb-table td { padding: 4pt 6pt; border-bottom: 1pt solid #444; }
+  body.is-print-lb .lb-table th:not(:first-child), body.is-print-lb .lb-table td:not(:first-child) { text-align: center; }
+  body.is-print-lb .lb-table tbody tr:nth-child(odd) { background: #f5f5f5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-lb .lb-place, body.is-print-lb .lb-cal { display: inline-block; padding: 1pt 4pt; font-size: 9pt; font-weight: 800; margin-left: 4pt; border: 1pt solid #000; border-radius: 3pt; }
+
   @page { margin: 0.5in; size: portrait; }
 }
 
