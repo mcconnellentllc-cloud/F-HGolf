@@ -1016,6 +1016,11 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .cd-body { font-size: 0.98rem; color: var(--ink); margin: 0; }
 .cd-confirm { background: var(--red); color: #fff; border: 1px solid var(--red); }
 .cd-confirm:hover { background: var(--red-deep); border-color: var(--red-deep); }
+
+/* Shared "Filter teams by name…" toolbar (Check-In, Pairings, Flights, Calcutta, Leaderboard) */
+.tab-toolbar { display: flex; gap: 0.5rem; align-items: center; margin: 0 0 0.7rem 0; }
+.tab-filter { flex: 1; max-width: 24rem; padding: 0.55rem 0.8rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.92rem; background: #fff; }
+.tab-filter:focus { border-color: var(--primary-green); outline: none; }
 .lb-sizes { margin-top: 0.5rem; color: var(--muted); font-size: 0.9rem; }
 .lb-flight { margin-bottom: 1.6rem; }
 .lb-flight__title { color: var(--primary-green); font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.5rem; }

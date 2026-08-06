@@ -364,6 +364,36 @@
       function getKey() { try { return sessionStorage.getItem(KEYK) || ""; } catch (e) { return ""; } }
       function authed() { try { return sessionStorage.getItem(FLAG) === "1"; } catch (e) { return false; } }
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
+
+      // Shared filter-bar helper. Prepends a search input to `host`, filters
+      // rows matching `rowSelector` by their text content. When `parentSelector`
+      // is set, also hides parents that end up with no visible children.
+      function attachRowFilter(host, opts) {
+        var placeholder = (opts && opts.placeholder) || "Filter teams by name…";
+        var rowSelector = opts.rowSelector;
+        var parentSelector = opts.parentSelector || null;
+        var toolbar = document.createElement("div");
+        toolbar.className = "tab-toolbar";
+        toolbar.innerHTML = '<input type="search" class="tab-filter" placeholder="' + esc(placeholder) + '" autocomplete="off" />';
+        host.insertBefore(toolbar, host.firstChild);
+        var filt = toolbar.querySelector(".tab-filter");
+        filt.addEventListener("input", function () {
+          var q = filt.value.trim().toLowerCase();
+          Array.prototype.forEach.call(host.querySelectorAll(rowSelector), function (row) {
+            var text = String(row.textContent || "").toLowerCase();
+            var hit = !q || text.indexOf(q) !== -1;
+            row.style.display = hit ? "" : "none";
+          });
+          if (parentSelector) {
+            Array.prototype.forEach.call(host.querySelectorAll(parentSelector), function (par) {
+              var kids = par.querySelectorAll(rowSelector);
+              var any = false;
+              for (var i = 0; i < kids.length; i++) { if (kids[i].style.display !== "none") { any = true; break; } }
+              par.style.display = any ? "" : "none";
+            });
+          }
+        });
+      }
       function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); } catch (e) { return ""; } }
       function param(n) { try { return new URLSearchParams(window.location.search).get(n) || ""; } catch (e) { return ""; } }
 
@@ -627,6 +657,7 @@
         if (paid.length) html += '<details class="ci-fold" open><summary>Paid &amp; done <span>(' + paid.length + ")</span></summary>" + ciTable(paid) + "</details>";
         if (alts.length) html += '<details class="ci-fold ci-fold--alt"><summary>Alternates — standby <span>(' + alts.length + ")</span></summary>" + ciTable(alts) + "</details>";
         list.innerHTML = html;
+        attachRowFilter(list, { rowSelector: ".ci-row" });
 
         // Wire per-team controls across all tables.
         Array.prototype.forEach.call(list.querySelectorAll(".ci-row"), function (row) {
@@ -1473,6 +1504,7 @@
           var teams = recs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; }).sort(byCreated);
           return renderWaveBlock(w, teams);
         }).join("");
+        attachRowFilter(board, { rowSelector: ".pr-team[draggable='true']", parentSelector: ".pr-tee", placeholder: "Filter — find a team's tee" });
         wirePairings(board);
       }
 
@@ -1836,6 +1868,7 @@
         var joined = withDividers.filter(Boolean).join("");
         var note = dirty ? '<p class="lb-preview-note">Preview based on current cut sliders — the flights below reflect what a Save flights click would persist.</p>' : "";
         body.innerHTML = stripHtml + note + (joined || '<p class="noms__msg">No Day-1 scores yet — enter scores on the Scores tab.</p>');
+        attachRowFilter(body, { rowSelector: ".lb-table tbody tr" });
 
         // Wire inline slider adjustments — writes cuts[i], persists, re-renders
         // everything (leaderboard + calcutta) so the change ripples through.
@@ -1944,7 +1977,7 @@
         body.innerHTML = strip
           + (out || '<p class="noms__msg">Flights aren\'t assigned yet — set the cuts on the Flights tab first.</p>')
           + '<div class="ca-footer"><button type="button" class="btn btn--solid ca-clear-all" id="caClearAll">Delete all Calcutta data</button></div>';
-
+        attachRowFilter(body, { rowSelector: ".ca-tbl tbody tr" });
         wireCalcutta(body);
       }
 
@@ -2171,6 +2204,7 @@
             + unTrs + '</tbody></table></div></div>';
         }
         body.innerHTML = stripHtml + (out || '<p class="noms__msg">No Day-1 scores yet — enter scores on the Scores tab.</p>') + unHtml;
+        attachRowFilter(body, { rowSelector: ".lb-table tbody tr" });
       }
 
       function ordinal(n) {
