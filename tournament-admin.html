@@ -68,6 +68,9 @@
           <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
           <button type="button" class="wb-tab" data-sheet="calc" role="tab">Calc</button>
+          <span class="wb-tabs__spacer" aria-hidden="true"></span>
+          <button type="button" class="wb-tab wb-tab--disp" data-sheet="dispCalcutta" role="tab">Calcutta Disp</button>
+          <button type="button" class="wb-tab wb-tab--disp" data-sheet="dispLeaderboard" role="tab">Leaderboard Disp</button>
         </div>
 
         <!-- Quick actions -->
@@ -239,6 +242,42 @@
           </div>
           <p class="scaffold__desc">Every check to write, computed from Flights + Calcutta. Prize totals come from the Calc tab. Ties get split evenly. Total at the bottom.</p>
           <div id="poBody"><p class="noms__msg">Loading…</p></div>
+        </section>
+
+        <!-- Calcutta Display — public broadcast board -->
+        <section class="noms wb-sheet wb-sheet--disp" data-sheet="dispCalcutta" id="twDispCalcutta" aria-label="Calcutta Display" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Calcutta Display</h3>
+          </div>
+          <p class="scaffold__desc">Full-screen broadcast view — hero banner, per-flight pool totals, and every team still up for sale. Public link, safe to share (no phone / email / payment info). Auto-refreshes.</p>
+          <div class="disp-tab">
+            <div class="disp-tab__row">
+              <a class="btn btn--primary disp-tab__open" href="founders-calcutta-display.html" target="_blank" rel="noopener">Open display in new tab &rarr;</a>
+              <button type="button" class="btn btn--solid disp-tab__copy" data-page="founders-calcutta-display.html">Copy public link</button>
+              <span class="disp-tab__copied" hidden>Copied.</span>
+            </div>
+            <input type="text" class="disp-tab__url" data-page="founders-calcutta-display.html" readonly aria-label="Public Calcutta display URL" />
+            <p class="disp-tab__hint">Anyone with this link can watch the auction from their phone. No admin key required.</p>
+            <iframe class="disp-tab__preview" data-page="founders-calcutta-display.html" title="Calcutta display preview"></iframe>
+          </div>
+        </section>
+
+        <!-- Leaderboard Display — public broadcast board -->
+        <section class="noms wb-sheet wb-sheet--disp" data-sheet="dispLeaderboard" id="twDispLeaderboard" aria-label="Leaderboard Display" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Leaderboard Display</h3>
+          </div>
+          <p class="scaffold__desc">Full-screen live leaderboard — Day 1, Day 2, gross, HCP, net, flight + Calcutta winner flags. Public link, safe to share. Auto-refreshes.</p>
+          <div class="disp-tab">
+            <div class="disp-tab__row">
+              <a class="btn btn--primary disp-tab__open" href="founders-leaderboard-display.html" target="_blank" rel="noopener">Open display in new tab &rarr;</a>
+              <button type="button" class="btn btn--solid disp-tab__copy" data-page="founders-leaderboard-display.html">Copy public link</button>
+              <span class="disp-tab__copied" hidden>Copied.</span>
+            </div>
+            <input type="text" class="disp-tab__url" data-page="founders-leaderboard-display.html" readonly aria-label="Public Leaderboard display URL" />
+            <p class="disp-tab__hint">Share this link with anyone asking how the tournament is going.</p>
+            <iframe class="disp-tab__preview" data-page="founders-leaderboard-display.html" title="Leaderboard display preview"></iframe>
+          </div>
         </section>
 
       </div>
@@ -2523,12 +2562,44 @@
           Array.prototype.forEach.call(document.querySelectorAll(".wb-sheet"), function (el) { el.hidden = (el.getAttribute("data-sheet") !== s); });
           Array.prototype.forEach.call(document.querySelectorAll(".wb-tab"), function (b) { b.classList.toggle("is-active", b.getAttribute("data-sheet") === s); });
           try { localStorage.setItem("fh_wb_tab_" + KEY, s); } catch (e) {}
+          // Load the public-display iframes lazily — only when their tab opens.
+          if (s === "dispCalcutta" || s === "dispLeaderboard") mountDisplayTab(s);
         }
         Array.prototype.forEach.call(document.querySelectorAll(".wb-tab"), function (b) {
           b.addEventListener("click", function () { showSheet(b.getAttribute("data-sheet")); });
         });
         var savedTab = "check"; try { savedTab = localStorage.getItem("fh_wb_tab_" + KEY) || "check"; } catch (e) {}
         showSheet(savedTab);
+
+        // Fill URL fields, wire copy buttons, lazy-load iframes for the two
+        // public-display tabs. Public URL is the current site origin + page.
+        function publicUrl(page) { return location.origin.replace(/\/$/, "") + "/" + page; }
+        function mountDisplayTab(sheet) {
+          var host = document.querySelector('[data-sheet="' + sheet + '"]');
+          if (!host || host.__mounted) return;
+          Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__url"), function (inp) {
+            if (!inp.value) inp.value = publicUrl(inp.getAttribute("data-page"));
+          });
+          Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__preview"), function (fr) {
+            if (!fr.src) fr.src = fr.getAttribute("data-page");
+          });
+          host.__mounted = true;
+        }
+        // Wire copy buttons once (works for both display tabs).
+        Array.prototype.forEach.call(document.querySelectorAll(".disp-tab__copy"), function (btn) {
+          btn.addEventListener("click", function () {
+            var url = publicUrl(btn.getAttribute("data-page"));
+            var done = btn.parentNode.querySelector(".disp-tab__copied");
+            function flash() { if (done) { done.hidden = false; setTimeout(function () { done.hidden = true; }, 1600); } }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(url).then(flash, function () {
+                window.prompt("Copy this link:", url);
+              });
+            } else {
+              window.prompt("Copy this link:", url);
+            }
+          });
+        });
 
         PARS = (loadCalc().pars || PARS).slice(0, 18);
         renderCalcForm();

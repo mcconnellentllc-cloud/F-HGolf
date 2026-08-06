@@ -1,7 +1,9 @@
-// Vercel serverless function — Tournament Signups list + remove (staff only).
+// Vercel serverless function — Tournament Signups list + remove.
 //
-//   GET   -> list every record (admin-key). Includes contact info, so gated.
-//   POST  { action: "remove", id }  -> delete a record (admin-key).
+//   GET  (no key)         -> stripped public payload (team + scores + calcutta
+//                            + flight), safe to expose on TV / phone displays.
+//   GET  (x-admin-key)    -> full record set including contact + payment info.
+//   POST (x-admin-key) { action: "remove", id } -> delete a record.
 //
 // Consolidates the old tournament-remove endpoint here to stay under Vercel's
 // serverless-function cap. Read-only tools still hit GET; frontend uses POST
@@ -10,6 +12,21 @@
 //
 // Env: AIRTABLE_TOKEN (data.records:read+write), AIRTABLE_BASE_ID,
 //      TOURNAMENTS_TABLE (defaults to "Tournament Signups"), ADMIN_KEY.
+
+// Fields we're willing to hand to anonymous readers — anything not on this list
+// is stripped out before the public payload leaves the server.
+const PUBLIC_FIELDS = [
+  "Player Name", "Team / Partners", "Tournament", "Alternate", "Start",
+  "Flight", "Buyer", "Buy Amount",
+  "Day1 Scores", "Day2 Scores", "Day1 Gross", "Day2 Gross",
+];
+
+function stripRecord(rec) {
+  const src = rec.fields || {};
+  const out = {};
+  for (const f of PUBLIC_FIELDS) if (src[f] !== undefined) out[f] = src[f];
+  return { id: rec.id, created: rec.created, fields: out };
+}
 
 module.exports = async (req, res) => {
   if (require("./_cors")(req, res)) return;
@@ -25,7 +42,9 @@ module.exports = async (req, res) => {
   }
 
   const key = req.headers["x-admin-key"] || "";
-  if (!ADMIN_KEY || key !== ADMIN_KEY) {
+  const isAdmin = ADMIN_KEY && key === ADMIN_KEY;
+  // Public GET is allowed; POST + any non-GET always requires the admin key.
+  if (!isAdmin && req.method !== "GET") {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
 
@@ -72,7 +91,11 @@ module.exports = async (req, res) => {
       offset = data.offset;
     }
     records.sort((a, b) => String(b.created || "").localeCompare(String(a.created || "")));
-    return res.status(200).json({ ok: true, count: records.length, records });
+    const out = isAdmin ? records : records.map(stripRecord);
+    // Public displays poll every ~15s — allow a tiny edge cache but keep it
+    // fresh enough that new scores/buyers show up on the TV promptly.
+    if (!isAdmin) res.setHeader("Cache-Control", "public, s-maxage=10, stale-while-revalidate=30");
+    return res.status(200).json({ ok: true, count: out.length, records: out });
   } catch (e) {
     console.error("tournament-signups read error", e);
     return res.status(500).json({ ok: false, error: "Something went wrong loading sign-ups." });
