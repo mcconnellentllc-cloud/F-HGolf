@@ -925,21 +925,21 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .pr-pool__list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .pr-pool .pr-team { flex: 0 1 auto; }
 
-/* Tee grid — one card per active (hole, slot) */
-.pr-teegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.65rem; }
-.pr-tee { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0.45rem 0.55rem; display: flex; flex-direction: column; gap: 0.35rem; min-height: 6.4rem; }
-.pr-tee.is-drop { background: var(--light-green); border-color: var(--primary-green); }
-.pr-tee__hd { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 0.25rem; }
-.pr-tee__hole { font-weight: 800; color: var(--primary-green); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
-.pr-tee__slot { font-size: 0.72rem; font-weight: 800; color: #fff; background: var(--primary-green); border-radius: 4px; padding: 0.05rem 0.35rem; letter-spacing: 0.02em; }
+/* Tee grid — one bordered card per active (hole, slot) with a green header bar */
+.pr-teegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; }
+.pr-tee { border: 2px solid var(--primary-green); border-radius: 12px; background: #fff; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.pr-tee.is-drop { background: var(--light-green); box-shadow: 0 0 0 3px var(--primary-green); }
+.pr-tee__hd { background: var(--primary-green); color: #fff; padding: 0.4rem 0.75rem; font-family: var(--font-display); font-size: 1rem; font-weight: 800; letter-spacing: 0.05em; text-align: center; text-transform: uppercase; }
+.pr-tee__seats { padding: 0.55rem 0.7rem; display: flex; flex-direction: column; align-items: stretch; gap: 0.35rem; }
+.pr-tee__amp { text-align: center; color: var(--primary-green); font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; line-height: 1; }
 
-/* Team card — draggable */
-.pr-team { display: block; padding: 0.35rem 0.5rem; border-radius: 6px; background: var(--paper-2); font-size: 0.9rem; cursor: grab; user-select: none; }
-.pr-team:hover { background: var(--light-green); }
+/* Team card — draggable pill */
+.pr-team { display: block; padding: 0.6rem 0.7rem; border-radius: 8px; background: var(--paper-2); font-size: 0.98rem; font-weight: 700; text-align: center; cursor: grab; user-select: none; border: 1px solid transparent; }
+.pr-team:hover { background: var(--light-green); border-color: var(--primary-green); }
 .pr-team.is-drag { opacity: 0.35; cursor: grabbing; }
-.pr-team__nm { font-weight: 600; }
-.pr-team--empty { background: transparent; border: 1px dashed var(--line); color: var(--muted); font-style: italic; text-align: center; cursor: default; font-size: 0.78rem; }
-.pr-team--empty:hover { background: transparent; }
+.pr-team__nm { font-weight: 700; color: var(--ink); }
+.pr-team--empty { background: transparent; border: 1px dashed var(--line); color: var(--muted); font-style: italic; font-size: 0.82rem; font-weight: 400; cursor: default; }
+.pr-team--empty:hover { background: transparent; border-color: var(--line); }
 
 /* Alternates (standby, not in the active field) */
 .ci-badge--alt { background: var(--red); }

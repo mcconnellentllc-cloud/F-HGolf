@@ -618,8 +618,19 @@
           })
             .then(function (r) { return r.json().catch(function () { return {}; }); })
             .then(function (j) {
-              if (j && j.ok) { loadRoster(); }
-              else if (statusEl) { statusEl.textContent = (j && j.error) || "Rename failed."; statusEl.className = "ci__status is-error"; }
+              if (!j || !j.ok) { if (statusEl) { statusEl.textContent = (j && j.error) || "Rename failed."; statusEl.className = "ci__status is-error"; } return; }
+              // For P1 renames on a signup that's linked to a Player Card,
+              // push the new name to the canonical Player + every other signup
+              // linked to that same player. The Player Card is gospel.
+              if (role === "p1") {
+                var signup = (rosterRecs || []).find(function (r) { return r.id === signupId; });
+                var linked = signup && signup.fields && Array.isArray(signup.fields.Player) ? signup.fields.Player[0] : "";
+                if (linked) {
+                  propagatePlayerName(linked, next).then(function () { loadRoster(); });
+                  return;
+                }
+              }
+              loadRoster();
             })
             .catch(function () { if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
         }
@@ -635,6 +646,40 @@
 
       function pmSetVal(id, v) { var el = document.getElementById(id); if (el) el.value = v == null ? "" : v; }
       function pmVal(id) { var el = document.getElementById(id); return el ? el.value.trim() : ""; }
+
+      // Player Card is gospel: when a P1 name changes anywhere, push the new name
+      // to the Players table AND to every Tournament Signup linked to that Player
+      // (this and prior tournaments), so the roster reflects the canonical name
+      // across the whole site.
+      function propagatePlayerName(playerId, newName) {
+        if (!playerId || !newName) return Promise.resolve();
+        // 1) Update the canonical Player card first.
+        return fetch(FH_API.url("/api/players"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ id: playerId, name: newName })
+        }).catch(function () {})
+          // 2) Then update every signup linked to this player.
+          .then(function () {
+            return fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
+              .then(function (r) { return r.json().catch(function () { return {}; }); })
+              .then(function (j) {
+                var recs = (j && j.records) || [];
+                var linked = recs.filter(function (r) {
+                  var p = (r.fields || {}).Player;
+                  return Array.isArray(p) && p.indexOf(playerId) !== -1;
+                });
+                if (!linked.length) return;
+                return Promise.all(linked.map(function (r) {
+                  return fetch(FH_API.url("/api/tournament-checkin"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+                    body: JSON.stringify({ id: r.id, playerName: newName })
+                  }).catch(function () {});
+                }));
+              });
+          });
+      }
 
       function openPlayerCard(signupId, role, currentName) {
         var modal = document.getElementById("playerModal");
@@ -741,6 +786,13 @@
               headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
               body: JSON.stringify(link)
             })
+              .then(function () {
+                // Player Card is gospel — push this saved name to every other signup
+                // linked to the same Player. Only applies to P1 (Player link field).
+                if (pmCurrent && pmCurrent.role === "p1") {
+                  return propagatePlayerName(j.id, name);
+                }
+              })
               .then(function () { loadRoster(); })
               .catch(function () { loadRoster(); })
               .finally(function () { setTimeout(closePlayerCard, 500); });
@@ -1004,14 +1056,21 @@
         var summary = tees + ' tees &times; ' + TEAMS_PER_TEE + ' teams = <strong>' + seats + '</strong> seats &middot; ' + teamCount + ' teams' + tail;
         var canAutofill = teamCount > 0 && enough;
 
-        // Tee cards.
+        // Tee cards — "HOLE X · TEE A" header bar, two team cards, ampersand between.
         var teeHtml = slots.map(function (s) {
           var arr = placed[s.hole + s.slot];
-          var seatEls = "";
+          var seatEls = [];
           for (var i = 0; i < TEAMS_PER_TEE; i++) {
-            seatEls += arr[i] ? prTeamCard(arr[i]) : '<div class="pr-team pr-team--empty" data-empty="1">seat open</div>';
+            seatEls.push(arr[i] ? prTeamCard(arr[i]) : '<div class="pr-team pr-team--empty" data-empty="1">seat open</div>');
           }
-          return '<div class="pr-tee" data-hole="' + s.hole + '" data-slot="' + s.slot + '" data-wave="' + w.k + '"><div class="pr-tee__hd"><span class="pr-tee__hole">Hole ' + s.hole + '</span><span class="pr-tee__slot">Tee ' + s.slot + '</span></div>' + seatEls + '</div>';
+          return '<div class="pr-tee" data-hole="' + s.hole + '" data-slot="' + s.slot + '" data-wave="' + w.k + '">'
+            + '<div class="pr-tee__hd">HOLE ' + s.hole + ' &middot; TEE ' + s.slot + '</div>'
+            + '<div class="pr-tee__seats">'
+            + seatEls[0]
+            + '<span class="pr-tee__amp" aria-hidden="true">&amp;</span>'
+            + seatEls[1]
+            + '</div>'
+            + '</div>';
         }).join("");
 
         // Unplaced pool.
