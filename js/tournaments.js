@@ -23,7 +23,8 @@
       links: [
         { label: "Flights", href: "founders-flights.html" },
         { label: "Calcutta", href: "founders-calcutta-display.html" },
-        { label: "Results", href: "founders-leaderboard-display.html" }
+        { label: "Results", href: "founders-leaderboard-display.html" },
+        { label: "Past", href: "history.html?name=Founder" }
       ]
     },
     "Couple's Tournament (Aug 22)": { end: "2026-08-22", cap: 24, unit: "teams", team: 2, roles: ["Your name", "Partner's name"], format: "2-player couples (one entry = a team)" },

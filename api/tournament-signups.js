@@ -149,9 +149,11 @@ module.exports = async (req, res) => {
     return res.status(400).json({ ok: false, error: "Unknown action." });
   }
 
-  // GET ?archives=1 returns the archive list (staff only, no public path).
+  // GET ?archives=1 returns the archive list. Public — tournament results are
+  // published information, so anyone can browse the historical record.
   const q = req.query || {};
   if (q.archives === "1" || q.archives === 1) {
+    if (!isAdmin) res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
     try {
       const archs = [];
       let offset = "";

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Past Tournaments — F&H Golf Course</title>
+  <meta name="description" content="Historical results from tournaments at F&H Golf Course — flight winners, calcutta, and champions from previous years." />
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1B5E20" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <header class="nav" role="banner">
+    <div class="nav__inner">
+      <a class="nav__brand" href="index.html">
+        <img class="nav__logo" src="images/logo.png" alt="F&H Golf Course logo" />
+        <div class="nav__brand-txt"><span class="nav__title">F&amp;H Golf Course</span><span class="nav__tag">Fleming, CO</span></div>
+      </a>
+      <nav class="nav__links" aria-label="Site">
+        <a href="index.html">Home</a>
+        <a href="tournaments.html">Tournaments</a>
+        <a class="is-active" href="history.html">Past Tournaments</a>
+        <a href="hall-of-fame.html">Hall of Fame</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section" style="padding-top:1.5rem;padding-bottom:1.5rem;">
+    <div class="container">
+      <div class="section-head section-head--center">
+        <p class="eyebrow">Archive</p>
+        <h1 class="section__title" id="histTitle">Past Tournaments</h1>
+        <hr class="rule-brass" />
+        <p class="section__subtitle" id="histLead">Flight winners, Calcutta results, and champions from previous years at F&amp;H Golf Course.</p>
+      </div>
+
+      <div class="hist" id="pubHist"><p class="noms__msg">Loading past tournaments&hellip;</p></div>
+    </div>
+  </section>
+
+  <footer class="site-footer" role="contentinfo">
+    <div class="site-footer__inner">
+      <p>&copy; <span id="footYr"></span> F&amp;H Golf Course · Fleming, Colorado · <a href="tel:+19707746362">(970) 774-6362</a></p>
+    </div>
+  </footer>
+
+  <script>document.getElementById("footYr").textContent = new Date().getFullYear();</script>
+  <script src="js/api.js"></script>
+  <script>
+    (function () {
+      function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+      function money(n) { if (n == null || !isFinite(n)) return "$0"; return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+
+      // Optional ?name=Founder filter — the Founders card links here with that
+      // param so users see only Founders history when they arrived from that card.
+      var params = new URLSearchParams(location.search);
+      var filterName = (params.get("name") || "").trim();
+      if (filterName) {
+        var pretty = filterName.charAt(0).toUpperCase() + filterName.slice(1);
+        var title = document.getElementById("histTitle");
+        if (title) title.textContent = pretty + " — Past Years";
+        var lead = document.getElementById("histLead");
+        if (lead) lead.textContent = "Every past running of the " + pretty + " tournament at F&H Golf Course.";
+      }
+
+      fetch(FH_API.url("/api/tournament-signups?archives=1"), { cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          var host = document.getElementById("pubHist");
+          if (!j || !j.ok) { host.innerHTML = '<p class="noms__msg">Couldn\'t load archives right now — please try again later.</p>'; return; }
+          var recs = j.records || [];
+          if (filterName) {
+            var needle = filterName.toLowerCase();
+            recs = recs.filter(function (r) { return String((r.fields || {}).Name || "").toLowerCase().indexOf(needle) !== -1; });
+          }
+          if (!recs.length) {
+            var emptyMsg = filterName
+              ? 'No past runnings of the ' + esc(filterName) + ' tournament are on record yet. Check back after this year is finished.'
+              : 'The archive is empty. Once a tournament is committed by staff, it will show up here.';
+            host.innerHTML = '<p class="noms__msg" style="text-align:center;padding:2rem 1rem;">' + emptyMsg + '</p>'; return;
+          }
+          host.innerHTML = recs.map(function (r) {
+            var f = r.fields || {};
+            var snap = null; try { snap = f.Snapshot ? JSON.parse(f.Snapshot) : null; } catch (e) {}
+            var champion = f.Champion || (snap && snap.champion) || "—";
+            var teams = f.Teams || (snap && snap.teams) || "—";
+            var pool = (typeof f["Total Pool"] === "number" ? f["Total Pool"] : (snap && snap.totalPool)) || 0;
+            var calc = (typeof f["Calcutta Pool"] === "number" ? f["Calcutta Pool"] : (snap && snap.calcuttaPool)) || 0;
+
+            var lb = snap && snap.leaderboard;
+            var lbHtml = "";
+            if (lb && lb.length) {
+              lbHtml = '<h5 class="hist__sub">Leaderboard</h5><div class="table-scroll"><table class="hist__tbl"><thead><tr><th>Flight</th><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+                + lb.map(function (row) {
+                    return "<tr><td>" + esc(row.flight || "") + "</td><td>" + esc(row.name || "") + "</td>"
+                      + "<td>" + (row.d1 == null ? "—" : row.d1) + "</td><td>" + (row.d2 == null ? "—" : row.d2) + "</td>"
+                      + "<td><b>" + (row.gross == null ? "—" : row.gross) + "</b></td><td>" + (row.hcp == null ? "—" : row.hcp) + "</td>"
+                      + "<td><b>" + (row.net == null ? "—" : row.net) + "</b></td></tr>";
+                  }).join("")
+                + '</tbody></table></div>';
+            }
+            var pay = snap && snap.payouts;
+            var payHtml = "";
+            if (pay && pay.length) {
+              payHtml = '<h5 class="hist__sub">Payouts</h5><div class="table-scroll"><table class="hist__tbl"><thead><tr><th>Recipient</th><th>Team</th><th>Reason</th><th>Amount</th></tr></thead><tbody>'
+                + pay.map(function (p) {
+                    return "<tr><td>" + esc(p.recipient || "") + "</td><td>" + esc(p.teamName || "") + "</td>"
+                      + "<td>" + esc(p.note || "") + "</td><td><b>" + money(p.amount || 0) + "</b></td></tr>";
+                  }).join("")
+                + '</tbody></table></div>';
+            }
+            var noSnap = !lb && !pay ? '<p class="hist__meta2" style="font-style:italic;">Detailed leaderboard for this year is not yet published.</p>' : "";
+            return '<details class="hist__row" data-id="' + esc(r.id) + '"' + (recs.length === 1 ? " open" : "") + '>'
+              + '<summary class="hist__sum">'
+              + '<span class="hist__year">' + esc(String(f.Year || "—")) + '</span>'
+              + '<span class="hist__name">' + esc(String(f.Name || "")) + '</span>'
+              + '<span class="hist__meta"><b>' + esc(String(teams)) + '</b> teams · pool <b>' + money(pool) + '</b> · calcutta <b>' + money(calc) + '</b></span>'
+              + '<span class="hist__champ">Champion: <b>' + esc(String(champion)) + '</b></span>'
+              + '</summary>'
+              + '<div class="hist__body">'
+              + '<p class="hist__meta2">Dates: ' + esc(String(f.Dates || "—")) + '</p>'
+              + noSnap + lbHtml + payHtml
+              + '</div></details>';
+          }).join("");
+        })
+        .catch(function () {
+          document.getElementById("pubHist").innerHTML = '<p class="noms__msg">Network error loading past tournaments.</p>';
+        });
+    })();
+  </script>
+</body>
+</html>
