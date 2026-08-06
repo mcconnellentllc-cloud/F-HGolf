@@ -43,7 +43,12 @@ module.exports = async (req, res) => {
     const n = Math.round(Number(v));
     return (isFinite(n) && n >= 1 && n <= 40) ? n : null;
   });
-  const gross = scores.reduce((s, n) => s + (n || 0), 0);
+
+  // Only publish Gross once the whole round is in. A partial gross would make
+  // the leaderboard, flights, and public displays start assigning HCPs and
+  // flight cuts on garbage mid-round.
+  const complete = scores.length === 18 && scores.every((n) => n != null);
+  const gross = complete ? scores.reduce((s, n) => s + n, 0) : null;
 
   const fields = {};
   fields["Day" + day + " Scores"] = JSON.stringify(scores);
@@ -65,7 +70,7 @@ module.exports = async (req, res) => {
       return res.status(502).json({ ok: false, error: msg });
     }
     const data = await r.json();
-    return res.status(200).json({ ok: true, id: data.id, gross: gross, fields: data.fields || {} });
+    return res.status(200).json({ ok: true, id: data.id, gross: gross, complete: complete, fields: data.fields || {} });
   } catch (e) {
     console.error("tournament-score error", e);
     return res.status(500).json({ ok: false, error: "Something went wrong saving the scores." });

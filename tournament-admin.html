@@ -2539,8 +2539,13 @@
           });
 
           // ---- Calcutta payouts (by net, top-4) ----
-          var caPool = fl.rows.reduce(function (s, r) { return s + (r.buyAmount || 0); }, 0);
-          var caPayout = Math.max(0, caPool * (1 - comm));
+          // Per-flight pool; commission rate comes from the shared ledger so
+          // there's no drift with the P&L / Calcutta display.
+          var caPool = fl.rows.reduce(function (s, r) {
+            var v = r.rec && r.rec.fields && r.rec.fields["Buy Amount"];
+            return s + (typeof v === "number" ? v : 0);
+          }, 0);
+          var caPayout = Math.max(0, caPool * (1 - m.calcuttaCommissionPct / 100));
           var caPrizes = calSplit.map(function (pct) { return caPayout * (pct / 100); });
           var byNet = {};
           fl.rows.forEach(function (r) { if (r.netPlace && r.netPlace <= calSplit.length) (byNet[r.netPlace] = byNet[r.netPlace] || []).push(r); });

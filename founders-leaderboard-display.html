@@ -98,7 +98,11 @@
   <script>
     (function () {
       var KEY = "Founder's Tournament (Aug 8–9)";
-      var FLIGHT_NAMES = { 1: "Champ", 2: "First", 3: "Second", 4: "Third" };
+      // Flight labels grow past the fixed four if staff cut more on the Calc tab.
+      function flightName(n) {
+        var names = ["Champ", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh"];
+        return names[n - 1] || ("Flight " + n);
+      }
       var REFRESH_MS = 15000;
       var HCP_MULT = 0.8;      // matches Calc defaults
       var FLIGHT_PRIZES = 3;   // top-3 gross flagged per flight
@@ -167,7 +171,10 @@
           (groups[k] = groups[k] || []).push(r);
         });
 
-        var flights = [1, 2, 3, 4].map(function (fl) {
+        // Range grows if staff cut more than 4 flights; default 4 when empty.
+        var maxFl = Math.max(4, Number(Object.keys(groups).reduce(function (m, k) { return Number(k) > m ? Number(k) : m; }, 0)) || 0);
+        var flightList = []; for (var _fi = 1; _fi <= maxFl; _fi++) flightList.push(_fi);
+        var flights = flightList.map(function (fl) {
           var arr = groups[fl] || [];
           var rows = arr.map(function (r) {
             var f = r.fields || {};
@@ -196,7 +203,7 @@
             if (b.gross == null) return -1;
             return a.gross - b.gross;
           });
-          return { fl: fl, name: FLIGHT_NAMES[fl], rows: rows, leader: leader };
+          return { fl: fl, name: flightName(fl), rows: rows, leader: leader };
         });
 
         var html = flights.map(function (fl) {

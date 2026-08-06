@@ -1342,13 +1342,22 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
   body[class*="is-print-"] .pr-wave-block { margin: 0 0 0.5rem 0; }
   body[class*="is-print-"] .pr-wave-block__title { font-size: 22pt; font-weight: 800; text-align: center; border-bottom: 3pt solid #000; padding-bottom: 6pt; margin-bottom: 10pt; color: #000; }
   body[class*="is-print-"] .pr-wave-block__title span { font-size: 14pt; color: #333; }
-  body[class*="is-print-"] .pr-teegrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8pt; }
-  body[class*="is-print-"] .pr-tee { border-width: 2pt !important; border-style: solid !important; border-radius: 4pt !important; overflow: hidden; page-break-inside: avoid; background: #fff !important; box-shadow: none !important; }
-  body[class*="is-print-"] .pr-tee__hd { color: #fff !important; padding: 4pt 6pt !important; font-size: 13pt !important; font-weight: 800 !important; text-align: center; letter-spacing: 0.05em; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body[class*="is-print-"] .pr-tee__seats { padding: 6pt 8pt; gap: 4pt; }
-  body[class*="is-print-"] .pr-team { padding: 4pt 4pt; background: transparent !important; border: none !important; font-size: 12pt; font-weight: 700; text-align: center; color: #000 !important; }
-  body[class*="is-print-"] .pr-tee__amp { font-size: 13pt; font-weight: 800; padding: 0; }
-  body[class*="is-print-"] .pr-team--empty { display: none !important; }
+  body[class*="is-print-"] .pr-teegrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8pt; }
+  body[class*="is-print-"] .pr-tee { display: grid; grid-template-columns: auto 1fr; border-width: 1.5pt !important; border-style: solid !important; border-radius: 4pt !important; overflow: hidden; page-break-inside: avoid; background: #fff !important; box-shadow: none !important; }
+  /* Bulldog-style dark left column: HOLE / N / SLOT. */
+  body[class*="is-print-"] .pr-tee__side { color: #fff !important; padding: 6pt 8pt !important; min-width: 44pt; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  body[class*="is-print-"] .pr-tee__side-hole { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.85; font-weight: 700; }
+  body[class*="is-print-"] .pr-tee__side-num { font-family: "Fraunces", Georgia, serif; font-size: 22pt; font-weight: 800; line-height: 1; margin: 1pt 0; }
+  body[class*="is-print-"] .pr-tee__side-slot { font-size: 8pt; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+  body[class*="is-print-"] .pr-tee__side-thru { display: none !important; }
+  /* Right side: two Team NN cards. */
+  body[class*="is-print-"] .pr-tee__cards { display: grid; grid-template-columns: 1fr 1fr; padding: 5pt 6pt; gap: 4pt; }
+  body[class*="is-print-"] .pr-team { padding: 3pt 5pt; background: #fff !important; border: 0.75pt solid #666 !important; border-radius: 3pt !important; font-size: 10pt; font-weight: 700; text-align: center; color: #000 !important; }
+  body[class*="is-print-"] .pr-team__num { display: block; font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 9pt; color: #1B5E20; }
+  body[class*="is-print-"] .pr-team__hd { padding: 0; }
+  body[class*="is-print-"] .pr-team__players { display: block; }
+  body[class*="is-print-"] .pr-team__player { display: block; font-size: 9pt; }
+  body[class*="is-print-"] .pr-team--empty { border: 0.75pt dashed #999 !important; color: #999 !important; font-style: italic; font-weight: 400; }
   body[class*="is-print-"] .pr-team__move { display: none !important; }
 
   /* Leaderboard print — one flight per page */
