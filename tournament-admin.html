@@ -1851,26 +1851,30 @@
           var rows = arr.map(function (r) {
             var a = d1g(r), b = d2g(r);
             var hcp = (a != null && leader != null) ? Math.floor((a - leader) * mult) : null;
-            var overall = (a != null || b != null) ? (a != null ? a : 0) + (b != null ? b : 0) : null;
-            var net = (b != null && hcp != null) ? (b - hcp) : null;
-            return { name: teamName(r), teamNumber: lbTeamNumbers[r.id], a: a, b: b, overall: overall, hcp: hcp, net: net };
+            var scores = parseScores((r.fields || {})["Day1 Scores"]);
+            function loop(from, to) {
+              if (!scores || scores.length < to) return null;
+              var s = 0;
+              for (var k = from; k < to; k++) { if (scores[k] == null) return null; s += scores[k]; }
+              return s;
+            }
+            var front = loop(0, 9), back = loop(9, 18);
+            return { name: teamName(r), teamNumber: lbTeamNumbers[r.id], front: front, back: back, a: a, b: b, hcp: hcp };
           });
-          var byGross = rows.slice().filter(function (x) { return x.overall != null; }).sort(function (x, y) { return x.overall - y.overall; });
-          var byNet = rows.slice().filter(function (x) { return x.net != null; }).sort(function (x, y) { return x.net - y.net; });
-          rows.forEach(function (x) { x.place = byGross.indexOf(x) >= 0 ? byGross.indexOf(x) + 1 : null; x.cplace = byNet.indexOf(x) >= 0 ? byNet.indexOf(x) + 1 : null; });
-          rows.sort(function (x, y) { return (x.overall == null ? 1e9 : x.overall) - (y.overall == null ? 1e9 : y.overall); });
-          // Flights tab: Day 1 focus — team, D1 gross, handicap. Full standings
-          // (D2, total gross, net) live on the Leaderboard tab instead.
+          // Sort: lowest Day-1 gross at top of the flight, highest at the bottom.
+          rows.sort(function (x, y) { return (x.a == null ? 1e9 : x.a) - (y.a == null ? 1e9 : y.a); });
           var trs = rows.map(function (x) {
             var tnB = x.teamNumber ? '<span class="lb-tnum">T-' + String(x.teamNumber).padStart(2, "0") + '</span> ' : '';
             return "<tr><td>" + tnB + esc(x.name) + "</td>"
+              + "<td>" + (x.front == null ? "—" : x.front) + "</td>"
+              + "<td>" + (x.back == null ? "—" : x.back) + "</td>"
               + "<td><b>" + (x.a == null ? "—" : x.a) + "</b></td>"
               + "<td>" + (x.hcp == null ? "—" : x.hcp) + "</td></tr>";
           }).join("");
           var title = fl === 0 ? "Unassigned (no Day-1 score yet)" : (flightName(fl) + " Flight");
           var count = ' <span class="lb-flight__count">' + rows.length + ' team' + (rows.length === 1 ? "" : "s") + '</span>';
           return '<div class="lb-flight"><h4 class="lb-flight__title">' + title + count + "</h4>"
-            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>Day 1</th><th>HCP</th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>Front 9</th><th>Back 9</th><th>Day 1</th><th>HCP</th></tr></thead><tbody>'
             + trs + "</tbody></table></div></div>";
         });
         // Weave inline cut sliders between flight sections (drag to shift the
