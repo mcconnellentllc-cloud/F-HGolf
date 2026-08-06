@@ -194,6 +194,71 @@
     </div>
   </section>
 
+  <!-- ==================== PLAYER CARD MODAL ==================== -->
+  <div class="pm-modal" id="playerModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="pmTitle">
+    <div class="pm-modal__backdrop" data-close="1"></div>
+    <div class="pm-modal__panel">
+      <div class="pm-modal__head">
+        <h3 id="pmTitle">Player Card</h3>
+        <button type="button" class="pm-modal__close" id="pmClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="pm-modal__body">
+        <p class="pm-status" id="pmStatus">Loading…</p>
+        <div class="pm-setup" id="pmSetupHint" hidden>
+          <strong>Set up needed in Airtable:</strong>
+          <ol>
+            <li>Create a <code>Players</code> table with fields: <em>Name</em> (primary), <em>Phone</em>, <em>Email</em>, <em>Street</em>, <em>City</em>, <em>State</em>, <em>Zip</em>, <em>Member</em> (checkbox), <em>Notes</em> (long text).</li>
+            <li>On <code>Tournament Signups</code>, add a linked field <em>Player</em> &rarr; Players.</li>
+          </ol>
+        </div>
+        <label class="pm-field pm-field--full">
+          <span>Name</span>
+          <input type="text" id="pmName" autocomplete="off" />
+        </label>
+        <div class="pm-row">
+          <label class="pm-field">
+            <span>Phone</span>
+            <input type="tel" id="pmPhone" autocomplete="tel" />
+          </label>
+          <label class="pm-field">
+            <span>Email</span>
+            <input type="email" id="pmEmail" autocomplete="email" />
+          </label>
+        </div>
+        <label class="pm-field pm-field--full">
+          <span>Street</span>
+          <input type="text" id="pmStreet" autocomplete="street-address" />
+        </label>
+        <div class="pm-row pm-row--csz">
+          <label class="pm-field">
+            <span>City</span>
+            <input type="text" id="pmCity" autocomplete="address-level2" />
+          </label>
+          <label class="pm-field pm-field--sm">
+            <span>State</span>
+            <input type="text" id="pmState" maxlength="2" autocomplete="address-level1" />
+          </label>
+          <label class="pm-field pm-field--sm">
+            <span>Zip</span>
+            <input type="text" id="pmZip" maxlength="10" autocomplete="postal-code" />
+          </label>
+        </div>
+        <label class="pm-check">
+          <input type="checkbox" id="pmMember" />
+          <span>Course member</span>
+        </label>
+        <label class="pm-field pm-field--full">
+          <span>Notes</span>
+          <textarea id="pmNotes" rows="2"></textarea>
+        </label>
+      </div>
+      <div class="pm-modal__foot">
+        <button type="button" class="btn btn--solid" id="pmCancel">Cancel</button>
+        <button type="button" class="btn btn--primary" id="pmSave">Save</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="site-footer">
     <div class="site-footer__inner">
       <div class="site-footer__brand">
@@ -443,11 +508,20 @@
         var f = rec.fields || {}, pp = teamPlayers(f, rec);
         return !!f["Player 1 Paid"] && (pp.hasP2 ? !!f["Player 2 Paid"] : true);
       }
+      // Name cell: clickable link opens the Player Card modal; ✎ starts inline rename.
+      function nameCell(role, name) {
+        var display = name || (role === "p2" ? "—" : "(no name)");
+        var disabled = (role === "p2" && !name) ? ' style="visibility:hidden"' : "";
+        return '<span class="ci-name-wrap">'
+          + '<a href="#" class="ci-name" data-role="' + role + '">' + esc(display) + "</a>"
+          + '<button type="button" class="ci-rename" data-role="' + role + '" title="Rename inline"' + disabled + ">&#9998;</button>"
+          + "</span>";
+      }
       function ciRow(rec) {
         var f = rec.fields || {}, pp = teamPlayers(f, rec), isAlt = !!f["Alternate"];
         return '<tr class="ci-row" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
-          + '<td class="ci-c-name">' + esc(pp.p1 || "(no name)") + "</td>"
-          + '<td class="ci-c-name">' + esc(pp.p2 || "—") + "</td>"
+          + '<td class="ci-c-name">' + nameCell("p1", pp.p1) + "</td>"
+          + '<td class="ci-c-name">' + nameCell("p2", pp.p2) + "</td>"
           + '<td><select class="ci__start" title="Wave">' + startOptions(esc(f["Start"] || "")) + "</select></td>"
           + '<td><select class="ci__cart" title="Cart">' + cartOptions(esc(f["Cart Type"] || "")) + "</select></td>"
           + '<td><select class="ci__p1 paysel">' + paidOptions(esc(f["Player 1 Paid"] || "")) + "</select></td>"
@@ -461,9 +535,11 @@
           + rows.map(ciRow).join("") + "</tbody></table></div>";
       }
 
+      var rosterRecs = [];
       function renderRoster(all) {
         var list = document.getElementById("twRoster"), count = document.getElementById("twCount");
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
+        rosterRecs = recs;
         var field = recs.filter(function (r) { return !isAltRec(r); });
         var alts = recs.filter(isAltRec);
         actions(field);
@@ -497,8 +573,182 @@
             if (!window.confirm("Remove " + who.trim() + " from this tournament? This can't be undone.")) return;
             removeTeam(id, statusEl, remove);
           });
+          // Name = link opens Player Card. ✎ pencil = inline rename in place.
+          Array.prototype.forEach.call(row.querySelectorAll(".ci-name"), function (link) {
+            link.addEventListener("click", function (e) {
+              e.preventDefault();
+              var role = link.getAttribute("data-role");
+              var name = link.textContent.trim();
+              if (!name || name === "—" || name === "(no name)") name = "";
+              openPlayerCard(id, role, name);
+            });
+          });
+          Array.prototype.forEach.call(row.querySelectorAll(".ci-rename"), function (btn) {
+            btn.addEventListener("click", function () {
+              var role = btn.getAttribute("data-role");
+              var wrap = btn.parentNode, link = wrap.querySelector(".ci-name");
+              startInlineRename(wrap, link, btn, role, id, statusEl);
+            });
+          });
         });
       }
+
+      // Inline rename: swap the .ci-name link for a text input; save on Enter/blur,
+      // cancel on Escape. P1 writes Player Name; P2 writes Team / Partners.
+      function startInlineRename(wrap, link, btn, role, signupId, statusEl) {
+        var current = (link && link.textContent) || "";
+        if (current === "—" || current === "(no name)") current = "";
+        var input = document.createElement("input");
+        input.type = "text"; input.className = "ci-name-input"; input.value = current;
+        wrap.innerHTML = "";
+        wrap.appendChild(input);
+        input.focus(); input.select();
+        var done = false;
+        function commit(save) {
+          if (done) return; done = true;
+          var next = input.value.trim();
+          if (!save || next === current) { loadRoster(); return; }
+          if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "ci__status"; }
+          var payload = { id: signupId };
+          if (role === "p1") payload.playerName = next;
+          else payload.teamPartners = next;
+          fetch(FH_API.url("/api/tournament-checkin"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify(payload)
+          })
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+              if (j && j.ok) { loadRoster(); }
+              else if (statusEl) { statusEl.textContent = (j && j.error) || "Rename failed."; statusEl.className = "ci__status is-error"; }
+            })
+            .catch(function () { if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
+        }
+        input.addEventListener("blur", function () { commit(true); });
+        input.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") { e.preventDefault(); commit(true); }
+          else if (e.key === "Escape") { commit(false); }
+        });
+      }
+
+      // ---- Player Card modal (canonical customer record: Players table) ----
+      var pmCurrent = null;
+
+      function pmSetVal(id, v) { var el = document.getElementById(id); if (el) el.value = v == null ? "" : v; }
+      function pmVal(id) { var el = document.getElementById(id); return el ? el.value.trim() : ""; }
+
+      function openPlayerCard(signupId, role, currentName) {
+        var modal = document.getElementById("playerModal");
+        if (!modal) return;
+        pmCurrent = { signupId: signupId, role: role, playerId: "" };
+        ["pmName","pmPhone","pmEmail","pmStreet","pmCity","pmState","pmZip","pmNotes"].forEach(function (id) { pmSetVal(id, ""); });
+        var mem = document.getElementById("pmMember"); if (mem) mem.checked = false;
+        var status = document.getElementById("pmStatus"); if (status) { status.textContent = "Looking up…"; status.className = "pm-status is-info"; }
+        var hint = document.getElementById("pmSetupHint"); if (hint) hint.hidden = true;
+        pmSetVal("pmName", currentName || "");
+        modal.hidden = false; modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("modal-open");
+        setTimeout(function () { var n = document.getElementById("pmName"); if (n) n.focus(); }, 30);
+        // Prefill contact from the signup as a starting point (fallback data).
+        var signup = (rosterRecs || []).find(function (r) { return r.id === signupId; });
+        if (signup && signup.fields) {
+          if (role === "p1" && signup.fields.Email) pmSetVal("pmEmail", signup.fields.Email);
+          if (role === "p1" && signup.fields.Phone) pmSetVal("pmPhone", signup.fields.Phone);
+        }
+        if (!currentName) { if (status) { status.textContent = "New player — fill in the card and save."; status.className = "pm-status is-info"; } return; }
+        // Look up in Players table by name.
+        fetch(FH_API.url("/api/players?name=" + encodeURIComponent(currentName)), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.notReady) {
+              if (status) { status.textContent = "Players table isn't set up in Airtable yet."; status.className = "pm-status is-warn"; }
+              if (hint) hint.hidden = false;
+              return;
+            }
+            var recs = (j && j.records) || [];
+            if (recs.length) {
+              var f = recs[0].fields || {};
+              pmCurrent.playerId = recs[0].id;
+              pmSetVal("pmName", f.Name || currentName);
+              pmSetVal("pmPhone", f.Phone || pmVal("pmPhone"));
+              pmSetVal("pmEmail", f.Email || pmVal("pmEmail"));
+              pmSetVal("pmStreet", f.Street || "");
+              pmSetVal("pmCity", f.City || "");
+              pmSetVal("pmState", f.State || "");
+              pmSetVal("pmZip", f.Zip || "");
+              pmSetVal("pmNotes", f.Notes || "");
+              if (mem) mem.checked = !!f.Member;
+              if (status) { status.textContent = "Existing player card loaded."; status.className = "pm-status is-ok"; }
+            } else if (status) {
+              status.textContent = "No card yet for this name — save to create it.";
+              status.className = "pm-status is-info";
+            }
+          })
+          .catch(function () { if (status) { status.textContent = "Couldn't reach the players endpoint."; status.className = "pm-status is-error"; } });
+      }
+
+      function closePlayerCard() {
+        var modal = document.getElementById("playerModal");
+        if (modal) { modal.hidden = true; modal.setAttribute("aria-hidden", "true"); }
+        document.body.classList.remove("modal-open");
+        pmCurrent = null;
+      }
+
+      function savePlayerCard() {
+        if (!pmCurrent) return;
+        var name = pmVal("pmName"); if (!name) { alert("Name is required."); return; }
+        var payload = {
+          name: name, phone: pmVal("pmPhone"), email: pmVal("pmEmail"),
+          street: pmVal("pmStreet"), city: pmVal("pmCity"), state: pmVal("pmState"), zip: pmVal("pmZip"),
+          notes: pmVal("pmNotes"), member: !!(document.getElementById("pmMember") || {}).checked
+        };
+        if (pmCurrent.playerId) payload.id = pmCurrent.playerId;
+        var status = document.getElementById("pmStatus"); if (status) { status.textContent = "Saving…"; status.className = "pm-status is-info"; }
+        fetch(FH_API.url("/api/players"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify(payload)
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) {
+              if (j && j.notReady) {
+                if (status) { status.textContent = "Players table isn't set up in Airtable yet."; status.className = "pm-status is-warn"; }
+                var hint = document.getElementById("pmSetupHint"); if (hint) hint.hidden = false;
+                return;
+              }
+              if (status) { status.textContent = (j && j.error) || "Save failed."; status.className = "pm-status is-error"; }
+              return;
+            }
+            pmCurrent.playerId = j.id;
+            if (status) { status.textContent = "Saved ✓"; status.className = "pm-status is-ok"; }
+            // Link the signup to this Player + reflect renamed name back on the roster.
+            var link = { id: pmCurrent.signupId, playerId: j.id };
+            if (pmCurrent.role === "p1") link.playerName = name;
+            fetch(FH_API.url("/api/tournament-checkin"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+              body: JSON.stringify(link)
+            })
+              .then(function () { loadRoster(); })
+              .catch(function () { loadRoster(); })
+              .finally(function () { setTimeout(closePlayerCard, 400); });
+          })
+          .catch(function () { if (status) { status.textContent = "Network error."; status.className = "pm-status is-error"; } });
+      }
+
+      // Modal wiring (once at boot).
+      (function wirePlayerModal() {
+        var closeBtn = document.getElementById("pmClose");
+        var cancelBtn = document.getElementById("pmCancel");
+        var saveBtn = document.getElementById("pmSave");
+        var modal = document.getElementById("playerModal");
+        if (closeBtn) closeBtn.addEventListener("click", closePlayerCard);
+        if (cancelBtn) cancelBtn.addEventListener("click", closePlayerCard);
+        if (saveBtn) saveBtn.addEventListener("click", savePlayerCard);
+        if (modal) modal.addEventListener("click", function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute("data-close") === "1") closePlayerCard(); });
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal && !modal.hidden) closePlayerCard(); });
+      })();
 
       // ---- Hole-by-hole scoring (18 holes = two loops of the nine) ----
       var PAR9 = [4, 4, 3, 4, 5, 4, 3, 4, 5]; // placeholder — confirm per-hole pars
@@ -597,10 +847,10 @@
       function removeTeam(id, statusEl, btn) {
         if (statusEl) { statusEl.textContent = "Removing…"; statusEl.className = "ci__status"; }
         if (btn) btn.disabled = true;
-        fetch(FH_API.url("/api/tournament-remove"), {
+        fetch(FH_API.url("/api/tournament-signups"), {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
-          body: JSON.stringify({ id: id }),
+          body: JSON.stringify({ action: "remove", id: id }),
         })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {

@@ -942,3 +942,41 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .ci-fold > summary { cursor: pointer; font-weight: 700; color: var(--primary-green); }
 .ci-fold > summary span { color: var(--muted); font-weight: 400; }
 .ci-fold--alt > summary { color: var(--red-deep); }
+
+/* ---- Check-In name cell: clickable Player Card link + ✎ inline rename ---- */
+.ci-name-wrap { display: inline-flex; align-items: center; gap: 0.3rem; }
+.ci-name { color: var(--primary-green); text-decoration: underline dotted; text-underline-offset: 3px; font-weight: 600; cursor: pointer; }
+.ci-name:hover { text-decoration: underline solid; }
+.ci-rename { background: none; border: none; color: var(--muted); font: inherit; font-size: 0.85rem; cursor: pointer; padding: 0.1rem 0.25rem; border-radius: 4px; opacity: 0.6; }
+.ci-rename:hover { color: var(--primary-green); background: var(--paper-2); opacity: 1; }
+.ci-name-input { padding: 0.3rem 0.45rem; border: 1px solid var(--primary-green); border-radius: 6px; font: inherit; font-weight: 600; min-width: 8rem; max-width: 12rem; }
+
+/* ---- Player Card modal ---- */
+body.modal-open { overflow: hidden; }
+.pm-modal { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.pm-modal[hidden] { display: none; }
+.pm-modal__backdrop { position: absolute; inset: 0; background: rgba(15, 40, 25, 0.55); backdrop-filter: blur(2px); }
+.pm-modal__panel { position: relative; background: var(--paper, #fff); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); width: 100%; max-width: 34rem; max-height: calc(100vh - 2rem); display: flex; flex-direction: column; overflow: hidden; }
+.pm-modal__head { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--line); background: var(--paper-2); }
+.pm-modal__head h3 { margin: 0; color: var(--primary-green); font-size: 1.15rem; }
+.pm-modal__close { background: none; border: none; font-size: 1.6rem; line-height: 1; cursor: pointer; color: var(--muted); padding: 0 0.4rem; }
+.pm-modal__close:hover { color: var(--red-deep); }
+.pm-modal__body { padding: 1rem 1.25rem; overflow-y: auto; display: grid; gap: 0.75rem; }
+.pm-modal__foot { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.85rem 1.25rem; border-top: 1px solid var(--line); background: var(--paper-2); }
+.pm-status { margin: 0; font-size: 0.85rem; color: var(--muted); }
+.pm-status.is-ok { color: var(--primary-green); }
+.pm-status.is-info { color: var(--muted); }
+.pm-status.is-warn { color: #a86a00; }
+.pm-status.is-error { color: var(--red-deep); }
+.pm-setup { background: #fff8e1; border: 1px solid #f3d78a; border-radius: 8px; padding: 0.6rem 0.8rem; font-size: 0.85rem; }
+.pm-setup ol { margin: 0.4rem 0 0 1.1rem; padding: 0; }
+.pm-setup code { background: rgba(0,0,0,0.06); padding: 0.05rem 0.3rem; border-radius: 4px; }
+.pm-field { display: grid; gap: 0.25rem; }
+.pm-field > span { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary-green); font-weight: 700; }
+.pm-field input, .pm-field textarea { padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; width: 100%; box-sizing: border-box; }
+.pm-field input:focus, .pm-field textarea:focus { outline: 2px solid var(--primary-green); outline-offset: -1px; border-color: var(--primary-green); }
+.pm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.pm-row--csz { grid-template-columns: 2fr 1fr 1fr; }
+.pm-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; color: var(--ink); cursor: pointer; }
+.pm-check input { width: 1.1rem; height: 1.1rem; }
+@media (max-width: 520px) { .pm-row, .pm-row--csz { grid-template-columns: 1fr; } }
