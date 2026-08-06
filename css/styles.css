@@ -1557,6 +1557,50 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .cs-card.is-paid .cs-tot b { color: var(--primary-green); }
 .cs-method { padding: 0.3rem 0.45rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; font-weight: 600; }
 .cs-paid { padding: 0.3rem 0.6rem; }
+.cs-print { padding: 0.32rem 0.75rem; border: 1px solid var(--primary-green); border-radius: 999px; background: #fff; color: var(--primary-green); font: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer; letter-spacing: 0.02em; }
+.cs-print:hover { background: var(--primary-green); color: #fff; }
+
+/* Print — isolate the flagged card, add letterhead + signature footer. */
+.cs-print-head, .cs-print-foot { display: none; }
+@media print {
+  body.is-print-cs > *:not(.wb-sheet[data-sheet="calcuttaSummary"]) { display: none !important; }
+  body.is-print-cs .wb-sheet[data-sheet="calcuttaSummary"] { display: block !important; padding: 0; margin: 0; }
+  body.is-print-cs .noms__bar, body.is-print-cs .scaffold__desc, body.is-print-cs .cs-strip { display: none !important; }
+  body.is-print-cs .cs-grid { display: block; }
+  body.is-print-cs .cs-card { display: none; }
+  body.is-print-cs .cs-card--printing { display: block; page-break-inside: avoid; background: #fff !important; border: 2pt solid #1B5E20; border-radius: 6pt; box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Letterhead injected above the card. */
+  body.is-print-cs .cs-print-head { display: flex; align-items: center; justify-content: space-between; gap: 12pt; padding: 0 0 10pt; margin: 0 0 12pt; border-bottom: 3pt double #1B5E20; }
+  body.is-print-cs .cs-print-head__logo { width: 62pt; height: 62pt; object-fit: contain; }
+  body.is-print-cs .cs-print-head__title { text-align: center; flex: 1; }
+  body.is-print-cs .cs-print-head__eyebrow { display: block; text-transform: uppercase; letter-spacing: 0.25em; color: #8a1c25; font-weight: 700; font-size: 9pt; margin-bottom: 3pt; }
+  body.is-print-cs .cs-print-head__title h1 { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: #1B5E20; margin: 0; font-size: 24pt; letter-spacing: 0.01em; }
+  body.is-print-cs .cs-print-head__sub { display: block; color: #333; font-size: 10pt; margin-top: 3pt; font-style: italic; }
+
+  /* Buyer card body — receipt-flavored. */
+  body.is-print-cs .cs-card__hd { background: transparent !important; border-bottom: 1.5pt solid #1B5E20 !important; padding: 6pt 12pt !important; display: flex; align-items: baseline; }
+  body.is-print-cs .cs-card__buyer { font-family: "Fraunces", Georgia, serif; color: #1B5E20 !important; font-size: 18pt; }
+  body.is-print-cs .cs-card__count { color: #444; font-size: 9pt; }
+  body.is-print-cs .cs-card__status { display: none !important; }
+  body.is-print-cs .cs-card__items { padding: 10pt 12pt; }
+  body.is-print-cs .cs-item { padding: 4pt 0; border-bottom: 0.5pt solid #ccc; font-size: 11pt; }
+  body.is-print-cs .cs-item__tn { background: #1B5E20 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs .cs-item__team { color: #000; }
+  body.is-print-cs .cs-item__amt { color: #1B5E20 !important; font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 12pt; }
+  body.is-print-cs .cs-card__ft { background: #f6f4ed !important; border-top: 1.5pt solid #1B5E20; padding: 8pt 12pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs .cs-card__ft .ci-check, body.is-print-cs .cs-card__ft select, body.is-print-cs .cs-card__ft .cs-print { display: none !important; }
+  body.is-print-cs .cs-tot { flex-direction: row; align-items: baseline; gap: 6pt; }
+  body.is-print-cs .cs-tot small { color: #333; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.1em; }
+  body.is-print-cs .cs-tot b { font-family: "Fraunces", Georgia, serif; color: #1B5E20 !important; font-size: 18pt; }
+
+  /* Signature footer + course contact under the card. */
+  body.is-print-cs .cs-print-foot { display: block; margin-top: 20pt; }
+  body.is-print-cs .cs-print-sig { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 18pt; margin-bottom: 10pt; }
+  body.is-print-cs .cs-print-sig__line { display: block; border-bottom: 1pt solid #000; height: 22pt; }
+  body.is-print-cs .cs-print-sig small { display: block; color: #333; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 3pt; }
+  body.is-print-cs .cs-print-foot__contact { text-align: center; margin-top: 12pt; color: #333; font-size: 9pt; letter-spacing: 0.08em; border-top: 0.5pt solid #999; padding-top: 6pt; }
+}
 
 /* ---- Check-In team cards (Bulldog-style) ---- */
 .ci-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr)); gap: 0.9rem; align-items: start; }

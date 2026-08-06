@@ -2934,6 +2934,7 @@
             + '<div class="cs-tot"><small>Total owed</small><b>' + money(b.total) + '</b></div>'
             + '<label class="ci-check cs-paid" title="Mark buyer paid"><input type="checkbox" class="cs-paid-box"' + (isPaid ? " checked" : "") + ' /><span>Paid</span></label>'
             + '<select class="cs-method">' + methodOpts(b.paidMethod) + '</select>'
+            + '<button type="button" class="cs-print" title="Print this buyer\'s receipt">Print</button>'
             + '</footer>'
             + '</article>';
         }).join("");
@@ -2993,6 +2994,49 @@
           if (meth) meth.addEventListener("change", function () {
             if (box) box.checked = !!meth.value;
             applyMethod(meth.value);
+          });
+          // Print button — isolate this card, add an F&H letterhead + signature
+          // line, hand it to the printer, then clean up on afterprint.
+          var pbtn = card.querySelector(".cs-print");
+          if (pbtn) pbtn.addEventListener("click", function () {
+            // Tag the card so print CSS shows only it.
+            card.classList.add("cs-card--printing");
+            document.body.classList.add("is-print-cs");
+            var head = document.createElement("div");
+            head.className = "cs-print-head";
+            head.innerHTML =
+              '<img class="cs-print-head__logo" src="images/logo.png" alt="F&H Golf Course" />'
+              + '<div class="cs-print-head__title">'
+              + '<span class="cs-print-head__eyebrow">2026 Founders Tournament</span>'
+              + '<h1>Calcutta Buyer Receipt</h1>'
+              + '<span class="cs-print-head__sub">F&amp;H Golf Course &middot; Fleming, Colorado &middot; Aug 8&ndash;9</span>'
+              + '</div>'
+              + '<img class="cs-print-head__logo" src="images/logo.png" alt="" aria-hidden="true" />';
+            var foot = document.createElement("div");
+            foot.className = "cs-print-foot";
+            foot.innerHTML =
+              '<div class="cs-print-sig"><div><span class="cs-print-sig__line"></span><small>Buyer signature</small></div>'
+              + '<div><span class="cs-print-sig__line"></span><small>Date</small></div>'
+              + '<div><span class="cs-print-sig__line"></span><small>Received by (F&amp;H staff)</small></div></div>'
+              + '<p class="cs-print-foot__contact">F&amp;H Golf Course &middot; (970) 774-6362 &middot; fandhgolf.com</p>';
+            card.appendChild(foot);
+            var section = document.querySelector('.wb-sheet[data-sheet="calcuttaSummary"]');
+            if (section) section.prepend(head);
+            var pageStyle = document.createElement("style");
+            pageStyle.id = "cs-print-page";
+            pageStyle.textContent = "@page { size: letter portrait; margin: 0.55in; }";
+            document.head.appendChild(pageStyle);
+            function cleanup() {
+              document.body.classList.remove("is-print-cs");
+              card.classList.remove("cs-card--printing");
+              if (head && head.parentNode) head.parentNode.removeChild(head);
+              if (foot && foot.parentNode) foot.parentNode.removeChild(foot);
+              var ps = document.getElementById("cs-print-page"); if (ps) ps.remove();
+              window.removeEventListener("afterprint", cleanup);
+            }
+            window.addEventListener("afterprint", cleanup);
+            setTimeout(function () { window.print(); }, 60);
+            setTimeout(cleanup, 3000);
           });
         });
       }
