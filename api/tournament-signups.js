@@ -1,9 +1,12 @@
-// Vercel serverless function — Tournament Signups list + remove.
+// Vercel serverless function — Tournament Signups list + remove + archives.
 //
-//   GET  (no key)         -> stripped public payload (team + scores + calcutta
-//                            + flight), safe to expose on TV / phone displays.
-//   GET  (x-admin-key)    -> full record set including contact + payment info.
-//   POST (x-admin-key) { action: "remove", id } -> delete a record.
+//   GET  (no key)             -> stripped public payload (team + scores +
+//                                calcutta + flight), safe for TV / phone.
+//   GET  (x-admin-key)        -> full record set including contact info.
+//   GET  ?archives=1 (admin)  -> list rows from the Tournament Archives table.
+//   POST (admin) { action: "remove", id }
+//   POST (admin) { action: "archive", name, year, dates, snapshot }
+//        -> write a snapshot to the Tournament Archives table.
 //
 // Consolidates the old tournament-remove endpoint here to stay under Vercel's
 // serverless-function cap. Read-only tools still hit GET; frontend uses POST
@@ -71,25 +74,106 @@ module.exports = async (req, res) => {
   }
 
   const listUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}`;
+  const ARCHIVES = process.env.ARCHIVES_TABLE || "Tournament Archives";
+  const archivesUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(ARCHIVES)}`;
 
   if (req.method === "POST") {
     let body = req.body;
     if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { body = {}; } }
     body = body || {};
-    if (body.action !== "remove") return res.status(400).json({ ok: false, error: "Unknown action." });
-    const id = typeof body.id === "string" ? body.id : "";
-    if (!id) return res.status(400).json({ ok: false, error: "Missing record id." });
-    try {
-      const r = await fetch(`${listUrl}/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      if (!r.ok) {
-        const detail = await r.text();
-        console.error("tournament-signups remove error", r.status, detail);
-        return res.status(502).json({ ok: false, error: "Could not remove the team." });
+
+    if (body.action === "remove") {
+      const id = typeof body.id === "string" ? body.id : "";
+      if (!id) return res.status(400).json({ ok: false, error: "Missing record id." });
+      try {
+        const r = await fetch(`${listUrl}/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error("tournament-signups remove error", r.status, detail);
+          return res.status(502).json({ ok: false, error: "Could not remove the team." });
+        }
+        return res.status(200).json({ ok: true, id });
+      } catch (e) {
+        console.error("tournament-signups remove exception", e);
+        return res.status(500).json({ ok: false, error: "Something went wrong removing the team." });
       }
-      return res.status(200).json({ ok: true, id });
+    }
+
+    if (body.action === "archive") {
+      // Snapshot a completed tournament to the Archives table. Snapshot is a
+      // JSON blob (leaderboard, calcutta, payouts, P&L) generated client-side.
+      const name = typeof body.name === "string" ? body.name.slice(0, 200) : "";
+      const year = typeof body.year === "string" ? body.year.slice(0, 8) : "";
+      const dates = typeof body.dates === "string" ? body.dates.slice(0, 120) : "";
+      const snapshot = body.snapshot; // object; JSON-encoded before write
+      if (!name || !year) return res.status(400).json({ ok: false, error: "Missing name or year." });
+      const fields = {
+        "Name": name,
+        "Year": year,
+        "Dates": dates,
+        "Committed At": new Date().toISOString(),
+        "Snapshot": snapshot ? JSON.stringify(snapshot).slice(0, 100000) : "",
+      };
+      // Pull common headline stats out of the snapshot so they're queryable in
+      // Airtable without JSON parsing.
+      if (snapshot && typeof snapshot === "object") {
+        if (typeof snapshot.champion === "string") fields["Champion"] = snapshot.champion.slice(0, 200);
+        if (typeof snapshot.teams === "number") fields["Teams"] = snapshot.teams;
+        if (typeof snapshot.totalPool === "number") fields["Total Pool"] = snapshot.totalPool;
+        if (typeof snapshot.entryIncome === "number") fields["Entry Income"] = snapshot.entryIncome;
+        if (typeof snapshot.calcuttaPool === "number") fields["Calcutta Pool"] = snapshot.calcuttaPool;
+      }
+      try {
+        const r = await fetch(archivesUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ records: [{ fields }], typecast: true }),
+        });
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error("archive write error", r.status, detail);
+          const msg = /Unknown field/i.test(detail) || /TABLE_NOT_FOUND/i.test(detail)
+            ? "Airtable rejected the archive — confirm the Tournament Archives table + fields exist."
+            : "Could not save the archive.";
+          return res.status(502).json({ ok: false, error: msg });
+        }
+        const data = await r.json();
+        const archived = (data.records && data.records[0]) || null;
+        return res.status(200).json({ ok: true, id: archived && archived.id });
+      } catch (e) {
+        console.error("archive exception", e);
+        return res.status(500).json({ ok: false, error: "Something went wrong writing the archive." });
+      }
+    }
+
+    return res.status(400).json({ ok: false, error: "Unknown action." });
+  }
+
+  // GET ?archives=1 returns the archive list (staff only, no public path).
+  const q = req.query || {};
+  if (q.archives === "1" || q.archives === 1) {
+    try {
+      const archs = [];
+      let offset = "";
+      for (let guard = 0; guard < 20; guard++) {
+        const url = archivesUrl + "?pageSize=100" + (offset ? "&offset=" + encodeURIComponent(offset) : "");
+        const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error("archives list error", r.status, detail);
+          return res.status(502).json({ ok: false, error: "Could not load archives.", detail });
+        }
+        const data = await r.json();
+        (data.records || []).forEach((rec) => archs.push({ id: rec.id, created: rec.createdTime, fields: rec.fields || {} }));
+        if (!data.offset) break;
+        offset = data.offset;
+      }
+      // Newest year first.
+      archs.sort((a, b) => String(b.fields.Year || "").localeCompare(String(a.fields.Year || "")));
+      return res.status(200).json({ ok: true, count: archs.length, records: archs });
     } catch (e) {
-      console.error("tournament-signups remove exception", e);
-      return res.status(500).json({ ok: false, error: "Something went wrong removing the team." });
+      console.error("archives list exception", e);
+      return res.status(500).json({ ok: false, error: "Something went wrong loading archives." });
     }
   }
 

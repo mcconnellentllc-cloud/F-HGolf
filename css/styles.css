@@ -1154,6 +1154,41 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .wb-tab--disp { background: #111; color: #fff; border-color: #000; }
 .wb-tab--disp:hover { background: #000; color: #fff; }
 .wb-tab--disp.is-active { background: #000; color: #fff; border-color: #000; box-shadow: inset 0 3px 0 #fff; }
+.wb-tab--history { background: #f0e6c4; color: #6b4d00; border-color: #b48000; }
+.wb-tab--history:hover { background: #e8dcb0; color: #6b4d00; }
+.wb-tab--history.is-active { background: #fff8e1; color: #6b4d00; border-color: #b48000; box-shadow: inset 0 3px 0 #b48000; }
+
+/* Commit-to-history block on $ Summary */
+.pl-commit { margin-top: 1.2rem; padding: 1rem 1.2rem; background: #fff; border: 2px dashed var(--red); border-radius: 12px; text-align: center; }
+.pl-commit .btn { background: var(--red); color: #fff; border: none; font-size: 1.05rem; padding: 0.7rem 1.6rem; border-radius: 999px; font-weight: 800; cursor: pointer; letter-spacing: 0.02em; box-shadow: 0 2px 6px rgba(177,30,45,0.25); }
+.pl-commit .btn:hover { background: var(--red-deep); }
+.pl-commit__hint { color: var(--muted); font-size: 0.85rem; margin: 0.6rem 0 0; }
+
+/* History tab */
+.hist { display: flex; flex-direction: column; gap: 0.5rem; }
+.hist__row { background: #fff; border: 1px solid var(--line); border-left: 5px solid #b48000; border-radius: 10px; padding: 0; overflow: hidden; }
+.hist__row[open] { box-shadow: var(--shadow-sm); }
+.hist__sum { display: grid; grid-template-columns: auto 1fr auto auto; gap: 0.8rem 1rem; padding: 0.75rem 1rem; cursor: pointer; align-items: baseline; list-style: none; }
+.hist__sum::-webkit-details-marker { display: none; }
+.hist__sum::before { content: "▸"; color: #b48000; font-size: 0.85rem; }
+.hist__row[open] .hist__sum::before { content: "▾"; }
+.hist__year { font-family: var(--font-display); font-weight: 800; font-size: 1.4rem; color: #6b4d00; }
+.hist__name { font-weight: 700; color: var(--ink); }
+.hist__meta { color: var(--muted); font-size: 0.9rem; }
+.hist__meta b { color: var(--primary-green); }
+.hist__champ { color: var(--ink); font-size: 0.9rem; }
+.hist__champ b { color: var(--primary-green); }
+.hist__body { padding: 0.75rem 1rem 1rem; border-top: 1px dashed var(--line); background: var(--paper-2); }
+.hist__meta2 { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.75rem; }
+.hist__sub { color: var(--primary-green); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.06em; margin: 0.8rem 0 0.4rem; }
+.hist__tbl { width: 100%; border-collapse: collapse; font-size: 0.9rem; background: #fff; }
+.hist__tbl th, .hist__tbl td { padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--line); }
+.hist__tbl th { text-align: left; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; background: var(--paper-2); }
+.hist__tbl th:not(:first-child), .hist__tbl td:not(:first-child) { text-align: center; }
+@media (max-width: 720px) {
+  .hist__sum { grid-template-columns: 1fr 1fr; }
+  .hist__meta, .hist__champ { grid-column: 1 / -1; }
+}
 
 /* Public-display tab body (Calcutta Disp / Leaderboard Disp workbooks). */
 .disp-tab { display: flex; flex-direction: column; gap: 0.75rem; }
