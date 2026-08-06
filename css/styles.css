@@ -1377,7 +1377,10 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
   /* Calcutta print — 2 flights per landscape page, professional letterhead. */
   body.is-print-ca .wb-sheet:not([data-sheet="calcutta"]) { display: none !important; }
   body.is-print-ca .wb-sheet[data-sheet="calcutta"] { display: block !important; }
-  body.is-print-ca .noms__bar, body.is-print-ca .scaffold__desc, body.is-print-ca .ca-strip, body.is-print-ca .ca-viewbar, body.is-print-ca .ca-fl__split, body.is-print-ca .ca-footer { display: none !important; }
+  body.is-print-ca .noms__bar, body.is-print-ca .scaffold__desc, body.is-print-ca .ca-strip, body.is-print-ca .ca-viewbar, body.is-print-ca .ca-fl__split, body.is-print-ca .ca-footer, body.is-print-ca .tab-toolbar { display: none !important; }
+  /* Hand-fill sheet: hide placeholder hints ($0 / Buyer name) and give each
+     empty box a light bottom rule so there's a line to write on. */
+  body.is-print-ca .ca-buyer::placeholder, body.is-print-ca .ca-amt::placeholder { color: transparent !important; }
   /* Sticky columns are irrelevant on paper and confuse the print engine. */
   body.is-print-ca .ca-tbl th, body.is-print-ca .ca-tbl td { position: static !important; box-shadow: none !important; background: transparent !important; }
 
