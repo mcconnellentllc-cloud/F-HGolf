@@ -1648,6 +1648,8 @@
         // as soon as scores are entered — no need to click Save flights first.
         var sortedScores = recs.map(d1g).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
         var cuts = loadCuts(nF, sortedScores);
+        var scoreMin = sortedScores.length ? sortedScores[0] : null;
+        var scoreMax = sortedScores.length ? sortedScores[sortedScores.length - 1] : null;
         var groups = {};
         var dirty = false;
         recs.forEach(function (r) {
@@ -1664,6 +1666,19 @@
           (groups[k] = groups[k] || []).push(r);
         });
         var order = []; for (var i = 1; i <= nF; i++) order.push(i); if (groups[0]) order.push(0);
+
+        // Top summary banner — every flight's count + score spread at a glance.
+        var stripHtml = '';
+        if (sortedScores.length) {
+          stripHtml = '<div class="lb-strip">' + order.filter(function (fl) { return fl !== 0; }).map(function (fl) {
+            var arr = groups[fl] || [];
+            var scores = arr.map(d1g).filter(function (v) { return v != null; });
+            var lo = scores.length ? Math.min.apply(null, scores) : null;
+            var hi = scores.length ? Math.max.apply(null, scores) : null;
+            var rng = scores.length ? (lo === hi ? String(lo) : lo + "&ndash;" + hi) : "empty";
+            return '<span class="lb-strip__flight"><b>' + esc(flightName(fl)) + '</b> ' + arr.length + ' teams <span class="lb-strip__range">(' + rng + ')</span></span>';
+          }).join('<span class="lb-strip__sep">&middot;</span>') + '</div>';
+        }
         var out = order.map(function (fl) {
           var arr = groups[fl]; if (!arr || !arr.length) return "";
           var leader = null;
@@ -1680,9 +1695,7 @@
           rows.forEach(function (x) { x.place = byGross.indexOf(x) >= 0 ? byGross.indexOf(x) + 1 : null; x.cplace = byNet.indexOf(x) >= 0 ? byNet.indexOf(x) + 1 : null; });
           rows.sort(function (x, y) { return (x.overall == null ? 1e9 : x.overall) - (y.overall == null ? 1e9 : y.overall); });
           var trs = rows.map(function (x) {
-            var placeTag = (x.place && x.place <= 3) ? ' <span class="lb-place" title="Flight place (gross)">' + x.place + "</span>" : "";
-            var calTag = (x.cplace && x.cplace <= 4) ? ' <span class="lb-cal" title="Calcutta place (net)">C' + x.cplace + "</span>" : "";
-            return "<tr><td>" + esc(x.name) + placeTag + calTag + "</td>"
+            return "<tr><td>" + esc(x.name) + "</td>"
               + "<td>" + (x.a == null ? "—" : x.a) + "</td><td>" + (x.b == null ? "—" : x.b) + "</td>"
               + "<td><b>" + (x.overall == null ? "—" : x.overall) + "</b></td><td>" + (x.hcp == null ? "—" : x.hcp) + "</td>"
               + "<td><b>" + (x.net == null ? "—" : x.net) + "</b></td></tr>";
@@ -1692,9 +1705,44 @@
           return '<div class="lb-flight"><h4 class="lb-flight__title">' + title + count + "</h4>"
             + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
             + trs + "</tbody></table></div></div>";
-        }).join("");
+        });
+        // Weave inline cut sliders between flight sections (drag to shift the
+        // line between flights up/down). Only between real numbered flights,
+        // and only when there's a valid score range.
+        var withDividers = [];
+        var numberedFlights = order.filter(function (fl) { return fl !== 0; });
+        for (var i = 0; i < out.length; i++) {
+          withDividers.push(out[i]);
+          if (scoreMin != null && numberedFlights[i] && numberedFlights[i + 1] && (i < cuts.length)) {
+            var cutIdx = numberedFlights[i] - 1; // cuts[0] separates flight 1↔2, etc.
+            withDividers.push(
+              '<div class="lb-inline-cut" data-cut-idx="' + cutIdx + '">'
+              + '<span class="lb-inline-cut__lbl">' + esc(flightName(numberedFlights[i])) + ' &rarr; ' + esc(flightName(numberedFlights[i + 1])) + ' &mdash; cut at score</span>'
+              + '<input type="range" class="lb-inline-cut__range" min="' + scoreMin + '" max="' + scoreMax + '" value="' + cuts[cutIdx] + '" data-cut-idx="' + cutIdx + '" />'
+              + '<b class="lb-inline-cut__val">' + cuts[cutIdx] + '</b>'
+              + '</div>'
+            );
+          }
+        }
+        var joined = withDividers.filter(Boolean).join("");
         var note = dirty ? '<p class="lb-preview-note">Preview based on current cut sliders — the flights below reflect what a Save flights click would persist.</p>' : "";
-        body.innerHTML = note + (out || '<p class="noms__msg">No Day-1 scores yet — enter scores on the Scores tab.</p>');
+        body.innerHTML = stripHtml + note + (joined || '<p class="noms__msg">No Day-1 scores yet — enter scores on the Scores tab.</p>');
+
+        // Wire inline slider adjustments — writes cuts[i], persists, re-renders
+        // everything (leaderboard + calcutta) so the change ripples through.
+        Array.prototype.forEach.call(body.querySelectorAll(".lb-inline-cut__range"), function (rg) {
+          rg.addEventListener("input", function () {
+            var idx = Number(rg.getAttribute("data-cut-idx"));
+            var v = parseInt(rg.value, 10);
+            if (isNaN(v)) return;
+            var latest = loadCuts(nF, sortedScores);
+            latest[idx] = v;
+            for (var j = 0; j < latest.length; j++) { if (j < idx && latest[j] > v) latest[j] = v; if (j > idx && latest[j] < v) latest[j] = v; }
+            saveCuts(latest);
+            renderBoard(scAllCache);
+            renderCalcutta(scAllCache);
+          });
+        });
       }
 
       // ---- Calcutta — buyers, amounts, per-flight running payouts ----

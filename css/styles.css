@@ -959,6 +959,19 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .lb-flight__count { color: var(--muted); font-weight: 400; font-size: 0.85rem; margin-left: 0.5rem; }
 .lb-preview-note { background: #fff6d9; border: 1px solid #d19a00; border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.9rem; color: #6b4d00; margin: 0 0 1rem; }
 .lb-preview-note b { color: var(--red-deep); }
+
+/* Leaderboard — top summary strip (count + score range per flight) */
+.lb-strip { display: flex; flex-wrap: wrap; gap: 0.4rem 0.7rem; align-items: center; background: var(--primary-green); color: #fff; border-radius: 10px; padding: 0.7rem 1rem; margin-bottom: 1rem; font-size: 0.95rem; }
+.lb-strip__flight { white-space: nowrap; }
+.lb-strip__flight b { color: #fff; }
+.lb-strip__range { color: rgba(255,255,255,0.85); font-weight: 400; }
+.lb-strip__sep { color: rgba(255,255,255,0.5); }
+
+/* Leaderboard — inline cut sliders between flight sections */
+.lb-inline-cut { display: flex; align-items: center; gap: 0.7rem; background: var(--paper-2); border: 2px dashed var(--primary-green); border-radius: 8px; padding: 0.5rem 0.85rem; margin: 0.35rem 0 0.65rem; }
+.lb-inline-cut__lbl { font-size: 0.85rem; font-weight: 700; color: var(--primary-green); white-space: nowrap; }
+.lb-inline-cut__range { flex: 1; min-width: 8rem; accent-color: var(--primary-green); }
+.lb-inline-cut__val { min-width: 2ch; text-align: right; color: var(--primary-green); font-size: 1.05rem; }
 .lb-sizes { margin-top: 0.5rem; color: var(--muted); font-size: 0.9rem; }
 .lb-flight { margin-bottom: 1.6rem; }
 .lb-flight__title { color: var(--primary-green); font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.5rem; }
