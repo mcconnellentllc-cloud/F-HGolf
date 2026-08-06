@@ -187,7 +187,10 @@
               <button class="btn btn--primary" type="button" id="caPrint">Print now</button>
             </div>
           </div>
-          <p class="scaffold__desc">Buyer + amount per team. Each flight shows its running pool, club commission, payout total, and split for the top-4 net (edit the split under the Calc tab).</p>
+          <p class="scaffold__desc">Buyer + amount per team. Each flight shows its running pool and payout total. Toggle <b>Auction view</b> to collapse the score columns so the buyer / amount boxes stay in easy reach.</p>
+          <div class="ca-viewbar">
+            <label class="ca-viewtoggle"><input type="checkbox" id="caAuctionView" checked /> <span>Auction view</span> <small>(hide scores; keeps team + buyer + $)</small></label>
+          </div>
           <div id="caBody"><p class="noms__msg">Loading…</p></div>
         </section>
 
@@ -2027,7 +2030,7 @@
           var header = ''
             + '<div class="ca-fl__hdr">'
             + '<h4 class="lb-flight__title">' + (fl === 0 ? "Unassigned" : (flightName(fl) + " Flight")) + '</h4>'
-            + '<div class="ca-fl__totals">Pool <b>' + money(p.pool) + '</b> · Commission ' + (comm * 100) + '% · Payout <b class="ca-fl__pay">' + money(p.payout) + '</b></div>'
+            + '<div class="ca-fl__totals">Pool <b>' + money(p.pool) + '</b> · Payout <b class="ca-fl__pay">' + money(p.payout) + '</b></div>'
             + '<div class="ca-fl__split">' + payoutParts + ' <small>(' + pctText + '% of payout)</small></div>'
             + '</div>';
 
@@ -2166,7 +2169,7 @@
           var payout = Math.max(0, pool * (1 - comm));
           var totalsEl = block.querySelector(".ca-fl__totals");
           var payEl = block.querySelector(".ca-fl__pay");
-          if (totalsEl) totalsEl.innerHTML = 'Pool <b>' + money(pool) + '</b> · Commission ' + (comm * 100) + '% · Payout <b class="ca-fl__pay">' + money(payout) + '</b>';
+          if (totalsEl) totalsEl.innerHTML = 'Pool <b>' + money(pool) + '</b> · Payout <b class="ca-fl__pay">' + money(payout) + '</b>';
           var splitEl = block.querySelector(".ca-fl__split");
           if (splitEl) {
             var parts = split.map(function (pct, i) { return '<span class="ca-fl__prize">' + (i + 1) + '<sup>' + (i === 0 ? "st" : i === 1 ? "nd" : i === 2 ? "rd" : "th") + '</sup> ' + money(payout * (pct / 100)) + '</span>'; }).join(" ");
@@ -2639,22 +2642,54 @@
           setTimeout(function () { window.print(); }, 30);
           setTimeout(cleanup, 2000);
         });
+        // Auction view — hide score columns while the auctioneer works, so the
+        // buyer / amount boxes are close together and easy to reach.
+        var av = document.getElementById("caAuctionView");
+        function applyAuctionView() {
+          document.body.classList.toggle("is-auction-view", !!(av && av.checked));
+        }
+        if (av) {
+          var savedAV = "1"; try { savedAV = localStorage.getItem("fh_ca_auction_" + KEY); if (savedAV == null) savedAV = "1"; } catch (e) {}
+          av.checked = savedAV !== "0";
+          applyAuctionView();
+          av.addEventListener("change", function () {
+            try { localStorage.setItem("fh_ca_auction_" + KEY, av.checked ? "1" : "0"); } catch (e) {}
+            applyAuctionView();
+          });
+        }
+
         var caPr = document.getElementById("caPrint");
         if (caPr) caPr.addEventListener("click", function () {
+          // Inject an F&H letterhead + footer at print time — buyers get a
+          // professional sheet, not a workbook screenshot.
+          var head = document.createElement("div");
+          head.className = "ca-print-head";
+          head.innerHTML =
+            '<img class="ca-print-head__logo" src="images/logo.png" alt="F&H Golf Course" />'
+            + '<div class="ca-print-head__title"><span class="ca-print-head__eyebrow">2026 Founders Tournament</span>'
+            + '<h1>Calcutta Auction Sheet</h1>'
+            + '<span class="ca-print-head__sub">F&amp;H Golf Course &middot; Fleming, Colorado &middot; Aug 8&ndash;9</span></div>'
+            + '<img class="ca-print-head__logo" src="images/logo.png" alt="" aria-hidden="true" />';
+          var foot = document.createElement("div");
+          foot.className = "ca-print-foot";
+          foot.innerHTML = 'F&amp;H Golf Course &middot; (970) 774-6362 &middot; fandhgolf.com';
+          var caSection = document.querySelector('.wb-sheet[data-sheet="calcutta"]');
+          if (caSection) { caSection.prepend(head); caSection.appendChild(foot); }
           document.body.classList.add("is-print-ca");
-          // Landscape page needed to fit 18 hole columns + team info.
           var pageStyle = document.createElement("style");
           pageStyle.id = "ca-print-page";
-          pageStyle.textContent = "@page { size: landscape; margin: 0.4in; }";
+          pageStyle.textContent = "@page { size: landscape; margin: 0.5in; }";
           document.head.appendChild(pageStyle);
           function cleanup() {
             document.body.classList.remove("is-print-ca");
             var ps = document.getElementById("ca-print-page"); if (ps) ps.remove();
+            if (head && head.parentNode) head.parentNode.removeChild(head);
+            if (foot && foot.parentNode) foot.parentNode.removeChild(foot);
             window.removeEventListener("afterprint", cleanup);
           }
           window.addEventListener("afterprint", cleanup);
-          setTimeout(function () { window.print(); }, 30);
-          setTimeout(cleanup, 2000);
+          setTimeout(function () { window.print(); }, 60);
+          setTimeout(cleanup, 3000);
         });
         var lbdPr = document.getElementById("lbdPrint");
         if (lbdPr) lbdPr.addEventListener("click", function () {
