@@ -931,27 +931,60 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .calc__prize b { font-family: var(--font-display); color: var(--primary-green); font-size: 1.05rem; }
 
 /* Expenses & P&L */
-/* Tournament P&L on the $ Summary tab — sectioned income / payouts / revenue / expenses. */
-.pl { display: block; margin-bottom: 1.1rem; padding: 0; background: transparent; }
-.pl__meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.6rem; }
-.pl__meta b { color: var(--ink); }
-.pl__section { background: var(--paper-2); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 0.6rem; }
+/* Tournament P&L on the $ Summary tab — Income (top) → Expenses → P&L (bottom).
+   Each section is a full-width card with generous vertical rhythm so numbers
+   read like a proper ledger, not a squeezed dashboard. */
+.pl { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.4rem; padding: 0; background: transparent; }
+.pl__meta { color: var(--muted); font-size: 0.95rem; margin: 0; padding: 0 0.25rem; }
+.pl__meta b { color: var(--ink); font-weight: 800; }
+
+.pl__section { background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--line); border-radius: 12px; padding: 1.1rem 1.4rem 1.2rem; box-shadow: var(--shadow-sm); }
 .pl__section--in { border-left-color: var(--primary-green); }
-.pl__section--out { border-left-color: #b48000; }
-.pl__section--rev { border-left-color: #1B5E20; }
 .pl__section--exp { border-left-color: var(--red-deep); }
-.pl__hdr { color: var(--primary-green); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 0.5rem; }
-.pl__row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; padding: 0.32rem 0; font-size: 0.95rem; color: var(--ink); }
+.pl__section--sum { border-left-color: #b48000; background: #faf7ec; }
+
+.pl__hdr { color: var(--primary-green); font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; margin: 0 0 0.85rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--line); }
+.pl__section--exp .pl__hdr { color: var(--red-deep); }
+.pl__section--sum .pl__hdr { color: #8a5a00; }
+
+.pl__row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; padding: 0.55rem 0; font-size: 1rem; color: var(--ink); border-bottom: 1px dotted var(--line); }
+.pl__row:last-child { border-bottom: none; }
 .pl__row span { color: var(--muted); }
-.pl__row strong { color: var(--ink); font-family: var(--font-display); font-size: 1.05rem; min-width: 6rem; text-align: right; }
-.pl__row--sub { border-top: 1px dashed var(--line); margin-top: 0.35rem; padding-top: 0.55rem; font-weight: 700; }
-.pl__row--sub span { color: var(--ink); font-weight: 700; }
-.pl__row--sub strong { color: var(--primary-green); font-size: 1.15rem; }
-.pl__row--net { border: 2px solid var(--primary-green); background: #fff; border-radius: 10px; padding: 0.8rem 1.1rem; margin-top: 0.6rem; font-size: 1.1rem; font-weight: 800; }
-.pl__row--net span { color: var(--ink); }
-.pl__row--net strong { font-size: 1.5rem; }
+.pl__row strong { color: var(--ink); font-family: var(--font-display); font-size: 1.15rem; min-width: 7rem; text-align: right; font-weight: 700; }
+.pl__row--sub { border-top: 2px solid var(--line); border-bottom: none; margin-top: 0.4rem; padding-top: 0.75rem; font-weight: 700; }
+.pl__row--sub span { color: var(--ink); font-weight: 800; font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.pl__row--sub strong { color: var(--primary-green); font-size: 1.4rem; }
+.pl__section--exp .pl__row--sub strong { color: var(--red-deep); }
+
+/* P&L summary section — the "what the course actually keeps" breakdown. */
+.pl__pl-grid { display: grid; gap: 0.35rem; margin-bottom: 0.8rem; }
+.pl__pl-line { display: flex; justify-content: space-between; align-items: baseline; padding: 0.4rem 0; border-bottom: 1px dotted var(--line); font-size: 0.95rem; }
+.pl__pl-line span { color: var(--muted); }
+.pl__pl-line b { font-family: var(--font-display); font-size: 1.05rem; color: var(--ink); font-weight: 700; }
+.pl__pl-line--neg b { color: var(--red-deep); }
+
+.pl__row--net { border: 3px solid var(--primary-green); background: #fff; border-radius: 12px; padding: 1rem 1.3rem; margin-top: 0.6rem; font-weight: 800; }
+.pl__row--net span { color: var(--ink); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.pl__row--net strong { font-size: 1.9rem; }
 .pl__row--net strong.is-pos { color: var(--primary-green); }
 .pl__row--net strong.is-neg { color: var(--red-deep); }
+
+/* Paid-status banner — flight prize money only becomes real once every
+   check-in is marked paid. */
+.pl__paid { border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.95rem; line-height: 1.35; }
+.pl__paid--wait { background: #fff6d9; border: 1px solid #d19a00; color: #6b4d00; }
+.pl__paid--go { background: #e6f2e9; border: 1px solid var(--primary-green); color: #10441a; }
+.pl__paid b { color: inherit; }
+.pl__row--warn strong { color: #8a5a00; }
+.pl__row--projected strong { color: #8a5a00; }
+.pl__row--projected span::after { content: " · projected"; color: #8a5a00; font-style: italic; font-size: 0.85em; }
+
+/* Payout-tab paid gate — same info as the P&L banner. */
+.po-gate { border-radius: 10px; padding: 0.85rem 1.05rem; margin-bottom: 0.85rem; font-size: 0.95rem; line-height: 1.4; }
+.po-gate--wait { background: #fff6d9; border: 1.5px solid #d19a00; color: #6b4d00; }
+.po-gate--go { background: #e6f2e9; border: 1.5px solid var(--primary-green); color: #10441a; font-weight: 700; }
+.po-gate b { color: #7a3f00; }
+.po-gate--go b { color: inherit; }
 .exp__amt { font-weight: 700; color: var(--red-deep); }
 .exp__cat { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--primary-green); background: var(--light-green); border-radius: 999px; padding: 0.1rem 0.5rem; }
 .exp__actions { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.3rem; }

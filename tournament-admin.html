@@ -519,7 +519,20 @@
         var addFlight = cfg.additionalFlight || 0;
         var calSplit = cfg.calcuttaSplit || [40, 30, 20, 10];
 
+        // Actual entry payments recorded on Check-In. Flight prize money can
+        // only be truly paid out once ALL players are marked paid — the flight
+        // pool literally comes from these collected entries.
+        var paidPlayers = 0;
+        teams.forEach(function (r) {
+          var f = r.fields || {}, pp = teamPlayers(f, r);
+          [["Player 1 Paid", true], ["Player 2 Paid", pp.hasP2]].forEach(function (s) {
+            if (!s[1]) return;
+            if ((f[s[0]] || "").toString().length > 0) paidPlayers++;
+          });
+        });
+        var entryCollected = paidPlayers * entryPP;
         var entryIncome = players * entryPP;
+        var fullyPaid = paidPlayers >= players && players > 0;
         var calcuttaPool = teams.reduce(function (s, r) { var v = (r.fields || {})["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
         var totalIncome = entryIncome + calcuttaPool;
 
@@ -539,6 +552,7 @@
 
         return {
           cfg: cfg, teams: teams, teamCount: teamCount, players: players,
+          paidPlayers: paidPlayers, entryCollected: entryCollected, fullyPaid: fullyPaid,
           entryPP: entryPP, greenPP: greenPP, mealPP: mealPP, otherPP: otherPP,
           nFlights: nFlights, flightSplit: flightSplit, calSplit: calSplit,
           calcuttaCommissionPct: comm * 100,
@@ -568,38 +582,54 @@
         function row(label, amt, cls) { return '<div class="pl__row' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><strong>' + money(amt) + '</strong></div>'; }
         function subtotal(label, amt) { return '<div class="pl__row pl__row--sub"><span>' + label + '</span><strong>' + money(amt) + '</strong></div>'; }
 
+        // Course-perspective ledger, laid out top-to-bottom as the user asked:
+        //   Income → Expenses → Net P&L summary.
+        // The tournament pot itself is self-balancing (entry = green + meal +
+        // prize, calcutta buys = commission + payouts), so what the course
+        // actually keeps is: green + meal + commission − manual expenses.
+        var totalOut = flightPrizePool + calcuttaPayout + manualExp;
+        var totalIn = totalIncome;
+        var net = totalIn - totalOut;
+
+        // Flight-prize gate: those checks come from collected entries, so we
+        // can only actually pay them once every player is marked paid. Show a
+        // banner until then and label the number "projected".
+        var paidBanner = m.fullyPaid
+          ? '<div class="pl__paid pl__paid--go"><b>All players paid.</b> Flight prize money is fully funded and ready to pay out.</div>'
+          : '<div class="pl__paid pl__paid--wait"><b>' + m.paidPlayers + ' of ' + players + ' players paid</b> · ' + money(m.entryCollected) + ' collected of ' + money(entryIncome) + ' expected. Flight prize money can only be paid out after every check-in is marked paid.</div>';
+        var prizeLabel = m.fullyPaid ? "Flight prize payouts (to players)" : "Flight prize payouts (projected — awaiting paid check-ins)";
+
         el.innerHTML =
           '<div class="pl__meta">Field: <b>' + teamCount + '</b> teams &middot; <b>' + players + '</b> players (2 / team assumed)</div>'
+          + paidBanner
+
           + '<div class="pl__section pl__section--in">'
           + '<h4 class="pl__hdr">Income</h4>'
-          + row("Entry fees (" + players + " × " + money(entryPP) + ")", entryIncome)
-          + row("Calcutta pool", calcuttaPool)
-          + subtotal("Total income", totalIncome)
-          + '</div>'
-
-          + '<div class="pl__section pl__section--out">'
-          + '<h4 class="pl__hdr">Player payouts</h4>'
-          + row("Flight prize pool (goes back to players)", flightPrizePool)
-          + row("Calcutta payouts (pool − commission)", calcuttaPayout)
-          + subtotal("Total to players", totalPlayerPayouts)
-          + '</div>'
-
-          + '<div class="pl__section pl__section--rev">'
-          + '<h4 class="pl__hdr">Course revenue</h4>'
-          + row("Green fees (" + players + " × " + money(greenPP) + ")", greenFees)
-          + row("Meals (" + players + " × " + money(mealPP) + ")", meals)
-          + (otherPerPlayer ? row("Other (" + players + " × " + money(otherPP) + ")", otherPerPlayer) : "")
-          + row("Calcutta commission (" + (comm * 100) + "%)", calcuttaCommission)
-          + subtotal("Gross course revenue", courseRevenue)
+          + row("Entry fees expected (" + players + " × " + money(entryPP) + ")", entryIncome)
+          + row("Entry fees collected (" + m.paidPlayers + " / " + players + " paid)", m.entryCollected, m.fullyPaid ? "" : "pl__row--warn")
+          + row("Calcutta pool (from buyers)", calcuttaPool)
+          + subtotal("Total income (expected)", totalIn)
           + '</div>'
 
           + '<div class="pl__section pl__section--exp">'
-          + '<h4 class="pl__hdr">Course expenses</h4>'
-          + row("Steaks / trophies / supplies (from expense list below)", manualExp)
-          + subtotal("Total expenses", manualExp)
+          + '<h4 class="pl__hdr">Expenses</h4>'
+          + row(prizeLabel, flightPrizePool, m.fullyPaid ? "" : "pl__row--projected")
+          + row("Calcutta payouts (to winning buyers)", calcuttaPayout)
+          + row("Steaks / trophies / supplies (from list below)", manualExp)
+          + subtotal("Total expenses", totalOut)
           + '</div>'
 
-          + '<div class="pl__row pl__row--net"><span>Net P&amp;L (course)</span><strong class="' + (courseNet < 0 ? "is-neg" : "is-pos") + '">' + money(courseNet) + "</strong></div>";
+          + '<div class="pl__section pl__section--sum">'
+          + '<h4 class="pl__hdr">Profit &amp; Loss</h4>'
+          + '<div class="pl__pl-grid">'
+          + '<div class="pl__pl-line"><span>Green fees kept (' + players + ' × ' + money(greenPP) + ')</span><b>' + money(greenFees) + '</b></div>'
+          + '<div class="pl__pl-line"><span>Meals kept (' + players + ' × ' + money(mealPP) + ')</span><b>' + money(meals) + '</b></div>'
+          + (otherPerPlayer ? '<div class="pl__pl-line"><span>Other (' + players + ' × ' + money(otherPP) + ')</span><b>' + money(otherPerPlayer) + '</b></div>' : "")
+          + '<div class="pl__pl-line"><span>Calcutta commission</span><b>' + money(calcuttaCommission) + '</b></div>'
+          + '<div class="pl__pl-line pl__pl-line--neg"><span>Less: expenses paid out</span><b>&minus; ' + money(manualExp) + '</b></div>'
+          + '</div>'
+          + '<div class="pl__row pl__row--net"><span>Net P&amp;L (course keeps)</span><strong class="' + (net < 0 ? "is-neg" : "is-pos") + '">' + money(net) + "</strong></div>"
+          + '</div>';
       }
 
       function renderExpenses(records) {
@@ -2536,6 +2566,12 @@
           + '<div><span>Flight prize pool</span><b>' + money(m.flightPrizePool) + '</b></div>'
           + '<div><span>Flights</span><b>' + nF + '</b></div>'
           + '</div>';
+        // Flight checks can only be written after ALL players are marked paid
+        // (that's where this money literally comes from). Loud reminder up top.
+        var paidGate = m.fullyPaid
+          ? '<div class="po-gate po-gate--go">All ' + m.players + ' players paid — flight checks are ready to write.</div>'
+          : '<div class="po-gate po-gate--wait"><b>Hold flight checks:</b> ' + m.paidPlayers + ' of ' + m.players + ' players paid (' + money(m.entryCollected) + ' of ' + money(m.entryIncome) + ' collected). Finish check-in payments before cutting flight-winning checks. Calcutta checks are OK to write now.</div>';
+        summary = paidGate + summary;
 
         var grand = flightPayouts.reduce(function (s, p) { return s + p.amount; }, 0) + calPayouts.reduce(function (s, p) { return s + p.amount; }, 0);
         body.innerHTML = summary
