@@ -1600,6 +1600,28 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
   body.is-print-cs .cs-print-sig__line { display: block; border-bottom: 1pt solid #000; height: 22pt; }
   body.is-print-cs .cs-print-sig small { display: block; color: #333; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 3pt; }
   body.is-print-cs .cs-print-foot__contact { text-align: center; margin-top: 12pt; color: #333; font-size: 9pt; letter-spacing: 0.08em; border-top: 0.5pt solid #999; padding-top: 6pt; }
+
+  /* Print list — hand-checkable roster of every buyer. */
+  body.is-print-cs-list > *:not(.cs-list-print) { display: none !important; }
+  body.is-print-cs-list .cs-list-print { display: block; padding: 0; margin: 0; color: #000; background: #fff; }
+  body.is-print-cs-list .cs-print-head { display: flex; align-items: center; justify-content: space-between; gap: 12pt; padding: 0 0 10pt; margin: 0 0 14pt; border-bottom: 3pt double #1B5E20; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs-list .cs-print-head__logo { width: 60pt; height: 60pt; object-fit: contain; }
+  body.is-print-cs-list .cs-print-head__title { text-align: center; flex: 1; }
+  body.is-print-cs-list .cs-print-head__eyebrow { display: block; text-transform: uppercase; letter-spacing: 0.25em; color: #8a1c25; font-weight: 700; font-size: 9pt; margin-bottom: 3pt; }
+  body.is-print-cs-list .cs-print-head__title h1 { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: #1B5E20; margin: 0; font-size: 22pt; letter-spacing: 0.01em; }
+  body.is-print-cs-list .cs-print-head__sub { display: block; color: #333; font-size: 10pt; margin-top: 3pt; font-style: italic; }
+  body.is-print-cs-list .cs-list__tbl { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  body.is-print-cs-list .cs-list__tbl th { text-align: left; color: #1B5E20; text-transform: uppercase; letter-spacing: 0.05em; font-size: 8.5pt; padding: 4pt 6pt; border-bottom: 1.5pt solid #1B5E20; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs-list .cs-list__tbl td { padding: 5pt 6pt; border-bottom: 0.5pt solid #ccc; vertical-align: middle; }
+  body.is-print-cs-list .cs-list__tbl tbody tr:nth-child(odd) { background: #f6f4ed; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs-list .cs-list__buyer { font-family: "Fraunces", Georgia, serif; font-weight: 700; color: #1B5E20; font-size: 11pt; white-space: nowrap; }
+  body.is-print-cs-list .cs-list__teams { color: #333; font-size: 9pt; }
+  body.is-print-cs-list .cs-list__amt { text-align: right; font-family: "Fraunces", Georgia, serif; font-weight: 800; color: #1B5E20; white-space: nowrap; }
+  body.is-print-cs-list .cs-list__pay { text-align: center; white-space: nowrap; }
+  body.is-print-cs-list .cs-list__box { display: inline-block; width: 12pt; height: 12pt; border: 1pt solid #000; vertical-align: middle; }
+  body.is-print-cs-list .cs-list__paid { color: #1B5E20; font-weight: 700; font-size: 9pt; }
+  body.is-print-cs-list .cs-list__grand td { border-top: 2pt solid #1B5E20; border-bottom: none; padding-top: 8pt; color: #1B5E20; font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 12pt; }
+  body.is-print-cs-list .cs-print-foot__contact { text-align: center; margin-top: 16pt; color: #333; font-size: 9pt; letter-spacing: 0.08em; border-top: 0.5pt solid #999; padding-top: 6pt; }
 }
 
 /* ---- Check-In team cards (Bulldog-style) ---- */

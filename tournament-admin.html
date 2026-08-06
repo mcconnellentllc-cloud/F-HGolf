@@ -233,6 +233,9 @@
         <section class="noms wb-sheet" data-sheet="calcuttaSummary" id="twCalcuttaSummary" aria-label="Calcutta Buyers" hidden>
           <div class="noms__bar">
             <h3 class="noms__title">Calcutta Buyers</h3>
+            <div class="noms__bar-actions">
+              <button class="btn btn--primary" type="button" id="csPrintList">Print list</button>
+            </div>
           </div>
           <p class="scaffold__desc">One card per buyer. Shows every team they bought, the running total they owe, and a paid check + method dropdown so you can track cash coming in the same way you check in entry fees.</p>
           <div id="caSumBody"><p class="noms__msg">Loading…</p></div>
@@ -3041,6 +3044,84 @@
         });
       }
 
+      // Print a hand-checkable list of every buyer + total. Builds the table
+      // from scAllCache so it always reflects the current state.
+      function printBuyersList() {
+        var recs = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        var caTeamNumbers = computeTeamNumbers(recs);
+        var sold = recs.filter(function (r) {
+          var f = r.fields || {};
+          return String(f["Buyer"] || "").trim() !== "" && typeof f["Buy Amount"] === "number";
+        });
+        if (!sold.length) { alert("No Calcutta buyers to print yet."); return; }
+        var buckets = {}, order = [];
+        sold.forEach(function (r) {
+          var f = r.fields || {};
+          var raw = String(f["Buyer"] || "").trim();
+          var key = raw.toLowerCase();
+          if (!buckets[key]) { buckets[key] = { display: raw, items: [], total: 0, paidMethod: "" }; order.push(key); }
+          buckets[key].items.push(r);
+          buckets[key].total += Number(f["Buy Amount"]) || 0;
+          var pm = String(f["Calcutta Paid"] || "").trim();
+          if (pm && !buckets[key].paidMethod) buckets[key].paidMethod = pm;
+        });
+        order.sort(function (a, b) { return buckets[a].display.toLowerCase().localeCompare(buckets[b].display.toLowerCase()); });
+
+        var grand = 0, collected = 0;
+        var rows = order.map(function (k) {
+          var b = buckets[k];
+          grand += b.total;
+          if (b.paidMethod) collected += b.total;
+          var teams = b.items.slice().sort(function (x, y) { return (caTeamNumbers[x.id] || 0) - (caTeamNumbers[y.id] || 0); }).map(function (r) {
+            var tn = caTeamNumbers[r.id];
+            return (tn ? "T-" + String(tn).padStart(2, "0") : "—") + " " + teamShortNames(r.fields || {});
+          }).join(" · ");
+          var mark = b.paidMethod ? '<span class="cs-list__paid">✓ ' + esc(b.paidMethod) + '</span>' : '<span class="cs-list__box"></span>';
+          return '<tr>'
+            + '<td class="cs-list__buyer">' + esc(b.display) + '</td>'
+            + '<td class="cs-list__teams">' + esc(teams) + '</td>'
+            + '<td class="cs-list__amt">' + money(b.total) + '</td>'
+            + '<td class="cs-list__pay">' + mark + '</td>'
+            + '</tr>';
+        }).join("");
+
+        var host = document.createElement("div");
+        host.id = "csListPrint";
+        host.className = "cs-list-print";
+        host.innerHTML =
+          '<div class="cs-print-head">'
+          + '<img class="cs-print-head__logo" src="images/logo.png" alt="F&H Golf Course" />'
+          + '<div class="cs-print-head__title">'
+          + '<span class="cs-print-head__eyebrow">2026 Founders Tournament</span>'
+          + '<h1>Calcutta Buyers List</h1>'
+          + '<span class="cs-print-head__sub">F&amp;H Golf Course &middot; Fleming, Colorado &middot; Aug 8&ndash;9</span>'
+          + '</div>'
+          + '<img class="cs-print-head__logo" src="images/logo.png" alt="" aria-hidden="true" />'
+          + '</div>'
+          + '<table class="cs-list__tbl"><thead><tr><th>Buyer</th><th>Teams bought</th><th class="cs-list__amt">Total</th><th class="cs-list__pay">Paid</th></tr></thead><tbody>'
+          + rows
+          + '<tr class="cs-list__grand"><td colspan="2">Grand total &middot; Collected</td>'
+          + '<td class="cs-list__amt">' + money(grand) + '</td>'
+          + '<td class="cs-list__pay">' + money(collected) + '</td></tr>'
+          + '</tbody></table>'
+          + '<p class="cs-print-foot__contact">F&amp;H Golf Course &middot; (970) 774-6362 &middot; fandhgolf.com</p>';
+        document.body.appendChild(host);
+        document.body.classList.add("is-print-cs-list");
+        var pageStyle = document.createElement("style");
+        pageStyle.id = "cs-list-print-page";
+        pageStyle.textContent = "@page { size: letter portrait; margin: 0.5in; }";
+        document.head.appendChild(pageStyle);
+        function cleanup() {
+          document.body.classList.remove("is-print-cs-list");
+          if (host && host.parentNode) host.parentNode.removeChild(host);
+          var ps = document.getElementById("cs-list-print-page"); if (ps) ps.remove();
+          window.removeEventListener("afterprint", cleanup);
+        }
+        window.addEventListener("afterprint", cleanup);
+        setTimeout(function () { window.print(); }, 60);
+        setTimeout(cleanup, 3000);
+      }
+
       // ---- Leaderboard tab (full standings + winner flags) ----
       function renderLeaderboard(all) {
         var body = document.getElementById("lbdBody"); if (!body) return;
@@ -3542,6 +3623,8 @@
         if (hr) hr.addEventListener("click", loadHistory);
         var pc = document.getElementById("plCommit");
         if (pc) pc.addEventListener("click", commitToHistory);
+        var csPl = document.getElementById("csPrintList");
+        if (csPl) csPl.addEventListener("click", printBuyersList);
         var lbs = document.getElementById("lbSaveFlights");
         if (lbs) lbs.addEventListener("click", saveFlights);
         var lbInc = document.getElementById("lbFlInc");
