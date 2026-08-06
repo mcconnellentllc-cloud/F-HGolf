@@ -705,6 +705,15 @@
         if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "ci__status"; }
         if (btn) btn.disabled = true;
         payload.id = id;
+        // Any change that could reclassify a row (paid ↔ unpaid, alternate ↔
+        // field, name change that propagates through Player Card) needs a full
+        // reload. Everything else — cart, meals, wave, per-player payments
+        // without state flip — patches the in-memory record and updates the
+        // summary in place. No network re-fetch, no re-render flash.
+        var wasFullyPaid = null;
+        for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) { wasFullyPaid = fullyPaid(scAllCache[i]); break; }
+        var forcesReload = payload.hasOwnProperty("alternate") || payload.hasOwnProperty("playerName") || payload.hasOwnProperty("teamPartners");
+
         fetch(FH_API.url("/api/tournament-checkin"), {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
@@ -713,8 +722,29 @@
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
             if (btn) btn.disabled = false;
-            if (res.j && res.j.ok) { loadRoster(); }
-            else if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't save."; statusEl.className = "ci__status is-error"; }
+            if (res.j && res.j.ok) {
+              // Merge the server's authoritative fields back into cache so
+              // downstream renders (P&L, Payout, etc.) see the update.
+              var returned = res.j.fields || {};
+              for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
+                scAllCache[i].fields = Object.assign({}, scAllCache[i].fields || {}, returned);
+                break;
+              }
+              // Reload only if the row would jump between paid ↔ unpaid or
+              // field ↔ alternate. Otherwise leave the DOM alone.
+              var isNowFullyPaid = null;
+              for (var j2 = 0; j2 < scAllCache.length; j2++) if (scAllCache[j2].id === id) { isNowFullyPaid = fullyPaid(scAllCache[j2]); break; }
+              if (forcesReload || wasFullyPaid !== isNowFullyPaid) {
+                loadRoster();
+              } else {
+                if (statusEl) { statusEl.textContent = "Saved ✓"; statusEl.className = "ci__status is-ok"; setTimeout(function () { statusEl.textContent = ""; }, 1200); }
+                // Refresh downstream reads without re-rendering the roster.
+                try { summarize(scAllCache.filter(function (r) { return (r.fields || {}).Tournament === KEY && !isAltRec(r); })); } catch (e) {}
+              }
+            } else if (statusEl) {
+              statusEl.textContent = (res.j && res.j.error) || "Couldn't save.";
+              statusEl.className = "ci__status is-error";
+            }
           })
           .catch(function () { if (btn) btn.disabled = false; if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
       }
@@ -1155,7 +1185,9 @@
       })();
 
       // ---- Hole-by-hole scoring (18 holes = two loops of the nine) ----
-      var PAR9 = [4, 4, 3, 4, 5, 4, 3, 4, 5]; // placeholder — confirm per-hole pars
+      // F&H per-hole pars — course front nine, repeated for holes 10–18.
+      // Total par per 9 = 36; 18-hole par = 72.
+      var PAR9 = [4, 3, 4, 4, 5, 4, 4, 3, 5];
       var PARS = PAR9.concat(PAR9);
       function parseScores(str) { try { var a = JSON.parse(str); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
 
@@ -1901,8 +1933,11 @@
       // ---- Flights + Leaderboard ----
       var FLIGHT_NAMES = ["Champ", "First", "Second", "Third", "5th", "6th", "7th", "8th"];
       function flightName(n) { return FLIGHT_NAMES[n - 1] || ("Flight " + n); }
-      function d1g(r) { var f = r.fields || {}; return (f["Day1 Scores"] && typeof f["Day1 Gross"] === "number") ? f["Day1 Gross"] : null; }
-      function d2g(r) { var f = r.fields || {}; return (f["Day2 Scores"] && typeof f["Day2 Gross"] === "number") ? f["Day2 Gross"] : null; }
+      // Gross > 0 guards against stale writes that saved partial rounds as 0
+      // before tournament-score.js started returning null until all 18 holes
+      // were in. A valid 18-hole gross is at least 18, so > 0 is safe.
+      function d1g(r) { var f = r.fields || {}; return (f["Day1 Scores"] && typeof f["Day1 Gross"] === "number" && f["Day1 Gross"] > 0) ? f["Day1 Gross"] : null; }
+      function d2g(r) { var f = r.fields || {}; return (f["Day2 Scores"] && typeof f["Day2 Gross"] === "number" && f["Day2 Gross"] > 0) ? f["Day2 Gross"] : null; }
       function teamName(r) { return teamShortNames((r && r.fields) || {}); }
 
       var CUTK = "fh_cuts_" + KEY, boardSorted = [], lbFilteredRecs = [];
@@ -2673,7 +2708,7 @@
         additionalFlight: 0,                 // flat $ added to flight money, spread (add ÷ flights) ÷ 3 / place
         calcuttaCommission: 10,              // % the club keeps
         calcuttaSplit: [40, 30, 20, 10],     // % of each flight's pool to net places 1–4 (top 4)
-        pars: [4, 4, 3, 4, 5, 4, 3, 4, 5, 4, 4, 3, 4, 5, 4, 3, 4, 5]
+        pars: [4, 3, 4, 4, 5, 4, 4, 3, 5, 4, 3, 4, 4, 5, 4, 4, 3, 5]
       };
       function loadCalc() {
         try { var c = JSON.parse(localStorage.getItem(CALCK) || "null"); if (c) return c; } catch (e) {}
