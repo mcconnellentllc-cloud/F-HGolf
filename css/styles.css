@@ -997,6 +997,10 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .po-grand { background: var(--primary-green); color: #fff; border-radius: 10px; padding: 0.8rem 1rem; margin-top: 1rem; font-size: 1.05rem; text-align: right; }
 .po-grand b { font-size: 1.4rem; font-family: var(--font-display); }
 .po-warn { color: var(--red-deep); font-size: 0.72rem; font-weight: 700; margin-left: 0.3rem; }
+.po-tbl__chkH { width: 7rem; text-align: right; }
+.po-tbl__chk { text-align: right; }
+.po-check { width: 6.5rem; padding: 0.3rem 0.4rem; border: 1px dashed var(--line); border-radius: 4px; font: inherit; font-size: 0.9rem; background: #fff; text-align: right; }
+.po-check:focus { border-color: var(--primary-green); border-style: solid; outline: none; }
 
 /* Per-row × delete buttons (Scores + Calcutta) */
 .sc-clear, .ca-clear { border: 1px solid var(--line); background: #fff; color: var(--red-deep); border-radius: 6px; width: 1.7rem; height: 1.7rem; padding: 0; line-height: 1; font-size: 0.9rem; cursor: pointer; }
@@ -1276,6 +1280,7 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
   body.is-print-po .po-tbl__amt, body.is-print-po .po-tbl__total td:last-child { color: #000 !important; }
   body.is-print-po .po-tbl__total { background: #eaeaea !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body.is-print-po .po-grand { background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-po .po-check { border: none !important; background: transparent !important; padding: 0 !important; width: auto; font-weight: 700; color: #000 !important; }
 
   @page { margin: 0.5in; size: portrait; }
 }

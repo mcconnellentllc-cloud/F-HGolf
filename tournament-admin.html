@@ -1835,16 +1835,17 @@
           var byNet = rows.slice().filter(function (x) { return x.net != null; }).sort(function (x, y) { return x.net - y.net; });
           rows.forEach(function (x) { x.place = byGross.indexOf(x) >= 0 ? byGross.indexOf(x) + 1 : null; x.cplace = byNet.indexOf(x) >= 0 ? byNet.indexOf(x) + 1 : null; });
           rows.sort(function (x, y) { return (x.overall == null ? 1e9 : x.overall) - (y.overall == null ? 1e9 : y.overall); });
+          // Flights tab: Day 1 focus — team, D1 gross, handicap. Full standings
+          // (D2, total gross, net) live on the Leaderboard tab instead.
           var trs = rows.map(function (x) {
             return "<tr><td>" + esc(x.name) + "</td>"
-              + "<td>" + (x.a == null ? "—" : x.a) + "</td><td>" + (x.b == null ? "—" : x.b) + "</td>"
-              + "<td><b>" + (x.overall == null ? "—" : x.overall) + "</b></td><td>" + (x.hcp == null ? "—" : x.hcp) + "</td>"
-              + "<td><b>" + (x.net == null ? "—" : x.net) + "</b></td></tr>";
+              + "<td><b>" + (x.a == null ? "—" : x.a) + "</b></td>"
+              + "<td>" + (x.hcp == null ? "—" : x.hcp) + "</td></tr>";
           }).join("");
           var title = fl === 0 ? "Unassigned (no Day-1 score yet)" : (flightName(fl) + " Flight");
           var count = ' <span class="lb-flight__count">' + rows.length + ' team' + (rows.length === 1 ? "" : "s") + '</span>';
           return '<div class="lb-flight"><h4 class="lb-flight__title">' + title + count + "</h4>"
-            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>Day 1</th><th>HCP</th></tr></thead><tbody>'
             + trs + "</tbody></table></div></div>";
         });
         // Weave inline cut sliders between flight sections (drag to shift the
@@ -2282,20 +2283,31 @@
           });
         });
 
-        function renderPayoutTable(list, kind) {
+        // Check numbers persist per (tournament, category, flight, place, recipient) in localStorage.
+        function checkKey(p) { return "flight" in p ? (p.category || "?") + "|" + p.flight + "|" + p.place + "|" + p.recipient : "?"; }
+        var CHECK_STORE_KEY = "fh_checks_" + KEY;
+        var checkStore = {};
+        try { checkStore = JSON.parse(localStorage.getItem(CHECK_STORE_KEY) || "{}"); } catch (e) { checkStore = {}; }
+        function saveCheckStore() { try { localStorage.setItem(CHECK_STORE_KEY, JSON.stringify(checkStore)); } catch (e) {} }
+
+        function renderPayoutTable(list, kind, category) {
           if (!list.length) return '<p class="noms__msg">Nothing to pay in this category yet.</p>';
           var trs = list.map(function (p) {
-            return "<tr>"
+            p.category = category;
+            var key = checkKey(p);
+            var chk = checkStore[key] || "";
+            return '<tr data-check-key="' + esc(key) + '">'
               + "<td>" + esc(p.recipient) + (p.recipient === "(no buyer)" ? ' <span class="po-warn">no buyer set</span>' : "") + "</td>"
               + "<td>" + esc(p.teamName) + "</td>"
               + "<td>" + esc(p.note) + "</td>"
-              + "<td class=\"po-tbl__amt\"><b>" + money(p.amount) + "</b></td>"
+              + '<td class="po-tbl__amt"><b>' + money(p.amount) + "</b></td>"
+              + '<td class="po-tbl__chk"><input type="text" class="po-check" data-check-key="' + esc(key) + '" value="' + esc(chk) + '" placeholder="—" autocomplete="off" maxlength="12" /></td>'
               + "</tr>";
           }).join("");
           var total = list.reduce(function (s, p) { return s + p.amount; }, 0);
-          return '<div class="table-scroll"><table class="po-tbl"><thead><tr><th>Recipient (check to)</th><th>Team</th><th>Reason</th><th>Amount</th></tr></thead><tbody>'
+          return '<div class="table-scroll"><table class="po-tbl"><thead><tr><th>Recipient (check to)</th><th>Team</th><th>Reason</th><th>Amount</th><th class="po-tbl__chkH">Check #</th></tr></thead><tbody>'
             + trs
-            + '<tr class="po-tbl__total"><td colspan="3">' + esc(kind) + ' subtotal</td><td>' + money(total) + '</td></tr>'
+            + '<tr class="po-tbl__total"><td colspan="3">' + esc(kind) + ' subtotal</td><td>' + money(total) + '</td><td></td></tr>'
             + '</tbody></table></div>';
         }
 
@@ -2309,9 +2321,22 @@
 
         var grand = flightPayouts.reduce(function (s, p) { return s + p.amount; }, 0) + calPayouts.reduce(function (s, p) { return s + p.amount; }, 0);
         body.innerHTML = summary
-          + '<h4 class="po-hdr">Flight winnings (by 2-day gross)</h4>' + renderPayoutTable(flightPayouts, "Flight winnings")
-          + '<h4 class="po-hdr">Calcutta payouts (by net, top-' + calSplit.length + ')</h4>' + renderPayoutTable(calPayouts, "Calcutta")
+          + '<h4 class="po-hdr">Flight winnings (by 2-day gross)</h4>' + renderPayoutTable(flightPayouts, "Flight winnings", "flight")
+          + '<h4 class="po-hdr">Calcutta payouts (by net, top-' + calSplit.length + ')</h4>' + renderPayoutTable(calPayouts, "Calcutta", "calcutta")
           + '<div class="po-grand">Grand total to pay out: <b>' + money(grand) + '</b></div>';
+
+        // Wire the Check # inputs — persist per row to localStorage so numbers
+        // survive reloads. Enter blurs (submit the number and move on).
+        Array.prototype.forEach.call(body.querySelectorAll(".po-check"), function (inp) {
+          inp.addEventListener("input", function () {
+            var k = inp.getAttribute("data-check-key");
+            if (!k) return;
+            var v = inp.value.trim();
+            if (v) checkStore[k] = v; else delete checkStore[k];
+            saveCheckStore();
+          });
+          inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } });
+        });
       }
 
       // Bump the flight count up or down (min 1, max 8), persist via loadCalc/saveCalc,
