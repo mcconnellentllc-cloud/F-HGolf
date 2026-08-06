@@ -1120,7 +1120,9 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 /* Delete-all buttons on Scores + Calcutta */
 .sc-toolbar__dangerBtn { color: var(--red-deep); border-color: var(--red); background: #fff; }
 .sc-toolbar__dangerBtn:hover { background: var(--red); color: #fff; }
-.ca-footer { display: flex; justify-content: flex-end; margin-top: 1rem; }
+.ca-sumcheck { display: flex; justify-content: flex-end; align-items: baseline; gap: 0.5rem; margin-top: 1rem; padding: 0.6rem 0.9rem; background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; color: var(--muted); font-weight: 700; letter-spacing: 0.03em; }
+.ca-sumcheck b { font-family: var(--font-display); color: var(--primary-green); font-size: 1.25rem; letter-spacing: 0.01em; }
+.ca-footer { display: flex; justify-content: flex-end; margin-top: 0.75rem; }
 .ca-clear-all { color: var(--red-deep); border-color: var(--red); background: #fff; }
 .ca-clear-all:hover { background: var(--red); color: #fff; }
 
