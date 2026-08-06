@@ -122,14 +122,9 @@
                 <option value="pm">Print P.M. only</option>
               </select>
               <button class="btn btn--primary" type="button" id="prPrint">Print now</button>
-              <button class="btn btn--solid" type="button" id="prRefresh">Refresh</button>
             </div>
           </div>
-          <div class="checkin-add__row">
-            <button class="btn btn--primary" type="button" id="prImport">Import 2026 field from pairing sheet</button>
-            <span class="checkin-add__msg" id="prMsg" role="status" aria-live="polite"></span>
-          </div>
-          <p class="scaffold__desc">Two teams to a tee. For each wave, tap a hole up top to cycle it through <em>off &rarr; A &rarr; A+B</em>, then hit Autofill. Drag any team onto another to swap seats.</p>
+          <p class="scaffold__desc">Two teams to a tee. Tap a hole up top to add a <em>Tee A</em> or <em>A+B</em> &mdash; teams auto-fill from Unplaced. Drag a team onto another (or use its dropdown) to swap seats. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
           <div id="prBoard"><p class="noms__msg">Loading…</p></div>
         </section>
 
@@ -1025,9 +1020,26 @@
           .catch(function () { if (msg) msg.textContent = "Network error saving."; });
       }
 
-      function prTeamCard(r) {
+      // Build the move-to <select> options for a given wave's active slot list.
+      // "" = Unplaced. Slot values are encoded as "1A", "1B", etc.
+      function moveOptions(slots, curH, curS) {
+        var curV = (curH && (curS === "A" || curS === "B")) ? (curH + curS) : "";
+        var out = ['<option value=""' + (curV === "" ? " selected" : "") + ">— unplaced —</option>"];
+        slots.forEach(function (s) {
+          var v = s.hole + s.slot;
+          out.push('<option value="' + v + '"' + (v === curV ? " selected" : "") + ">Hole " + s.hole + " · Tee " + s.slot + "</option>");
+        });
+        return out.join("");
+      }
+
+      function prTeamCard(r, slots, wave) {
         var f = r.fields || {};
-        return '<div class="pr-team" draggable="true" data-id="' + esc(r.id) + '"><span class="pr-team__nm">' + esc(teamShortNames(f)) + "</span></div>";
+        var curH = Number(f.Hole), curS = String(f.Slot || "").toUpperCase();
+        var opts = moveOptions(slots || [], curH, curS);
+        return '<div class="pr-team" draggable="true" data-id="' + esc(r.id) + '" data-wave="' + esc(wave || "") + '">'
+          + '<span class="pr-team__nm">' + esc(teamShortNames(f)) + "</span>"
+          + '<select class="pr-team__move" data-id="' + esc(r.id) + '" data-wave="' + esc(wave || "") + '" aria-label="Move team to a different tee">' + opts + "</select>"
+          + "</div>";
       }
 
       function renderWaveBlock(w, teams) {
@@ -1045,12 +1057,13 @@
           else pool.push(t);
         });
 
-        // Config row — each hole cycles off / A / A+B.
+        // Config row — each hole cycles off / A / A+B.  Each hole 1–9 carries a
+        // distinct color class so the tee sheet reads as 9 distinct groupings.
         var btns = "";
         for (var h = 1; h <= 9; h++) {
           var st = cfg[h] || "off";
           var lbl = st === "off" ? "&mdash;" : st;
-          btns += '<button type="button" class="pr-hb pr-hb--' + st.toLowerCase() + '" data-hole="' + h + '" data-wave="' + w.k + '" title="Cycle off / A / A+B"><span class="pr-hb__n">' + h + '</span><span class="pr-hb__s">' + lbl + '</span></button>';
+          btns += '<button type="button" class="pr-hb pr-hb--' + st.toLowerCase() + ' pr-hb--h' + h + '" data-hole="' + h + '" data-wave="' + w.k + '" title="Cycle off / A / A+B"><span class="pr-hb__n">' + h + '</span><span class="pr-hb__s">' + lbl + '</span></button>';
         }
         var tees = slots.length;
         var seats = tees * TEAMS_PER_TEE;
@@ -1065,13 +1078,15 @@
         var canAutofill = teamCount > 0 && enough;
 
         // Tee cards — "HOLE X · TEE A" header bar, two team cards, ampersand between.
+        // Each card carries a per-hole color class (pr-tee--h1 .. pr-tee--h9) so
+        // the sheet doesn't read as one uniform green wall.
         var teeHtml = slots.map(function (s) {
           var arr = placed[s.hole + s.slot];
           var seatEls = [];
           for (var i = 0; i < TEAMS_PER_TEE; i++) {
-            seatEls.push(arr[i] ? prTeamCard(arr[i]) : '<div class="pr-team pr-team--empty" data-empty="1">seat open</div>');
+            seatEls.push(arr[i] ? prTeamCard(arr[i], slots, w.k) : '<div class="pr-team pr-team--empty" data-empty="1">seat open</div>');
           }
-          return '<div class="pr-tee" data-hole="' + s.hole + '" data-slot="' + s.slot + '" data-wave="' + w.k + '">'
+          return '<div class="pr-tee pr-tee--h' + s.hole + '" data-hole="' + s.hole + '" data-slot="' + s.slot + '" data-wave="' + w.k + '">'
             + '<div class="pr-tee__hd">HOLE ' + s.hole + ' &middot; TEE ' + s.slot + '</div>'
             + '<div class="pr-tee__seats">'
             + seatEls[0]
@@ -1084,7 +1099,7 @@
         // Unplaced pool.
         var poolHtml = "";
         if (pool.length) {
-          poolHtml = '<div class="pr-pool" data-wave="' + w.k + '"><div class="pr-pool__hd">Unplaced <span>(' + pool.length + ')</span></div><div class="pr-pool__list">' + pool.map(prTeamCard).join("") + "</div></div>";
+          poolHtml = '<div class="pr-pool" data-wave="' + w.k + '"><div class="pr-pool__hd">Unplaced <span>(' + pool.length + ')</span></div><div class="pr-pool__list">' + pool.map(function (t) { return prTeamCard(t, slots, w.k); }).join("") + "</div></div>";
         }
 
         return '<div class="pr-wave-block" data-wave="' + w.k + '">'
@@ -1113,14 +1128,50 @@
       }
 
       function wirePairings(board) {
-        // Hole config buttons — cycle state and re-render.
+        // Hole config buttons — cycle state, cascade team moves, auto-autofill.
+        //   off → A         : slot added; autofill fills empty seats
+        //   A  → AB         : slot added; autofill fills empty seats
+        //   AB → off        : slots removed; clear teams at both A+B in Airtable,
+        //                     they land in the unplaced pool for future autofill
         Array.prototype.forEach.call(board.querySelectorAll(".pr-hb"), function (btn) {
           btn.addEventListener("click", function () {
             var h = Number(btn.getAttribute("data-hole")), w = btn.getAttribute("data-wave");
             var cfg = loadSlotCfg(w);
-            cfg[h] = cycleState(cfg[h] || "off");
+            var oldState = cfg[h] || "off";
+            var newState = cycleState(oldState);
+            cfg[h] = newState;
             saveSlotCfg(w, cfg);
-            renderPairings(prRecs.length ? prRecs : []);
+            // Determine which slot letters (A/B) are being removed by this cycle.
+            var removed = [];
+            var hadA = oldState === "A" || oldState === "AB";
+            var hadB = oldState === "AB";
+            var hasA = newState === "A" || newState === "AB";
+            var hasB = newState === "AB";
+            if (hadA && !hasA) removed.push("A");
+            if (hadB && !hasB) removed.push("B");
+            var evict = [];
+            if (removed.length) {
+              (prRecs || []).forEach(function (r) {
+                var f = r.fields || {};
+                if (((f.Start || "") === w) && Number(f.Hole) === h && removed.indexOf(String(f.Slot || "").toUpperCase()) !== -1) {
+                  evict.push({ id: r.id, hole: "", slot: "" });
+                }
+              });
+            }
+            // Save evictions first (if any), then re-render, then auto-autofill.
+            var afterMove = function () {
+              renderPairings(prRecs.length ? prRecs : []);
+              // Auto-autofill: fills any newly-empty seats from the unplaced pool.
+              // Guarded internally (seats vs teams) so it no-ops if not possible.
+              setTimeout(function () { autofillWave(w, /*silent=*/true); }, 60);
+            };
+            if (evict.length) {
+              fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: evict }) })
+                .then(function () { loadRoster(); afterMove(); })
+                .catch(afterMove);
+            } else {
+              afterMove();
+            }
           });
         });
         // Autofill per wave.
@@ -1153,6 +1204,36 @@
             prDrag = null;
           });
         });
+        // Move-to dropdown per team card — same move + swap logic as drag/drop.
+        Array.prototype.forEach.call(board.querySelectorAll(".pr-team__move"), function (sel) {
+          // Don't let a click on the dropdown start a drag on the parent card.
+          sel.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+          sel.addEventListener("change", function () {
+            var id = sel.getAttribute("data-id");
+            var wave = sel.getAttribute("data-wave");
+            var val = sel.value;
+            // Source (where this team currently sits).
+            var srcTee = sel.closest(".pr-tee");
+            var srcHole = srcTee ? Number(srcTee.getAttribute("data-hole")) : null;
+            var srcSlot = srcTee ? srcTee.getAttribute("data-slot") : "";
+            if (!val) { positionSaveMany([{ id: id, hole: "", slot: "", start: wave }]); return; }
+            var m = /^(\d+)([AB])$/.exec(val);
+            if (!m) return;
+            var tgtHole = Number(m[1]), tgtSlot = m[2];
+            if (tgtHole === srcHole && tgtSlot === srcSlot) return; // no-op
+            var zone = board.querySelector('.pr-tee[data-wave="' + wave + '"][data-hole="' + tgtHole + '"][data-slot="' + tgtSlot + '"]');
+            var occupants = zone
+              ? Array.prototype.map.call(zone.querySelectorAll(".pr-team[draggable='true']"), function (el) { return el.getAttribute("data-id"); })
+                  .filter(function (oid) { return oid !== id; })
+              : [];
+            var assignments = [{ id: id, hole: tgtHole, slot: tgtSlot, start: wave }];
+            if (occupants.length >= TEAMS_PER_TEE) {
+              // Target tee is full → swap with the first-occupant team.
+              assignments.push({ id: occupants[0], hole: srcHole || "", slot: srcSlot || "", start: wave });
+            }
+            positionSaveMany(assignments);
+          });
+        });
       }
 
       function handleDrop(zone, drag) {
@@ -1183,17 +1264,20 @@
         positionSaveMany(assignments);
       }
 
-      function autofillWave(wave) {
+      function autofillWave(wave, silent) {
         var msg = document.getElementById("prMsg");
+        var setMsg = function (t) { if (msg && !silent) msg.textContent = t; };
         var cfg = loadSlotCfg(wave);
         var slots = activeSlots(cfg);
-        if (!slots.length) { if (msg) msg.textContent = "Turn on some A/B slots at the top of this wave first."; return; }
+        if (!slots.length) { setMsg("Turn on some A/B slots at the top of this wave first."); return; }
         var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === wave; }).sort(byCreated);
-        if (!teams.length) { if (msg) msg.textContent = "No teams in this wave (check the Check-In sheet)."; return; }
+        if (!teams.length) { setMsg("No teams in this wave (check the Check-In sheet)."); return; }
         var totalSeats = slots.length * TEAMS_PER_TEE;
         if (totalSeats < teams.length) {
-          if (msg) msg.textContent = "Need " + (teams.length - totalSeats) + " more seat(s) — add more A/B slots first.";
-          return;
+          // Not enough seats to fit everyone — but in "silent" mode (post-cycle
+          // auto-fill), still fill whatever seats we CAN. Leaves the rest in
+          // the Unplaced pool for the user to place manually or add slots for.
+          if (!silent) { setMsg("Need " + (teams.length - totalSeats) + " more seat(s) — add more A/B slots first."); return; }
         }
         // Preserve teams already seated at active slots; fill the rest from unplaced pool in order.
         var placed = {}, seated = {};
@@ -1212,30 +1296,8 @@
             assignments.push({ id: t.id, hole: s.hole, slot: s.slot, start: wave });
           }
         });
-        if (!assignments.length) { if (msg) msg.textContent = "All teams already seated in " + wave + " — nothing to fill."; return; }
+        if (!assignments.length) { setMsg("All teams already seated in " + wave + " — nothing to fill."); return; }
         positionSaveMany(assignments);
-      }
-
-      function importField() {
-        var msg = document.getElementById("prMsg"), btn = document.getElementById("prImport");
-        msg.textContent = "Reading pairing sheet…";
-        fetch("data/founders-tournament.json").then(function (r) { return r.json(); }).then(function (data) {
-          var teams = [];
-          (data.flights || []).forEach(function (fl) {
-            var start = /^A/i.test(fl.name) ? "8 AM" : (/^P/i.test(fl.name) ? "1 PM" : "");
-            (fl.teams || []).forEach(function (t) {
-              var ps = (t.players || []).filter(Boolean);
-              if (ps.length) teams.push({ name: ps[0], partner: ps.slice(1).join(" / "), start: start });
-            });
-          });
-          if (!teams.length) { msg.textContent = "No teams found in the pairing sheet."; return; }
-          if (!window.confirm("Add " + teams.length + " teams from the 2026 pairing sheet (A.M./P.M. waves)? This creates new team records.")) { msg.textContent = ""; return; }
-          msg.textContent = "Importing " + teams.length + " teams…"; if (btn) btn.disabled = true;
-          fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ action: "import", tournament: KEY, teams: teams }) })
-            .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
-            .then(function (res) { if (btn) btn.disabled = false; if (res.j && res.j.ok) { msg.textContent = "Imported " + res.j.created + " teams ✓"; loadRoster(); } else { msg.textContent = (res.j && res.j.error) || "Import failed."; } })
-            .catch(function () { if (btn) btn.disabled = false; msg.textContent = "Network error importing."; });
-        }).catch(function () { msg.textContent = "Couldn't read the pairing sheet."; });
       }
 
       // ---- Flights + Leaderboard ----
@@ -1465,10 +1527,6 @@
         if (lbr) lbr.addEventListener("click", loadRoster);
         var lbs = document.getElementById("lbSaveFlights");
         if (lbs) lbs.addEventListener("click", saveFlights);
-        var prr = document.getElementById("prRefresh");
-        if (prr) prr.addEventListener("click", loadRoster);
-        var pri = document.getElementById("prImport");
-        if (pri) pri.addEventListener("click", importField);
         var prp = document.getElementById("prPrint");
         if (prp) prp.addEventListener("click", function () {
           var sel = document.getElementById("prPrintWhich");
