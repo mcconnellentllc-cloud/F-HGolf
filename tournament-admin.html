@@ -289,7 +289,10 @@
             </div>
             <input type="text" class="disp-tab__url" data-page="founders-calcutta-display.html" readonly aria-label="Public Calcutta display URL" />
             <p class="disp-tab__hint">Anyone with this link can watch the auction from their phone. No admin key required.</p>
-            <iframe class="disp-tab__preview" data-page="founders-calcutta-display.html" title="Calcutta display preview"></iframe>
+            <div class="disp-tab__qr" data-page="founders-calcutta-display.html">
+              <img class="disp-tab__qr-img" alt="QR code — scan to open the live Calcutta display" />
+              <p class="disp-tab__qr-lbl"><b>Scan for the live auction</b><br /><small>Point your phone's camera at this code &mdash; opens the Calcutta display in your browser.</small></p>
+            </div>
           </div>
         </section>
 
@@ -307,7 +310,10 @@
             </div>
             <input type="text" class="disp-tab__url" data-page="founders-leaderboard-display.html" readonly aria-label="Public Leaderboard display URL" />
             <p class="disp-tab__hint">Share this link with anyone asking how the tournament is going.</p>
-            <iframe class="disp-tab__preview" data-page="founders-leaderboard-display.html" title="Leaderboard display preview"></iframe>
+            <div class="disp-tab__qr" data-page="founders-leaderboard-display.html">
+              <img class="disp-tab__qr-img" alt="QR code — scan to open the live leaderboard" />
+              <p class="disp-tab__qr-lbl"><b>Scan for the live leaderboard</b><br /><small>Point your phone's camera at this code.</small></p>
+            </div>
           </div>
         </section>
 
@@ -3632,8 +3638,11 @@
           Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__url"), function (inp) {
             if (!inp.value) inp.value = publicUrl(inp.getAttribute("data-page"));
           });
-          Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__preview"), function (fr) {
-            if (!fr.src) fr.src = fr.getAttribute("data-page");
+          Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__qr"), function (wrap) {
+            var img = wrap.querySelector(".disp-tab__qr-img");
+            if (!img || img.src) return;
+            var url = publicUrl(wrap.getAttribute("data-page"));
+            img.src = "https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=8&data=" + encodeURIComponent(url);
           });
           host.__mounted = true;
         }
@@ -3719,12 +3728,15 @@
           // professional sheet, not a workbook screenshot.
           var head = document.createElement("div");
           head.className = "ca-print-head";
+          var pubUrl = (location.origin.replace(/\/$/, "") + "/founders-calcutta-display.html");
+          var qrSrc = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=6&data=" + encodeURIComponent(pubUrl);
           head.innerHTML =
             '<img class="ca-print-head__logo" src="images/logo.png" alt="F&H Golf Course" />'
             + '<div class="ca-print-head__title"><span class="ca-print-head__eyebrow">2026 Founders Tournament</span>'
             + '<h1>Calcutta Auction Sheet</h1>'
-            + '<span class="ca-print-head__sub">F&amp;H Golf Course &middot; Fleming, Colorado &middot; Aug 8&ndash;9</span></div>'
-            + '<img class="ca-print-head__logo" src="images/logo.png" alt="" aria-hidden="true" />';
+            + '<span class="ca-print-head__sub">F&amp;H Golf Course &middot; Aug 8&ndash;9</span></div>'
+            + '<div class="ca-print-head__qr"><img src="' + qrSrc + '" alt="QR code" />'
+            + '<span>Scan for<br /><b>live auction</b></span></div>';
           var foot = document.createElement("div");
           foot.className = "ca-print-foot";
           foot.innerHTML = 'F&amp;H Golf Course &middot; (970) 774-6362 &middot; fandhgolf.com';

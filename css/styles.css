@@ -1199,6 +1199,14 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .disp-tab__hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
 .disp-tab__copied { color: var(--primary-green); font-weight: 700; font-size: 0.9rem; }
 .disp-tab__preview { width: 100%; height: 60vh; min-height: 24rem; border: 1px solid var(--line); border-radius: 10px; background: #0b1a10; }
+
+/* QR block in the Calcutta / Leaderboard Display workbook tabs. */
+.disp-tab__qr { display: flex; align-items: center; justify-content: center; gap: 1.2rem; padding: 1.2rem; margin-top: 0.5rem; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+.disp-tab__qr-img { width: 240px; height: 240px; max-width: 60vw; object-fit: contain; border-radius: 8px; background: #fff; }
+.disp-tab__qr-lbl { margin: 0; text-align: left; font-size: 1rem; color: var(--ink); max-width: 22rem; }
+.disp-tab__qr-lbl b { display: block; font-family: var(--font-display); font-weight: 800; color: var(--primary-green); font-size: 1.35rem; margin-bottom: 0.3rem; }
+.disp-tab__qr-lbl small { color: var(--muted); font-size: 0.88rem; }
+@media (max-width: 560px) { .disp-tab__qr { flex-direction: column; text-align: center; } .disp-tab__qr-lbl { text-align: center; } }
 .wb-sheet.noms { border: 1px solid var(--line); background: #fff; border-radius: 4px; box-shadow: var(--shadow-sm); padding: 1.1rem 1.2rem; margin: 0 0 1rem; }
 .wb-sheet .noms__bar { border-bottom: 2px solid var(--primary-green); margin-bottom: 0.9rem; padding-bottom: 0.5rem; }
 /* Gridlines + tabular numerals across workspace tables (spreadsheet feel) */
@@ -1430,6 +1438,10 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   body.is-print-ca .ca-print-head__logo { width: 62pt; height: 62pt; object-fit: contain; flex: 0 0 auto; }
+  body.is-print-ca .ca-print-head__qr { display: flex; align-items: center; gap: 6pt; flex: 0 0 auto; }
+  body.is-print-ca .ca-print-head__qr img { width: 62pt; height: 62pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-ca .ca-print-head__qr span { font-size: 8pt; color: #333; text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.2; }
+  body.is-print-ca .ca-print-head__qr b { color: #1B5E20; font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 10pt; letter-spacing: 0; text-transform: none; }
   body.is-print-ca .ca-print-head__title { text-align: center; flex: 1; }
   body.is-print-ca .ca-print-head__eyebrow { display: block; text-transform: uppercase; letter-spacing: 0.25em; color: #8a1c25; font-weight: 700; font-size: 9pt; margin-bottom: 2pt; }
   body.is-print-ca .ca-print-head__title h1 { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: #1B5E20; margin: 0; font-size: 22pt; letter-spacing: 0.01em; }
