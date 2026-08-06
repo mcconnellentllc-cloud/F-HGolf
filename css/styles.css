@@ -1530,44 +1530,43 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .past-tournaments__lead { color: var(--muted); margin: 0 0 1.1rem; font-size: 1rem; }
 
 /* ---- Check-In team cards (Bulldog-style) ---- */
-.ci-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr)); gap: 0.9rem; }
+.ci-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr)); gap: 0.9rem; align-items: start; }
 .ci-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.15s, box-shadow 0.15s; }
-.ci-card.is-fully-paid { border-color: var(--primary-green); box-shadow: 0 0 0 1px var(--primary-green) inset, var(--shadow-sm); }
+.ci-card.is-fully-paid { border-color: var(--primary-green); box-shadow: 0 0 0 1px var(--primary-green) inset, var(--shadow-sm); background: #f6faf1; }
 .ci-card.is-alt { border-style: dashed; opacity: 0.85; }
+
 .ci-card__hd { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.85rem; background: var(--paper-2); border-bottom: 1px solid var(--line); }
 .ci-card__tnum { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; color: var(--primary-green); letter-spacing: 0.02em; }
-.ci-card__start { padding: 0.35rem 0.55rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; }
-.ci-card__status { margin-left: auto; font-size: 0.78rem; color: var(--muted); }
+.ci-card__start { padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; }
+.ci-card__status { margin-left: auto; font-size: 0.78rem; color: var(--muted); min-width: 4rem; text-align: right; }
 .ci-card__status.is-ok { color: var(--primary-green); font-weight: 700; }
 .ci-card__status.is-error { color: var(--red-deep); }
-.ci-card__players { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.4rem 0.6rem; }
-.ci-p { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 0.5rem; padding: 0.4rem 0.25rem; border-bottom: 1px dotted var(--line); }
-.ci-p:last-child { border-bottom: none; }
-.ci-p__check { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.55rem; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; user-select: none; font-size: 0.78rem; font-weight: 700; color: var(--muted); background: #fff; }
-.ci-p__check input { margin: 0; cursor: pointer; }
-.ci-p__check.is-paid { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
-.ci-p__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.ci-p__name .ci-name-wrap { max-width: 100%; }
-.ci-p__amt { font-family: var(--font-display); font-weight: 700; color: var(--ink); min-width: 3.4rem; text-align: right; }
-.ci-p__method { padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.8rem; background: #fff; }
+
+.ci-card__players { padding: 0.55rem 0.85rem 0.3rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.ci-p { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.5rem; }
+.ci-p__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.ci-p__method { padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.85rem; background: #fff; min-width: 7rem; font-weight: 600; }
 .ci-p__method:disabled { background: var(--paper-2); color: var(--muted); }
-.ci-card__extras { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem 0.75rem; padding: 0.4rem 0.85rem; border-top: 1px solid var(--line); background: #fdfcf5; }
-.ci-extra { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
-.ci-extra__lbl { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem; font-weight: 700; color: var(--muted); }
-.ci-chips { display: inline-flex; gap: 0.2rem; }
-.ci-chip { border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 700; padding: 0.3rem 0.55rem; min-width: 2rem; border-radius: 6px; cursor: pointer; }
-.ci-chip:hover { border-color: var(--primary-green); }
-.ci-chip.is-on { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
-.ci-extra__meals { width: 3.2rem; padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.85rem; text-align: center; }
-.ci-extra__mealsx { color: var(--muted); font-size: 0.8rem; }
-.ci-card__ft { display: grid; grid-template-columns: 1fr 1fr 1fr auto; align-items: center; gap: 0.5rem 0.75rem; padding: 0.55rem 0.85rem; border-top: 1px solid var(--line); background: var(--paper-2); }
+
+.ci-card__extras { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; padding: 0.5rem 0.85rem; background: #fdfcf5; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); align-items: center; font-size: 0.85rem; }
+.ci-cart, .ci-meals { display: inline-flex; align-items: center; gap: 0.35rem; }
+.ci-cart input[type="checkbox"] { width: 1.05rem; height: 1.05rem; cursor: pointer; accent-color: var(--primary-green); }
+.ci-cart span { font-weight: 600; color: var(--ink); }
+.ci-cart small, .ci-meals small { color: var(--muted); font-weight: 400; font-size: 0.78rem; }
+.ci-meals span { font-weight: 600; color: var(--ink); }
+.ci-meals input { width: 3rem; padding: 0.25rem 0.35rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.85rem; text-align: center; }
+
+.ci-card__ft { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem 0.75rem; padding: 0.55rem 0.85rem; background: var(--paper-2); }
+.ci-tots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; }
 .ci-tot { display: flex; flex-direction: column; align-items: flex-start; }
-.ci-tot small { color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem; font-weight: 700; }
-.ci-tot b { font-family: var(--font-display); font-weight: 700; font-size: 1rem; }
+.ci-tot small { color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.62rem; font-weight: 700; }
+.ci-tot b { font-family: var(--font-display); font-weight: 700; font-size: 0.98rem; }
 .ci-tot--paid b { color: var(--primary-green); }
 .ci-tot--owe b { color: var(--red-deep); }
 .ci-card.is-fully-paid .ci-tot--owe b { color: var(--primary-green); }
-.ci-card__acts { display: inline-flex; gap: 0.3rem; }
+.ci-card__acts { display: inline-flex; gap: 0.3rem; align-self: end; justify-self: end; }
+.ci-card__acts .ci__update { padding: 0.35rem 0.7rem; font-size: 0.78rem; border-radius: 6px; border: 1px solid var(--primary-green); color: var(--primary-green); background: #fff; cursor: pointer; font-weight: 700; }
+.ci-card__acts .ci__update:hover { background: var(--primary-green); color: #fff; }
 .ci-card__acts .ci__alt { padding: 0.35rem 0.55rem; font-size: 0.78rem; border-radius: 6px; }
 .ci-card__acts .ci__remove { padding: 0.35rem 0.55rem; font-size: 1rem; }
 

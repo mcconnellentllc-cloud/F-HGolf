@@ -531,6 +531,8 @@
         var greenPP = cfg.greenFeePP || 0;
         var mealPP = cfg.mealPP || 0;
         var otherPP = cfg.otherPP || 0;
+        var cartFee = cfg.cartRentalFee || 0;
+        var extraMealFee = cfg.extraMealFee || 0;
         var comm = (cfg.calcuttaCommission || 0) / 100;
         var nFlights = cfg.flights || 4;
         var flightSplit = cfg.flightSplit || [50, 30, 20];
@@ -553,16 +555,23 @@
         var fullyPaid = paidPlayers >= players && players > 0;
         var calcuttaPool = teams.reduce(function (s, r) { var v = (r.fields || {})["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
         // Extra meals for guests / spouses — kitchen head-count, billed at the
-        // meal fee. Adds to course revenue; no impact on flight prize pool.
+        // dedicated extra-meal fee (cheaper than the entry-included meal).
         var extraMealsCount = teams.reduce(function (s, r) { var v = (r.fields || {})["Extra Meals"]; return s + (typeof v === "number" && v > 0 ? v : 0); }, 0);
-        var extraMealsRevenue = extraMealsCount * mealPP;
-        var totalIncome = entryIncome + calcuttaPool + extraMealsRevenue;
+        var extraMealsRevenue = extraMealsCount * extraMealFee;
+        // Rental carts sold at check-in — Cart Type = "Rental" (or any non-empty
+        // non-"Owned" value from the older chip UI) counts as a rental.
+        var cartRentalsCount = teams.reduce(function (s, r) {
+          var v = String((r.fields || {})["Cart Type"] || "").trim();
+          return s + (v && v.toLowerCase() !== "owned" ? 1 : 0);
+        }, 0);
+        var cartRentalRevenue = cartRentalsCount * cartFee;
+        var totalIncome = entryIncome + calcuttaPool + extraMealsRevenue + cartRentalRevenue;
 
         var greenFees = players * greenPP;
         var meals = players * mealPP;
         var otherRevenue = players * otherPP;
         var calcuttaCommission = calcuttaPool * comm;
-        var courseRevenue = greenFees + meals + extraMealsRevenue + otherRevenue + calcuttaCommission;
+        var courseRevenue = greenFees + meals + extraMealsRevenue + cartRentalRevenue + otherRevenue + calcuttaCommission;
 
         var flightPrizePool = Math.max(0, (entryPP - greenPP - mealPP - otherPP) * players);
         var perFlightBudget = nFlights > 0 ? (flightPrizePool / nFlights) : 0;
@@ -576,7 +585,9 @@
           cfg: cfg, teams: teams, teamCount: teamCount, players: players,
           paidPlayers: paidPlayers, entryCollected: entryCollected, fullyPaid: fullyPaid,
           extraMealsCount: extraMealsCount, extraMealsRevenue: extraMealsRevenue,
+          cartRentalsCount: cartRentalsCount, cartRentalRevenue: cartRentalRevenue,
           entryPP: entryPP, greenPP: greenPP, mealPP: mealPP, otherPP: otherPP,
+          cartFee: cartFee, extraMealFee: extraMealFee,
           nFlights: nFlights, flightSplit: flightSplit, calSplit: calSplit,
           calcuttaCommissionPct: comm * 100,
           entryIncome: entryIncome, calcuttaPool: calcuttaPool, totalIncome: totalIncome,
@@ -988,63 +999,54 @@
           + '<button type="button" class="ci-rename" data-role="' + role + '" title="Rename inline"' + disabled + ">&#9998;</button>"
           + "</span>";
       }
-      // Compact cart chip row — 0 / 1 / 2 / Rental / Own. Value stored in the
-      // "Cart Type" field. 0 (no cart) clears the field, others store a label.
-      var CART_OPTS = [
-        { v: "",       label: "0",      title: "No cart" },
-        { v: "1 cart", label: "1",      title: "1 cart" },
-        { v: "2 cart", label: "2",      title: "2 carts" },
-        { v: "Rental", label: "Rental", title: "Rental cart" },
-        { v: "Owned",  label: "Own",    title: "Owns cart" }
-      ];
-      function cartChips(cur) {
-        return CART_OPTS.map(function (o) {
-          var on = (o.v === cur) ? " is-on" : "";
-          return '<button type="button" class="ci-chip' + on + '" data-val="' + esc(o.v) + '" title="' + esc(o.title) + '">' + esc(o.label) + '</button>';
-        }).join("");
-      }
       function ciCard(rec, teamNum) {
         var f = rec.fields || {}, pp = teamPlayers(f, rec), isAlt = !!f["Alternate"];
+        var cfg = loadCalc();
+        var entryPP = cfg.entryPP || 0;
+        var cartFee = cfg.cartRentalFee || 0;
+        var extraMealFee = cfg.extraMealFee || 0;
         var em = typeof f["Extra Meals"] === "number" ? f["Extra Meals"] : 0;
-        var entryPP = (loadCalc().entryPP || 0);
-        var mealPP = (loadCalc().mealPP || 0);
-        var teams = [[pp.p1, "p1", f["Player 1 Paid"] || ""]];
-        if (pp.hasP2) teams.push([pp.p2, "p2", f["Player 2 Paid"] || ""]);
-        var owedPerPlayer = entryPP;
-        var totalOwed = owedPerPlayer * teams.length + (Number(em) || 0) * mealPP;
-        var totalPaid = teams.reduce(function (s, t) { return s + (t[2] ? owedPerPlayer : 0); }, 0);
+        var cartVal = String(f["Cart Type"] || "").trim();
+        var cartOn = cartVal && cartVal.toLowerCase() !== "owned";
+        var m1 = f["Player 1 Paid"] || "", m2 = f["Player 2 Paid"] || "";
+        var players = [[pp.p1, "p1", m1]];
+        if (pp.hasP2) players.push([pp.p2, "p2", m2]);
+        var totalOwed = entryPP * players.length + (cartOn ? cartFee : 0) + (Number(em) || 0) * extraMealFee;
+        var totalPaid = players.reduce(function (s, t) { return s + (t[2] ? entryPP : 0); }, 0);
         var remaining = Math.max(0, totalOwed - totalPaid);
-        var tnBadge = teamNum != null ? String(teamNum).padStart(2, "0") : "";
-
-        var playerRows = teams.map(function (t) {
+        var tnBadge = teamNum != null ? String(teamNum).padStart(2, "0") : "—";
+        var methodOpts = function (sel) {
+          return ["", "Cash", "Check", "Card", "Online"].map(function (m) {
+            return '<option value="' + m + '"' + (m === sel ? " selected" : "") + ">" + (m || "not paid") + "</option>";
+          }).join("");
+        };
+        var playerRows = players.map(function (t) {
           var name = t[0], role = t[1], method = t[2];
-          var checked = method ? " is-paid" : "";
           return '<div class="ci-p" data-role="' + esc(role) + '">'
-            + '<label class="ci-p__check' + checked + '" title="Toggle paid"><input type="checkbox" class="ci-p__box" data-role="' + esc(role) + '"' + (method ? " checked" : "") + ' /><span>Paid</span></label>'
             + '<div class="ci-p__name">' + nameCell(role, name) + '</div>'
-            + '<div class="ci-p__amt">' + money(owedPerPlayer) + '</div>'
-            + '<select class="ci-p__method" data-role="' + esc(role) + '"' + (name ? "" : " disabled") + '>'
-            + ['','Cash','Check','Card','Online'].map(function (m) { return '<option value="' + m + '"' + (m === method ? " selected" : "") + ">" + (m || "method") + "</option>"; }).join("")
-            + '</select>'
+            + '<select class="ci-p__method" data-role="' + esc(role) + '"' + (name ? "" : " disabled") + '>' + methodOpts(method) + '</select>'
             + '</div>';
         }).join("");
 
         return '<article class="ci-card' + (isAlt ? " is-alt" : "") + (totalPaid >= totalOwed && totalOwed > 0 ? " is-fully-paid" : "") + '" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
           + '<header class="ci-card__hd">'
-          + '<span class="ci-card__tnum">Team ' + esc(tnBadge || "—") + '</span>'
+          + '<span class="ci-card__tnum">Team ' + esc(tnBadge) + '</span>'
           + '<select class="ci__start ci-card__start" title="Wave">' + startOptions(esc(f["Start"] || "")) + '</select>'
           + '<span class="ci__status ci-card__status"></span>'
           + '</header>'
           + '<div class="ci-card__players">' + playerRows + '</div>'
           + '<div class="ci-card__extras">'
-          + '<div class="ci-extra"><span class="ci-extra__lbl">Cart</span><div class="ci-chips ci__cart-chips">' + cartChips(String(f["Cart Type"] || "")) + '</div></div>'
-          + '<div class="ci-extra"><span class="ci-extra__lbl">Meals+</span><input type="number" class="ci__meals ci-extra__meals" min="0" max="20" step="1" value="' + esc(String(em)) + '" placeholder="0" /><span class="ci-extra__mealsx">× ' + money(mealPP) + '</span></div>'
+          + '<label class="ci-cart"><input type="checkbox" class="ci__cart" ' + (cartOn ? "checked" : "") + ' /><span>Cart rental <small>' + money(cartFee) + '</small></span></label>'
+          + '<label class="ci-meals"><span>Extra meals</span><input type="number" class="ci__meals" min="0" max="20" step="1" value="' + esc(String(em)) + '" placeholder="0" /><small>× ' + money(extraMealFee) + '</small></label>'
           + '</div>'
           + '<footer class="ci-card__ft">'
-          + '<span class="ci-tot"><small>Total</small><b>' + money(totalOwed) + '</b></span>'
-          + '<span class="ci-tot ci-tot--paid"><small>Paid</small><b>' + money(totalPaid) + '</b></span>'
-          + '<span class="ci-tot ci-tot--owe"><small>Still owes</small><b>' + money(remaining) + '</b></span>'
+          + '<div class="ci-tots">'
+          + '<span class="ci-tot"><small>Total</small><b class="ci-tot__total">' + money(totalOwed) + '</b></span>'
+          + '<span class="ci-tot ci-tot--paid"><small>Paid</small><b class="ci-tot__paid">' + money(totalPaid) + '</b></span>'
+          + '<span class="ci-tot ci-tot--owe"><small>Still owes</small><b class="ci-tot__owe">' + money(remaining) + '</b></span>'
+          + '</div>'
           + '<div class="ci-card__acts">'
+          + '<button type="button" class="ci__update" title="Refresh totals">Update</button>'
           + '<button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + '</button>'
           + '<button type="button" class="ci__remove" title="Remove team">&times;</button>'
           + '</div>'
@@ -1091,14 +1093,23 @@
 
           if (startSel) startSel.addEventListener("change", function () { saveCheckin(id, { start: startSel.value }, statusEl, startSel); });
 
-          // Cart chip row — click to select, save immediately.
-          Array.prototype.forEach.call(card.querySelectorAll(".ci-chip"), function (chip) {
-            chip.addEventListener("click", function () {
-              var v = chip.getAttribute("data-val");
-              Array.prototype.forEach.call(card.querySelectorAll(".ci-chip"), function (c) { c.classList.toggle("is-on", c === chip); });
-              saveCheckin(id, { cartType: v }, statusEl, chip);
-            });
+          // Cart rental checkbox — sends "Rental" or empty to Cart Type.
+          var cartBox = card.querySelector(".ci__cart");
+          if (cartBox) cartBox.addEventListener("change", function () {
+            var v = cartBox.checked ? "Rental" : "";
+            saveCheckin(id, { cartType: v }, statusEl, cartBox);
+            for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
+              scAllCache[i].fields = scAllCache[i].fields || {};
+              scAllCache[i].fields["Cart Type"] = v;
+              break;
+            }
+            refreshCardTotals(card);
+            try { renderPL(); } catch (e) {}
           });
+
+          // Update button — recompute totals in-place from current state.
+          var upd = card.querySelector(".ci__update");
+          if (upd) upd.addEventListener("click", function () { refreshCardTotals(card); });
 
           // Extra meals (debounced) — also mutate cache + refresh P&L in-place.
           var mealsInp = card.querySelector(".ci__meals");
@@ -1119,25 +1130,12 @@
             });
           }
 
-          // Per-player paid toggle + method dropdown. Checkbox on/off maps
-          // to method = "" ↔ default "Cash" (or keeps existing method).
+          // Per-player payment method dropdown — empty = not paid.
           Array.prototype.forEach.call(card.querySelectorAll(".ci-p"), function (pRow) {
             var role = pRow.getAttribute("data-role");
             var payload = role === "p1" ? "player1Paid" : "player2Paid";
-            var box = pRow.querySelector(".ci-p__box");
             var meth = pRow.querySelector(".ci-p__method");
-            var check = pRow.querySelector(".ci-p__check");
-            if (box) box.addEventListener("change", function () {
-              var v = box.checked ? (meth.value || "Cash") : "";
-              if (meth) meth.value = v;
-              if (check) check.classList.toggle("is-paid", !!v);
-              var p = {}; p[payload] = v;
-              saveCheckin(id, p, statusEl, box);
-              refreshCardTotals(card);
-            });
             if (meth) meth.addEventListener("change", function () {
-              if (box) box.checked = !!meth.value;
-              if (check) check.classList.toggle("is-paid", !!meth.value);
               var p = {}; p[payload] = meth.value;
               saveCheckin(id, p, statusEl, meth);
               refreshCardTotals(card);
@@ -1172,10 +1170,12 @@
       }
 
       // Rewrite the footer totals in-place after a change — avoids a full
-      // roster re-render for a simple paid / meals edit.
+      // roster re-render for a simple paid / meals / cart edit.
       function refreshCardTotals(card) {
-        var entryPP = (loadCalc().entryPP || 0);
-        var mealPP = (loadCalc().mealPP || 0);
+        var cfg = loadCalc();
+        var entryPP = cfg.entryPP || 0;
+        var cartFee = cfg.cartRentalFee || 0;
+        var extraMealFee = cfg.extraMealFee || 0;
         var paidCount = 0, teamPlayersN = 0;
         Array.prototype.forEach.call(card.querySelectorAll(".ci-p"), function (pRow) {
           teamPlayersN++;
@@ -1184,15 +1184,14 @@
         });
         var mealsInp = card.querySelector(".ci__meals");
         var em = mealsInp && mealsInp.value ? Number(mealsInp.value) : 0;
-        var owed = entryPP * teamPlayersN + em * mealPP;
+        var cartBox = card.querySelector(".ci__cart");
+        var cartOn = !!(cartBox && cartBox.checked);
+        var owed = entryPP * teamPlayersN + em * extraMealFee + (cartOn ? cartFee : 0);
         var paid = entryPP * paidCount;
         var remaining = Math.max(0, owed - paid);
-        var tots = card.querySelectorAll(".ci-tot b");
-        if (tots.length >= 3) {
-          tots[0].textContent = money(owed);
-          tots[1].textContent = money(paid);
-          tots[2].textContent = money(remaining);
-        }
+        var t = card.querySelector(".ci-tot__total"); if (t) t.textContent = money(owed);
+        var p = card.querySelector(".ci-tot__paid"); if (p) p.textContent = money(paid);
+        var o = card.querySelector(".ci-tot__owe"); if (o) o.textContent = money(remaining);
         card.classList.toggle("is-fully-paid", paid >= owed && owed > 0);
       }
 
@@ -1904,13 +1903,15 @@
 
       // Auto-assign a stable Team number per wave, sorted by created time (so a
       // team's number doesn't change when it's dragged around the tee sheet).
-      // AM = 1..N in each wave; PM restarts at 1. Used on Pairings, Calcutta,
-      // Leaderboard, Payout — the number is the auction / roll-call handle.
+      // Numbers run 1..N across the WHOLE field (AM first by created order,
+      // then PM continues) — each of the 64 teams gets a unique handle used
+      // on Pairings, Calcutta, Leaderboard, Payout.
       function computeTeamNumbers(recs) {
         var numbers = {};
-        ["8 AM", "1 PM"].forEach(function (w) {
+        var n = 0;
+        ["8 AM", "1 PM", ""].forEach(function (w) {
           var arr = (recs || []).filter(function (r) { return ((r.fields || {}).Start || "") === w && !isAltRec(r); }).sort(byCreated);
-          arr.forEach(function (r, i) { numbers[r.id] = i + 1; });
+          arr.forEach(function (r) { numbers[r.id] = ++n; });
         });
         return numbers;
       }
@@ -2986,6 +2987,8 @@
         greenFeePP: 20,                      // $ per person to the course (green fee)
         mealPP: 30,                          // $ per person for meals
         otherPP: 0,                          // $ per person other deductions
+        cartRentalFee: 22,                   // $ per team for a rental cart (checkbox on check-in)
+        extraMealFee: 10,                    // $ per extra meal (guest/spouse) — cheaper than the entry-included meal
         handicapMultiplier: 0.8,
         flights: 4,
         flightSplit: [50, 30, 20],           // % of prize pool to 1st/2nd/3rd (then ÷ # flights)
@@ -3022,6 +3025,8 @@
           + '<label class="calc__row">Green fee $ ' + numIn("cGreen", gv("greenFeePP", 20), "1") + "</label>"
           + '<label class="calc__row">Meals $ ' + numIn("cMeal", gv("mealPP", 30), "1") + "</label>"
           + '<label class="calc__row">Other $ ' + numIn("cOther", gv("otherPP", 0), "1") + "</label>"
+          + '<label class="calc__row">Cart rental $ (per team) ' + numIn("cCart", gv("cartRentalFee", 22), "1") + "</label>"
+          + '<label class="calc__row">Extra meal $ (guest / spouse) ' + numIn("cExtraM", gv("extraMealFee", 10), "1") + "</label>"
           + '<p class="calc__note">Assumes 2 players / team, all paid. Prize pool = (entry − green − meal − other) × players. Green &amp; meals go to the course.</p></div>'
 
           + '<div class="calc__grp"><h4>Handicap</h4>'
@@ -3057,6 +3062,8 @@
             greenFeePP: isFinite(g("cGreen")) ? g("cGreen") : 20,
             mealPP: isFinite(g("cMeal")) ? g("cMeal") : 30,
             otherPP: isFinite(g("cOther")) ? g("cOther") : 0,
+            cartRentalFee: isFinite(g("cCart")) ? g("cCart") : 22,
+            extraMealFee: isFinite(g("cExtraM")) ? g("cExtraM") : 10,
             handicapMultiplier: isFinite(g("cMult")) ? g("cMult") : 0.8,
             flights: parseInt(g("cFlights"), 10) || 4,
             flightSplit: [g("cF1") || 0, g("cF2") || 0, g("cF3") || 0],
@@ -3133,6 +3140,8 @@
           greenFeePP: isFinite(g("cGreen")) ? g("cGreen") : 20,
           mealPP: isFinite(g("cMeal")) ? g("cMeal") : 30,
           otherPP: isFinite(g("cOther")) ? g("cOther") : 0,
+          cartRentalFee: isFinite(g("cCart")) ? g("cCart") : 22,
+          extraMealFee: isFinite(g("cExtraM")) ? g("cExtraM") : 10,
           handicapMultiplier: isFinite(g("cMult")) ? g("cMult") : 0.8,
           flights: parseInt(g("cFlights"), 10) || 4,
           flightSplit: [g("cF1") || 0, g("cF2") || 0, g("cF3") || 0],

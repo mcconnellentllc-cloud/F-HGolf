@@ -159,7 +159,9 @@
       navHtml = '<nav class="nextup__nav" aria-label="Tournament links">'
         + '<a class="nextup__nav-link nextup__nav-link--primary" href="#signup" data-signup="1">Sign up</a>'
         + m.links.map(function (l) {
-            return '<a class="nextup__nav-link" href="' + l.href + '"' + (l.newTab === false ? '' : ' target="_blank" rel="noopener"') + '>' + l.label + '</a>';
+            // Same-tab by default so the browser back button returns to the
+            // tournaments card. Individual links can opt in with newTab: true.
+            return '<a class="nextup__nav-link" href="' + l.href + '"' + (l.newTab === true ? ' target="_blank" rel="noopener"' : '') + '>' + l.label + '</a>';
           }).join("")
         + '</nav>';
     }
