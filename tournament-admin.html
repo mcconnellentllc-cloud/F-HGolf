@@ -1133,14 +1133,50 @@
       }
 
       function wirePairings(board) {
-        // Hole config buttons — cycle state and re-render.
+        // Hole config buttons — cycle state, cascade team moves, auto-autofill.
+        //   off → A         : slot added; autofill fills empty seats
+        //   A  → AB         : slot added; autofill fills empty seats
+        //   AB → off        : slots removed; clear teams at both A+B in Airtable,
+        //                     they land in the unplaced pool for future autofill
         Array.prototype.forEach.call(board.querySelectorAll(".pr-hb"), function (btn) {
           btn.addEventListener("click", function () {
             var h = Number(btn.getAttribute("data-hole")), w = btn.getAttribute("data-wave");
             var cfg = loadSlotCfg(w);
-            cfg[h] = cycleState(cfg[h] || "off");
+            var oldState = cfg[h] || "off";
+            var newState = cycleState(oldState);
+            cfg[h] = newState;
             saveSlotCfg(w, cfg);
-            renderPairings(prRecs.length ? prRecs : []);
+            // Determine which slot letters (A/B) are being removed by this cycle.
+            var removed = [];
+            var hadA = oldState === "A" || oldState === "AB";
+            var hadB = oldState === "AB";
+            var hasA = newState === "A" || newState === "AB";
+            var hasB = newState === "AB";
+            if (hadA && !hasA) removed.push("A");
+            if (hadB && !hasB) removed.push("B");
+            var evict = [];
+            if (removed.length) {
+              (prRecs || []).forEach(function (r) {
+                var f = r.fields || {};
+                if (((f.Start || "") === w) && Number(f.Hole) === h && removed.indexOf(String(f.Slot || "").toUpperCase()) !== -1) {
+                  evict.push({ id: r.id, hole: "", slot: "" });
+                }
+              });
+            }
+            // Save evictions first (if any), then re-render, then auto-autofill.
+            var afterMove = function () {
+              renderPairings(prRecs.length ? prRecs : []);
+              // Auto-autofill: fills any newly-empty seats from the unplaced pool.
+              // Guarded internally (seats vs teams) so it no-ops if not possible.
+              setTimeout(function () { autofillWave(w, /*silent=*/true); }, 60);
+            };
+            if (evict.length) {
+              fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: evict }) })
+                .then(function () { loadRoster(); afterMove(); })
+                .catch(afterMove);
+            } else {
+              afterMove();
+            }
           });
         });
         // Autofill per wave.
@@ -1233,17 +1269,20 @@
         positionSaveMany(assignments);
       }
 
-      function autofillWave(wave) {
+      function autofillWave(wave, silent) {
         var msg = document.getElementById("prMsg");
+        var setMsg = function (t) { if (msg && !silent) msg.textContent = t; };
         var cfg = loadSlotCfg(wave);
         var slots = activeSlots(cfg);
-        if (!slots.length) { if (msg) msg.textContent = "Turn on some A/B slots at the top of this wave first."; return; }
+        if (!slots.length) { setMsg("Turn on some A/B slots at the top of this wave first."); return; }
         var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === wave; }).sort(byCreated);
-        if (!teams.length) { if (msg) msg.textContent = "No teams in this wave (check the Check-In sheet)."; return; }
+        if (!teams.length) { setMsg("No teams in this wave (check the Check-In sheet)."); return; }
         var totalSeats = slots.length * TEAMS_PER_TEE;
         if (totalSeats < teams.length) {
-          if (msg) msg.textContent = "Need " + (teams.length - totalSeats) + " more seat(s) — add more A/B slots first.";
-          return;
+          // Not enough seats to fit everyone — but in "silent" mode (post-cycle
+          // auto-fill), still fill whatever seats we CAN. Leaves the rest in
+          // the Unplaced pool for the user to place manually or add slots for.
+          if (!silent) { setMsg("Need " + (teams.length - totalSeats) + " more seat(s) — add more A/B slots first."); return; }
         }
         // Preserve teams already seated at active slots; fill the rest from unplaced pool in order.
         var placed = {}, seated = {};
@@ -1262,7 +1301,7 @@
             assignments.push({ id: t.id, hole: s.hole, slot: s.slot, start: wave });
           }
         });
-        if (!assignments.length) { if (msg) msg.textContent = "All teams already seated in " + wave + " — nothing to fill."; return; }
+        if (!assignments.length) { setMsg("All teams already seated in " + wave + " — nothing to fill."); return; }
         positionSaveMany(assignments);
       }
 
