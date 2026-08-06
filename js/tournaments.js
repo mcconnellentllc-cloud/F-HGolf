@@ -153,9 +153,10 @@
     // Public-facing links tied to this tournament (Flights / Calcutta / Results
     // etc.) — rendered as a small chip row when present.
     var navHtml = "";
+    var showBigBtn = !(m.links && m.links.length);
     if (m.links && m.links.length) {
       navHtml = '<nav class="nextup__nav" aria-label="Tournament links">'
-        + '<a class="nextup__nav-link" href="#signup" data-signup="1">Sign up</a>'
+        + '<a class="nextup__nav-link nextup__nav-link--primary" href="#signup" data-signup="1">Sign up</a>'
         + m.links.map(function (l) {
             return '<a class="nextup__nav-link" href="' + l.href + '"' + (l.newTab === false ? '' : ' target="_blank" rel="noopener"') + '>' + l.label + '</a>';
           }).join("")
@@ -169,13 +170,13 @@
       + (m.note ? '<p class="nextup__note">' + m.note + "</p>" : "")
       + bar
       + navHtml
-      + '<button type="button" class="btn btn--primary nextup__btn">' + ctaLabel + ' &rarr;</button>';
+      + (showBigBtn ? '<button type="button" class="btn btn--primary nextup__btn">' + ctaLabel + ' &rarr;</button>' : "");
     sect.hidden = false;
 
     var btn = card.querySelector(".nextup__btn");
     if (btn) btn.addEventListener("click", function () { goToSignup(key); });
-    // The "Sign up" chip inside the nav also routes through goToSignup so the
-    // form pre-selects this tournament.
+    // The "Sign up" chip inside the nav routes through goToSignup so the form
+    // pre-selects this tournament.
     var signChip = card.querySelector('.nextup__nav-link[data-signup="1"]');
     if (signChip) signChip.addEventListener("click", function (e) { e.preventDefault(); goToSignup(key); });
   }
