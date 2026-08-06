@@ -115,7 +115,15 @@
         <section class="noms wb-sheet" data-sheet="pairings" id="twPairings" aria-label="Pairings" hidden>
           <div class="noms__bar">
             <h3 class="noms__title">Pairings — tee sheet</h3>
-            <button class="btn btn--solid" type="button" id="prRefresh">Refresh</button>
+            <div class="noms__bar-actions">
+              <select id="prPrintWhich" class="pr-print-which" aria-label="What to print">
+                <option value="both" selected>Print both waves (front &amp; back)</option>
+                <option value="am">Print A.M. only</option>
+                <option value="pm">Print P.M. only</option>
+              </select>
+              <button class="btn btn--primary" type="button" id="prPrint">Print now</button>
+              <button class="btn btn--solid" type="button" id="prRefresh">Refresh</button>
+            </div>
           </div>
           <div class="checkin-add__row">
             <button class="btn btn--primary" type="button" id="prImport">Import 2026 field from pairing sheet</button>
@@ -1461,6 +1469,17 @@
         if (prr) prr.addEventListener("click", loadRoster);
         var pri = document.getElementById("prImport");
         if (pri) pri.addEventListener("click", importField);
+        var prp = document.getElementById("prPrint");
+        if (prp) prp.addEventListener("click", function () {
+          var sel = document.getElementById("prPrintWhich");
+          var which = sel ? sel.value : "both";
+          document.body.classList.remove("is-print-am", "is-print-pm", "is-print-both");
+          document.body.classList.add("is-print-" + which);
+          function cleanup() { document.body.classList.remove("is-print-am", "is-print-pm", "is-print-both"); window.removeEventListener("afterprint", cleanup); }
+          window.addEventListener("afterprint", cleanup);
+          setTimeout(function () { window.print(); }, 30);
+          setTimeout(cleanup, 2000); // fallback if afterprint doesn't fire (Safari, some mobile browsers)
+        });
 
         loadRoster();
         loadExpenses();
