@@ -1087,6 +1087,9 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .pr-tee { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .pr-tee.is-drop { box-shadow: 0 0 0 3px var(--primary-green); }
 .pr-tee__side { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.7rem 0.8rem; min-width: 5.5rem; background: #1e2530; color: #fff; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+/* Tee A stays dark navy; Tee B gets the brand red so the two flip-flopped tees
+   at the same hole read as clearly different at a glance. */
+.pr-tee[data-slot="B"] .pr-tee__side { background: #b11e2d; }
 .pr-tee__side-hole { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.65; font-weight: 700; }
 .pr-tee__side-num { font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; line-height: 1; margin: 0.1rem 0; }
 .pr-tee__side-slot { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
