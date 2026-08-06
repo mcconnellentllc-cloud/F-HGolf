@@ -1578,12 +1578,22 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-p__method { padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; font-weight: 600; width: 100%; }
 .ci-p__method:disabled { background: var(--paper-2); color: var(--muted); }
 
-/* Inline paid / meal checkbox pills used on the player row + cart line. */
+/* Inline paid / cart pill checkboxes on the player row + cart line. */
 .ci-check { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 0.78rem; font-weight: 700; color: var(--muted); cursor: pointer; user-select: none; white-space: nowrap; }
 .ci-check input { width: 0.95rem; height: 0.95rem; margin: 0; cursor: pointer; accent-color: var(--primary-green); }
 .ci-check:has(input:checked) { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
 .ci-check:has(input:checked) small { color: rgba(255,255,255,0.85); }
 .ci-check small { color: var(--muted); font-weight: 400; font-size: 0.7rem; }
+
+/* Extra-meal number input on each player row. */
+.ci-meal { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+.ci-meal input { width: 2.4rem; padding: 0.15rem 0.3rem; border: 1px solid var(--line); border-radius: 5px; font: inherit; font-size: 0.82rem; text-align: center; }
+.ci-meal:has(input:not([value="0"]):not([value=""])) { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
+.ci-meal:has(input:not([value="0"]):not([value=""])) input { background: #fff; color: var(--ink); }
+
+/* Need Rental pill sits at the right side of the cart line. */
+.ci-check--need { margin-left: auto; border-color: #b48000; color: #6b4d00; background: #fff8e1; }
+.ci-check--need:has(input:checked) { background: #d19a00; color: #fff; border-color: #d19a00; }
 
 /* Cart line — three checkboxes across (P1 ½ · P2 ½ · Full). */
 .ci-cartline { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem; padding: 0.45rem 0.85rem; background: #fdfcf5; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }

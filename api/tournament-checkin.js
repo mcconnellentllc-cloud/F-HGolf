@@ -68,9 +68,15 @@ module.exports = async (req, res) => {
     const n = Number(body[k]);
     if (!isNaN(n) && n >= 0 && n <= 1) fields[target] = n;
   });
+  // Per-player extra meal count (0..N). Accepts number or a boolean-ish value
+  // from older callers (true → 1, false → 0).
   ["p1ExtraMeal", "p2ExtraMeal"].forEach((k, i) => {
-    if (typeof body[k] !== "boolean") return;
-    fields[i === 0 ? "Player 1 Extra Meal" : "Player 2 Extra Meal"] = body[k];
+    if (body[k] === undefined) return;
+    const target = i === 0 ? "Player 1 Extra Meal" : "Player 2 Extra Meal";
+    if (body[k] === null || body[k] === "") { fields[target] = 0; return; }
+    if (typeof body[k] === "boolean") { fields[target] = body[k] ? 1 : 0; return; }
+    const n = Number(body[k]);
+    if (!isNaN(n) && n >= 0) fields[target] = Math.floor(n);
   });
   if (typeof body.playerName === "string") fields["Player Name"] = body.playerName.slice(0, 200);
   if (typeof body.teamPartners === "string") fields["Team / Partners"] = body.teamPartners.slice(0, 500);
