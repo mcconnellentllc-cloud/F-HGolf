@@ -110,7 +110,10 @@
   <script>
     (function () {
       var KEY = "Founder's Tournament (Aug 8–9)";
-      var FLIGHT_NAMES = { 1: "Champ", 2: "First", 3: "Second", 4: "Third" };
+      function flightName(n) {
+        var names = ["Champ", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh"];
+        return names[n - 1] || ("Flight " + n);
+      }
       var REFRESH_MS = 30000;
       var HCP_MULT = 0.8;
 
@@ -150,9 +153,12 @@
         var groups = {};
         recs.forEach(function (r) { var fl = (r.fields || {}).Flight; var k = (fl != null && fl !== "") ? Number(fl) : 0; (groups[k] = groups[k] || []).push(r); });
 
-        var out = [1, 2, 3, 4].map(function (fl) {
+        var _flKeys = Object.keys(groups).map(Number);
+        var _maxFl = Math.max(4, _flKeys.reduce(function (m, k) { return k > m ? k : m; }, 0));
+        var _flRange = []; for (var _fi = 1; _fi <= _maxFl; _fi++) _flRange.push(_fi);
+        var out = _flRange.map(function (fl) {
           var arr = groups[fl] || [];
-          if (!arr.length) return '<div class="fl"><div class="fl__hdr"><h2 class="fl__name">' + esc(FLIGHT_NAMES[fl]) + ' Flight</h2><span class="fl__meta">no teams yet</span></div></div>';
+          if (!arr.length) return '<div class="fl"><div class="fl__hdr"><h2 class="fl__name">' + esc(flightName(fl)) + ' Flight</h2><span class="fl__meta">no teams yet</span></div></div>';
           var leader = null;
           arr.forEach(function (r) { var v = d1g(r); if (v != null && (leader == null || v < leader)) leader = v; });
           var rows = arr.map(function (r) {
@@ -172,7 +178,7 @@
               + '<td>' + (r.hcp == null ? '&mdash;' : r.hcp) + '</td></tr>';
           }).join("");
           var meta = arr.length + ' teams' + (leader != null ? ' · leader ' + leader : '');
-          return '<div class="fl"><div class="fl__hdr"><h2 class="fl__name">' + esc(FLIGHT_NAMES[fl]) + ' Flight</h2><span class="fl__meta">' + meta + '</span></div>'
+          return '<div class="fl"><div class="fl__hdr"><h2 class="fl__name">' + esc(flightName(fl)) + ' Flight</h2><span class="fl__meta">' + meta + '</span></div>'
             + '<table><thead><tr><th>Team</th><th>Front 9</th><th>Back 9</th><th>Day 1</th><th>HCP</th></tr></thead><tbody>' + trs + '</tbody></table></div>';
         }).join("");
 

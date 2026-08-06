@@ -120,7 +120,10 @@
   <script>
     (function () {
       var KEY = "Founder's Tournament (Aug 8–9)";
-      var FLIGHT_NAMES = { 1: "Champ", 2: "First", 3: "Second", 4: "Third" };
+      function flightName(n) {
+        var names = ["Champ", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh"];
+        return names[n - 1] || ("Flight " + n);
+      }
       var REFRESH_MS = 15000;
 
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -168,12 +171,14 @@
         }
         var groups = {};
         recs.forEach(function (r) { var fl = Number((r.fields || {}).Flight); (groups[fl] = groups[fl] || []).push(r); });
-        return [1, 2, 3, 4].map(function (fl) {
+        var _mx = Math.max(4, Object.keys(groups).reduce(function (m, k) { return Number(k) > m ? Number(k) : m; }, 0));
+        var _range = []; for (var _ri = 1; _ri <= _mx; _ri++) _range.push(_ri);
+        return _range.map(function (fl) {
           var arr = groups[fl] || []; if (!arr.length) return "";
           var cards = arr.map(function (r) { return teamCard(r, teamNumbers, sold); }).join("");
           var meta = arr.length + (arr.length === 1 ? ' team' : ' teams');
           if (sold && pools && pools[fl]) meta += ' · ' + money(pools[fl]);
-          return '<div class="sec"><div class="sec__hdr"><h3>' + esc(FLIGHT_NAMES[fl]) + ' Flight</h3><span class="sec__meta">' + meta + '</span></div><div class="grid">' + cards + '</div></div>';
+          return '<div class="sec"><div class="sec__hdr"><h3>' + esc(flightName(fl)) + ' Flight</h3><span class="sec__meta">' + meta + '</span></div><div class="grid">' + cards + '</div></div>';
         }).join("");
       }
 
@@ -184,7 +189,10 @@
         var teamNumbers = computeTeamNumbers(recs);
 
         // Are flights assigned? Drives strip layout + section grouping.
-        var hasFlights = [1, 2, 3, 4].some(function (fl) { return (totals.teams[fl] || 0) > 0; });
+        var _tKeys = Object.keys(totals.teams || {}).map(Number);
+        var maxFlight = Math.max(4, _tKeys.reduce(function (m, k) { return k > m ? k : m; }, 0));
+        var flightRange = []; for (var _fi = 1; _fi <= maxFlight; _fi++) flightRange.push(_fi);
+        var hasFlights = flightRange.some(function (fl) { return (totals.teams[fl] || 0) > 0; });
 
         // Aggregate pool numbers come straight from the server so per-team bids
         // never touch the client.
@@ -198,11 +206,11 @@
         var stripHtml = "";
         if (hasFlights) {
           strip.classList.remove("disp__strip--stacked");
-          stripHtml = [1, 2, 3, 4].map(function (fl) {
+          stripHtml = flightRange.map(function (fl) {
             var tot = teamCounts[fl] || 0;
             var sold = soldCounts[fl] || 0;
             var pool = pools[fl] || 0;
-            return '<div class="disp__ftot"><div class="disp__ftot__name">' + esc(FLIGHT_NAMES[fl]) + ' Flight</div>'
+            return '<div class="disp__ftot"><div class="disp__ftot__name">' + esc(flightName(fl)) + ' Flight</div>'
               + '<div class="disp__ftot__amt">' + money(pool) + '</div>'
               + '<div class="disp__ftot__count">' + sold + ' / ' + tot + ' sold</div></div>';
           }).join("");
