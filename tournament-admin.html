@@ -491,9 +491,12 @@
           });
         });
         collectedTotal = cashTotal + checkTotal + cardTotal;
+        // Extra-meals headcount for the kitchen — sum across the field.
+        var extraMeals = recs.reduce(function (s, r) { var v = (r.fields || {})["Extra Meals"]; return s + (typeof v === "number" && v > 0 ? v : 0); }, 0);
         var el = document.getElementById("twSummary");
         if (el) el.innerHTML = "<strong>" + paidCount + " / " + players + "</strong> players paid · <strong>"
-          + money(collectedTotal) + "</strong> collected";
+          + money(collectedTotal) + "</strong> collected"
+          + (extraMeals ? ' · <strong>' + extraMeals + '</strong> extra meals for the kitchen' : "");
         renderPL();
       }
 
@@ -534,13 +537,17 @@
         var entryIncome = players * entryPP;
         var fullyPaid = paidPlayers >= players && players > 0;
         var calcuttaPool = teams.reduce(function (s, r) { var v = (r.fields || {})["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
-        var totalIncome = entryIncome + calcuttaPool;
+        // Extra meals for guests / spouses — kitchen head-count, billed at the
+        // meal fee. Adds to course revenue; no impact on flight prize pool.
+        var extraMealsCount = teams.reduce(function (s, r) { var v = (r.fields || {})["Extra Meals"]; return s + (typeof v === "number" && v > 0 ? v : 0); }, 0);
+        var extraMealsRevenue = extraMealsCount * mealPP;
+        var totalIncome = entryIncome + calcuttaPool + extraMealsRevenue;
 
         var greenFees = players * greenPP;
         var meals = players * mealPP;
         var otherRevenue = players * otherPP;
         var calcuttaCommission = calcuttaPool * comm;
-        var courseRevenue = greenFees + meals + otherRevenue + calcuttaCommission;
+        var courseRevenue = greenFees + meals + extraMealsRevenue + otherRevenue + calcuttaCommission;
 
         var flightPrizePool = Math.max(0, (entryPP - greenPP - mealPP - otherPP) * players);
         var perFlightBudget = nFlights > 0 ? (flightPrizePool / nFlights) : 0;
@@ -553,6 +560,7 @@
         return {
           cfg: cfg, teams: teams, teamCount: teamCount, players: players,
           paidPlayers: paidPlayers, entryCollected: entryCollected, fullyPaid: fullyPaid,
+          extraMealsCount: extraMealsCount, extraMealsRevenue: extraMealsRevenue,
           entryPP: entryPP, greenPP: greenPP, mealPP: mealPP, otherPP: otherPP,
           nFlights: nFlights, flightSplit: flightSplit, calSplit: calSplit,
           calcuttaCommissionPct: comm * 100,
@@ -608,6 +616,7 @@
           + row("Entry fees expected (" + players + " × " + money(entryPP) + ")", entryIncome)
           + row("Entry fees collected (" + m.paidPlayers + " / " + players + " paid)", m.entryCollected, m.fullyPaid ? "" : "pl__row--warn")
           + row("Calcutta pool (from buyers)", calcuttaPool)
+          + (m.extraMealsCount ? row("Extra meals (" + m.extraMealsCount + " × " + money(mealPP) + ") — for the kitchen", m.extraMealsRevenue) : "")
           + subtotal("Total income (expected)", totalIn)
           + '</div>'
 
@@ -624,6 +633,7 @@
           + '<div class="pl__pl-grid">'
           + '<div class="pl__pl-line"><span>Green fees kept (' + players + ' × ' + money(greenPP) + ')</span><b>' + money(greenFees) + '</b></div>'
           + '<div class="pl__pl-line"><span>Meals kept (' + players + ' × ' + money(mealPP) + ')</span><b>' + money(meals) + '</b></div>'
+          + (m.extraMealsCount ? '<div class="pl__pl-line"><span>Extra meals (' + m.extraMealsCount + ' × ' + money(mealPP) + ')</span><b>' + money(m.extraMealsRevenue) + '</b></div>' : "")
           + (otherPerPlayer ? '<div class="pl__pl-line"><span>Other (' + players + ' × ' + money(otherPP) + ')</span><b>' + money(otherPerPlayer) + '</b></div>' : "")
           + '<div class="pl__pl-line"><span>Calcutta commission</span><b>' + money(calcuttaCommission) + '</b></div>'
           + '<div class="pl__pl-line pl__pl-line--neg"><span>Less: expenses paid out</span><b>&minus; ' + money(manualExp) + '</b></div>'
@@ -778,11 +788,13 @@
       }
       function ciRow(rec) {
         var f = rec.fields || {}, pp = teamPlayers(f, rec), isAlt = !!f["Alternate"];
+        var em = typeof f["Extra Meals"] === "number" ? f["Extra Meals"] : "";
         return '<tr class="ci-row" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
           + '<td class="ci-c-name">' + nameCell("p1", pp.p1) + "</td>"
           + '<td class="ci-c-name">' + nameCell("p2", pp.p2) + "</td>"
           + '<td><select class="ci__start" title="Wave">' + startOptions(esc(f["Start"] || "")) + "</select></td>"
           + '<td><select class="ci__cart" title="Cart">' + cartOptions(esc(f["Cart Type"] || "")) + "</select></td>"
+          + '<td><input type="number" class="ci__meals" title="Extra meals" min="0" max="20" step="1" value="' + esc(String(em)) + '" placeholder="0" /></td>'
           + '<td><select class="ci__p1 paysel">' + paidOptions(esc(f["Player 1 Paid"] || "")) + "</select></td>"
           + '<td><select class="ci__p2 paysel"' + (pp.hasP2 ? "" : " disabled") + ">" + paidOptions(esc(f["Player 2 Paid"] || "")) + "</select></td>"
           + '<td class="ci-c-act"><button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + "</button>"
@@ -790,7 +802,7 @@
           + '<span class="ci__status"></span></td></tr>';
       }
       function ciTable(rows) {
-        return '<div class="table-scroll"><table class="ci-table"><thead><tr><th>Player 1</th><th>Player 2</th><th>Wave</th><th>Cart</th><th>P1 Paid</th><th>P2 Paid</th><th></th></tr></thead><tbody>'
+        return '<div class="table-scroll"><table class="ci-table"><thead><tr><th>Player 1</th><th>Player 2</th><th>Wave</th><th>Cart</th><th title="Extra meals for guests / spouses">Meals+</th><th>P1 Paid</th><th>P2 Paid</th><th></th></tr></thead><tbody>'
           + rows.map(ciRow).join("") + "</tbody></table></div>";
       }
 
@@ -825,6 +837,23 @@
           var remove = row.querySelector(".ci__remove"), altBtn = row.querySelector(".ci__alt");
           if (startSel) startSel.addEventListener("change", function () { saveCheckin(id, { start: startSel.value }, statusEl, startSel); });
           if (cartSel) cartSel.addEventListener("change", function () { saveCheckin(id, { cartType: cartSel.value }, statusEl, cartSel); });
+          var mealsInp = row.querySelector(".ci__meals");
+          if (mealsInp) {
+            var mealsT = null;
+            mealsInp.addEventListener("input", function () {
+              clearTimeout(mealsT);
+              mealsT = setTimeout(function () {
+                saveCheckin(id, { extraMeals: mealsInp.value }, statusEl, mealsInp);
+                // Reflect in-cache so the P&L updates without a full reload.
+                for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
+                  scAllCache[i].fields = scAllCache[i].fields || {};
+                  scAllCache[i].fields["Extra Meals"] = mealsInp.value === "" ? null : Number(mealsInp.value);
+                  break;
+                }
+                try { renderPL(); } catch (e) {}
+              }, 500);
+            });
+          }
           if (p1) p1.addEventListener("change", function () { saveCheckin(id, { player1Paid: p1.value }, statusEl, p1); });
           if (p2) p2.addEventListener("change", function () { saveCheckin(id, { player2Paid: p2.value }, statusEl, p2); });
           if (altBtn) altBtn.addEventListener("click", function () { var cur = row.getAttribute("data-alt") === "1"; saveCheckin(id, { alternate: !cur }, statusEl, altBtn); });

@@ -109,10 +109,13 @@ module.exports = async (req, res) => {
   const team = clean(body.team, 500);
   const notes = clean(body.notes, 2000);
   const carts = parseInt(body.carts, 10);
+  const extraMeals = parseInt(body.extraMeals, 10);
   if (email) fields["Email"] = email;
   if (phone) fields["Phone"] = phone;
   if (team) fields["Team / Partners"] = team;
   if (!isNaN(carts) && carts >= 0) fields["Carts"] = carts;
+  // How many extra meals this signup wants — kitchen head count.
+  if (!isNaN(extraMeals) && extraMeals >= 0) fields["Extra Meals"] = extraMeals;
   if (notes) fields["Notes"] = notes;
 
   // Cap check — if the field is full, this signup goes on the alternate list.

@@ -189,6 +189,19 @@
               <option value="4">4</option>
             </select>
           </label>
+          <label class="form__field">
+            <span class="form__label">Extra meals</span>
+            <select name="extraMeals">
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+            <span class="form__hint">Guest / spouse meals so the kitchen can plan.</span>
+          </label>
         </div>
 
         <label class="form__field">
@@ -303,7 +316,7 @@
           status.classList.add("is-error"); return;
         }
         var data = {};
-        ["tournament", "name", "email", "phone", "carts", "notes", "company"].forEach(function (k) { if (form[k]) data[k] = form[k].value; });
+        ["tournament", "name", "email", "phone", "carts", "extraMeals", "notes", "company"].forEach(function (k) { if (form[k]) data[k] = form[k].value; });
         // Assemble teammates (optional) + "looking for partner" into the Team field.
         var mates = [];
         Array.prototype.forEach.call(document.querySelectorAll("#teammates .tourney-player"), function (inp) {
