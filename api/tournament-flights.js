@@ -69,6 +69,7 @@ module.exports = async (req, res) => {
         }
         if (typeof a.start === "string") fields.Start = a.start ? a.start.slice(0, 20) : null;
         if (a.hole !== undefined) { const h = Number(a.hole); fields.Hole = (a.hole === "" || a.hole == null || !isFinite(h)) ? null : h; }
+        if (typeof a.slot === "string") fields.Slot = a.slot ? a.slot.slice(0, 10) : null;
         return { id: a.id, fields };
       })
       .filter((r) => Object.keys(r.fields).length);
