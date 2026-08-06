@@ -941,6 +941,82 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .pr-team--empty { background: transparent; border: 1px dashed var(--line); color: var(--muted); font-style: italic; font-size: 0.82rem; font-weight: 400; cursor: default; }
 .pr-team--empty:hover { background: transparent; border-color: var(--line); }
 
+/* Per-team move-to dropdown — hidden on print, visible on screen. */
+.pr-team__move { width: 100%; margin-top: 0.35rem; padding: 0.25rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.75rem; background: #fff; color: var(--ink); cursor: pointer; }
+.pr-team__move:hover, .pr-team__move:focus { border-color: var(--primary-green); outline: none; }
+.pr-team--empty .pr-team__move { display: none; }
+
+/* Nine distinct hole colors so 9 groups of tees read as 9 groups, not one wall.
+   Tee cards inherit the color on border + header bar. Hole buttons up top
+   pick up the color when active (A or A+B). */
+.pr-tee--h1 { border-color: #2b7a3d; }
+.pr-tee--h1 .pr-tee__hd { background: #2b7a3d; }
+.pr-tee--h2 { border-color: #1e5aa0; }
+.pr-tee--h2 .pr-tee__hd { background: #1e5aa0; }
+.pr-tee--h3 { border-color: #b11e2d; }
+.pr-tee--h3 .pr-tee__hd { background: #b11e2d; }
+.pr-tee--h4 { border-color: #6b3aa0; }
+.pr-tee--h4 .pr-tee__hd { background: #6b3aa0; }
+.pr-tee--h5 { border-color: #c1610f; }
+.pr-tee--h5 .pr-tee__hd { background: #c1610f; }
+.pr-tee--h6 { border-color: #0d7a7a; }
+.pr-tee--h6 .pr-tee__hd { background: #0d7a7a; }
+.pr-tee--h7 { border-color: #7a4d1e; }
+.pr-tee--h7 .pr-tee__hd { background: #7a4d1e; }
+.pr-tee--h8 { border-color: #8a7f10; }
+.pr-tee--h8 .pr-tee__hd { background: #8a7f10; }
+.pr-tee--h9 { border-color: #3d4a5a; }
+.pr-tee--h9 .pr-tee__hd { background: #3d4a5a; }
+
+/* Tinted amp between the two teams — matches the hole color. */
+.pr-tee--h1 .pr-tee__amp { color: #2b7a3d; }
+.pr-tee--h2 .pr-tee__amp { color: #1e5aa0; }
+.pr-tee--h3 .pr-tee__amp { color: #b11e2d; }
+.pr-tee--h4 .pr-tee__amp { color: #6b3aa0; }
+.pr-tee--h5 .pr-tee__amp { color: #c1610f; }
+.pr-tee--h6 .pr-tee__amp { color: #7a4d1e; }
+.pr-tee--h7 .pr-tee__amp { color: #7a4d1e; }
+.pr-tee--h8 .pr-tee__amp { color: #8a7f10; }
+.pr-tee--h9 .pr-tee__amp { color: #3d4a5a; }
+
+/* Hole buttons up top — same color palette when the hole is on (A or A+B). */
+.pr-hb--h1.pr-hb--a { background: #d9f0de; border-color: #2b7a3d; }
+.pr-hb--h1.pr-hb--a .pr-hb__s { color: #2b7a3d; }
+.pr-hb--h1.pr-hb--ab { background: #2b7a3d; border-color: #2b7a3d; color: #fff; }
+.pr-hb--h1.pr-hb--ab .pr-hb__s { color: #fff; }
+.pr-hb--h2.pr-hb--a { background: #dbe6f4; border-color: #1e5aa0; }
+.pr-hb--h2.pr-hb--a .pr-hb__s { color: #1e5aa0; }
+.pr-hb--h2.pr-hb--ab { background: #1e5aa0; border-color: #1e5aa0; color: #fff; }
+.pr-hb--h2.pr-hb--ab .pr-hb__s { color: #fff; }
+.pr-hb--h3.pr-hb--a { background: #f4dcdf; border-color: #b11e2d; }
+.pr-hb--h3.pr-hb--a .pr-hb__s { color: #b11e2d; }
+.pr-hb--h3.pr-hb--ab { background: #b11e2d; border-color: #b11e2d; color: #fff; }
+.pr-hb--h3.pr-hb--ab .pr-hb__s { color: #fff; }
+.pr-hb--h4.pr-hb--a { background: #e5dbf1; border-color: #6b3aa0; }
+.pr-hb--h4.pr-hb--a .pr-hb__s { color: #6b3aa0; }
+.pr-hb--h4.pr-hb--ab { background: #6b3aa0; border-color: #6b3aa0; color: #fff; }
+.pr-hb--h4.pr-hb--ab .pr-hb__s { color: #fff; }
+.pr-hb--h5.pr-hb--a { background: #f4e2cf; border-color: #c1610f; }
+.pr-hb--h5.pr-hb--a .pr-hb__s { color: #c1610f; }
+.pr-hb--h5.pr-hb--ab { background: #c1610f; border-color: #c1610f; color: #fff; }
+.pr-hb--h5.pr-hb--ab .pr-hb__s { color: #fff; }
+.pr-hb--h6.pr-hb--a { background: #cfe6e6; border-color: #0d7a7a; }
+.pr-hb--h6.pr-hb--a .pr-hb__s { color: #0d7a7a; }
+.pr-hb--h6.pr-hb--ab { background: #0d7a7a; border-color: #0d7a7a; color: #fff; }
+.pr-hb--h6.pr-hb--ab .pr-hb__s { color: #fff; }
+.pr-hb--h7.pr-hb--a { background: #e6dccf; border-color: #7a4d1e; }
+.pr-hb--h7.pr-hb--a .pr-hb__s { color: #7a4d1e; }
+.pr-hb--h7.pr-hb--ab { background: #7a4d1e; border-color: #7a4d1e; color: #fff; }
+.pr-hb--h7.pr-hb--ab .pr-hb__s { color: #fff; }
+.pr-hb--h8.pr-hb--a { background: #eeeacf; border-color: #8a7f10; }
+.pr-hb--h8.pr-hb--a .pr-hb__s { color: #8a7f10; }
+.pr-hb--h8.pr-hb--ab { background: #8a7f10; border-color: #8a7f10; color: #fff; }
+.pr-hb--h8.pr-hb--ab .pr-hb__s { color: #fff; }
+.pr-hb--h9.pr-hb--a { background: #dde1e6; border-color: #3d4a5a; }
+.pr-hb--h9.pr-hb--a .pr-hb__s { color: #3d4a5a; }
+.pr-hb--h9.pr-hb--ab { background: #3d4a5a; border-color: #3d4a5a; color: #fff; }
+.pr-hb--h9.pr-hb--ab .pr-hb__s { color: #fff; }
+
 /* Toolbar for the Pairings header (Print controls + Refresh) */
 .noms__bar-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
 .pr-print-which { padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.88rem; background: #fff; }
@@ -972,12 +1048,13 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
   body[class*="is-print-"] .pr-wave-block__title { font-size: 22pt; font-weight: 800; text-align: center; border-bottom: 3pt solid #000; padding-bottom: 6pt; margin-bottom: 10pt; color: #000; }
   body[class*="is-print-"] .pr-wave-block__title span { font-size: 14pt; color: #333; }
   body[class*="is-print-"] .pr-teegrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8pt; }
-  body[class*="is-print-"] .pr-tee { border: 2pt solid #000 !important; border-radius: 4pt; overflow: hidden; page-break-inside: avoid; background: #fff !important; box-shadow: none !important; }
-  body[class*="is-print-"] .pr-tee__hd { background: #000 !important; color: #fff !important; padding: 4pt 6pt; font-size: 13pt; font-weight: 800; text-align: center; letter-spacing: 0.05em; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body[class*="is-print-"] .pr-tee { border-width: 2pt !important; border-style: solid !important; border-radius: 4pt !important; overflow: hidden; page-break-inside: avoid; background: #fff !important; box-shadow: none !important; }
+  body[class*="is-print-"] .pr-tee__hd { color: #fff !important; padding: 4pt 6pt !important; font-size: 13pt !important; font-weight: 800 !important; text-align: center; letter-spacing: 0.05em; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body[class*="is-print-"] .pr-tee__seats { padding: 6pt 8pt; gap: 4pt; }
   body[class*="is-print-"] .pr-team { padding: 4pt 4pt; background: transparent !important; border: none !important; font-size: 12pt; font-weight: 700; text-align: center; color: #000 !important; }
-  body[class*="is-print-"] .pr-tee__amp { font-size: 13pt; color: #000; font-weight: 800; padding: 0; }
+  body[class*="is-print-"] .pr-tee__amp { font-size: 13pt; font-weight: 800; padding: 0; }
   body[class*="is-print-"] .pr-team--empty { display: none !important; }
+  body[class*="is-print-"] .pr-team__move { display: none !important; }
   @page { margin: 0.5in; size: portrait; }
 }
 

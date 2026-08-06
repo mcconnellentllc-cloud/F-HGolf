@@ -1025,9 +1025,26 @@
           .catch(function () { if (msg) msg.textContent = "Network error saving."; });
       }
 
-      function prTeamCard(r) {
+      // Build the move-to <select> options for a given wave's active slot list.
+      // "" = Unplaced. Slot values are encoded as "1A", "1B", etc.
+      function moveOptions(slots, curH, curS) {
+        var curV = (curH && (curS === "A" || curS === "B")) ? (curH + curS) : "";
+        var out = ['<option value=""' + (curV === "" ? " selected" : "") + ">— unplaced —</option>"];
+        slots.forEach(function (s) {
+          var v = s.hole + s.slot;
+          out.push('<option value="' + v + '"' + (v === curV ? " selected" : "") + ">Hole " + s.hole + " · Tee " + s.slot + "</option>");
+        });
+        return out.join("");
+      }
+
+      function prTeamCard(r, slots, wave) {
         var f = r.fields || {};
-        return '<div class="pr-team" draggable="true" data-id="' + esc(r.id) + '"><span class="pr-team__nm">' + esc(teamShortNames(f)) + "</span></div>";
+        var curH = Number(f.Hole), curS = String(f.Slot || "").toUpperCase();
+        var opts = moveOptions(slots || [], curH, curS);
+        return '<div class="pr-team" draggable="true" data-id="' + esc(r.id) + '" data-wave="' + esc(wave || "") + '">'
+          + '<span class="pr-team__nm">' + esc(teamShortNames(f)) + "</span>"
+          + '<select class="pr-team__move" data-id="' + esc(r.id) + '" data-wave="' + esc(wave || "") + '" aria-label="Move team to a different tee">' + opts + "</select>"
+          + "</div>";
       }
 
       function renderWaveBlock(w, teams) {
@@ -1045,12 +1062,13 @@
           else pool.push(t);
         });
 
-        // Config row — each hole cycles off / A / A+B.
+        // Config row — each hole cycles off / A / A+B.  Each hole 1–9 carries a
+        // distinct color class so the tee sheet reads as 9 distinct groupings.
         var btns = "";
         for (var h = 1; h <= 9; h++) {
           var st = cfg[h] || "off";
           var lbl = st === "off" ? "&mdash;" : st;
-          btns += '<button type="button" class="pr-hb pr-hb--' + st.toLowerCase() + '" data-hole="' + h + '" data-wave="' + w.k + '" title="Cycle off / A / A+B"><span class="pr-hb__n">' + h + '</span><span class="pr-hb__s">' + lbl + '</span></button>';
+          btns += '<button type="button" class="pr-hb pr-hb--' + st.toLowerCase() + ' pr-hb--h' + h + '" data-hole="' + h + '" data-wave="' + w.k + '" title="Cycle off / A / A+B"><span class="pr-hb__n">' + h + '</span><span class="pr-hb__s">' + lbl + '</span></button>';
         }
         var tees = slots.length;
         var seats = tees * TEAMS_PER_TEE;
@@ -1065,13 +1083,15 @@
         var canAutofill = teamCount > 0 && enough;
 
         // Tee cards — "HOLE X · TEE A" header bar, two team cards, ampersand between.
+        // Each card carries a per-hole color class (pr-tee--h1 .. pr-tee--h9) so
+        // the sheet doesn't read as one uniform green wall.
         var teeHtml = slots.map(function (s) {
           var arr = placed[s.hole + s.slot];
           var seatEls = [];
           for (var i = 0; i < TEAMS_PER_TEE; i++) {
-            seatEls.push(arr[i] ? prTeamCard(arr[i]) : '<div class="pr-team pr-team--empty" data-empty="1">seat open</div>');
+            seatEls.push(arr[i] ? prTeamCard(arr[i], slots, w.k) : '<div class="pr-team pr-team--empty" data-empty="1">seat open</div>');
           }
-          return '<div class="pr-tee" data-hole="' + s.hole + '" data-slot="' + s.slot + '" data-wave="' + w.k + '">'
+          return '<div class="pr-tee pr-tee--h' + s.hole + '" data-hole="' + s.hole + '" data-slot="' + s.slot + '" data-wave="' + w.k + '">'
             + '<div class="pr-tee__hd">HOLE ' + s.hole + ' &middot; TEE ' + s.slot + '</div>'
             + '<div class="pr-tee__seats">'
             + seatEls[0]
@@ -1084,7 +1104,7 @@
         // Unplaced pool.
         var poolHtml = "";
         if (pool.length) {
-          poolHtml = '<div class="pr-pool" data-wave="' + w.k + '"><div class="pr-pool__hd">Unplaced <span>(' + pool.length + ')</span></div><div class="pr-pool__list">' + pool.map(prTeamCard).join("") + "</div></div>";
+          poolHtml = '<div class="pr-pool" data-wave="' + w.k + '"><div class="pr-pool__hd">Unplaced <span>(' + pool.length + ')</span></div><div class="pr-pool__list">' + pool.map(function (t) { return prTeamCard(t, slots, w.k); }).join("") + "</div></div>";
         }
 
         return '<div class="pr-wave-block" data-wave="' + w.k + '">'
@@ -1151,6 +1171,36 @@
             if (!prDrag) return;
             handleDrop(zone, prDrag);
             prDrag = null;
+          });
+        });
+        // Move-to dropdown per team card — same move + swap logic as drag/drop.
+        Array.prototype.forEach.call(board.querySelectorAll(".pr-team__move"), function (sel) {
+          // Don't let a click on the dropdown start a drag on the parent card.
+          sel.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+          sel.addEventListener("change", function () {
+            var id = sel.getAttribute("data-id");
+            var wave = sel.getAttribute("data-wave");
+            var val = sel.value;
+            // Source (where this team currently sits).
+            var srcTee = sel.closest(".pr-tee");
+            var srcHole = srcTee ? Number(srcTee.getAttribute("data-hole")) : null;
+            var srcSlot = srcTee ? srcTee.getAttribute("data-slot") : "";
+            if (!val) { positionSaveMany([{ id: id, hole: "", slot: "", start: wave }]); return; }
+            var m = /^(\d+)([AB])$/.exec(val);
+            if (!m) return;
+            var tgtHole = Number(m[1]), tgtSlot = m[2];
+            if (tgtHole === srcHole && tgtSlot === srcSlot) return; // no-op
+            var zone = board.querySelector('.pr-tee[data-wave="' + wave + '"][data-hole="' + tgtHole + '"][data-slot="' + tgtSlot + '"]');
+            var occupants = zone
+              ? Array.prototype.map.call(zone.querySelectorAll(".pr-team[draggable='true']"), function (el) { return el.getAttribute("data-id"); })
+                  .filter(function (oid) { return oid !== id; })
+              : [];
+            var assignments = [{ id: id, hole: tgtHole, slot: tgtSlot, start: wave }];
+            if (occupants.length >= TEAMS_PER_TEE) {
+              // Target tee is full → swap with the first-occupant team.
+              assignments.push({ id: occupants[0], hole: srcHole || "", slot: srcSlot || "", start: wave });
+            }
+            positionSaveMany(assignments);
           });
         });
       }
