@@ -148,14 +148,18 @@
           <div class="noms__list" id="expList"><p class="noms__msg">Loading expenses…</p></div>
         </section>
 
-        <!-- Scores (hole-by-hole) -->
-        <section class="noms wb-sheet" data-sheet="scores" id="twScores" aria-label="Scores">
+        <!-- Scores — spreadsheet grid (18 holes, both days) + CSV import -->
+        <section class="noms wb-sheet" data-sheet="scores" id="twScores" aria-label="Scores" hidden>
           <div class="noms__bar">
             <h3 class="noms__title">Scores <span class="noms__count" id="twScoreCount"></span></h3>
-            <button class="btn btn--solid" type="button" id="twScoreRefresh">Refresh</button>
           </div>
-          <p class="scaffold__desc">Enter each team's 18-hole gross for Day 1 and Day 2 (two loops of the nine). No mulligans. Totals feed the leaderboard.</p>
-          <div class="noms__list" id="twScoreList"><p class="noms__msg">Loading…</p></div>
+          <div class="sc-tabs" role="tablist" id="scTabs">
+            <button type="button" class="sc-tab is-active" data-scday="1" role="tab">Day 1</button>
+            <button type="button" class="sc-tab" data-scday="2" role="tab">Day 2</button>
+            <button type="button" class="sc-tab" data-scday="import" role="tab">Import CSV</button>
+          </div>
+          <p class="scaffold__desc" id="scDesc">Type each hole's score. Totals fill in as you go; the row saves about a second after you stop typing.</p>
+          <div id="twScoreSheet"><p class="noms__msg">Loading…</p></div>
         </section>
 
         <!-- Calculations (editable formula) -->
@@ -497,7 +501,7 @@
         }).join("");
       }
       function paidOptions(sel) {
-        return ["", "Cash", "Check"].map(function (m) { return '<option value="' + m + '"' + (m === sel ? " selected" : "") + ">" + (m || "— paid —") + "</option>"; }).join("");
+        return ["", "Cash", "Check", "Card", "Online"].map(function (m) { return '<option value="' + m + '"' + (m === sel ? " selected" : "") + ">" + (m || "not paid") + "</option>"; }).join("");
       }
       // P1 = Player Name, P2 = Team/Partners; falls back to splitting a combined
       // "A / B" name (imported teams sometimes store both in Player Name).
@@ -839,80 +843,250 @@
       var PARS = PAR9.concat(PAR9);
       function parseScores(str) { try { var a = JSON.parse(str); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
 
+      // ---- Scores — spreadsheet grid + CSV import ----
+      var scRecs = [], scAllCache = [];
+      var scDay = "1"; // "1", "2", or "import"
+      var scPendingSave = {}; // recId -> timeout id (per-row debounce)
+
+      function scTeamLabel(rec) {
+        var f = rec.fields || {};
+        // P1 / P2 shown as "F. Last" — matches the Pairings tee cards.
+        return teamShortNames(f);
+      }
+
       function renderScores(all) {
-        var listEl = document.getElementById("twScoreList"), cnt = document.getElementById("twScoreCount");
-        if (!listEl) return;
-        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
-        if (!recs.length) { listEl.innerHTML = '<p class="noms__msg">No teams yet.</p>'; if (cnt) cnt.textContent = ""; return; }
-        if (cnt) cnt.textContent = "(" + recs.length + ")";
-        listEl.innerHTML = recs.map(function (rec) {
+        scAllCache = all || [];
+        var host = document.getElementById("twScoreSheet"); if (!host) return;
+        var recs = scAllCache.filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        scRecs = recs;
+        var cnt = document.getElementById("twScoreCount"); if (cnt) cnt.textContent = recs.length ? "(" + recs.length + ")" : "";
+        if (!recs.length) { host.innerHTML = '<p class="noms__msg">No teams yet.</p>'; return; }
+        if (scDay === "import") renderScoresImport(host);
+        else renderScoresGrid(host, Number(scDay));
+      }
+
+      function renderScoresGrid(host, day) {
+        var head = '<thead><tr><th class="sc-tbl__team">Team</th>';
+        for (var h = 1; h <= 9; h++) head += '<th class="sc-tbl__h">' + h + '<br><small>p' + PAR9[h - 1] + '</small></th>';
+        head += '<th class="sc-tbl__loop">Out</th>';
+        for (var h2 = 1; h2 <= 9; h2++) head += '<th class="sc-tbl__h">' + h2 + '<br><small>p' + PAR9[h2 - 1] + '</small></th>';
+        head += '<th class="sc-tbl__loop">In</th><th class="sc-tbl__total">Total</th></tr></thead>';
+
+        var body = scRecs.map(function (rec) {
           var f = rec.fields || {};
-          var name = esc(f["Player Name"] || "(no name)");
-          var team = esc(f["Team / Partners"] || "");
-          var d1 = f["Day1 Scores"] ? f["Day1 Gross"] : null;
-          var d2 = f["Day2 Scores"] ? f["Day2 Gross"] : null;
-          var tot = (typeof d1 === "number" && typeof d2 === "number") ? " · Total <b>" + (d1 + d2) + "</b>" : "";
-          return '<article class="nom sc" data-id="' + esc(rec.id) + '">'
-            + '<div class="nom__head"><span class="nom__name">' + name + (team ? ' <span class="sc__team">(' + team + ")</span>" : "") + "</span>"
-            + '<span class="sc__tot">D1 <b>' + (d1 == null ? "—" : d1) + "</b> · D2 <b>" + (d2 == null ? "—" : d2) + "</b>" + tot + "</span></div>"
-            + '<div class="sc__days"><button type="button" class="btn btn--solid sc__day" data-day="1">Enter Day 1</button>'
-            + '<button type="button" class="btn btn--solid sc__day" data-day="2">Enter Day 2</button></div>'
-            + '<div class="sc__editor" hidden></div></article>';
+          var scores = parseScores(f["Day" + day + " Scores"]);
+          var cells = "";
+          for (var h = 0; h < 18; h++) {
+            var v = (scores[h] != null) ? scores[h] : "";
+            var par = PARS[h];
+            cells += '<td class="sc-tbl__c" data-h="' + (h + 1) + '"><input type="number" inputmode="numeric" min="1" max="30" class="sc-cell" data-id="' + esc(rec.id) + '" data-day="' + day + '" data-h="' + (h + 1) + '" data-par="' + par + '" value="' + v + '" /></td>';
+            if (h === 8) cells += '<td class="sc-tbl__loop" data-loop="out">&mdash;</td>';
+          }
+          cells += '<td class="sc-tbl__loop" data-loop="in">&mdash;</td>';
+          cells += '<td class="sc-tbl__total"><span class="sc-tbl__totVal">&mdash;</span><span class="sc-tbl__save" title="Save state"></span></td>';
+          return '<tr data-id="' + esc(rec.id) + '"><td class="sc-tbl__team">' + esc(scTeamLabel(rec)) + '</td>' + cells + '</tr>';
         }).join("");
-        Array.prototype.forEach.call(listEl.querySelectorAll(".sc"), function (card) {
-          var id = card.getAttribute("data-id");
-          var rec = recs.filter(function (r) { return r.id === id; })[0] || { fields: {} };
-          Array.prototype.forEach.call(card.querySelectorAll(".sc__day"), function (btn) {
-            btn.addEventListener("click", function () {
-              var day = btn.getAttribute("data-day");
-              var ed = card.querySelector(".sc__editor");
-              if (!ed.hidden && ed.getAttribute("data-day") === day) { ed.hidden = true; return; }
-              buildEditor(ed, id, day, parseScores(rec.fields["Day" + day + " Scores"]));
-            });
+
+        host.innerHTML = '<div class="sc-tbl-wrap"><table class="sc-tbl">' + head + '<tbody>' + body + '</tbody></table></div>'
+          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error.</p>';
+
+        wireScoresGrid(host, day);
+        Array.prototype.forEach.call(host.querySelectorAll("tr[data-id]"), function (row) {
+          recomputeRow(row);
+        });
+      }
+
+      function wireScoresGrid(host, day) {
+        Array.prototype.forEach.call(host.querySelectorAll(".sc-cell"), function (inp) {
+          inp.addEventListener("input", function () {
+            var row = inp.closest("tr");
+            var id = row.getAttribute("data-id");
+            recomputeRow(row);
+            row.classList.remove("is-saved", "is-error");
+            row.classList.add("is-dirty");
+            if (scPendingSave[id + ":" + day]) clearTimeout(scPendingSave[id + ":" + day]);
+            scPendingSave[id + ":" + day] = setTimeout(function () { saveScoreRow(row, day); }, 900);
+          });
+          // Tab-friendly: Enter jumps to the next cell horizontally, then next row.
+          inp.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              var cells = Array.prototype.slice.call(host.querySelectorAll(".sc-cell"));
+              var idx = cells.indexOf(inp);
+              var next = cells[idx + 1]; if (next) next.focus();
+            }
           });
         });
       }
 
-      function buildEditor(ed, id, day, existing) {
-        ed.setAttribute("data-day", day);
-        var cells = "";
-        for (var h = 0; h < 18; h++) {
-          var val = (existing && existing[h] != null) ? existing[h] : "";
-          cells += '<label class="sc__cell"><span>H' + (h + 1) + "<small>p" + PARS[h] + "</small></span>"
-            + '<input type="number" min="1" max="40" inputmode="numeric" class="sc__in" value="' + val + '" /></label>';
+      function recomputeRow(row) {
+        var inps = row.querySelectorAll(".sc-cell");
+        var vals = Array.prototype.map.call(inps, function (i) { var n = parseInt(i.value, 10); return isNaN(n) ? null : n; });
+        function sumIfComplete(arr) {
+          if (!arr.length || arr.some(function (v) { return v == null; })) return null;
+          return arr.reduce(function (a, v) { return a + v; }, 0);
         }
-        ed.innerHTML = '<div class="sc__grid">' + cells + "</div>"
-          + '<div class="sc__foot">Total: <b class="sc__gross">0</b>'
-          + ' <button type="button" class="btn btn--primary sc__save">Save Day ' + day + "</button>"
-          + ' <button type="button" class="btn btn--solid sc__cancel">Close</button>'
-          + ' <span class="sc__status"></span></div>';
-        ed.hidden = false;
-        var ins = ed.querySelectorAll(".sc__in");
-        var grossEl = ed.querySelector(".sc__gross");
-        function recompute() { var t = 0; Array.prototype.forEach.call(ins, function (i) { var n = parseInt(i.value, 10); if (!isNaN(n)) t += n; }); grossEl.textContent = t; }
-        Array.prototype.forEach.call(ins, function (i) { i.addEventListener("input", recompute); });
-        recompute();
-        ed.querySelector(".sc__cancel").addEventListener("click", function () { ed.hidden = true; });
-        ed.querySelector(".sc__save").addEventListener("click", function () {
-          var scores = []; Array.prototype.forEach.call(ins, function (i) { var n = parseInt(i.value, 10); scores.push(isNaN(n) ? null : n); });
-          saveScore(id, day, scores, ed.querySelector(".sc__status"), ed.querySelector(".sc__save"));
+        var out = sumIfComplete(vals.slice(0, 9));
+        var inn = sumIfComplete(vals.slice(9, 18));
+        var tot = (out != null && inn != null) ? (out + inn) : null;
+        var outEl = row.querySelector('[data-loop="out"]');
+        var inEl = row.querySelector('[data-loop="in"]');
+        var totEl = row.querySelector('.sc-tbl__totVal');
+        if (outEl) outEl.textContent = out == null ? "—" : out;
+        if (inEl) inEl.textContent = inn == null ? "—" : inn;
+        if (totEl) totEl.textContent = tot == null ? "—" : tot;
+        // Par-relative coloring on cells (green under, red over — subtle).
+        Array.prototype.forEach.call(inps, function (i) {
+          var par = Number(i.getAttribute("data-par")), n = parseInt(i.value, 10);
+          i.classList.remove("is-under", "is-over", "is-par");
+          if (!isNaN(n) && par) {
+            if (n < par) i.classList.add("is-under");
+            else if (n > par) i.classList.add("is-over");
+            else i.classList.add("is-par");
+          }
         });
       }
 
-      function saveScore(id, day, scores, statusEl, btn) {
-        if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "sc__status"; }
-        if (btn) btn.disabled = true;
+      function saveScoreRow(row, day) {
+        var id = row.getAttribute("data-id");
+        var vals = Array.prototype.map.call(row.querySelectorAll(".sc-cell"), function (i) { var n = parseInt(i.value, 10); return isNaN(n) ? null : n; });
+        row.classList.remove("is-dirty", "is-saved", "is-error");
+        row.classList.add("is-saving");
         fetch(FH_API.url("/api/tournament-score"), {
-          method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
-          body: JSON.stringify({ id: id, day: Number(day), scores: scores }),
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ id: id, day: Number(day), scores: vals })
         })
-          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
-          .then(function (res) {
-            if (btn) btn.disabled = false;
-            if (res.j && res.j.ok) { loadRoster(); }
-            else if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't save."; statusEl.className = "sc__status is-error"; }
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            row.classList.remove("is-saving");
+            if (j && j.ok) {
+              row.classList.add("is-saved");
+              setTimeout(function () { row.classList.remove("is-saved"); }, 1500);
+            } else {
+              row.classList.add("is-error");
+            }
           })
-          .catch(function () { if (btn) btn.disabled = false; if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "sc__status is-error"; } });
+          .catch(function () { row.classList.remove("is-saving"); row.classList.add("is-error"); });
+      }
+
+      // ---- CSV import (paste from a Claude Project scorecard-photo extraction) ----
+      var SC_HELP = ""
+        + "You are a golf scorecard OCR assistant for a 2-day, 2-man scramble tournament\n"
+        + "at a 9-hole course played twice per day (18 holes/day).\n"
+        + "\n"
+        + "The user will upload photos of paper scorecards. Each card shows one team\n"
+        + "playing one round (either Day 1 or Day 2). Extract the 18 hole-by-hole gross\n"
+        + "strokes for that team's round.\n"
+        + "\n"
+        + "OUTPUT FORMAT (strict — no commentary, no code fence, just the CSV):\n"
+        + "  PlayerName,Day,H1,H2,H3,H4,H5,H6,H7,H8,H9,H10,H11,H12,H13,H14,H15,H16,H17,H18\n"
+        + "\n"
+        + "One row per team round. Header row on top. Values are integers 1–15\n"
+        + "(usually 2–9). If a cell is illegible or blank, leave it empty (empty column,\n"
+        + "e.g. 4,5,,4,3,...). Do not guess.\n"
+        + "\n"
+        + "PlayerName should match the FIRST name printed on the card — copy it exactly\n"
+        + "as written (e.g. \"Foor\", \"S. Kirkwood\", \"Rydge Peterson\"). Do not\n"
+        + "reformat or expand initials.\n"
+        + "\n"
+        + "Day is 1 or 2 — infer from the date on the card if present, or ask the user\n"
+        + "which day the batch belongs to before extracting.\n"
+        + "\n"
+        + "When user uploads N photos, output N data rows plus the header. If confidence\n"
+        + "is low on any digit, note it in a plain-text line BELOW the CSV (after all data\n"
+        + "rows) prefixed with '# '. The site's importer will ignore # lines.\n";
+
+      function renderScoresImport(host) {
+        host.innerHTML = ''
+          + '<div class="sc-import">'
+          + '<p class="sc-import__lead">Paste CSV from your Claude Project (photo → scores). Format: <code>PlayerName,Day,H1,H2,...,H18</code>. The importer matches teams by <b>Player Name</b> (case-insensitive) on the current tournament.</p>'
+          + '<textarea id="scImportText" rows="10" placeholder="PlayerName,Day,H1,H2,H3,H4,H5,H6,H7,H8,H9,H10,H11,H12,H13,H14,H15,H16,H17,H18&#10;Foor,1,4,5,3,4,5,4,3,4,5,4,4,3,4,5,4,4,4,5&#10;Rydge Peterson,1,5,5,4,4,5,5,3,4,5,5,4,3,4,5,4,4,4,4"></textarea>'
+          + '<div class="sc-import__row"><button type="button" class="btn btn--primary" id="scImportPreview">Preview</button><span class="sc-import__msg" id="scImportMsg"></span></div>'
+          + '<div id="scImportPreviewBox" class="sc-import__preview" hidden></div>'
+          + '<details class="sc-import__help"><summary>Instructions for your Claude Project (copy → paste as project knowledge)</summary>'
+          + '<p class="sc-import__helpNote">Paste this into your Claude Project as project instructions or a knowledge doc. Then upload scorecard photos; the model will output CSV you can paste into the textarea above.</p>'
+          + '<pre id="scHelpDoc" class="sc-import__helpDoc"></pre>'
+          + '<button type="button" class="btn btn--solid" id="scCopyHelp">Copy instructions to clipboard</button>'
+          + '</details>'
+          + '</div>';
+        document.getElementById("scHelpDoc").textContent = SC_HELP;
+        document.getElementById("scImportPreview").addEventListener("click", previewImport);
+        document.getElementById("scCopyHelp").addEventListener("click", function (e) {
+          navigator.clipboard.writeText(SC_HELP).then(function () { e.target.textContent = "Copied ✓"; setTimeout(function () { e.target.textContent = "Copy instructions to clipboard"; }, 2000); }).catch(function () {});
+        });
+      }
+
+      function previewImport() {
+        var msg = document.getElementById("scImportMsg");
+        var text = document.getElementById("scImportText").value.trim();
+        if (!text) { if (msg) msg.textContent = "Nothing to preview yet — paste a CSV first."; return; }
+        var lines = text.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(function (l) { return l && !/^#/.test(l); });
+        // Skip header if it starts with "player" or "team" or "name"
+        if (/^(player|team|name)/i.test(lines[0])) lines.shift();
+        var parsed = lines.map(function (line) {
+          var cols = line.split(",").map(function (c) { return c.trim(); });
+          var name = cols[0] || "";
+          var day = Number(cols[1]);
+          var scores = [];
+          for (var i = 0; i < 18; i++) {
+            var v = cols[2 + i];
+            var n = parseInt(v, 10);
+            scores.push(isNaN(n) ? null : n);
+          }
+          var gross = scores.every(function (v) { return v != null; }) ? scores.reduce(function (a, v) { return a + v; }, 0) : null;
+          return { rawName: name, day: day, scores: scores, gross: gross };
+        }).filter(function (p) { return p.rawName; });
+        var matched = parsed.map(function (p) {
+          var pn = p.rawName.toLowerCase();
+          var rec = scRecs.find(function (r) { return String((r.fields || {})["Player Name"] || "").toLowerCase() === pn; });
+          // Fallback: partial match on P1 or partner names
+          if (!rec) rec = scRecs.find(function (r) { var f = r.fields || {}; return (String(f["Player Name"] || "") + " " + String(f["Team / Partners"] || "")).toLowerCase().indexOf(pn) !== -1; });
+          return { rec: rec, id: rec ? rec.id : null, name: p.rawName, matchedTo: rec ? scTeamLabel(rec) : "", day: p.day, scores: p.scores, gross: p.gross };
+        });
+        var okDay = function (d) { return d === 1 || d === 2; };
+        var okRows = matched.filter(function (m) { return m.id && okDay(m.day); });
+        var badRows = matched.filter(function (m) { return !m.id || !okDay(m.day); });
+        var html = '<h4 class="sc-import__pTitle">Preview &mdash; ' + okRows.length + ' matched, ' + badRows.length + ' skipped</h4>';
+        html += '<table class="sc-preview"><thead><tr><th>CSV Name</th><th>Matched team</th><th>Day</th><th>Gross</th><th>Status</th></tr></thead><tbody>';
+        matched.forEach(function (m) {
+          var status = m.id && okDay(m.day) ? '<span class="sc-preview__ok">✓ will import</span>'
+            : (!m.id ? '<span class="sc-preview__bad">no team match</span>' : '<span class="sc-preview__bad">day must be 1 or 2</span>');
+          html += '<tr>'
+            + '<td>' + esc(m.name) + '</td>'
+            + '<td>' + esc(m.matchedTo || "(none)") + '</td>'
+            + '<td>' + esc(m.day || "?") + '</td>'
+            + '<td>' + (m.gross == null ? '<em>(incomplete)</em>' : m.gross) + '</td>'
+            + '<td>' + status + '</td>'
+            + '</tr>';
+        });
+        html += '</tbody></table>';
+        if (okRows.length) html += '<button type="button" class="btn btn--primary" id="scImportApply">Import ' + okRows.length + ' row' + (okRows.length === 1 ? '' : 's') + '</button>';
+        var box = document.getElementById("scImportPreviewBox");
+        box.innerHTML = html; box.hidden = false;
+        if (msg) msg.textContent = "";
+        if (okRows.length) {
+          document.getElementById("scImportApply").addEventListener("click", function () { applyImport(okRows); });
+        }
+      }
+
+      function applyImport(rows) {
+        var msg = document.getElementById("scImportMsg");
+        if (msg) msg.textContent = "Importing " + rows.length + " row(s)…";
+        var ok = 0, fail = 0;
+        Promise.all(rows.map(function (r) {
+          return fetch(FH_API.url("/api/tournament-score"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify({ id: r.id, day: r.day, scores: r.scores })
+          })
+            .then(function (resp) { return resp.json().catch(function () { return {}; }); })
+            .then(function (j) { if (j && j.ok) ok++; else fail++; })
+            .catch(function () { fail++; });
+        })).then(function () {
+          if (msg) msg.textContent = "Done: " + ok + " saved, " + fail + " failed.";
+          loadRoster();
+        });
       }
 
       function loadRoster() {
@@ -1515,8 +1689,14 @@
 
         var tr = document.getElementById("twRefresh");
         if (tr) tr.addEventListener("click", loadRoster);
-        var sr = document.getElementById("twScoreRefresh");
-        if (sr) sr.addEventListener("click", loadRoster);
+        // Scores tab switcher (Day 1 / Day 2 / Import CSV).
+        Array.prototype.forEach.call(document.querySelectorAll("#scTabs .sc-tab"), function (b) {
+          b.addEventListener("click", function () {
+            scDay = b.getAttribute("data-scday");
+            Array.prototype.forEach.call(document.querySelectorAll("#scTabs .sc-tab"), function (o) { o.classList.toggle("is-active", o === b); });
+            renderScores(scAllCache);
+          });
+        });
         var wa = document.getElementById("waAdd");
         if (wa) wa.addEventListener("click", addWalkup);
         var er = document.getElementById("expRefresh");
