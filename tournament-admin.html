@@ -1885,8 +1885,9 @@
             withDividers.push(
               '<div class="lb-inline-cut" data-cut-idx="' + cutIdx + '">'
               + '<span class="lb-inline-cut__lbl">' + esc(flightName(numberedFlights[i])) + ' &rarr; ' + esc(flightName(numberedFlights[i + 1])) + ' &mdash; cut at score</span>'
-              + '<input type="range" class="lb-inline-cut__range" min="' + scoreMin + '" max="' + scoreMax + '" value="' + cuts[cutIdx] + '" data-cut-idx="' + cutIdx + '" />'
+              + '<button type="button" class="lb-inline-cut__arrow" data-cut-idx="' + cutIdx + '" data-delta="-1" aria-label="Decrease cut">&#9660;</button>'
               + '<b class="lb-inline-cut__val">' + cuts[cutIdx] + '</b>'
+              + '<button type="button" class="lb-inline-cut__arrow" data-cut-idx="' + cutIdx + '" data-delta="1" aria-label="Increase cut">&#9650;</button>'
               + '</div>'
             );
           }
@@ -1896,14 +1897,17 @@
         body.innerHTML = stripHtml + note + (joined || '<p class="noms__msg">No Day-1 scores yet — enter scores on the Scores tab.</p>');
         attachRowFilter(body, { rowSelector: ".lb-table tbody tr" });
 
-        // Wire inline slider adjustments — writes cuts[i], persists, re-renders
-        // everything (leaderboard + calcutta) so the change ripples through.
-        Array.prototype.forEach.call(body.querySelectorAll(".lb-inline-cut__range"), function (rg) {
-          rg.addEventListener("input", function () {
-            var idx = Number(rg.getAttribute("data-cut-idx"));
-            var v = parseInt(rg.value, 10);
-            if (isNaN(v)) return;
+        // Wire inline cut arrows — increment/decrement cuts[i] by 1, clamped
+        // to the actual score range, re-render everything so standings +
+        // calcutta pools + the top strip shift in sync.
+        Array.prototype.forEach.call(body.querySelectorAll(".lb-inline-cut__arrow"), function (btn) {
+          btn.addEventListener("click", function () {
+            var idx = Number(btn.getAttribute("data-cut-idx"));
+            var delta = Number(btn.getAttribute("data-delta")) || 0;
             var latest = loadCuts(nF, sortedScores);
+            var v = latest[idx] + delta;
+            if (scoreMin != null && v < scoreMin) v = scoreMin;
+            if (scoreMax != null && v > scoreMax) v = scoreMax;
             latest[idx] = v;
             for (var j = 0; j < latest.length; j++) { if (j < idx && latest[j] > v) latest[j] = v; if (j > idx && latest[j] < v) latest[j] = v; }
             saveCuts(latest);

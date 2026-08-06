@@ -967,11 +967,13 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .lb-strip__range { color: rgba(255,255,255,0.85); font-weight: 400; }
 .lb-strip__sep { color: rgba(255,255,255,0.5); }
 
-/* Leaderboard — inline cut sliders between flight sections */
-.lb-inline-cut { display: flex; align-items: center; gap: 0.7rem; background: var(--paper-2); border: 2px dashed var(--primary-green); border-radius: 8px; padding: 0.5rem 0.85rem; margin: 0.35rem 0 0.65rem; }
-.lb-inline-cut__lbl { font-size: 0.85rem; font-weight: 700; color: var(--primary-green); white-space: nowrap; }
-.lb-inline-cut__range { flex: 1; min-width: 8rem; accent-color: var(--primary-green); }
-.lb-inline-cut__val { min-width: 2ch; text-align: right; color: var(--primary-green); font-size: 1.05rem; }
+/* Leaderboard — inline cut arrows between flight sections (touch-friendly) */
+.lb-inline-cut { display: flex; align-items: center; gap: 0.6rem; background: var(--paper-2); border: 2px dashed var(--primary-green); border-radius: 8px; padding: 0.5rem 0.85rem; margin: 0.35rem 0 0.65rem; }
+.lb-inline-cut__lbl { font-size: 0.85rem; font-weight: 700; color: var(--primary-green); }
+.lb-inline-cut__val { min-width: 2.5ch; text-align: center; color: var(--primary-green); font-size: 1.15rem; font-family: var(--font-display); }
+.lb-inline-cut__arrow { width: 2.2rem; height: 2.2rem; border: 1px solid var(--primary-green); border-radius: 6px; background: #fff; color: var(--primary-green); font-size: 0.9rem; font-weight: 800; cursor: pointer; padding: 0; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+.lb-inline-cut__arrow:hover { background: var(--primary-green); color: #fff; }
+.lb-inline-cut__arrow:active { transform: translateY(1px); }
 
 /* Leaderboard tab — winner flags next to team names */
 .lbd-flag { display: inline-block; font-size: 0.7rem; font-weight: 800; padding: 0.12rem 0.5rem; border-radius: 999px; margin-left: 0.35rem; letter-spacing: 0.02em; text-transform: uppercase; }
