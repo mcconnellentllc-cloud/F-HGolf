@@ -2685,8 +2685,13 @@
             + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th class="ca-num">#</th><th>Team</th>' + holeHead + '<th class="ca-d1">D1</th><th class="ca-tbl__amt">$ Buy</th><th class="ca-tbl__buyer">Buyer</th><th></th><th></th></tr></thead><tbody>'
             + tbody + '</tbody></table></div></div>';
         }).join("");
+        // Grand sum of every $ Buy field on the page — a double-check that
+        // matches the top strip pool total. Rendered as an =SUM row above the
+        // Delete-all button.
+        var grandBuy = recs.reduce(function (s, r) { var v = (r.fields || {})["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
         body.innerHTML = strip
           + (out || '<p class="noms__msg">Flights aren\'t assigned yet — set the cuts on the Flights tab first.</p>')
+          + '<div class="ca-sumcheck">=SUM of $ Buy · <b id="caSumCheck">' + money(grandBuy) + '</b></div>'
           + '<div class="ca-footer"><button type="button" class="btn btn--solid ca-clear-all" id="caClearAll">Delete all Calcutta data</button></div>';
         // Mark every 2nd flight as a print page break so 2 flights land per landscape page.
         Array.prototype.forEach.call(body.querySelectorAll(".ca-flight"), function (el, idx) {
@@ -2823,6 +2828,13 @@
             stripSpan.innerHTML = '<b>' + (b ? b.textContent : "") + '</b> pool ' + money(pool) + ' &rarr; payout <b class="ca-strip__pay">' + money(payout) + '</b>';
           }
         });
+        // =SUM($ Buy) — bottom double-check row.
+        var grand = 0;
+        Array.prototype.forEach.call(host.querySelectorAll(".ca-amt"), function (inp) {
+          var v = Number(inp.value); if (isFinite(v)) grand += v;
+        });
+        var sumEl = host.querySelector("#caSumCheck");
+        if (sumEl) sumEl.textContent = money(grand);
       }
 
       // ---- Leaderboard + Payout: shared per-team computation ----
