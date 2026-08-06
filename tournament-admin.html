@@ -16,6 +16,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
+  <!-- QR generator (self-contained; avoids the flaky api.qrserver.com dependency). -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -3642,7 +3644,18 @@
             var img = wrap.querySelector(".disp-tab__qr-img");
             if (!img || img.src) return;
             var url = publicUrl(wrap.getAttribute("data-page"));
-            img.src = "https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=8&data=" + encodeURIComponent(url);
+            // Local QR generation via the qrcode library — no external image
+            // dependency. Falls back to api.qrserver.com if the library
+            // hasn't loaded (e.g. offline / CSP block).
+            if (window.QRCode && typeof window.QRCode.toDataURL === "function") {
+              window.QRCode.toDataURL(url, { width: 480, margin: 2, errorCorrectionLevel: "M" }).then(function (dataUri) {
+                img.src = dataUri;
+              }).catch(function () {
+                img.src = "https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=8&data=" + encodeURIComponent(url);
+              });
+            } else {
+              img.src = "https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=8&data=" + encodeURIComponent(url);
+            }
           });
           host.__mounted = true;
         }
@@ -3729,14 +3742,22 @@
           var head = document.createElement("div");
           head.className = "ca-print-head";
           var pubUrl = (location.origin.replace(/\/$/, "") + "/founders-calcutta-display.html");
-          var qrSrc = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=6&data=" + encodeURIComponent(pubUrl);
+          var fallbackQr = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=6&data=" + encodeURIComponent(pubUrl);
           head.innerHTML =
             '<img class="ca-print-head__logo" src="images/logo.png" alt="F&H Golf Course" />'
             + '<div class="ca-print-head__title"><span class="ca-print-head__eyebrow">2026 Founders Tournament</span>'
             + '<h1>Calcutta Auction Sheet</h1>'
             + '<span class="ca-print-head__sub">F&amp;H Golf Course &middot; Aug 8&ndash;9</span></div>'
-            + '<div class="ca-print-head__qr"><img src="' + qrSrc + '" alt="QR code" />'
+            + '<div class="ca-print-head__qr"><img src="' + fallbackQr + '" alt="QR code" />'
             + '<span>Scan for<br /><b>live auction</b></span></div>';
+          // Upgrade the QR to a local data URI if the library is available,
+          // so print previews aren't blocked by an external fetch.
+          if (window.QRCode && typeof window.QRCode.toDataURL === "function") {
+            window.QRCode.toDataURL(pubUrl, { width: 300, margin: 2, errorCorrectionLevel: "M" }).then(function (dataUri) {
+              var qrImg = head.querySelector(".ca-print-head__qr img");
+              if (qrImg) qrImg.src = dataUri;
+            }).catch(function () {});
+          }
           var foot = document.createElement("div");
           foot.className = "ca-print-foot";
           foot.innerHTML = 'F&amp;H Golf Course &middot; (970) 774-6362 &middot; fandhgolf.com';
