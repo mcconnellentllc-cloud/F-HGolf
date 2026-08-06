@@ -824,21 +824,55 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .ci__start { padding: 0.45rem 0.5rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; }
 
 /* Hole-by-hole score editor */
-.sc__tot { font-size: 0.85rem; color: var(--muted); }
-.sc__tot b { color: var(--primary-green); }
-.sc__team { color: var(--muted); font-weight: 400; font-size: 0.9rem; }
-.sc__days { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-.sc__days .btn { padding: 0.45rem 1rem; font-size: 0.85rem; }
-.sc__editor { margin-top: 0.8rem; }
-.sc__grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 0.4rem; }
-.sc__cell { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.7rem; color: var(--muted); text-align: center; }
-.sc__cell span { display: flex; justify-content: center; gap: 0.2rem; font-weight: 700; color: var(--primary-green); }
-.sc__cell small { color: var(--muted); font-weight: 400; }
-.sc__in { width: 100%; padding: 0.4rem 0.2rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; text-align: center; }
-.sc__foot { margin-top: 0.7rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-.sc__foot .sc__gross { color: var(--primary-green); font-size: 1.1rem; }
-.sc__status { font-size: 0.82rem; color: var(--muted); }
-.sc__status.is-error { color: var(--red-deep); }
+/* Scores — day picker tabs */
+.sc-tabs { display: flex; gap: 0.35rem; margin: 0.5rem 0 0.8rem; flex-wrap: wrap; }
+.sc-tab { padding: 0.45rem 0.9rem; border: 1px solid var(--line); background: var(--paper-2); color: var(--ink); border-radius: 8px; font: inherit; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+.sc-tab:hover { border-color: var(--primary-green); }
+.sc-tab.is-active { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
+
+/* Scores — spreadsheet grid (sticky team column, sticky header row) */
+.sc-tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.sc-tbl { border-collapse: separate; border-spacing: 0; font-size: 0.88rem; width: 100%; }
+.sc-tbl th, .sc-tbl td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 0.35rem 0.4rem; text-align: center; white-space: nowrap; background: #fff; }
+.sc-tbl thead th { position: sticky; top: 0; z-index: 3; background: var(--paper-2); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--primary-green); }
+.sc-tbl thead th small { display: block; color: var(--muted); font-weight: 400; font-size: 0.65rem; text-transform: none; letter-spacing: 0; }
+.sc-tbl th.sc-tbl__team, .sc-tbl td.sc-tbl__team { position: sticky; left: 0; z-index: 2; text-align: left; min-width: 12rem; max-width: 14rem; font-weight: 700; background: var(--paper-2); }
+.sc-tbl thead th.sc-tbl__team { z-index: 4; }
+.sc-tbl__loop { font-weight: 800; color: var(--primary-green); background: var(--paper-2) !important; }
+.sc-tbl__total { font-weight: 800; color: var(--primary-green); background: var(--paper-2) !important; min-width: 4.6rem; position: relative; }
+.sc-tbl__c { padding: 0.15rem !important; }
+.sc-cell { width: 2.6rem; padding: 0.35rem 0.15rem; border: 1px solid transparent; border-radius: 4px; font: inherit; font-size: 0.95rem; text-align: center; background: transparent; color: var(--ink); }
+.sc-cell:hover, .sc-cell:focus { border-color: var(--primary-green); outline: none; background: #fff; }
+.sc-cell.is-under { background: rgba(43,122,61,0.18); color: #1e5c2d; font-weight: 700; }
+.sc-cell.is-over { background: rgba(177,30,45,0.15); color: var(--red-deep); font-weight: 700; }
+.sc-cell.is-par { color: var(--ink); }
+.sc-tbl__totVal { display: inline-block; min-width: 2rem; }
+.sc-tbl__save { display: inline-block; width: 0.7rem; height: 0.7rem; margin-left: 0.35rem; border-radius: 50%; vertical-align: middle; background: transparent; }
+tr.is-dirty .sc-tbl__save { background: #d19a00; }
+tr.is-saving .sc-tbl__save { background: #d19a00; animation: sc-pulse 0.9s infinite; }
+tr.is-saved .sc-tbl__save { background: #2b7a3d; }
+tr.is-error .sc-tbl__save { background: var(--red-deep); }
+@keyframes sc-pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
+.sc-tbl__note { font-size: 0.78rem; color: var(--muted); margin: 0.5rem 0 0; }
+
+/* Scores — CSV import */
+.sc-import { background: var(--paper-2); border-radius: 12px; padding: 1rem 1.2rem; }
+.sc-import__lead { margin-top: 0; font-size: 0.95rem; }
+.sc-import__lead code { background: #fff; padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.85rem; }
+#scImportText { width: 100%; min-height: 10rem; padding: 0.6rem 0.7rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.85rem; background: #fff; resize: vertical; }
+.sc-import__row { display: flex; align-items: center; gap: 0.7rem; margin-top: 0.6rem; }
+.sc-import__msg { font-size: 0.88rem; color: var(--muted); }
+.sc-import__preview { margin-top: 1rem; padding: 0.7rem 0.9rem; background: #fff; border-radius: 8px; border: 1px solid var(--line); }
+.sc-import__pTitle { margin: 0 0 0.5rem; color: var(--primary-green); font-family: var(--font-display); font-size: 1rem; }
+.sc-preview { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.sc-preview th, .sc-preview td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--line); }
+.sc-preview th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.sc-preview__ok { color: var(--primary-green); font-weight: 700; }
+.sc-preview__bad { color: var(--red-deep); font-weight: 700; }
+.sc-import__help { margin-top: 1rem; background: #fff; border-radius: 8px; padding: 0.7rem 0.9rem; border: 1px solid var(--line); }
+.sc-import__help summary { cursor: pointer; font-weight: 700; color: var(--primary-green); }
+.sc-import__helpNote { font-size: 0.88rem; color: var(--muted); }
+.sc-import__helpDoc { background: var(--paper-2); border-radius: 6px; padding: 0.7rem 0.9rem; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.78rem; white-space: pre-wrap; overflow-x: auto; }
 @media (max-width: 560px) { .sc__grid { grid-template-columns: repeat(6, 1fr); } }
 
 /* Calculations tab (editable formula) */
@@ -1026,14 +1060,20 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
    forced page break between waves for front/back duplex printing. */
 @media print {
   body.is-print-both, body.is-print-am, body.is-print-pm { background: #fff !important; }
-  body.is-print-both > *:not(.site-container), body.is-print-am > *:not(.site-container), body.is-print-pm > *:not(.site-container) { display: none !important; }
-  body[class*="is-print-"] .site-header, body[class*="is-print-"] .site-footer,
-  body[class*="is-print-"] .hero, body[class*="is-print-"] .wb-tabs,
-  body[class*="is-print-"] .wb-sheet:not([data-sheet="pairings"]),
-  body[class*="is-print-"] .noms__bar, body[class*="is-print-"] .checkin-add__row,
-  body[class*="is-print-"] .scaffold__desc, body[class*="is-print-"] .pr-cfg,
-  body[class*="is-print-"] .pr-pool, body[class*="is-print-"] .pm-modal { display: none !important; }
+  /* Hide site chrome + every workbook tab except Pairings + all Pairings toolbars. */
+  body[class*="is-print-"] .nav,
+  body[class*="is-print-"] .hero,
+  body[class*="is-print-"] .site-footer,
+  body[class*="is-print-"] .wb-tabs,
+  body[class*="is-print-"] .noms__bar,
+  body[class*="is-print-"] .checkin-add__row,
+  body[class*="is-print-"] .scaffold__desc,
+  body[class*="is-print-"] .pr-cfg,
+  body[class*="is-print-"] .pr-pool,
+  body[class*="is-print-"] .pm-modal,
+  body[class*="is-print-"] .wb-sheet:not([data-sheet="pairings"]) { display: none !important; }
   body[class*="is-print-"] .wb-sheet[data-sheet="pairings"] { display: block !important; visibility: visible !important; }
+  body[class*="is-print-"] .section, body[class*="is-print-"] .container.admin { padding: 0 !important; margin: 0 !important; background: #fff !important; }
   body[class*="is-print-"] #prBoard { padding: 0; margin: 0; }
 
   /* Hide the opposite wave when printing a single wave. */
