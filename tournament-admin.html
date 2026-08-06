@@ -1061,7 +1061,7 @@
           var paidCk = t.method ? " checked" : "";
           return '<div class="ci-p" data-role="' + esc(t.role) + '">'
             + '<div class="ci-p__name">' + nameCell(t.role, t.name) + '</div>'
-            + '<label class="ci-check" title="Mark paid"><input type="checkbox" class="ci-paid-box" data-role="' + esc(t.role) + '"' + paidCk + ' /><span>Paid</span></label>'
+            + '<label class="ci-check" title="Charge entry to this player"><input type="checkbox" class="ci-paid-box" data-role="' + esc(t.role) + '"' + paidCk + ' /><span>Entry</span></label>'
             + '<label class="ci-meal" title="Extra meals × ' + money(extraMealFee) + '"><input type="number" min="0" max="10" step="1" class="ci__extra-meal" data-role="' + esc(t.role) + '" value="' + (Number(t.meal) || 0) + '" /><span>Meals</span></label>'
             + '<select class="ci-p__method" data-role="' + esc(t.role) + '">' + methodOpts(t.method) + '</select>'
             + '</div>';
@@ -1096,7 +1096,7 @@
           + '<span class="ci-tot ci-tot--owe"><small>Still owes</small><b class="ci-tot__owe">' + money(remaining) + '</b></span>'
           + '</div>'
           + '<div class="ci-card__acts">'
-          + '<button type="button" class="ci__update" title="Refresh totals">Update</button>'
+          + '<button type="button" class="ci__update" title="Recalculate + save this team’s payment state">Take Payment</button>'
           + '<button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + '</button>'
           + '<button type="button" class="ci__remove" title="Remove team">&times;</button>'
           + '</div>'
