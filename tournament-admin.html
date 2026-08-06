@@ -1968,7 +1968,8 @@
             var f = r.fields || {};
             var a = d1g(r), b = d2g(r);
             var hcp = (a != null && leader != null) ? Math.floor((a - leader) * mult) : null;
-            var net = (b != null && hcp != null) ? (b - hcp) : null;
+            var gross = (a != null || b != null) ? ((a == null ? 0 : a) + (b == null ? 0 : b)) : null;
+            var net = (gross != null && hcp != null) ? (gross - hcp) : null;
             var buyer = String(f.Buyer || "");
             var amt = (typeof f["Buy Amount"] === "number") ? f["Buy Amount"] : null;
             return { id: r.id, name: teamShortNames(f), buyer: buyer, amount: amt, a: a, b: b, hcp: hcp, net: net };
@@ -2159,7 +2160,8 @@
           fl.rows.forEach(function (row) {
             if (row.d1 != null && leader != null) {
               row.hcp = Math.floor((row.d1 - leader) * mult);
-              if (row.d2 != null) row.net = row.d2 - row.hcp;
+              // Net = 2-day gross − HCP (not just Day 2 − HCP).
+              if (row.gross != null) row.net = row.gross - row.hcp;
             }
           });
           // Place by 2-day gross (ascending), ties get same place, next place skips.
