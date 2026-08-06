@@ -1993,7 +1993,6 @@
             + '</div>';
 
           var tbody = rows.map(function (x) {
-            var placeTag = (x.cplace && x.cplace <= 4) ? ' <span class="lb-cal">C' + x.cplace + '</span>' : "";
             var tnum = caTeamNumbers[x.id];
             var tnBadge = tnum ? '<span class="lb-tnum">T-' + String(tnum).padStart(2, "0") + '</span>' : '';
             // Day-1 hole-by-hole scores + Out/In loop totals.
@@ -2013,7 +2012,7 @@
             holes += '<td class="ca-loop"><b>' + (inFull ? inSum : "&mdash;") + '</b></td>';
             return '<tr data-id="' + esc(x.id) + '">'
               + '<td class="ca-num">' + tnBadge + '</td>'
-              + '<td class="ca-tbl__team">' + esc(x.name) + placeTag + '</td>'
+              + '<td class="ca-tbl__team">' + esc(x.name) + '</td>'
               + holes
               + '<td class="ca-d1"><b>' + (x.a == null ? "&mdash;" : x.a) + '</b></td>'
               + '<td class="ca-tbl__amt"><input type="number" inputmode="decimal" min="0" step="1" class="ca-amt" data-id="' + esc(x.id) + '" value="' + (x.amount == null ? "" : x.amount) + '" placeholder="$0" /></td>'

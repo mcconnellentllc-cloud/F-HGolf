@@ -1258,38 +1258,26 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
   body.is-print-lb .lb-table tbody tr:nth-child(odd) { background: #f5f5f5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body.is-print-lb .lb-place, body.is-print-lb .lb-cal { display: inline-block; padding: 1pt 4pt; font-size: 9pt; font-weight: 800; margin-left: 4pt; border: 1pt solid #000; border-radius: 3pt; }
 
-  /* Calcutta print — one flight per page + hide editable inputs (show values only) */
+  /* Calcutta print — 2 flights per landscape page, tightest layout possible. */
   body.is-print-ca .wb-sheet:not([data-sheet="calcutta"]) { display: none !important; }
   body.is-print-ca .wb-sheet[data-sheet="calcutta"] { display: block !important; }
-  body.is-print-ca .noms__bar, body.is-print-ca .scaffold__desc { display: none !important; }
-  body.is-print-ca .ca-strip { background: #fff !important; color: #000 !important; border: 2pt solid #000; padding: 6pt 8pt; margin-bottom: 8pt; font-size: 10pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-ca .ca-strip b, body.is-print-ca .ca-strip__pay { color: #000 !important; }
-  body.is-print-ca .ca-strip__sep { color: #888 !important; }
-  /* Two flights per landscape page — break after every second flight. */
-  body.is-print-ca .ca-flight { page-break-inside: avoid; }
-  body.is-print-ca .ca-flight--pagebreak { page-break-after: always; }
+  body.is-print-ca .noms__bar, body.is-print-ca .scaffold__desc, body.is-print-ca .ca-strip, body.is-print-ca .ca-fl__split, body.is-print-ca .ca-footer { display: none !important; }
+  body.is-print-ca .ca-flight { page-break-inside: avoid; margin-bottom: 6pt; }
+  body.is-print-ca .ca-flight--pagebreak { page-break-after: always; margin-bottom: 0; }
   body.is-print-ca .ca-flight--pagebreak:last-child { page-break-after: auto; }
-  body.is-print-ca .lb-flight__title { font-size: 20pt; text-align: center; color: #000; border-bottom: 3pt solid #000; padding-bottom: 4pt; margin-bottom: 8pt; }
-  body.is-print-ca .ca-fl__hdr { background: transparent !important; padding: 0; border: none !important; }
-  body.is-print-ca .ca-fl__totals { font-size: 12pt; text-align: center; margin: 6pt 0; }
-  body.is-print-ca .ca-fl__split { justify-content: center; margin-bottom: 8pt; }
-  body.is-print-ca .ca-fl__prize { background: transparent !important; border: 1pt solid #000; font-size: 11pt; padding: 2pt 6pt; }
-  body.is-print-ca .ca-tbl { border-radius: 0; }
-  body.is-print-ca .ca-tbl__save, body.is-print-ca .ca-tbl__save + th { display: none !important; }
-  /* Replace input widgets with their current values so the paper shows text, not empty boxes. */
-  body.is-print-ca .ca-buyer, body.is-print-ca .ca-amt { border: none !important; background: transparent !important; padding: 0 !important; width: auto; font: inherit; }
-  body.is-print-ca .lb-table { font-size: 11pt; width: 100%; }
-  body.is-print-ca .lb-table th { font-size: 10pt; padding: 3pt 5pt; }
-  body.is-print-ca .lb-table td { padding: 3pt 5pt; }
-  body.is-print-ca .lb-table tbody tr:nth-child(odd) { background: #f5f5f5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  /* Compact print scale so 18 hole columns fit at 11" landscape. */
-  body.is-print-ca .ca-tbl { font-size: 8.5pt; }
-  body.is-print-ca .ca-tbl th, body.is-print-ca .ca-tbl td { padding: 2pt 3pt !important; }
-  body.is-print-ca .ca-hole { min-width: 0.55rem !important; padding: 2pt 1pt !important; text-align: center; }
-  body.is-print-ca .ca-loop, body.is-print-ca .ca-d1 { background: #eaeaea !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-ca .ca-fl__hdr { background: transparent !important; padding: 0 0 2pt !important; border: none !important; border-bottom: 1.5pt solid #000 !important; margin-bottom: 3pt; display: flex; align-items: baseline; justify-content: space-between; gap: 8pt; }
+  body.is-print-ca .ca-fl__hdr .lb-flight__title { font-size: 12pt; margin: 0; color: #000; border: none; padding: 0; text-align: left; }
+  body.is-print-ca .ca-fl__totals { font-size: 9.5pt; margin: 0; text-align: right; }
+  body.is-print-ca .ca-fl__totals b { color: #000 !important; }
+  body.is-print-ca .ca-tbl { border-radius: 0; font-size: 8pt; width: 100%; table-layout: fixed; }
+  body.is-print-ca .ca-tbl th, body.is-print-ca .ca-tbl td { padding: 1.2pt 2pt !important; }
+  body.is-print-ca .ca-tbl__save, body.is-print-ca .ca-tbl__save + th, body.is-print-ca .ca-tbl__x { display: none !important; }
+  body.is-print-ca .ca-buyer, body.is-print-ca .ca-amt { border: none !important; background: transparent !important; padding: 0 !important; width: 100% !important; font: inherit; text-align: left; }
+  body.is-print-ca .ca-hole { text-align: center; }
+  body.is-print-ca .ca-loop, body.is-print-ca .ca-d1 { background: #eaeaea !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; text-align: center; }
   body.is-print-ca .ca-num, body.is-print-ca .ca-tbl__team, body.is-print-ca .ca-tbl__buyer { min-width: 0 !important; max-width: none !important; white-space: nowrap; }
+  body.is-print-ca .ca-tbl__team { font-weight: 700; }
   body.is-print-ca .lb-tnum { font-size: 7pt; padding: 0.05rem 0.25rem; }
-  body.is-print-ca .lb-cal { display: none !important; }
 
   /* Leaderboard print — every flight on its own page */
   body.is-print-lbd .wb-sheet:not([data-sheet="leaderboard"]) { display: none !important; }
