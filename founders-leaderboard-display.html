@@ -174,6 +174,22 @@
         // Range grows if staff cut more than 4 flights; default 4 when empty.
         var maxFl = Math.max(4, Number(Object.keys(groups).reduce(function (m, k) { return Number(k) > m ? Number(k) : m; }, 0)) || 0);
         var flightList = []; for (var _fi = 1; _fi <= maxFl; _fi++) flightList.push(_fi);
+        // If no team has any Day-1 gross yet, the tournament hasn't started —
+        // show a single "Field" section instead of pre-cutting flights.
+        var anyGross = recs.some(function (r) { return d1g(r) != null; });
+        if (!anyGross) {
+          var teamCards = recs.map(function (r) {
+            var f = r.fields || {};
+            var tn = teamNumbers[r.id];
+            var badge = tn ? '<span class="lbd__tnum">T-' + String(tn).padStart(2, "0") + '</span>' : '';
+            return '<tr><td class="lbd__team">' + badge + esc(teamShortNames(f)) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+          }).join("");
+          body.innerHTML = '<div class="lbd">'
+            + '<div class="lbd__hdr"><h2 class="lbd__name">Field</h2><span class="lbd__meta">' + recs.length + ' teams · tournament begins Day 1</span></div>'
+            + '<table><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + teamCards + '</tbody></table></div>';
+          return;
+        }
         var flights = flightList.map(function (fl) {
           var arr = groups[fl] || [];
           var rows = arr.map(function (r) {
