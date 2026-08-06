@@ -1060,14 +1060,20 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
    forced page break between waves for front/back duplex printing. */
 @media print {
   body.is-print-both, body.is-print-am, body.is-print-pm { background: #fff !important; }
-  body.is-print-both > *:not(.site-container), body.is-print-am > *:not(.site-container), body.is-print-pm > *:not(.site-container) { display: none !important; }
-  body[class*="is-print-"] .site-header, body[class*="is-print-"] .site-footer,
-  body[class*="is-print-"] .hero, body[class*="is-print-"] .wb-tabs,
-  body[class*="is-print-"] .wb-sheet:not([data-sheet="pairings"]),
-  body[class*="is-print-"] .noms__bar, body[class*="is-print-"] .checkin-add__row,
-  body[class*="is-print-"] .scaffold__desc, body[class*="is-print-"] .pr-cfg,
-  body[class*="is-print-"] .pr-pool, body[class*="is-print-"] .pm-modal { display: none !important; }
+  /* Hide site chrome + every workbook tab except Pairings + all Pairings toolbars. */
+  body[class*="is-print-"] .nav,
+  body[class*="is-print-"] .hero,
+  body[class*="is-print-"] .site-footer,
+  body[class*="is-print-"] .wb-tabs,
+  body[class*="is-print-"] .noms__bar,
+  body[class*="is-print-"] .checkin-add__row,
+  body[class*="is-print-"] .scaffold__desc,
+  body[class*="is-print-"] .pr-cfg,
+  body[class*="is-print-"] .pr-pool,
+  body[class*="is-print-"] .pm-modal,
+  body[class*="is-print-"] .wb-sheet:not([data-sheet="pairings"]) { display: none !important; }
   body[class*="is-print-"] .wb-sheet[data-sheet="pairings"] { display: block !important; visibility: visible !important; }
+  body[class*="is-print-"] .section, body[class*="is-print-"] .container.admin { padding: 0 !important; margin: 0 !important; background: #fff !important; }
   body[class*="is-print-"] #prBoard { padding: 0; margin: 0; }
 
   /* Hide the opposite wave when printing a single wave. */
