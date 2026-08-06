@@ -55,6 +55,11 @@ module.exports = async (req, res) => {
   if (typeof body.player1Paid === "string") fields["Player 1 Paid"] = body.player1Paid ? body.player1Paid.slice(0, 20) : null;
   if (typeof body.player2Paid === "string") fields["Player 2 Paid"] = body.player2Paid ? body.player2Paid.slice(0, 20) : null;
   // Inline rename from Check-In roster.
+  // Extra meals — sold at check-in to guests/spouses so the kitchen can plan.
+  if (body.extraMeals !== undefined && body.extraMeals !== null && body.extraMeals !== "") {
+    const em = Number(body.extraMeals);
+    if (!isNaN(em) && em >= 0) fields["Extra Meals"] = em;
+  }
   if (typeof body.playerName === "string") fields["Player Name"] = body.playerName.slice(0, 200);
   if (typeof body.teamPartners === "string") fields["Team / Partners"] = body.teamPartners.slice(0, 500);
   // Link this signup to a canonical Players table row. Needs a "Player" linked
