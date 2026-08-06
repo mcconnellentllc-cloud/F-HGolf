@@ -616,7 +616,7 @@
           + row("Entry fees expected (" + players + " × " + money(entryPP) + ")", entryIncome)
           + row("Entry fees collected (" + m.paidPlayers + " / " + players + " paid)", m.entryCollected, m.fullyPaid ? "" : "pl__row--warn")
           + row("Calcutta pool (from buyers)", calcuttaPool)
-          + (m.extraMealsCount ? row("Extra meals (" + m.extraMealsCount + " × " + money(mealPP) + ") — for the kitchen", m.extraMealsRevenue) : "")
+          + row("Extra meals (" + m.extraMealsCount + " × " + money(mealPP) + ") — for the kitchen", m.extraMealsRevenue)
           + subtotal("Total income (expected)", totalIn)
           + '</div>'
 
@@ -633,7 +633,7 @@
           + '<div class="pl__pl-grid">'
           + '<div class="pl__pl-line"><span>Green fees kept (' + players + ' × ' + money(greenPP) + ')</span><b>' + money(greenFees) + '</b></div>'
           + '<div class="pl__pl-line"><span>Meals kept (' + players + ' × ' + money(mealPP) + ')</span><b>' + money(meals) + '</b></div>'
-          + (m.extraMealsCount ? '<div class="pl__pl-line"><span>Extra meals (' + m.extraMealsCount + ' × ' + money(mealPP) + ')</span><b>' + money(m.extraMealsRevenue) + '</b></div>' : "")
+          + '<div class="pl__pl-line"><span>Extra meals kept (' + m.extraMealsCount + ' × ' + money(mealPP) + ')</span><b>' + money(m.extraMealsRevenue) + '</b></div>'
           + (otherPerPlayer ? '<div class="pl__pl-line"><span>Other (' + players + ' × ' + money(otherPP) + ')</span><b>' + money(otherPerPlayer) + '</b></div>' : "")
           + '<div class="pl__pl-line"><span>Calcutta commission</span><b>' + money(calcuttaCommission) + '</b></div>'
           + '<div class="pl__pl-line pl__pl-line--neg"><span>Less: expenses paid out</span><b>&minus; ' + money(manualExp) + '</b></div>'
