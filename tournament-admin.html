@@ -2683,7 +2683,14 @@
           var row = inp.closest("tr");
           row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
           if (caPending[id]) clearTimeout(caPending[id]);
-          caPending[id] = setTimeout(function () { updateCacheBuys(id, row); saveCalcuttaRow(id, row); renderPL(); }, 700);
+          caPending[id] = setTimeout(function () {
+            updateCacheBuys(id, row);
+            saveCalcuttaRow(id, row);
+            renderPL();
+            // Rebuild the Calcutta Summary from cache so buyers appear
+            // instantly on that tab as they're typed here.
+            try { renderCalcuttaSummary(scAllCache); } catch (e) {}
+          }, 700);
         }
         Array.prototype.forEach.call(host.querySelectorAll(".ca-buyer"), function (inp) { inp.addEventListener("input", function () { onEdit(inp, "buyer"); }); });
         Array.prototype.forEach.call(host.querySelectorAll(".ca-clear"), function (btn) {
@@ -2694,7 +2701,10 @@
             if (amt) amt.value = "";
             row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
             recomputeCalcuttaTotals(host);
-            saveCalcuttaRow(row.getAttribute("data-id"), row);
+            var id = row.getAttribute("data-id");
+            updateCacheBuys(id, row);
+            saveCalcuttaRow(id, row);
+            try { renderCalcuttaSummary(scAllCache); renderPL(); } catch (e) {}
           });
         });
         var caAll = host.querySelector("#caClearAll");
@@ -2710,9 +2720,12 @@
                 if (buyer) buyer.value = "";
                 if (amt) amt.value = "";
                 row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
-                saveCalcuttaRow(row.getAttribute("data-id"), row);
+                var id = row.getAttribute("data-id");
+                updateCacheBuys(id, row);
+                saveCalcuttaRow(id, row);
               });
               recomputeCalcuttaTotals(host);
+              try { renderCalcuttaSummary(scAllCache); renderPL(); } catch (e) {}
             }
           });
         });
