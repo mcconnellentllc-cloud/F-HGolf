@@ -1,7 +1,7 @@
 /* F&H Golf Course — service worker.
    Network-first so the live site is always fresh online; falls back to a small
    cached shell when offline. Enables "Add to Home Screen" / installability. */
-var CACHE = "fh-cache-v49";
+var CACHE = "fh-cache-v50";
 var SHELL = ["./", "./index.html", "./css/styles.css", "./js/main.js", "./images/logo.png"];
 
 self.addEventListener("install", function (e) {

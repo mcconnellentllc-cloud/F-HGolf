@@ -248,6 +248,24 @@
     </div>
   </section>
 
+  <!-- ==================== CONFIRM (DESTRUCTIVE) MODAL ==================== -->
+  <div class="pm-modal cd-modal" id="confirmModal" hidden aria-hidden="true" role="alertdialog" aria-modal="true" aria-labelledby="cdTitle">
+    <div class="pm-modal__backdrop" data-close="1"></div>
+    <div class="pm-modal__panel cd-panel">
+      <div class="pm-modal__head">
+        <h3 id="cdTitle">Are you sure?</h3>
+        <button type="button" class="pm-modal__close" id="cdClose" aria-label="Cancel">&times;</button>
+      </div>
+      <div class="pm-modal__body">
+        <p class="cd-body" id="cdBody">This can't be undone.</p>
+      </div>
+      <div class="pm-modal__foot">
+        <button type="button" class="btn btn--solid" id="cdCancel">Cancel</button>
+        <button type="button" class="btn cd-confirm" id="cdConfirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== PLAYER CARD MODAL ==================== -->
   <div class="pm-modal" id="playerModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="pmTitle">
     <div class="pm-modal__backdrop" data-close="1"></div>
@@ -866,6 +884,39 @@
       function formatState(v) { return String(v || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2); }
       function formatZip(v) { return String(v || "").replace(/[^\d-]/g, "").slice(0, 10); }
 
+      // Shared "are you sure?" modal for destructive actions (delete-all buttons).
+      // Usage: confirmDestructive({ title, body, confirmLabel, onConfirm })
+      var _cdOnConfirm = null;
+      function confirmDestructive(opts) {
+        var modal = document.getElementById("confirmModal"); if (!modal) return;
+        var t = document.getElementById("cdTitle"); if (t) t.textContent = opts.title || "Are you sure?";
+        var b = document.getElementById("cdBody"); if (b) b.textContent = opts.body || "This can't be undone.";
+        var c = document.getElementById("cdConfirm"); if (c) c.textContent = opts.confirmLabel || "Delete";
+        _cdOnConfirm = typeof opts.onConfirm === "function" ? opts.onConfirm : null;
+        modal.hidden = false; modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("modal-open");
+      }
+      function closeConfirm() {
+        var modal = document.getElementById("confirmModal");
+        if (modal) { modal.hidden = true; modal.setAttribute("aria-hidden", "true"); }
+        document.body.classList.remove("modal-open");
+        _cdOnConfirm = null;
+      }
+      (function wireConfirmModal() {
+        var modal = document.getElementById("confirmModal");
+        var close = document.getElementById("cdClose");
+        var cancel = document.getElementById("cdCancel");
+        var confirmBtn = document.getElementById("cdConfirm");
+        if (close) close.addEventListener("click", closeConfirm);
+        if (cancel) cancel.addEventListener("click", closeConfirm);
+        if (confirmBtn) confirmBtn.addEventListener("click", function () {
+          var fn = _cdOnConfirm; closeConfirm();
+          if (fn) try { fn(); } catch (e) { console.error("confirm handler failed", e); }
+        });
+        if (modal) modal.addEventListener("click", function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute("data-close") === "1") closeConfirm(); });
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal && !modal.hidden) closeConfirm(); });
+      })();
+
       // Modal wiring (once at boot).
       (function wirePlayerModal() {
         var closeBtn = document.getElementById("pmClose");
@@ -918,7 +969,7 @@
         for (var h = 1; h <= 9; h++) head += '<th class="sc-tbl__h">' + h + '<br><small>p' + PAR9[h - 1] + '</small></th>';
         head += '<th class="sc-tbl__loop">Out</th>';
         for (var h2 = 1; h2 <= 9; h2++) head += '<th class="sc-tbl__h">' + h2 + '<br><small>p' + PAR9[h2 - 1] + '</small></th>';
-        head += '<th class="sc-tbl__loop">In</th><th class="sc-tbl__total">Total</th></tr></thead>';
+        head += '<th class="sc-tbl__loop">In</th><th class="sc-tbl__total">Total</th><th class="sc-tbl__x" aria-label="Clear row"></th></tr></thead>';
 
         var body = scRecs.map(function (rec) {
           var f = rec.fields || {};
@@ -932,12 +983,13 @@
           }
           cells += '<td class="sc-tbl__loop" data-loop="in">&mdash;</td>';
           cells += '<td class="sc-tbl__total"><span class="sc-tbl__totVal">&mdash;</span><span class="sc-tbl__save" title="Save state"></span></td>';
+          cells += '<td class="sc-tbl__x"><button type="button" class="sc-clear" data-id="' + esc(rec.id) + '" title="Clear this row">&times;</button></td>';
           return '<tr data-id="' + esc(rec.id) + '"><td class="sc-tbl__team">' + esc(scTeamLabel(rec)) + '</td>' + cells + '</tr>';
         }).join("");
 
-        host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /></div>'
+        host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /><button type="button" class="btn btn--solid sc-toolbar__dangerBtn" id="scClearAll">Delete all Day ' + day + ' scores</button></div>'
           + '<div class="sc-tbl-wrap"><table class="sc-tbl">' + head + '<tbody>' + body + '</tbody></table></div>'
-          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right.</p>';
+          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right. Click × on any row to clear that team.</p>';
 
         wireScoresGrid(host, day);
         Array.prototype.forEach.call(host.querySelectorAll("tr[data-id]"), function (row) {
@@ -993,6 +1045,37 @@
             else if (e.key === "ArrowDown") { scFocusCell(host, rowIdx + 1, colIdx); moved = true; }
             else if (e.key === "ArrowUp") { scFocusCell(host, rowIdx - 1, colIdx); moved = true; }
             if (moved) e.preventDefault();
+          });
+        });
+
+        // Per-row clear: reset cells + save an all-null scores array.
+        Array.prototype.forEach.call(host.querySelectorAll(".sc-clear"), function (btn) {
+          btn.addEventListener("click", function () {
+            var row = btn.closest("tr");
+            Array.prototype.forEach.call(row.querySelectorAll(".sc-cell"), function (i) { i.value = ""; });
+            recomputeRow(row);
+            row.classList.remove("is-saved", "is-error");
+            row.classList.add("is-dirty");
+            saveScoreRow(row, day);
+          });
+        });
+
+        // Delete all Day N — confirmed by the shared modal.
+        var clearAllBtn = host.querySelector("#scClearAll");
+        if (clearAllBtn) clearAllBtn.addEventListener("click", function () {
+          confirmDestructive({
+            title: "Delete all Day " + day + " scores?",
+            body: "This clears every team's Day " + day + " scores across the whole tournament. This can't be undone.",
+            confirmLabel: "Delete all Day " + day,
+            onConfirm: function () {
+              var rows = Array.prototype.slice.call(host.querySelectorAll("tbody tr[data-id]"));
+              rows.forEach(function (row) {
+                Array.prototype.forEach.call(row.querySelectorAll(".sc-cell"), function (i) { i.value = ""; });
+                recomputeRow(row);
+                row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
+                saveScoreRow(row, day);
+              });
+            }
           });
         });
       }
@@ -1571,7 +1654,7 @@
       function flightName(n) { return FLIGHT_NAMES[n - 1] || ("Flight " + n); }
       function d1g(r) { var f = r.fields || {}; return (f["Day1 Scores"] && typeof f["Day1 Gross"] === "number") ? f["Day1 Gross"] : null; }
       function d2g(r) { var f = r.fields || {}; return (f["Day2 Scores"] && typeof f["Day2 Gross"] === "number") ? f["Day2 Gross"] : null; }
-      function teamName(r) { return (r.fields && r.fields["Player Name"]) || "(no name)"; }
+      function teamName(r) { return teamShortNames((r && r.fields) || {}); }
 
       var CUTK = "fh_cuts_" + KEY, boardSorted = [], lbFilteredRecs = [];
       // Score-based cuts. For N flights, cuts is an array of N-1 score
@@ -1851,13 +1934,16 @@
               + '<td><b>' + (x.hcp == null ? "—" : x.hcp) + '</b></td>'
               + '<td><b>' + (x.net == null ? "—" : x.net) + '</b></td>'
               + '<td class="ca-tbl__save"><span class="sc-tbl__save" title="Save state"></span></td>'
+              + '<td class="ca-tbl__x"><button type="button" class="ca-clear" data-id="' + esc(x.id) + '" title="Clear buyer + amount">&times;</button></td>'
               + '</tr>';
           }).join("");
           return '<div class="lb-flight ca-flight">' + header
-            + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th>Team</th><th>Buyer</th><th>Amount</th><th>D1</th><th>D2</th><th>HCP</th><th>Net</th><th></th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th>Team</th><th>Buyer</th><th>Amount</th><th>D1</th><th>D2</th><th>HCP</th><th>Net</th><th></th><th></th></tr></thead><tbody>'
             + tbody + '</tbody></table></div></div>';
         }).join("");
-        body.innerHTML = strip + (out || '<p class="noms__msg">Flights aren\'t assigned yet — set the cuts on the Flights &amp; Leaderboard tab first.</p>');
+        body.innerHTML = strip
+          + (out || '<p class="noms__msg">Flights aren\'t assigned yet — set the cuts on the Flights tab first.</p>')
+          + '<div class="ca-footer"><button type="button" class="btn btn--solid ca-clear-all" id="caClearAll">Delete all Calcutta data</button></div>';
 
         wireCalcutta(body);
       }
@@ -1871,6 +1957,36 @@
           caPending[id] = setTimeout(function () { saveCalcuttaRow(id, row); }, 700);
         }
         Array.prototype.forEach.call(host.querySelectorAll(".ca-buyer"), function (inp) { inp.addEventListener("input", function () { onEdit(inp, "buyer"); }); });
+        Array.prototype.forEach.call(host.querySelectorAll(".ca-clear"), function (btn) {
+          btn.addEventListener("click", function () {
+            var row = btn.closest("tr");
+            var buyer = row.querySelector(".ca-buyer"), amt = row.querySelector(".ca-amt");
+            if (buyer) buyer.value = "";
+            if (amt) amt.value = "";
+            row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
+            recomputeCalcuttaTotals(host);
+            saveCalcuttaRow(row.getAttribute("data-id"), row);
+          });
+        });
+        var caAll = host.querySelector("#caClearAll");
+        if (caAll) caAll.addEventListener("click", function () {
+          confirmDestructive({
+            title: "Delete all Calcutta data?",
+            body: "This clears every team's Buyer + Buy Amount across the whole tournament. This can't be undone.",
+            confirmLabel: "Delete all Calcutta",
+            onConfirm: function () {
+              var rows = Array.prototype.slice.call(host.querySelectorAll("tr[data-id]"));
+              rows.forEach(function (row) {
+                var buyer = row.querySelector(".ca-buyer"), amt = row.querySelector(".ca-amt");
+                if (buyer) buyer.value = "";
+                if (amt) amt.value = "";
+                row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
+                saveCalcuttaRow(row.getAttribute("data-id"), row);
+              });
+              recomputeCalcuttaTotals(host);
+            }
+          });
+        });
         Array.prototype.forEach.call(host.querySelectorAll(".ca-amt"), function (inp) {
           inp.addEventListener("input", function () {
             onEdit(inp, "amount");
