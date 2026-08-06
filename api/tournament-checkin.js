@@ -54,6 +54,12 @@ module.exports = async (req, res) => {
   // Per-player payment (Cash/Check/Card) — needs "Player 1 Paid" / "Player 2 Paid" fields.
   if (typeof body.player1Paid === "string") fields["Player 1 Paid"] = body.player1Paid ? body.player1Paid.slice(0, 20) : null;
   if (typeof body.player2Paid === "string") fields["Player 2 Paid"] = body.player2Paid ? body.player2Paid.slice(0, 20) : null;
+  // Inline rename from Check-In roster.
+  if (typeof body.playerName === "string") fields["Player Name"] = body.playerName.slice(0, 200);
+  if (typeof body.teamPartners === "string") fields["Team / Partners"] = body.teamPartners.slice(0, 500);
+  // Link this signup to a canonical Players table row. Needs a "Player" linked
+  // field on Tournament Signups. Empty string clears the link.
+  if (typeof body.playerId === "string") fields["Player"] = body.playerId ? [body.playerId] : [];
 
   if (!Object.keys(fields).length) {
     return res.status(400).json({ ok: false, error: "Nothing to update." });
