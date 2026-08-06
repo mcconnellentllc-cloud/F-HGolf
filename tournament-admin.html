@@ -3657,28 +3657,46 @@
               span.textContent = publicUrl(span.getAttribute("data-page")).replace(/^https?:\/\//, "");
             }
           });
+          // Per-page static QR files staff can drop into /images/ so we don't
+          // rely on any external QR generator (some networks block them).
+          var STATIC_QR = {
+            "founders-calcutta-display.html": "images/founders-calcutta-qr.png",
+            "founders-leaderboard-display.html": "images/founders-leaderboard-qr.png",
+          };
           Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__qr"), function (wrap) {
             var img = wrap.querySelector(".disp-tab__qr-img");
             if (!img || img.src) return;
-            var url = publicUrl(wrap.getAttribute("data-page"));
+            var page = wrap.getAttribute("data-page");
+            var url = publicUrl(page);
             var encoded = encodeURIComponent(url);
+            // Static PNG (staff-managed) is the preferred source. Falls
+            // through to the runtime QR library, then a cascade of external
+            // services, then the URL text card carries the handoff alone.
+            var staticSrc = STATIC_QR[page];
+            var runtime = function () {
+              if (window.QRCode && typeof window.QRCode.toDataURL === "function") {
+                window.QRCode.toDataURL(url, { width: 480, margin: 2, errorCorrectionLevel: "M" }).then(function (dataUri) {
+                  img.src = dataUri;
+                }).catch(function () { tryExt(0); });
+              } else {
+                tryExt(0);
+              }
+            };
             var sources = [
               "https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=8&data=" + encoded,
               "https://quickchart.io/qr?text=" + encoded + "&size=380&margin=2",
               "https://chart.googleapis.com/chart?cht=qr&chs=380x380&chl=" + encoded,
             ];
-            // Preferred path: generate locally via the qrcode.js library.
-            if (window.QRCode && typeof window.QRCode.toDataURL === "function") {
-              window.QRCode.toDataURL(url, { width: 480, margin: 2, errorCorrectionLevel: "M" }).then(function (dataUri) {
-                img.src = dataUri;
-              }).catch(function () { tryNext(0); });
-            } else {
-              tryNext(0);
-            }
-            function tryNext(i) {
-              if (i >= sources.length) { img.remove(); return; } // no source worked; the URL text card is still visible
-              img.onerror = function () { tryNext(i + 1); };
+            function tryExt(i) {
+              if (i >= sources.length) { img.remove(); return; }
+              img.onerror = function () { tryExt(i + 1); };
               img.src = sources[i];
+            }
+            if (staticSrc) {
+              img.onerror = function () { img.onerror = null; runtime(); };
+              img.src = staticSrc;
+            } else {
+              runtime();
             }
           });
           host.__mounted = true;
@@ -3766,21 +3784,29 @@
           var head = document.createElement("div");
           head.className = "ca-print-head";
           var pubUrl = (location.origin.replace(/\/$/, "") + "/founders-calcutta-display.html");
-          var fallbackQr = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=6&data=" + encodeURIComponent(pubUrl);
           head.innerHTML =
             '<img class="ca-print-head__logo" src="images/logo.png" alt="F&H Golf Course" />'
             + '<div class="ca-print-head__title"><span class="ca-print-head__eyebrow">2026 Founders Tournament</span>'
             + '<h1>Calcutta Auction Sheet</h1>'
             + '<span class="ca-print-head__sub">F&amp;H Golf Course &middot; Aug 8&ndash;9</span></div>'
-            + '<div class="ca-print-head__qr"><img src="' + fallbackQr + '" alt="QR code" />'
+            + '<div class="ca-print-head__qr"><img src="images/founders-calcutta-qr.png" alt="QR code" />'
             + '<span>Scan for<br /><b>live auction</b></span></div>';
-          // Upgrade the QR to a local data URI if the library is available,
-          // so print previews aren't blocked by an external fetch.
-          if (window.QRCode && typeof window.QRCode.toDataURL === "function") {
-            window.QRCode.toDataURL(pubUrl, { width: 300, margin: 2, errorCorrectionLevel: "M" }).then(function (dataUri) {
-              var qrImg = head.querySelector(".ca-print-head__qr img");
-              if (qrImg) qrImg.src = dataUri;
-            }).catch(function () {});
+          // If the static PNG isn't present, fall back to the runtime library
+          // (or an external service) so print still gets a QR of some kind.
+          var qrImg = head.querySelector(".ca-print-head__qr img");
+          if (qrImg) {
+            qrImg.onerror = function () {
+              qrImg.onerror = null;
+              if (window.QRCode && typeof window.QRCode.toDataURL === "function") {
+                window.QRCode.toDataURL(pubUrl, { width: 300, margin: 2, errorCorrectionLevel: "M" }).then(function (dataUri) {
+                  qrImg.src = dataUri;
+                }).catch(function () {
+                  qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=6&data=" + encodeURIComponent(pubUrl);
+                });
+              } else {
+                qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=6&data=" + encodeURIComponent(pubUrl);
+              }
+            };
           }
           var foot = document.createElement("div");
           foot.className = "ca-print-foot";
