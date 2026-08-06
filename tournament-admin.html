@@ -217,7 +217,7 @@
         <div class="pm-row">
           <label class="pm-field">
             <span>Phone</span>
-            <input type="tel" id="pmPhone" autocomplete="tel" />
+            <input type="tel" id="pmPhone" autocomplete="tel" inputmode="tel" placeholder="(970) 555-1234" maxlength="14" />
           </label>
           <label class="pm-field">
             <span>Email</span>
@@ -652,7 +652,7 @@
         var signup = (rosterRecs || []).find(function (r) { return r.id === signupId; });
         if (signup && signup.fields) {
           if (role === "p1" && signup.fields.Email) pmSetVal("pmEmail", signup.fields.Email);
-          if (role === "p1" && signup.fields.Phone) pmSetVal("pmPhone", signup.fields.Phone);
+          if (role === "p1" && signup.fields.Phone) pmSetVal("pmPhone", formatPhone(signup.fields.Phone));
         }
         if (!currentName) { if (status) { status.textContent = "New player — fill in the card and save."; status.className = "pm-status is-info"; } return; }
         // Look up in Players table by name.
@@ -669,7 +669,7 @@
               var f = recs[0].fields || {};
               pmCurrent.playerId = recs[0].id;
               pmSetVal("pmName", f.Name || currentName);
-              pmSetVal("pmPhone", f.Phone || pmVal("pmPhone"));
+              pmSetVal("pmPhone", formatPhone(f.Phone || pmVal("pmPhone")));
               pmSetVal("pmEmail", f.Email || pmVal("pmEmail"));
               pmSetVal("pmStreet", f.Street || "");
               pmSetVal("pmCity", f.City || "");
@@ -720,10 +720,22 @@
               return;
             }
             pmCurrent.playerId = j.id;
+            // Re-populate the form from the server's response so what you see IS
+            // what saved (surfaces any silent field drop from Airtable).
+            var savedF = j.fields || {};
+            pmSetVal("pmPhone", formatPhone(savedF.Phone || ""));
+            pmSetVal("pmEmail", savedF.Email || "");
+            pmSetVal("pmStreet", savedF.Street || "");
+            pmSetVal("pmCity", savedF.City || "");
+            pmSetVal("pmState", savedF.State || "");
+            pmSetVal("pmZip", savedF.Zip || "");
+            pmSetVal("pmNotes", savedF.Notes || "");
+            var memEl = document.getElementById("pmMember"); if (memEl) memEl.checked = !!savedF.Member;
             if (status) { status.textContent = "Saved ✓"; status.className = "pm-status is-ok"; }
             // Link the signup to this Player + reflect renamed name back on the roster.
             var link = { id: pmCurrent.signupId, playerId: j.id };
             if (pmCurrent.role === "p1") link.playerName = name;
+            else if (pmCurrent.role === "p2") link.teamPartners = name;
             fetch(FH_API.url("/api/tournament-checkin"), {
               method: "POST",
               headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
@@ -731,10 +743,21 @@
             })
               .then(function () { loadRoster(); })
               .catch(function () { loadRoster(); })
-              .finally(function () { setTimeout(closePlayerCard, 400); });
+              .finally(function () { setTimeout(closePlayerCard, 500); });
           })
           .catch(function () { if (status) { status.textContent = "Network error."; status.className = "pm-status is-error"; } });
       }
+
+      // "9705551234" -> "(970) 555-1234"; partial input renders progressively.
+      function formatPhone(v) {
+        var d = String(v || "").replace(/\D+/g, "").slice(0, 10);
+        if (!d.length) return "";
+        if (d.length < 4) return "(" + d;
+        if (d.length < 7) return "(" + d.slice(0, 3) + ") " + d.slice(3);
+        return "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6);
+      }
+      function formatState(v) { return String(v || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2); }
+      function formatZip(v) { return String(v || "").replace(/[^\d-]/g, "").slice(0, 10); }
 
       // Modal wiring (once at boot).
       (function wirePlayerModal() {
@@ -747,6 +770,13 @@
         if (saveBtn) saveBtn.addEventListener("click", savePlayerCard);
         if (modal) modal.addEventListener("click", function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute("data-close") === "1") closePlayerCard(); });
         document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal && !modal.hidden) closePlayerCard(); });
+        // Live input formatters — force phone into (XXX) XXX-XXXX, State to 2 caps, Zip to digits.
+        var phEl = document.getElementById("pmPhone");
+        if (phEl) phEl.addEventListener("input", function () { phEl.value = formatPhone(phEl.value); });
+        var stEl = document.getElementById("pmState");
+        if (stEl) stEl.addEventListener("input", function () { stEl.value = formatState(stEl.value); });
+        var zpEl = document.getElementById("pmZip");
+        if (zpEl) zpEl.addEventListener("input", function () { zpEl.value = formatZip(zpEl.value); });
       })();
 
       // ---- Hole-by-hole scoring (18 holes = two loops of the nine) ----
