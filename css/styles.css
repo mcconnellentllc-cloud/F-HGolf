@@ -941,6 +941,46 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .pr-team--empty { background: transparent; border: 1px dashed var(--line); color: var(--muted); font-style: italic; font-size: 0.82rem; font-weight: 400; cursor: default; }
 .pr-team--empty:hover { background: transparent; border-color: var(--line); }
 
+/* Toolbar for the Pairings header (Print controls + Refresh) */
+.noms__bar-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.pr-print-which { padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.88rem; background: #fff; }
+
+/* Print styles — triggered by JS toggling body.is-print-both / am / pm.
+   Everything outside the tee sheet is hidden. Big fonts, clean borders,
+   forced page break between waves for front/back duplex printing. */
+@media print {
+  body.is-print-both, body.is-print-am, body.is-print-pm { background: #fff !important; }
+  body.is-print-both > *:not(.site-container), body.is-print-am > *:not(.site-container), body.is-print-pm > *:not(.site-container) { display: none !important; }
+  body[class*="is-print-"] .site-header, body[class*="is-print-"] .site-footer,
+  body[class*="is-print-"] .hero, body[class*="is-print-"] .wb-tabs,
+  body[class*="is-print-"] .wb-sheet:not([data-sheet="pairings"]),
+  body[class*="is-print-"] .noms__bar, body[class*="is-print-"] .checkin-add__row,
+  body[class*="is-print-"] .scaffold__desc, body[class*="is-print-"] .pr-cfg,
+  body[class*="is-print-"] .pr-pool, body[class*="is-print-"] .pm-modal { display: none !important; }
+  body[class*="is-print-"] .wb-sheet[data-sheet="pairings"] { display: block !important; visibility: visible !important; }
+  body[class*="is-print-"] #prBoard { padding: 0; margin: 0; }
+
+  /* Hide the opposite wave when printing a single wave. */
+  body.is-print-am .pr-wave-block[data-wave="1 PM"] { display: none !important; }
+  body.is-print-pm .pr-wave-block[data-wave="8 AM"] { display: none !important; }
+
+  /* Both-waves layout: AM on page 1, PM on page 2 (front/back if duplex). */
+  body.is-print-both .pr-wave-block[data-wave="8 AM"] { page-break-after: always; }
+
+  /* Big, legible print typography. */
+  body[class*="is-print-"] .pr-wave-block { margin: 0 0 0.5rem 0; }
+  body[class*="is-print-"] .pr-wave-block__title { font-size: 22pt; font-weight: 800; text-align: center; border-bottom: 3pt solid #000; padding-bottom: 6pt; margin-bottom: 10pt; color: #000; }
+  body[class*="is-print-"] .pr-wave-block__title span { font-size: 14pt; color: #333; }
+  body[class*="is-print-"] .pr-teegrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8pt; }
+  body[class*="is-print-"] .pr-tee { border: 2pt solid #000 !important; border-radius: 4pt; overflow: hidden; page-break-inside: avoid; background: #fff !important; box-shadow: none !important; }
+  body[class*="is-print-"] .pr-tee__hd { background: #000 !important; color: #fff !important; padding: 4pt 6pt; font-size: 13pt; font-weight: 800; text-align: center; letter-spacing: 0.05em; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body[class*="is-print-"] .pr-tee__seats { padding: 6pt 8pt; gap: 4pt; }
+  body[class*="is-print-"] .pr-team { padding: 4pt 4pt; background: transparent !important; border: none !important; font-size: 12pt; font-weight: 700; text-align: center; color: #000 !important; }
+  body[class*="is-print-"] .pr-tee__amp { font-size: 13pt; color: #000; font-weight: 800; padding: 0; }
+  body[class*="is-print-"] .pr-team--empty { display: none !important; }
+  @page { margin: 0.5in; size: portrait; }
+}
+
 /* Alternates (standby, not in the active field) */
 .ci-badge--alt { background: var(--red); }
 .ci-card.is-alt { border-left: 4px solid var(--red); opacity: 0.9; }
