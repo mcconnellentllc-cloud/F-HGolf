@@ -62,8 +62,10 @@
           <button type="button" class="wb-tab" data-sheet="check" role="tab">Check-In</button>
           <button type="button" class="wb-tab" data-sheet="pairings" role="tab">Pairings</button>
           <button type="button" class="wb-tab" data-sheet="scores" role="tab">Scores</button>
-          <button type="button" class="wb-tab" data-sheet="flights" role="tab">Flights &amp; Leaderboard</button>
+          <button type="button" class="wb-tab" data-sheet="flights" role="tab">Flights</button>
+          <button type="button" class="wb-tab" data-sheet="leaderboard" role="tab">Leaderboard</button>
           <button type="button" class="wb-tab" data-sheet="calcutta" role="tab">Calcutta</button>
+          <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
           <button type="button" class="wb-tab" data-sheet="calc" role="tab">Calc</button>
         </div>
@@ -189,10 +191,10 @@
           <div id="caBody"><p class="noms__msg">Loading…</p></div>
         </section>
 
-        <!-- Flighting + Leaderboard -->
-        <section class="noms wb-sheet" data-sheet="flights" id="twBoard" aria-label="Leaderboard" hidden>
+        <!-- Flights — cut setup + Save flights (no full standings; see Leaderboard tab) -->
+        <section class="noms wb-sheet" data-sheet="flights" id="twBoard" aria-label="Flights" hidden>
           <div class="noms__bar">
-            <h3 class="noms__title">Flights &amp; Leaderboard</h3>
+            <h3 class="noms__title">Flights</h3>
             <div class="noms__bar-actions">
               <button class="btn btn--primary" type="button" id="lbPrint">Print now</button>
             </div>
@@ -216,6 +218,30 @@
           </details>
 
           <div id="lbBody"><p class="noms__msg">Loading…</p></div>
+        </section>
+
+        <!-- Leaderboard — full standings + winner flags -->
+        <section class="noms wb-sheet" data-sheet="leaderboard" id="twLeaderboard" aria-label="Leaderboard" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Leaderboard</h3>
+            <div class="noms__bar-actions">
+              <button class="btn btn--primary" type="button" id="lbdPrint">Print now</button>
+            </div>
+          </div>
+          <p class="scaffold__desc">Day 1 + Day 2 gross, handicap, net. Flight winners (top-3 gross) and Calcutta winners (top-4 net) are flagged, with ties handled properly.</p>
+          <div id="lbdBody"><p class="noms__msg">Loading…</p></div>
+        </section>
+
+        <!-- Payout — clean list of checks to write -->
+        <section class="noms wb-sheet" data-sheet="payout" id="twPayout" aria-label="Payout" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Payout</h3>
+            <div class="noms__bar-actions">
+              <button class="btn btn--primary" type="button" id="poPrint">Print now</button>
+            </div>
+          </div>
+          <p class="scaffold__desc">Every check to write, computed from Flights + Calcutta. Prize totals come from the Calc tab. Ties get split evenly. Total at the bottom.</p>
+          <div id="poBody"><p class="noms__msg">Loading…</p></div>
         </section>
 
       </div>
@@ -1161,7 +1187,7 @@
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderCalcutta(res.j.records); renderPairings(res.j.records); }
+            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderLeaderboard(res.j.records); renderCalcutta(res.j.records); renderPayout(res.j.records); renderPairings(res.j.records); }
             else if (res.status === 401) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
             else { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
           })
@@ -1908,6 +1934,236 @@
         });
       }
 
+      // ---- Leaderboard + Payout: shared per-team computation ----
+      // Returns { flights:[{num,name,leader,rows:[{name,d1,d2,gross,hcp,net,buyer,buyAmount,grossPlace,netPlace}]}], unassigned:[...] }
+      function computeLeaderboardData(recs, cfg) {
+        var mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
+        var sortedScores = recs.map(d1g).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
+        var cuts = loadCuts(nF, sortedScores);
+        var flights = [];
+        for (var i = 1; i <= nF; i++) flights.push({ num: i, name: flightName(i), leader: null, rows: [] });
+        var unassigned = [];
+        recs.forEach(function (r) {
+          var f = r.fields || {};
+          var d1 = d1g(r), d2 = d2g(r);
+          var row = {
+            id: r.id, rec: r,
+            name: teamShortNames(f),
+            d1: d1, d2: d2,
+            gross: (d1 != null || d2 != null) ? ((d1 == null ? 0 : d1) + (d2 == null ? 0 : d2)) : null,
+            hcp: null, net: null,
+            grossPlace: null, netPlace: null,
+            buyer: f.Buyer || "",
+            buyAmount: (typeof f["Buy Amount"] === "number") ? f["Buy Amount"] : 0
+          };
+          if (d1 != null && sortedScores.length) {
+            var fnum = flightForScore(d1, cuts);
+            flights[fnum - 1].rows.push(row);
+          } else {
+            unassigned.push(row);
+          }
+        });
+        // For each flight: leader D1 = min D1 among that flight's teams.
+        flights.forEach(function (fl) {
+          var leader = null;
+          fl.rows.forEach(function (r) { if (r.d1 != null && (leader == null || r.d1 < leader)) leader = r.d1; });
+          fl.leader = leader;
+          fl.rows.forEach(function (row) {
+            if (row.d1 != null && leader != null) {
+              row.hcp = Math.floor((row.d1 - leader) * mult);
+              if (row.d2 != null) row.net = row.d2 - row.hcp;
+            }
+          });
+          // Place by 2-day gross (ascending), ties get same place, next place skips.
+          rankPlaces(fl.rows, "gross", "grossPlace");
+          // Place by net (ascending) — Calcutta ranks.
+          rankPlaces(fl.rows, "net", "netPlace");
+          // Display sort: lowest gross first, nulls at the bottom.
+          fl.rows.sort(function (a, b) { return (a.gross == null ? 1e9 : a.gross) - (b.gross == null ? 1e9 : b.gross); });
+        });
+        return { flights: flights, unassigned: unassigned, cuts: cuts, sortedScores: sortedScores };
+      }
+
+      // Assign p.place = 1 for lowest key, ties share a place; next rank skips over ties.
+      function rankPlaces(rows, key, outField) {
+        var scored = rows.slice().filter(function (r) { return r[key] != null; }).sort(function (a, b) { return a[key] - b[key]; });
+        var rank = 1, i = 0;
+        while (i < scored.length) {
+          var val = scored[i][key], tied = [];
+          while (i < scored.length && scored[i][key] === val) { tied.push(scored[i]); i++; }
+          tied.forEach(function (t) { t[outField] = rank; });
+          rank += tied.length;
+        }
+      }
+
+      // ---- Leaderboard tab (full standings + winner flags) ----
+      function renderLeaderboard(all) {
+        var body = document.getElementById("lbdBody"); if (!body) return;
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        if (!recs.length) { body.innerHTML = '<p class="noms__msg">No teams yet.</p>'; return; }
+        var cfg = loadCalc();
+        var data = computeLeaderboardData(recs, cfg);
+        var nFlightPrizes = (cfg.flightSplit || [50, 30, 20]).length; // usually 3
+        var nCalcuttaPrizes = (cfg.calcuttaSplit || [40, 30, 20, 10]).length; // usually 4
+
+        // Top summary strip (matches Flights strip).
+        var stripHtml = '';
+        if (data.sortedScores.length) {
+          stripHtml = '<div class="lb-strip">' + data.flights.map(function (fl) {
+            var scores = fl.rows.map(function (r) { return r.d1; }).filter(function (v) { return v != null; });
+            var lo = scores.length ? Math.min.apply(null, scores) : null;
+            var hi = scores.length ? Math.max.apply(null, scores) : null;
+            var rng = scores.length ? (lo === hi ? String(lo) : lo + "&ndash;" + hi) : "empty";
+            return '<span class="lb-strip__flight"><b>' + esc(fl.name) + '</b> ' + fl.rows.length + ' teams <span class="lb-strip__range">(' + rng + ')</span></span>';
+          }).join('<span class="lb-strip__sep">&middot;</span>') + '</div>';
+        }
+
+        var out = data.flights.map(function (fl) {
+          if (!fl.rows.length) return "";
+          var trs = fl.rows.map(function (row) {
+            var flags = [];
+            if (row.grossPlace && row.grossPlace <= nFlightPrizes) {
+              // Detect tie by counting rows at same gross place.
+              var ties = fl.rows.filter(function (r) { return r.grossPlace === row.grossPlace; }).length;
+              flags.push('<span class="lbd-flag lbd-flag--gross" title="Flight winner (gross)">' + (ties > 1 ? "T" : "") + ordinal(row.grossPlace) + " Gross</span>");
+            }
+            if (row.netPlace && row.netPlace <= nCalcuttaPrizes) {
+              var netTies = fl.rows.filter(function (r) { return r.netPlace === row.netPlace; }).length;
+              flags.push('<span class="lbd-flag lbd-flag--calc" title="Calcutta winner (net)">' + (netTies > 1 ? "T" : "") + ordinal(row.netPlace) + " Calcutta</span>");
+            }
+            return "<tr>"
+              + '<td class="lbd-name">' + esc(row.name) + (flags.length ? ' <span class="lbd-flags">' + flags.join(" ") + '</span>' : '') + "</td>"
+              + "<td>" + (row.d1 == null ? "—" : row.d1) + "</td>"
+              + "<td>" + (row.d2 == null ? "—" : row.d2) + "</td>"
+              + "<td><b>" + (row.gross == null ? "—" : row.gross) + "</b></td>"
+              + "<td>" + (row.hcp == null ? "—" : row.hcp) + "</td>"
+              + "<td><b>" + (row.net == null ? "—" : row.net) + "</b></td>"
+              + "</tr>";
+          }).join("");
+          return '<div class="lb-flight lbd-flight">'
+            + '<h4 class="lb-flight__title">' + esc(fl.name) + ' Flight <span class="lb-flight__count">' + fl.rows.length + ' teams' + (fl.leader != null ? ', leader ' + fl.leader : '') + '</span></h4>'
+            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + trs + '</tbody></table></div></div>';
+        }).join("");
+        var unHtml = "";
+        if (data.unassigned.length) {
+          var unTrs = data.unassigned.map(function (row) {
+            return "<tr><td>" + esc(row.name) + "</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";
+          }).join("");
+          unHtml = '<div class="lb-flight"><h4 class="lb-flight__title">Unassigned <span class="lb-flight__count">' + data.unassigned.length + ' teams (no Day-1 score yet)</span></h4>'
+            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + unTrs + '</tbody></table></div></div>';
+        }
+        body.innerHTML = stripHtml + (out || '<p class="noms__msg">No Day-1 scores yet — enter scores on the Scores tab.</p>') + unHtml;
+      }
+
+      function ordinal(n) {
+        if (n === 1) return "1st"; if (n === 2) return "2nd"; if (n === 3) return "3rd";
+        return n + "th";
+      }
+
+      // ---- Payout tab (checks to write) ----
+      function renderPayout(all) {
+        var body = document.getElementById("poBody"); if (!body) return;
+        var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        if (!recs.length) { body.innerHTML = '<p class="noms__msg">No teams yet.</p>'; return; }
+        var cfg = loadCalc();
+        var data = computeLeaderboardData(recs, cfg);
+        var flightSplit = cfg.flightSplit || [50, 30, 20];
+        var calSplit = cfg.calcuttaSplit || [40, 30, 20, 10];
+        var comm = (cfg.calcuttaCommission || 0) / 100;
+        var perPP = (cfg.entryPP || 0) - (cfg.greenFeePP || 0) - (cfg.mealPP || 0) - (cfg.otherPP || 0);
+        var players = recs.length * 2;
+        var totalPrizePool = perPP * players;
+        var nF = data.flights.length || 1;
+        // Prize per place per flight = pool × (pct/100) ÷ #flights, plus additional
+        // spread (add ÷ flights ÷ #places).
+        var addPerFlight = (cfg.additionalFlight || 0) / nF;
+        var flightPrizes = flightSplit.map(function (pct) {
+          return (totalPrizePool * (pct / 100) / nF) + (addPerFlight / flightSplit.length);
+        });
+
+        var flightPayouts = [];   // { recipient, amount, flight, place, teamName, note }
+        var calPayouts = [];
+
+        data.flights.forEach(function (fl) {
+          // ---- Flight winnings (by 2-day gross) ----
+          var byPlace = {};
+          fl.rows.forEach(function (r) { if (r.grossPlace && r.grossPlace <= flightSplit.length) (byPlace[r.grossPlace] = byPlace[r.grossPlace] || []).push(r); });
+          Object.keys(byPlace).forEach(function (p) {
+            var place = Number(p), teams = byPlace[p];
+            var combined = 0;
+            for (var i = 0; i < teams.length; i++) {
+              var rank = place - 1 + i;
+              if (rank < flightPrizes.length) combined += flightPrizes[rank];
+            }
+            var each = combined / teams.length;
+            teams.forEach(function (t) {
+              flightPayouts.push({
+                recipient: t.name, teamName: t.name, amount: each,
+                flight: fl.name, place: place, tied: teams.length > 1,
+                note: fl.name + " Flight — " + ordinal(place) + " place gross" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
+              });
+            });
+          });
+
+          // ---- Calcutta payouts (by net, top-4) ----
+          var caPool = fl.rows.reduce(function (s, r) { return s + (r.buyAmount || 0); }, 0);
+          var caPayout = Math.max(0, caPool * (1 - comm));
+          var caPrizes = calSplit.map(function (pct) { return caPayout * (pct / 100); });
+          var byNet = {};
+          fl.rows.forEach(function (r) { if (r.netPlace && r.netPlace <= calSplit.length) (byNet[r.netPlace] = byNet[r.netPlace] || []).push(r); });
+          Object.keys(byNet).forEach(function (p) {
+            var place = Number(p), teams = byNet[p];
+            var combined = 0;
+            for (var i = 0; i < teams.length; i++) {
+              var rank = place - 1 + i;
+              if (rank < caPrizes.length) combined += caPrizes[rank];
+            }
+            var each = combined / teams.length;
+            teams.forEach(function (t) {
+              calPayouts.push({
+                recipient: (t.buyer && t.buyer.trim()) || "(no buyer)",
+                teamName: t.name, amount: each,
+                flight: fl.name, place: place, tied: teams.length > 1,
+                note: fl.name + " Flight Calcutta — " + ordinal(place) + " net (team " + t.name + ")" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
+              });
+            });
+          });
+        });
+
+        function renderPayoutTable(list, kind) {
+          if (!list.length) return '<p class="noms__msg">Nothing to pay in this category yet.</p>';
+          var trs = list.map(function (p) {
+            return "<tr>"
+              + "<td>" + esc(p.recipient) + (p.recipient === "(no buyer)" ? ' <span class="po-warn">no buyer set</span>' : "") + "</td>"
+              + "<td>" + esc(p.teamName) + "</td>"
+              + "<td>" + esc(p.note) + "</td>"
+              + "<td class=\"po-tbl__amt\"><b>" + money(p.amount) + "</b></td>"
+              + "</tr>";
+          }).join("");
+          var total = list.reduce(function (s, p) { return s + p.amount; }, 0);
+          return '<div class="table-scroll"><table class="po-tbl"><thead><tr><th>Recipient (check to)</th><th>Team</th><th>Reason</th><th>Amount</th></tr></thead><tbody>'
+            + trs
+            + '<tr class="po-tbl__total"><td colspan="3">' + esc(kind) + ' subtotal</td><td>' + money(total) + '</td></tr>'
+            + '</tbody></table></div>';
+        }
+
+        // Header summary — prize pool math at a glance.
+        var summary = '<div class="po-summary">'
+          + '<div><span>Total prize pool</span><b>' + money(totalPrizePool) + '</b></div>'
+          + '<div><span>Per player contribution</span><b>' + money(perPP) + '</b></div>'
+          + '<div><span>Players</span><b>' + players + '</b></div>'
+          + '<div><span>Flights</span><b>' + nF + '</b></div>'
+          + '</div>';
+
+        var grand = flightPayouts.reduce(function (s, p) { return s + p.amount; }, 0) + calPayouts.reduce(function (s, p) { return s + p.amount; }, 0);
+        body.innerHTML = summary
+          + '<h4 class="po-hdr">Flight winnings (by 2-day gross)</h4>' + renderPayoutTable(flightPayouts, "Flight winnings")
+          + '<h4 class="po-hdr">Calcutta payouts (by net, top-' + calSplit.length + ')</h4>' + renderPayoutTable(calPayouts, "Calcutta")
+          + '<div class="po-grand">Grand total to pay out: <b>' + money(grand) + '</b></div>';
+      }
+
       // Bump the flight count up or down (min 1, max 8), persist via loadCalc/saveCalc,
       // then re-render so the sliders + standings pick up the new count immediately.
       function bumpFlights(delta) {
@@ -2073,6 +2329,22 @@
         if (caPr) caPr.addEventListener("click", function () {
           document.body.classList.add("is-print-ca");
           function cleanup() { document.body.classList.remove("is-print-ca"); window.removeEventListener("afterprint", cleanup); }
+          window.addEventListener("afterprint", cleanup);
+          setTimeout(function () { window.print(); }, 30);
+          setTimeout(cleanup, 2000);
+        });
+        var lbdPr = document.getElementById("lbdPrint");
+        if (lbdPr) lbdPr.addEventListener("click", function () {
+          document.body.classList.add("is-print-lbd");
+          function cleanup() { document.body.classList.remove("is-print-lbd"); window.removeEventListener("afterprint", cleanup); }
+          window.addEventListener("afterprint", cleanup);
+          setTimeout(function () { window.print(); }, 30);
+          setTimeout(cleanup, 2000);
+        });
+        var poPr = document.getElementById("poPrint");
+        if (poPr) poPr.addEventListener("click", function () {
+          document.body.classList.add("is-print-po");
+          function cleanup() { document.body.classList.remove("is-print-po"); window.removeEventListener("afterprint", cleanup); }
           window.addEventListener("afterprint", cleanup);
           setTimeout(function () { window.print(); }, 30);
           setTimeout(cleanup, 2000);
