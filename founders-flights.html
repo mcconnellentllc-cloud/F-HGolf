@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2026 Founders — Day 1 Flights</title>
+  <meta name="description" content="Day 1 flight assignments for the F&H Golf Founders Tournament." />
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <meta name="theme-color" content="#0b1a10" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700;800&family=Source+Sans+3:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b1a10;
+      --bg-2: #12261a;
+      --panel: rgba(255,255,255,0.06);
+      --line: rgba(255,255,255,0.14);
+      --gold: #f5c542;
+      --green: #3fbc6b;
+      --ink: #f6f9f4;
+      --muted: rgba(246,249,244,0.62);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; min-height: 100vh; }
+    body { background: radial-gradient(ellipse at top, var(--bg-2) 0%, var(--bg) 60%); }
+
+    .disp { min-height: 100vh; display: flex; flex-direction: column; }
+    .disp__hero { text-align: center; padding: clamp(0.75rem, 2vw, 1.5rem) 1rem 0.5rem; position: relative; }
+    .disp__eyebrow { text-transform: uppercase; letter-spacing: 0.35em; color: var(--gold); font-weight: 700; font-size: clamp(0.75rem, 1.2vw, 0.95rem); }
+    .disp__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(2.4rem, 6vw, 5.2rem); margin: 0.15em 0 0.05em; line-height: 1; }
+    .disp__sub { color: var(--muted); font-size: clamp(1rem, 1.6vw, 1.3rem); margin: 0; }
+    .disp__print { position: absolute; top: 1rem; right: 1rem; background: #fff; color: #0b1a10; border: none; border-radius: 999px; padding: 0.5rem 1.1rem; font-family: inherit; font-weight: 700; cursor: pointer; }
+    .disp__print:hover { background: var(--gold); }
+
+    .disp__body { flex: 1; padding: clamp(0.5rem, 1.4vw, 1rem) clamp(0.8rem, 2vw, 1.6rem) 3rem; display: grid; gap: clamp(0.6rem, 1.5vw, 1.2rem); grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr)); }
+
+    .fl { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: clamp(0.7rem, 1.3vw, 1rem); }
+    .fl__hdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.6rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--line); }
+    .fl__name { font-family: "Fraunces", Georgia, serif; font-weight: 700; margin: 0; font-size: clamp(1.3rem, 2vw, 1.9rem); }
+    .fl__meta { color: var(--muted); font-size: clamp(0.85rem, 1.05vw, 1rem); }
+    .fl table { width: 100%; border-collapse: collapse; font-size: clamp(0.9rem, 1.15vw, 1.05rem); }
+    .fl th { text-align: left; font-size: clamp(0.7rem, 0.9vw, 0.8rem); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--line); }
+    .fl td { padding: 0.4rem 0.4rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .fl th:not(:first-child), .fl td:not(:first-child) { text-align: center; }
+    .fl tr:last-child td { border-bottom: none; }
+    .fl td b { color: var(--gold); }
+    .fl__team { font-weight: 700; }
+    .fl__tnum { display: inline-block; background: rgba(255,255,255,0.9); color: #0b1a10; font-weight: 800; padding: 0.05rem 0.35rem; border-radius: 4px; font-size: 0.75em; letter-spacing: 0.04em; margin-right: 0.4rem; vertical-align: middle; }
+
+    .disp__empty-msg { text-align: center; color: var(--muted); padding: 3rem 1rem; font-style: italic; grid-column: 1 / -1; }
+    .disp__foot { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0.6rem 1rem 1.2rem; letter-spacing: 0.08em; }
+    .disp__foot .live-dot { display: inline-block; width: 0.55rem; height: 0.55rem; background: var(--green); border-radius: 50%; margin-right: 0.35rem; vertical-align: middle; animation: pulse 1.8s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+    /* Print — clean B&W, one flight per page. */
+    @media print {
+      @page { size: letter portrait; margin: 0.4in; }
+      html, body { background: #fff !important; color: #000 !important; }
+      .disp__hero { padding: 0 0 8pt; }
+      .disp__eyebrow { color: #666; }
+      .disp__title { color: #000; font-size: 24pt; }
+      .disp__sub { color: #444; }
+      .disp__print, .disp__foot { display: none !important; }
+      .disp__body { padding: 0; grid-template-columns: 1fr; gap: 0; }
+      .fl { background: transparent !important; border: none !important; padding: 0; page-break-after: always; page-break-inside: avoid; margin: 0; }
+      .fl:last-child { page-break-after: auto; }
+      .fl__hdr { border-bottom: 2pt solid #000; }
+      .fl__name { color: #000; font-size: 18pt; }
+      .fl__meta { color: #333; }
+      .fl th { color: #000; border-bottom: 1.5pt solid #000; }
+      .fl td { border-bottom: 1pt solid #999; }
+      .fl td b { color: #000; }
+      .fl__team, .fl__tnum { color: #000 !important; }
+      .fl__tnum { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <main class="disp" role="main">
+    <header class="disp__hero">
+      <div class="disp__eyebrow">Day 1 Flights</div>
+      <h1 class="disp__title">2026 Founders</h1>
+      <p class="disp__sub">F&amp;H Golf Course · Aug 8&ndash;9</p>
+      <button type="button" class="disp__print" id="printBtn">Print</button>
+    </header>
+    <section class="disp__body" id="dispBody">
+      <p class="disp__empty-msg">Loading flights&hellip;</p>
+    </section>
+    <footer class="disp__foot"><span class="live-dot"></span><span id="dispLast">Loading&hellip;</span></footer>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    (function () {
+      var KEY = "Founder's Tournament (Aug 8–9)";
+      var FLIGHT_NAMES = { 1: "Champ", 2: "First", 3: "Second", 4: "Third" };
+      var REFRESH_MS = 30000;
+      var HCP_MULT = 0.8;
+
+      function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+      function teamShortNames(f) {
+        function shrt(n) { n = String(n || "").trim(); if (!n) return ""; var parts = n.split(/\s+/); if (parts.length === 1) return parts[0]; return parts[0].charAt(0).toUpperCase() + ". " + parts[parts.length - 1]; }
+        var p1 = shrt(f["Player Name"]);
+        var partners = String(f["Team / Partners"] || "").split(/\s*[\/,&]\s*|\s+and\s+/i).map(shrt).filter(Boolean);
+        return [p1].concat(partners).filter(Boolean).join(" / ");
+      }
+      function computeTeamNumbers(recs) {
+        var out = {};
+        ["8 AM", "1 PM"].forEach(function (w) {
+          var arr = recs.filter(function (r) { var f = r.fields || {}; return (f.Start || "") === w && !(f.Alternate === true || String(f.Alternate) === "true"); }).sort(function (a, b) { return String(a.created || "").localeCompare(String(b.created || "")); });
+          arr.forEach(function (r, i) { out[r.id] = i + 1; });
+        });
+        return out;
+      }
+      function parseScores(str) { try { var a = JSON.parse(str); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+      function d1g(r) { var f = r.fields || {}; return (f["Day1 Scores"] && typeof f["Day1 Gross"] === "number") ? f["Day1 Gross"] : null; }
+      function frontBack(r) {
+        var sc = parseScores((r.fields || {})["Day1 Scores"]);
+        var f = 0, b = 0, fOk = true, bOk = true;
+        for (var i = 0; i < 9; i++) { if (typeof sc[i] === "number") f += sc[i]; else fOk = false; }
+        for (var j = 9; j < 18; j++) { if (typeof sc[j] === "number") b += sc[j]; else bOk = false; }
+        return { front: fOk ? f : null, back: bOk ? b : null };
+      }
+
+      function fetchAll() { return fetch(FH_API.url("/api/tournament-signups"), { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) { if (!j || !j.ok) throw new Error(j && j.error || "Load failed"); return j.records || []; }); }
+
+      function render(records) {
+        var recs = records.filter(function (r) { var f = r.fields || {}; if (f.Tournament !== KEY) return false; if (f.Alternate === true || String(f.Alternate) === "true") return false; return true; });
+        var teamNumbers = computeTeamNumbers(recs);
+        var body = document.getElementById("dispBody");
+        if (!recs.length) { body.innerHTML = '<p class="disp__empty-msg">No teams yet.</p>'; return; }
+
+        var groups = {};
+        recs.forEach(function (r) { var fl = (r.fields || {}).Flight; var k = (fl != null && fl !== "") ? Number(fl) : 0; (groups[k] = groups[k] || []).push(r); });
+
+        var out = [1, 2, 3, 4].map(function (fl) {
+          var arr = groups[fl] || [];
+          if (!arr.length) return '<div class="fl"><div class="fl__hdr"><h2 class="fl__name">' + esc(FLIGHT_NAMES[fl]) + ' Flight</h2><span class="fl__meta">no teams yet</span></div></div>';
+          var leader = null;
+          arr.forEach(function (r) { var v = d1g(r); if (v != null && (leader == null || v < leader)) leader = v; });
+          var rows = arr.map(function (r) {
+            var f = r.fields || {};
+            var d1 = d1g(r);
+            var fb = frontBack(r);
+            var hcp = (d1 != null && leader != null) ? Math.floor((d1 - leader) * HCP_MULT) : null;
+            return { id: r.id, name: teamShortNames(f), tnum: teamNumbers[r.id] || null, front: fb.front, back: fb.back, d1: d1, hcp: hcp };
+          });
+          rows.sort(function (a, b) { if (a.d1 == null && b.d1 == null) return 0; if (a.d1 == null) return 1; if (b.d1 == null) return -1; return a.d1 - b.d1; });
+          var trs = rows.map(function (r) {
+            var badge = r.tnum ? '<span class="fl__tnum">T-' + String(r.tnum).padStart(2, "0") + '</span>' : '';
+            return '<tr><td class="fl__team">' + badge + esc(r.name) + '</td>'
+              + '<td>' + (r.front == null ? '&mdash;' : r.front) + '</td>'
+              + '<td>' + (r.back == null ? '&mdash;' : r.back) + '</td>'
+              + '<td><b>' + (r.d1 == null ? '&mdash;' : r.d1) + '</b></td>'
+              + '<td>' + (r.hcp == null ? '&mdash;' : r.hcp) + '</td></tr>';
+          }).join("");
+          var meta = arr.length + ' teams' + (leader != null ? ' · leader ' + leader : '');
+          return '<div class="fl"><div class="fl__hdr"><h2 class="fl__name">' + esc(FLIGHT_NAMES[fl]) + ' Flight</h2><span class="fl__meta">' + meta + '</span></div>'
+            + '<table><thead><tr><th>Team</th><th>Front 9</th><th>Back 9</th><th>Day 1</th><th>HCP</th></tr></thead><tbody>' + trs + '</tbody></table></div>';
+        }).join("");
+
+        var una = groups[0] || [];
+        if (una.length) {
+          una.sort(function (a, b) { return String(a.created || "").localeCompare(String(b.created || "")); });
+          var utrs = una.map(function (r) {
+            var tn = teamNumbers[r.id];
+            var badge = tn ? '<span class="fl__tnum">T-' + String(tn).padStart(2, "0") + '</span>' : '';
+            return '<tr><td class="fl__team">' + badge + esc(teamShortNames(r.fields || {})) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+          }).join("");
+          out += '<div class="fl"><div class="fl__hdr"><h2 class="fl__name">Unassigned</h2><span class="fl__meta">' + una.length + ' teams · flights not cut yet</span></div>'
+            + '<table><thead><tr><th>Team</th><th>Front 9</th><th>Back 9</th><th>Day 1</th><th>HCP</th></tr></thead><tbody>' + utrs + '</tbody></table></div>';
+        }
+
+        body.innerHTML = out;
+      }
+
+      function updateFooter() {
+        var t = new Date(); var hh = t.getHours(), mm = t.getMinutes();
+        var h12 = ((hh + 11) % 12) + 1; var ap = hh >= 12 ? "PM" : "AM";
+        document.getElementById("dispLast").textContent = "LIVE · Updated " + h12 + ":" + (mm < 10 ? "0" : "") + mm + " " + ap;
+      }
+      function refresh() { fetchAll().then(render).then(updateFooter).catch(function (e) { console.error("flights display fetch", e); document.getElementById("dispLast").textContent = "Connection lost — retrying…"; }); }
+      refresh(); setInterval(refresh, REFRESH_MS);
+      document.getElementById("printBtn").addEventListener("click", function () { window.print(); });
+    })();
+  </script>
+</body>
+</html>

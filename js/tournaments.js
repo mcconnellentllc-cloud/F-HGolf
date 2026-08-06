@@ -16,7 +16,16 @@
     "Junior Golf Camp (July 15–17)": { end: "2026-07-17", cap: 50, unit: "spots", team: 1, roles: ["Camper's name"], format: "junior camp, ages 6–13", fee: "$70" },
     "2-Lady Scramble (July 23)": { end: "2026-07-23", cap: 22, unit: "teams", team: 2, roles: ["Your name", "Partner's name"], format: "2-lady scramble" },
     "Haxtun Bulldog (July 25)": { end: "2026-07-25", cap: 22, unit: "teams", team: 4, format: "4-man (4 players per team)" },
-    "Founder's Tournament (Aug 8–9)": { end: "2026-08-09", cap: 64, unit: "teams", team: 2, format: "2-day 2-man scramble", note: "2-day tournament · 2 shotgun starts · Calcutta" },
+    "Founder's Tournament (Aug 8–9)": {
+      end: "2026-08-09", cap: 64, unit: "teams", team: 2,
+      format: "2-day 2-man scramble", note: "2-day tournament · 2 shotgun starts · Calcutta",
+      ctaLabel: "Enter the Founders",
+      links: [
+        { label: "Flights", href: "founders-flights.html" },
+        { label: "Calcutta", href: "founders-calcutta-display.html" },
+        { label: "Results", href: "founders-leaderboard-display.html" }
+      ]
+    },
     "Couple's Tournament (Aug 22)": { end: "2026-08-22", cap: 24, unit: "teams", team: 2, roles: ["Your name", "Partner's name"], format: "2-player couples (one entry = a team)" },
     "Haxtun Fire (Sept 19)": { end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble" },
     "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)" },
@@ -140,6 +149,18 @@
       + '<span class="schedule__pct">' + (full ? "Full" : (n + " of " + m.cap + " " + (m.unit || "spots") + " · " + pct + "% full")) + "</span></div>";
 
     var detail = metaLine(m);
+    var ctaLabel = m.ctaLabel || "Sign up for this tournament";
+    // Public-facing links tied to this tournament (Flights / Calcutta / Results
+    // etc.) — rendered as a small chip row when present.
+    var navHtml = "";
+    if (m.links && m.links.length) {
+      navHtml = '<nav class="nextup__nav" aria-label="Tournament links">'
+        + '<a class="nextup__nav-link" href="#signup" data-signup="1">Sign up</a>'
+        + m.links.map(function (l) {
+            return '<a class="nextup__nav-link" href="' + l.href + '"' + (l.newTab === false ? '' : ' target="_blank" rel="noopener"') + '>' + l.label + '</a>';
+          }).join("")
+        + '</nav>';
+    }
     card.innerHTML =
       '<span class="nextup__tag">Next Up</span>'
       + '<p class="nextup__date">' + info.date + "</p>"
@@ -147,11 +168,16 @@
       + (detail ? '<p class="nextup__detail">' + detail + "</p>" : "")
       + (m.note ? '<p class="nextup__note">' + m.note + "</p>" : "")
       + bar
-      + '<button type="button" class="btn btn--primary nextup__btn">Sign up for this tournament &rarr;</button>';
+      + navHtml
+      + '<button type="button" class="btn btn--primary nextup__btn">' + ctaLabel + ' &rarr;</button>';
     sect.hidden = false;
 
     var btn = card.querySelector(".nextup__btn");
     if (btn) btn.addEventListener("click", function () { goToSignup(key); });
+    // The "Sign up" chip inside the nav also routes through goToSignup so the
+    // form pre-selects this tournament.
+    var signChip = card.querySelector('.nextup__nav-link[data-signup="1"]');
+    if (signChip) signChip.addEventListener("click", function (e) { e.preventDefault(); goToSignup(key); });
   }
 
   // One teammate name field (optional). Player 1 is the static "Your name".
