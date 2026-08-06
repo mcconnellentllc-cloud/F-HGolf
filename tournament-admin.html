@@ -293,7 +293,11 @@
             <p class="disp-tab__hint">Anyone with this link can watch the auction from their phone. No admin key required.</p>
             <div class="disp-tab__qr" data-page="founders-calcutta-display.html">
               <img class="disp-tab__qr-img" alt="QR code — scan to open the live Calcutta display" />
-              <p class="disp-tab__qr-lbl"><b>Scan for the live auction</b><br /><small>Point your phone's camera at this code &mdash; opens the Calcutta display in your browser.</small></p>
+              <div class="disp-tab__qr-lbl">
+                <b>Scan for the live auction</b>
+                <span class="disp-tab__qr-url" data-page="founders-calcutta-display.html">fandhgolf.com/founders-calcutta-display.html</span>
+                <small>Point your phone's camera at this code, or type the URL above into any browser.</small>
+              </div>
             </div>
           </div>
         </section>
@@ -314,7 +318,11 @@
             <p class="disp-tab__hint">Share this link with anyone asking how the tournament is going.</p>
             <div class="disp-tab__qr" data-page="founders-leaderboard-display.html">
               <img class="disp-tab__qr-img" alt="QR code — scan to open the live leaderboard" />
-              <p class="disp-tab__qr-lbl"><b>Scan for the live leaderboard</b><br /><small>Point your phone's camera at this code.</small></p>
+              <div class="disp-tab__qr-lbl">
+                <b>Scan for the live leaderboard</b>
+                <span class="disp-tab__qr-url" data-page="founders-leaderboard-display.html">fandhgolf.com/founders-leaderboard-display.html</span>
+                <small>Point your phone's camera at this code, or type the URL above into any browser.</small>
+              </div>
             </div>
           </div>
         </section>
@@ -3640,21 +3648,37 @@
           Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__url"), function (inp) {
             if (!inp.value) inp.value = publicUrl(inp.getAttribute("data-page"));
           });
+          // Fill in the big readable URL text on every QR block so the URL
+          // is always available even if the QR image can't reach any
+          // external service. Then try to load a QR image with a cascade of
+          // fallback sources.
+          Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__qr-url"), function (span) {
+            if (!span.textContent || span.textContent.indexOf(location.host) === -1) {
+              span.textContent = publicUrl(span.getAttribute("data-page")).replace(/^https?:\/\//, "");
+            }
+          });
           Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__qr"), function (wrap) {
             var img = wrap.querySelector(".disp-tab__qr-img");
             if (!img || img.src) return;
             var url = publicUrl(wrap.getAttribute("data-page"));
-            // Local QR generation via the qrcode library — no external image
-            // dependency. Falls back to api.qrserver.com if the library
-            // hasn't loaded (e.g. offline / CSP block).
+            var encoded = encodeURIComponent(url);
+            var sources = [
+              "https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=8&data=" + encoded,
+              "https://quickchart.io/qr?text=" + encoded + "&size=380&margin=2",
+              "https://chart.googleapis.com/chart?cht=qr&chs=380x380&chl=" + encoded,
+            ];
+            // Preferred path: generate locally via the qrcode.js library.
             if (window.QRCode && typeof window.QRCode.toDataURL === "function") {
               window.QRCode.toDataURL(url, { width: 480, margin: 2, errorCorrectionLevel: "M" }).then(function (dataUri) {
                 img.src = dataUri;
-              }).catch(function () {
-                img.src = "https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=8&data=" + encodeURIComponent(url);
-              });
+              }).catch(function () { tryNext(0); });
             } else {
-              img.src = "https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=8&data=" + encodeURIComponent(url);
+              tryNext(0);
+            }
+            function tryNext(i) {
+              if (i >= sources.length) { img.remove(); return; } // no source worked; the URL text card is still visible
+              img.onerror = function () { tryNext(i + 1); };
+              img.src = sources[i];
             }
           });
           host.__mounted = true;
