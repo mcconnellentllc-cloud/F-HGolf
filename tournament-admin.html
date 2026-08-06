@@ -2221,7 +2221,7 @@
             if (row.grossPlace && row.grossPlace <= nFlightPrizes) {
               // Detect tie by counting rows at same gross place.
               var ties = fl.rows.filter(function (r) { return r.grossPlace === row.grossPlace; }).length;
-              flags.push('<span class="lbd-flag lbd-flag--gross" title="Flight winner (gross)">' + (ties > 1 ? "T" : "") + ordinal(row.grossPlace) + " Gross</span>");
+              flags.push('<span class="lbd-flag lbd-flag--gross" title="Flight winner (gross)">' + (ties > 1 ? "T" : "") + ordinal(row.grossPlace) + " Place</span>");
             }
             if (row.netPlace && row.netPlace <= nCalcuttaPrizes) {
               var netTies = fl.rows.filter(function (r) { return r.netPlace === row.netPlace; }).length;
