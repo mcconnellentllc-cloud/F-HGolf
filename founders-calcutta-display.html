@@ -135,10 +135,10 @@
         return [p1].concat(partners).filter(Boolean).join(" / ");
       }
       function computeTeamNumbers(recs) {
-        var out = {};
-        ["8 AM", "1 PM"].forEach(function (w) {
+        var out = {}; var n = 0;
+        ["8 AM", "1 PM", ""].forEach(function (w) {
           var arr = (recs || []).filter(function (r) { var f = r.fields || {}; return (f.Start || "") === w && !(f.Alternate === true || String(f.Alternate) === "true"); }).sort(function (a, b) { return String(a.created || "").localeCompare(String(b.created || "")); });
-          arr.forEach(function (r, i) { out[r.id] = i + 1; });
+          arr.forEach(function (r) { out[r.id] = ++n; });
         });
         return out;
       }
