@@ -2204,6 +2204,14 @@
 
         var out = data.flights.map(function (fl) {
           if (!fl.rows.length) return "";
+          // Sort each flight by 2-day gross ascending — lowest at top, highest
+          // at bottom. Teams missing D2 (gross == null) fall to the bottom.
+          fl.rows.sort(function (a, b) {
+            if (a.gross == null && b.gross == null) return 0;
+            if (a.gross == null) return 1;
+            if (b.gross == null) return -1;
+            return a.gross - b.gross;
+          });
           var trs = fl.rows.map(function (row) {
             var flags = [];
             if (row.grossPlace && row.grossPlace <= nFlightPrizes) {
