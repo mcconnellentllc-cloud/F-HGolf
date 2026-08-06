@@ -898,18 +898,55 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 
 /* Calculations tab (editable formula) */
 .calcform { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.2rem; margin-bottom: 1rem; }
-.calc__grp { background: var(--paper-2); border-radius: 10px; padding: 0.9rem 1rem; }
+.calc__grp { background: var(--paper-2); border-radius: 10px; padding: 0.9rem 1rem; margin-bottom: 0.9rem; }
 .calc__grp h4 { color: var(--primary-green); font-size: 1rem; margin-bottom: 0.5rem; }
 .calc__row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; font-size: 0.9rem; color: var(--ink); margin-bottom: 0.4rem; }
 .calc__in { width: 6rem; padding: 0.4rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; text-align: right; }
 .calc__par { text-align: center; }
 .calc__note { font-size: 0.78rem; color: var(--muted); font-style: italic; margin-top: 0.3rem; }
+.calc__warn { font-size: 0.82rem; color: var(--red-deep); margin: 0.4rem 0 0; }
+
+/* Field summary banner at the top of the Calc tab. */
+.calc__summary { background: linear-gradient(135deg, var(--primary-green) 0%, #0e4517 100%); color: #fff; border-radius: 12px; padding: 0.9rem 1rem; margin-bottom: 1rem; }
+.calc__sum-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.6rem; }
+.calc__sum-cell { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.1rem; }
+.calc__sum-cell b { font-family: var(--font-display); font-size: 1.6rem; line-height: 1; }
+.calc__sum-cell small { color: rgba(255,255,255,0.75); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.calc__sum-cell--good b { color: var(--gold, #f5c542); }
+
+/* Per-section running totals block. */
+.calc__totals { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 0.55rem 0.7rem; margin-bottom: 0.6rem; }
+.calc__tot-row { display: flex; flex-wrap: wrap; gap: 0.4rem 0.9rem; align-items: baseline; }
+.calc__tot { display: inline-flex; flex-direction: column; }
+.calc__tot small { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.calc__tot b { font-family: var(--font-display); font-size: 1.1rem; color: var(--ink); }
+.calc__tot--neg b { color: var(--red-deep); }
+.calc__tot--pool b { color: var(--primary-green); font-size: 1.25rem; }
+.calc__prizes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--line); }
+.calc__prize { display: inline-flex; flex-direction: column; align-items: center; background: var(--paper-2); border-radius: 8px; padding: 0.35rem 0.7rem; min-width: 4.6rem; }
+.calc__prize small { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.calc__prize b { font-family: var(--font-display); color: var(--primary-green); font-size: 1.05rem; }
 
 /* Expenses & P&L */
-.pl { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-bottom: 1rem; padding: 0.8rem 1rem; background: var(--paper-2); border-radius: 10px; }
-.pl__row { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.95rem; color: var(--muted); }
-.pl__row strong { color: var(--ink); font-size: 1.05rem; }
-.pl__row--net { margin-left: auto; }
+/* Tournament P&L on the $ Summary tab — sectioned income / payouts / revenue / expenses. */
+.pl { display: block; margin-bottom: 1.1rem; padding: 0; background: transparent; }
+.pl__meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.6rem; }
+.pl__meta b { color: var(--ink); }
+.pl__section { background: var(--paper-2); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 0.6rem; }
+.pl__section--in { border-left-color: var(--primary-green); }
+.pl__section--out { border-left-color: #b48000; }
+.pl__section--rev { border-left-color: #1B5E20; }
+.pl__section--exp { border-left-color: var(--red-deep); }
+.pl__hdr { color: var(--primary-green); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 0.5rem; }
+.pl__row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; padding: 0.32rem 0; font-size: 0.95rem; color: var(--ink); }
+.pl__row span { color: var(--muted); }
+.pl__row strong { color: var(--ink); font-family: var(--font-display); font-size: 1.05rem; min-width: 6rem; text-align: right; }
+.pl__row--sub { border-top: 1px dashed var(--line); margin-top: 0.35rem; padding-top: 0.55rem; font-weight: 700; }
+.pl__row--sub span { color: var(--ink); font-weight: 700; }
+.pl__row--sub strong { color: var(--primary-green); font-size: 1.15rem; }
+.pl__row--net { border: 2px solid var(--primary-green); background: #fff; border-radius: 10px; padding: 0.8rem 1.1rem; margin-top: 0.6rem; font-size: 1.1rem; font-weight: 800; }
+.pl__row--net span { color: var(--ink); }
+.pl__row--net strong { font-size: 1.5rem; }
 .pl__row--net strong.is-pos { color: var(--primary-green); }
 .pl__row--net strong.is-neg { color: var(--red-deep); }
 .exp__amt { font-weight: 700; color: var(--red-deep); }
