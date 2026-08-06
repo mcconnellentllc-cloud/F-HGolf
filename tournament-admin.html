@@ -896,8 +896,9 @@
           return '<tr data-id="' + esc(rec.id) + '"><td class="sc-tbl__team">' + esc(scTeamLabel(rec)) + '</td>' + cells + '</tr>';
         }).join("");
 
-        host.innerHTML = '<div class="sc-tbl-wrap"><table class="sc-tbl">' + head + '<tbody>' + body + '</tbody></table></div>'
-          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error.</p>';
+        host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /></div>'
+          + '<div class="sc-tbl-wrap"><table class="sc-tbl">' + head + '<tbody>' + body + '</tbody></table></div>'
+          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right.</p>';
 
         wireScoresGrid(host, day);
         Array.prototype.forEach.call(host.querySelectorAll("tr[data-id]"), function (row) {
@@ -905,8 +906,31 @@
         });
       }
 
+      // Focus the numeric input at (rowIdx, colIdx) in the currently-visible rows.
+      function scFocusCell(host, rowIdx, colIdx) {
+        var visRows = Array.prototype.filter.call(host.querySelectorAll("tbody tr[data-id]"), function (r) { return !r.hasAttribute("data-hidden"); });
+        var row = visRows[rowIdx]; if (!row) return;
+        var cell = row.querySelectorAll(".sc-cell")[colIdx]; if (!cell) return;
+        cell.focus(); try { cell.select(); } catch (e) {}
+      }
+
       function wireScoresGrid(host, day) {
+        // Row filter — hide rows whose team name doesn't match (case-insensitive substring).
+        var filt = host.querySelector("#scFilter");
+        if (filt) {
+          filt.addEventListener("input", function () {
+            var q = filt.value.trim().toLowerCase();
+            Array.prototype.forEach.call(host.querySelectorAll("tbody tr[data-id]"), function (tr) {
+              var nm = String(tr.querySelector(".sc-tbl__team").textContent || "").toLowerCase();
+              var hit = !q || nm.indexOf(q) !== -1;
+              tr.style.display = hit ? "" : "none";
+              if (hit) tr.removeAttribute("data-hidden"); else tr.setAttribute("data-hidden", "1");
+            });
+          });
+        }
+
         Array.prototype.forEach.call(host.querySelectorAll(".sc-cell"), function (inp) {
+          inp.addEventListener("focus", function () { try { inp.select(); } catch (e) {} });
           inp.addEventListener("input", function () {
             var row = inp.closest("tr");
             var id = row.getAttribute("data-id");
@@ -916,14 +940,20 @@
             if (scPendingSave[id + ":" + day]) clearTimeout(scPendingSave[id + ":" + day]);
             scPendingSave[id + ":" + day] = setTimeout(function () { saveScoreRow(row, day); }, 900);
           });
-          // Tab-friendly: Enter jumps to the next cell horizontally, then next row.
+          // Spreadsheet keys: Arrows move around; Enter = right; Tab = right (native).
+          // Up/Down override the number-input increment (a golfer doesn't want +1 on a scorecard).
           inp.addEventListener("keydown", function (e) {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              var cells = Array.prototype.slice.call(host.querySelectorAll(".sc-cell"));
-              var idx = cells.indexOf(inp);
-              var next = cells[idx + 1]; if (next) next.focus();
-            }
+            var row = inp.closest("tr");
+            var visRows = Array.prototype.filter.call(host.querySelectorAll("tbody tr[data-id]"), function (r) { return !r.hasAttribute("data-hidden"); });
+            var rowIdx = visRows.indexOf(row);
+            var rowCells = Array.prototype.slice.call(row.querySelectorAll(".sc-cell"));
+            var colIdx = rowCells.indexOf(inp);
+            var moved = false;
+            if (e.key === "Enter" || e.key === "ArrowRight") { scFocusCell(host, rowIdx, colIdx + 1); moved = true; }
+            else if (e.key === "ArrowLeft") { scFocusCell(host, rowIdx, colIdx - 1); moved = true; }
+            else if (e.key === "ArrowDown") { scFocusCell(host, rowIdx + 1, colIdx); moved = true; }
+            else if (e.key === "ArrowUp") { scFocusCell(host, rowIdx - 1, colIdx); moved = true; }
+            if (moved) e.preventDefault();
           });
         });
       }
