@@ -1015,6 +1015,20 @@
             if (j && j.ok) {
               row.classList.add("is-saved");
               setTimeout(function () { row.classList.remove("is-saved"); }, 1500);
+              // Update the in-memory cache so Leaderboard + Calcutta reflect this
+              // team's new gross immediately when the user switches tabs — no page
+              // reload needed. Deliberately not re-rendering the Scores grid to
+              // preserve keyboard focus during rapid entry.
+              var gross = vals.every(function (v) { return v != null; }) ? vals.reduce(function (a, v) { return a + v; }, 0) : null;
+              var rec = (scAllCache || []).find(function (r) { return r.id === id; });
+              if (rec && rec.fields) {
+                rec.fields["Day" + day + " Scores"] = JSON.stringify(vals);
+                if (gross != null) rec.fields["Day" + day + " Gross"] = gross;
+                else delete rec.fields["Day" + day + " Gross"];
+                // Re-run Leaderboard + Calcutta with the fresh cache so their
+                // sliders/pools/etc. update without a network round-trip.
+                try { renderBoard(scAllCache); renderCalcutta(scAllCache); } catch (e) {}
+              }
             } else {
               row.classList.add("is-error");
             }
@@ -1534,31 +1548,64 @@
       function teamName(r) { return (r.fields && r.fields["Player Name"]) || "(no name)"; }
 
       var CUTK = "fh_cuts_" + KEY, boardSorted = [];
-      function loadCuts(nF, total) {
+      // Score-based cuts. For N flights, cuts is an array of N-1 score
+      // thresholds. A team's Day-1 gross <= cuts[i] goes into flight i+1;
+      // above the last cut, it goes into the last flight.
+      // Sliders span [minScore, maxScore] across the actual Day-1 gross set.
+      function loadCuts(nF, sortedScores) {
         var cuts;
         try { cuts = JSON.parse(localStorage.getItem(CUTK) || "null"); } catch (e) {}
-        if (!cuts || cuts.length !== nF - 1) { cuts = []; for (var i = 1; i < nF; i++) cuts.push(Math.round(total * i / nF)); }
+        var needsDefault = !cuts || cuts.length !== nF - 1;
+        if (!needsDefault && sortedScores.length) {
+          var lo = sortedScores[0], hi = sortedScores[sortedScores.length - 1];
+          needsDefault = cuts.some(function (c) { return c < lo || c > hi; });
+        }
+        if (needsDefault) {
+          if (!sortedScores.length) { cuts = []; for (var k = 0; k < nF - 1; k++) cuts.push(0); }
+          else {
+            var mn = sortedScores[0], mx = sortedScores[sortedScores.length - 1];
+            cuts = [];
+            for (var i = 1; i < nF; i++) cuts.push(Math.round(mn + (mx - mn) * i / nF));
+          }
+        }
         return cuts;
       }
       function saveCuts(cuts) { try { localStorage.setItem(CUTK, JSON.stringify(cuts)); } catch (e) {} }
-      function flightForRank(rank0, cuts) { for (var i = 0; i < cuts.length; i++) { if (rank0 < cuts[i]) return i + 1; } return cuts.length + 1; }
+      function flightForScore(score, cuts) {
+        if (score == null) return null;
+        for (var i = 0; i < cuts.length; i++) { if (score <= cuts[i]) return i + 1; }
+        return cuts.length + 1;
+      }
 
-      function renderCutControls(sorted, nF, cuts) {
+      function renderCutControls(sortedScores, nF, cuts) {
         var box = document.getElementById("lbCutControls"); if (!box) return;
-        var total = sorted.length, html = "";
+        if (!sortedScores.length) {
+          box.innerHTML = '<p class="noms__msg">Enter Day-1 scores on the Scores tab first — the sliders use the actual score range.</p>';
+          return;
+        }
+        var mn = sortedScores[0], mx = sortedScores[sortedScores.length - 1];
+        var html = '<p class="lb-range__extent">Day-1 range: <b>' + mn + '</b> &rarr; <b>' + mx + '</b> (' + sortedScores.length + ' teams scored)</p>';
         for (var i = 0; i < nF - 1; i++) {
-          html += '<label class="lb-slider">' + flightName(i + 1) + ' ends after '
-            + '<input type="range" class="lb-range" data-i="' + i + '" min="0" max="' + total + '" value="' + cuts[i] + '" /> '
-            + '<b class="lb-cutval" data-i="' + i + '">' + cuts[i] + "</b></label>";
+          html += '<label class="lb-slider">' + flightName(i + 1) + ' ends at score '
+            + '<input type="range" class="lb-range" data-i="' + i + '" min="' + mn + '" max="' + mx + '" value="' + cuts[i] + '" /> '
+            + '<b class="lb-cutval" data-i="' + i + '">' + cuts[i] + '</b></label>';
         }
         html += '<p class="lb-sizes" id="lbSizes"></p>';
         box.innerHTML = html;
         function sizes() {
-          var s = [], prev = 0;
-          for (var i = 0; i < cuts.length; i++) { s.push(cuts[i] - prev); prev = cuts[i]; }
-          s.push(total - prev);
+          var buckets = []; for (var i = 0; i < nF; i++) buckets.push({ count: 0, lo: null, hi: null });
+          sortedScores.forEach(function (s) {
+            var fl = flightForScore(s, cuts);
+            var b = buckets[fl - 1];
+            b.count++;
+            if (b.lo == null || s < b.lo) b.lo = s;
+            if (b.hi == null || s > b.hi) b.hi = s;
+          });
           var el = document.getElementById("lbSizes");
-          if (el) el.innerHTML = s.map(function (n, idx) { return flightName(idx + 1) + ": <b>" + n + "</b>"; }).join(" · ");
+          if (el) el.innerHTML = buckets.map(function (b, idx) {
+            var rng = b.count ? (b.lo === b.hi ? String(b.lo) : b.lo + "&ndash;" + b.hi) : "empty";
+            return flightName(idx + 1) + ": <b>" + b.count + "</b> team" + (b.count === 1 ? "" : "s") + " (" + rng + ")";
+          }).join(" &middot; ");
         }
         Array.prototype.forEach.call(box.querySelectorAll(".lb-range"), function (rg) {
           rg.addEventListener("input", function () {
@@ -1575,8 +1622,12 @@
 
       function saveFlights() {
         var status = document.getElementById("lbCutStatus"), cfg = loadCalc(), nF = cfg.flights || 4;
-        var cuts = loadCuts(nF, boardSorted.length);
-        var assignments = boardSorted.map(function (r, idx) { return { id: r.id, flight: flightForRank(idx, cuts) }; });
+        var sortedScores = boardSorted.map(d1g).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
+        var cuts = loadCuts(nF, sortedScores);
+        var assignments = boardSorted.map(function (r) {
+          var s = d1g(r);
+          return { id: r.id, flight: s == null ? null : flightForScore(s, cuts) };
+        }).filter(function (a) { return a.flight != null; });
         if (!assignments.length) { if (status) status.textContent = "No Day-1 scores yet."; return; }
         if (status) { status.textContent = "Saving…"; status.className = "sc__status"; }
         var btn = document.getElementById("lbSaveFlights"); if (btn) btn.disabled = true;
@@ -1803,7 +1854,8 @@
         var cfg = loadCalc(), nF = cfg.flights || 4;
         var nEl = document.getElementById("lbFlNum"); if (nEl) nEl.textContent = nF;
         boardSorted = recs.filter(function (r) { return d1g(r) != null; }).sort(function (a, b) { return d1g(a) - d1g(b); });
-        renderCutControls(boardSorted, nF, loadCuts(nF, boardSorted.length));
+        var sortedScores = boardSorted.map(d1g);
+        renderCutControls(sortedScores, nF, loadCuts(nF, sortedScores));
         renderStandings(recs, cfg);
       }
 
