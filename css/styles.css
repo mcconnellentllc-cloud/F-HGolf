@@ -1542,19 +1542,25 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-card__status.is-ok { color: var(--primary-green); font-weight: 700; }
 .ci-card__status.is-error { color: var(--red-deep); }
 
-.ci-card__players { padding: 0.55rem 0.85rem 0.3rem; display: flex; flex-direction: column; gap: 0.35rem; }
-.ci-p { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.5rem; }
+.ci-card__players { padding: 0.5rem 0.85rem 0.35rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.ci-p { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.35rem 0; border-bottom: 1px dashed var(--line); }
+.ci-p:last-child { border-bottom: none; }
+.ci-p__top { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 0.5rem; }
 .ci-p__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-.ci-p__method { padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.85rem; background: #fff; min-width: 7rem; font-weight: 600; }
+.ci-p__owed { font-family: var(--font-display); font-weight: 700; color: var(--ink); font-size: 0.95rem; min-width: 3rem; text-align: right; }
+.ci-p__method { padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; min-width: 6.5rem; font-weight: 600; }
 .ci-p__method:disabled { background: var(--paper-2); color: var(--muted); }
 
-.ci-card__extras { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; padding: 0.5rem 0.85rem; background: #fdfcf5; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); align-items: center; font-size: 0.85rem; }
-.ci-cart, .ci-meals { display: inline-flex; align-items: center; gap: 0.35rem; }
-.ci-cart input[type="checkbox"] { width: 1.05rem; height: 1.05rem; cursor: pointer; accent-color: var(--primary-green); }
-.ci-cart span { font-weight: 600; color: var(--ink); }
-.ci-cart small, .ci-meals small { color: var(--muted); font-weight: 400; font-size: 0.78rem; }
-.ci-meals span { font-weight: 600; color: var(--ink); }
-.ci-meals input { width: 3rem; padding: 0.25rem 0.35rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.85rem; text-align: center; }
+.ci-p__extras { display: flex; flex-wrap: wrap; gap: 0.35rem 0.7rem; align-items: center; font-size: 0.8rem; padding-left: 0.15rem; }
+.ci-p__meal { display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; user-select: none; }
+.ci-p__meal input { width: 1rem; height: 1rem; cursor: pointer; accent-color: var(--primary-green); }
+.ci-p__meal span { color: var(--muted); font-weight: 600; }
+.ci-p__cart { display: inline-flex; align-items: center; gap: 0.3rem; }
+.ci-p__cart-lbl { color: var(--muted); font-weight: 600; }
+.ci-cart-group { display: inline-flex; gap: 0.2rem; }
+.ci-cart-btn { border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 0.75rem; font-weight: 700; padding: 0.22rem 0.5rem; min-width: 2rem; border-radius: 5px; cursor: pointer; }
+.ci-cart-btn:hover { border-color: var(--primary-green); }
+.ci-cart-btn.is-on { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
 
 .ci-card__ft { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem 0.75rem; padding: 0.55rem 0.85rem; background: var(--paper-2); }
 .ci-tots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; }

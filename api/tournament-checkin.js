@@ -60,6 +60,18 @@ module.exports = async (req, res) => {
     const em = Number(body.extraMeals);
     if (!isNaN(em) && em >= 0) fields["Extra Meals"] = em;
   }
+  // Per-player extras: cart share (0 / 0.5 / 1) + extra meal (bool).
+  ["p1CartShare", "p2CartShare"].forEach((k, i) => {
+    if (body[k] === undefined) return;
+    const target = i === 0 ? "Player 1 Cart Share" : "Player 2 Cart Share";
+    if (body[k] === "" || body[k] === null) { fields[target] = null; return; }
+    const n = Number(body[k]);
+    if (!isNaN(n) && n >= 0 && n <= 1) fields[target] = n;
+  });
+  ["p1ExtraMeal", "p2ExtraMeal"].forEach((k, i) => {
+    if (typeof body[k] !== "boolean") return;
+    fields[i === 0 ? "Player 1 Extra Meal" : "Player 2 Extra Meal"] = body[k];
+  });
   if (typeof body.playerName === "string") fields["Player Name"] = body.playerName.slice(0, 200);
   if (typeof body.teamPartners === "string") fields["Team / Partners"] = body.teamPartners.slice(0, 500);
   // Link this signup to a canonical Players table row. Needs a "Player" linked

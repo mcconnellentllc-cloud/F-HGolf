@@ -108,12 +108,14 @@ module.exports = async (req, res) => {
   const phone = clean(body.phone, 60);
   const team = clean(body.team, 500);
   const notes = clean(body.notes, 2000);
-  const carts = parseInt(body.carts, 10);
   const extraMeals = parseInt(body.extraMeals, 10);
+  const cartPlan = clean(body.cartPlan, 20); // "Rental" | "Owned" | "None" | ""
   if (email) fields["Email"] = email;
   if (phone) fields["Phone"] = phone;
   if (team) fields["Team / Partners"] = team;
-  if (!isNaN(carts) && carts >= 0) fields["Carts"] = carts;
+  // Cart plan at signup drives rental-cart inventory; per-player billing
+  // happens on the workbook check-in card.
+  if (cartPlan) fields["Cart Type"] = cartPlan;
   // How many extra meals this signup wants — kitchen head count.
   if (!isNaN(extraMeals) && extraMeals >= 0) fields["Extra Meals"] = extraMeals;
   if (notes) fields["Notes"] = notes;
