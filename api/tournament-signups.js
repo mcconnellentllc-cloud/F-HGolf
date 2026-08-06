@@ -15,9 +15,13 @@
 
 // Fields we're willing to hand to anonymous readers — anything not on this list
 // is stripped out before the public payload leaves the server.
+// Public read never exposes Buyer name or per-team bid amount — a viewer
+// only sees the team + whether it has been sold. Aggregate pool totals get
+// pre-computed server-side and returned in a separate `totals` block so the
+// broadcast display can still show per-flight $$ without leaking per-team bids.
 const PUBLIC_FIELDS = [
   "Player Name", "Team / Partners", "Tournament", "Alternate", "Start",
-  "Flight", "Buyer", "Buy Amount",
+  "Flight",
   "Day1 Scores", "Day2 Scores", "Day1 Gross", "Day2 Gross",
 ];
 
@@ -25,7 +29,25 @@ function stripRecord(rec) {
   const src = rec.fields || {};
   const out = {};
   for (const f of PUBLIC_FIELDS) if (src[f] !== undefined) out[f] = src[f];
+  out.sold = String(src["Buyer"] || "").trim() !== "";
   return { id: rec.id, created: rec.created, fields: out };
+}
+
+// Per-tournament, per-flight aggregates (pool $ + sold + total counts). Safe to
+// expose publicly — no way to reverse-engineer any individual team's bid.
+function buildTotals(records) {
+  const totals = {};
+  for (const r of records) {
+    const f = r.fields || {};
+    const t = f["Tournament"]; if (!t) continue;
+    const b = totals[t] || (totals[t] = { pools: {}, sold: {}, teams: {} });
+    const fl = (f["Flight"] != null && f["Flight"] !== "") ? Number(f["Flight"]) : 0;
+    b.teams[fl] = (b.teams[fl] || 0) + 1;
+    const amt = typeof f["Buy Amount"] === "number" ? f["Buy Amount"] : 0;
+    b.pools[fl] = (b.pools[fl] || 0) + amt;
+    if (String(f["Buyer"] || "").trim() !== "") b.sold[fl] = (b.sold[fl] || 0) + 1;
+  }
+  return totals;
 }
 
 module.exports = async (req, res) => {
@@ -95,7 +117,9 @@ module.exports = async (req, res) => {
     // Public displays poll every ~15s — allow a tiny edge cache but keep it
     // fresh enough that new scores/buyers show up on the TV promptly.
     if (!isAdmin) res.setHeader("Cache-Control", "public, s-maxage=10, stale-while-revalidate=30");
-    return res.status(200).json({ ok: true, count: out.length, records: out });
+    const payload = { ok: true, count: out.length, records: out };
+    if (!isAdmin) payload.totals = buildTotals(records);
+    return res.status(200).json(payload);
   } catch (e) {
     console.error("tournament-signups read error", e);
     return res.status(500).json({ ok: false, error: "Something went wrong loading sign-ups." });

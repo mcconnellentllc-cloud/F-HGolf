@@ -67,12 +67,13 @@
     .team__tnum { background: #fff; color: #0b1a10; font-weight: 800; padding: 0.1rem 0.4rem; border-radius: 5px; font-size: clamp(0.7rem, 0.95vw, 0.85rem); letter-spacing: 0.05em; min-width: 2.8rem; text-align: center; }
     .team__name { font-weight: 700; font-size: clamp(0.85rem, 1.15vw, 1rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    /* Sold cards: darker, shows buyer + amount on the right. */
-    .team--sold { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); grid-template-columns: auto 1fr auto; }
-    .team--sold .team__tnum { background: rgba(255,255,255,0.55); }
-    .team__buyer { text-align: right; font-size: clamp(0.75rem, 1vw, 0.9rem); line-height: 1.15; }
-    .team__buyer__name { color: var(--muted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 8rem; }
-    .team__buyer__amt { color: var(--gold); font-weight: 800; }
+    /* Sold cards: red-tinted background + muted text, no buyer info shown.
+       Public viewers only see whether a team is still available. */
+    .team--sold { background: rgba(230,67,57,0.16); border-color: rgba(230,67,57,0.5); color: rgba(246,249,244,0.55); }
+    .team--sold .team__tnum { background: rgba(230,67,57,0.85); color: #fff; }
+    .team--sold .team__name { text-decoration: line-through; text-decoration-color: rgba(246,249,244,0.35); }
+    .team--sold::after { content: "SOLD"; color: #fff; background: var(--red); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.15em; padding: 0.1rem 0.35rem; border-radius: 4px; margin-left: auto; }
+    .team--sold { grid-template-columns: auto 1fr auto; }
 
     .disp__empty-msg { text-align: center; color: var(--muted); padding: 1.5rem 1rem; font-style: italic; }
     .disp__empty-msg--all { padding: 3rem 1rem; font-size: 1.3rem; color: var(--green); font-style: normal; font-weight: 700; }
@@ -82,7 +83,7 @@
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
     body.idle { cursor: none; }
-    @media (max-width: 720px) { .disp__strip { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); } .team--sold { grid-template-columns: auto 1fr; } .team__buyer { grid-column: 1 / -1; text-align: left; margin-top: 0.15rem; } .team__buyer__name { max-width: none; } }
+    @media (max-width: 720px) { .disp__strip { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); } }
   </style>
 </head>
 <body>
@@ -125,13 +126,13 @@
         });
         return out;
       }
-      function buyAmount(r) { var v = (r.fields || {})["Buy Amount"]; return typeof v === "number" ? v : 0; }
-      function isSold(r) { return String((r.fields || {}).Buyer || "").trim() !== ""; }
+      // Public API returns pre-computed sold flag; buyer + bid never leave the server.
+      function isSold(r) { return (r.fields || {}).sold === true; }
 
       function fetchAll() {
         return fetch(FH_API.url("/api/tournament-signups"), { cache: "no-store" })
           .then(function (r) { return r.json(); })
-          .then(function (j) { if (!j || !j.ok) throw new Error(j && j.error || "Load failed"); return j.records || []; });
+          .then(function (j) { if (!j || !j.ok) throw new Error(j && j.error || "Load failed"); return j; });
       }
 
       function teamCard(r, teamNumbers, sold) {
@@ -139,60 +140,58 @@
         var tn = teamNumbers[r.id];
         var badge = tn ? ('T-' + String(tn).padStart(2, "0")) : '—';
         var name = teamShortNames(f);
-        if (sold) {
-          var amt = buyAmount(r);
-          var buyer = String(f.Buyer || "").trim();
-          return '<div class="team team--sold"><span class="team__tnum">' + esc(badge) + '</span>'
-            + '<span class="team__name">' + esc(name) + '</span>'
-            + '<span class="team__buyer"><span class="team__buyer__name">' + esc(buyer) + '</span><span class="team__buyer__amt">' + money(amt) + '</span></span></div>';
-        }
-        return '<div class="team"><span class="team__tnum">' + esc(badge) + '</span><span class="team__name">' + esc(name) + '</span></div>';
+        // Public view: team + status only. Buyer + winning bid are staff-only.
+        return '<div class="team' + (sold ? ' team--sold' : '') + '">'
+          + '<span class="team__tnum">' + esc(badge) + '</span>'
+          + '<span class="team__name">' + esc(name) + '</span></div>';
       }
 
-      function sectionsFor(recs, teamNumbers, sold, hasFlights) {
-        // Group by flight when flights exist; otherwise one big "All Teams".
+      function sectionsFor(recs, teamNumbers, sold, hasFlights, pools) {
         if (!hasFlights) {
           if (!recs.length) return "";
-          var pool = recs.reduce(function (a, r) { return a + buyAmount(r); }, 0);
           var cards = recs.map(function (r) { return teamCard(r, teamNumbers, sold); }).join("");
-          var metaBits = [recs.length + ' teams'];
-          if (sold) metaBits.push(money(pool) + ' in');
-          return '<div class="sec"><div class="sec__hdr"><h3>All Teams</h3><span class="sec__meta">' + metaBits.join(' · ') + '</span></div><div class="grid ' + (sold ? 'grid--sold' : '') + '">' + cards + '</div></div>';
+          var meta = recs.length + (recs.length === 1 ? ' team' : ' teams');
+          return '<div class="sec"><div class="sec__hdr"><h3>All Teams</h3><span class="sec__meta">' + meta + '</span></div><div class="grid">' + cards + '</div></div>';
         }
         var groups = {};
         recs.forEach(function (r) { var fl = Number((r.fields || {}).Flight); (groups[fl] = groups[fl] || []).push(r); });
         return [1, 2, 3, 4].map(function (fl) {
           var arr = groups[fl] || []; if (!arr.length) return "";
-          var pool = arr.reduce(function (a, r) { return a + buyAmount(r); }, 0);
           var cards = arr.map(function (r) { return teamCard(r, teamNumbers, sold); }).join("");
-          var metaBits = [arr.length + (arr.length === 1 ? ' team' : ' teams')];
-          if (sold) metaBits.push(money(pool));
-          return '<div class="sec"><div class="sec__hdr"><h3>' + esc(FLIGHT_NAMES[fl]) + ' Flight</h3><span class="sec__meta">' + metaBits.join(' · ') + '</span></div><div class="grid ' + (sold ? 'grid--sold' : '') + '">' + cards + '</div></div>';
+          var meta = arr.length + (arr.length === 1 ? ' team' : ' teams');
+          if (sold && pools && pools[fl]) meta += ' · ' + money(pools[fl]);
+          return '<div class="sec"><div class="sec__hdr"><h3>' + esc(FLIGHT_NAMES[fl]) + ' Flight</h3><span class="sec__meta">' + meta + '</span></div><div class="grid">' + cards + '</div></div>';
         }).join("");
       }
 
-      function render(records) {
+      function render(payload) {
+        var records = payload.records || [];
+        var totals = (payload.totals && payload.totals[KEY]) || { pools: {}, sold: {}, teams: {} };
         var recs = records.filter(function (r) { var f = r.fields || {}; if (f.Tournament !== KEY) return false; if (f.Alternate === true || String(f.Alternate) === "true") return false; return true; });
         var teamNumbers = computeTeamNumbers(recs);
 
-        // Do any teams have a flight assigned? Drives strip layout + section grouping.
-        var hasFlights = recs.some(function (r) { var v = (r.fields || {}).Flight; return v != null && v !== "" && !isNaN(Number(v)); });
+        // Are flights assigned? Drives strip layout + section grouping.
+        var hasFlights = [1, 2, 3, 4].some(function (fl) { return (totals.teams[fl] || 0) > 0; });
 
-        // Top strip: per-flight pools if cut, or a single "All Flights" tile
-        // showing the grand pool otherwise. Grand-total always on the right.
+        // Aggregate pool numbers come straight from the server so per-team bids
+        // never touch the client.
+        var pools = totals.pools || {};
+        var soldCounts = totals.sold || {};
+        var teamCounts = totals.teams || {};
+        var grandPool = Object.keys(pools).reduce(function (a, k) { return a + (pools[k] || 0); }, 0);
+        var grandSold = Object.keys(soldCounts).reduce(function (a, k) { return a + (soldCounts[k] || 0); }, 0);
+
         var strip = document.getElementById("dispStrip");
-        var grandPool = recs.reduce(function (a, r) { return a + buyAmount(r); }, 0);
-        var grandSold = recs.filter(isSold).length;
         var stripHtml = "";
         if (hasFlights) {
           strip.classList.remove("disp__strip--stacked");
           stripHtml = [1, 2, 3, 4].map(function (fl) {
-            var arr = recs.filter(function (r) { return Number((r.fields || {}).Flight) === fl; });
-            var pool = arr.reduce(function (a, r) { return a + buyAmount(r); }, 0);
-            var sold = arr.filter(isSold).length;
+            var tot = teamCounts[fl] || 0;
+            var sold = soldCounts[fl] || 0;
+            var pool = pools[fl] || 0;
             return '<div class="disp__ftot"><div class="disp__ftot__name">' + esc(FLIGHT_NAMES[fl]) + ' Flight</div>'
               + '<div class="disp__ftot__amt">' + money(pool) + '</div>'
-              + '<div class="disp__ftot__count">' + sold + ' / ' + arr.length + ' sold</div></div>';
+              + '<div class="disp__ftot__count">' + sold + ' / ' + tot + ' sold</div></div>';
           }).join("");
         } else {
           strip.classList.add("disp__strip--stacked");
@@ -205,27 +204,22 @@
           + '<div class="disp__ftot__count">' + grandSold + ' / ' + recs.length + ' sold</div></div>';
         strip.innerHTML = stripHtml;
 
-        // Two bands: available (top), sold (bottom).
         var body = document.getElementById("dispBody");
         if (!recs.length) { body.innerHTML = '<p class="disp__empty-msg">No teams registered yet.</p>'; return; }
 
         var available = recs.filter(function (r) { return !isSold(r); });
         var sold = recs.filter(isSold);
         available.sort(function (a, b) { return (teamNumbers[a.id] || 999) - (teamNumbers[b.id] || 999); });
-        // Sold band ordered high-to-low $ so the marquee sales sit on top.
-        sold.sort(function (a, b) {
-          var diff = buyAmount(b) - buyAmount(a); if (diff) return diff;
-          return (teamNumbers[a.id] || 999) - (teamNumbers[b.id] || 999);
-        });
+        sold.sort(function (a, b) { return (teamNumbers[a.id] || 999) - (teamNumbers[b.id] || 999); });
 
         var html = "";
         if (available.length) {
-          html += '<div class="band band--avail"><div class="band__hdr"><h2>Available</h2><span class="band__meta">' + available.length + ' teams · up for bid</span></div>' + sectionsFor(available, teamNumbers, false, hasFlights) + '</div>';
+          html += '<div class="band band--avail"><div class="band__hdr"><h2>Available</h2><span class="band__meta">' + available.length + ' teams · up for bid</span></div>' + sectionsFor(available, teamNumbers, false, hasFlights, pools) + '</div>';
         } else {
           html += '<p class="disp__empty-msg disp__empty-msg--all">All teams sold. Enjoy the auction!</p>';
         }
         if (sold.length) {
-          html += '<div class="band band--sold"><div class="band__hdr"><h2>Sold</h2><span class="band__meta">' + sold.length + ' teams · ' + money(grandPool) + ' in the pool</span></div>' + sectionsFor(sold, teamNumbers, true, hasFlights) + '</div>';
+          html += '<div class="band band--sold"><div class="band__hdr"><h2>Sold</h2><span class="band__meta">' + sold.length + ' teams</span></div>' + sectionsFor(sold, teamNumbers, true, hasFlights, pools) + '</div>';
         }
         body.innerHTML = html;
       }
