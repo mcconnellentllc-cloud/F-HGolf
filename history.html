@@ -36,9 +36,9 @@
     <div class="container">
       <div class="section-head section-head--center">
         <p class="eyebrow">Archive</p>
-        <h1 class="section__title">Past Tournaments</h1>
+        <h1 class="section__title" id="histTitle">Past Tournaments</h1>
         <hr class="rule-brass" />
-        <p class="section__subtitle">Flight winners, Calcutta results, and champions from previous years at F&amp;H Golf Course. Every completed tournament committed by staff shows up here.</p>
+        <p class="section__subtitle" id="histLead">Flight winners, Calcutta results, and champions from previous years at F&amp;H Golf Course.</p>
       </div>
 
       <div class="hist" id="pubHist"><p class="noms__msg">Loading past tournaments&hellip;</p></div>
@@ -58,13 +58,34 @@
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
       function money(n) { if (n == null || !isFinite(n)) return "$0"; return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 
+      // Optional ?name=Founder filter — the Founders card links here with that
+      // param so users see only Founders history when they arrived from that card.
+      var params = new URLSearchParams(location.search);
+      var filterName = (params.get("name") || "").trim();
+      if (filterName) {
+        var pretty = filterName.charAt(0).toUpperCase() + filterName.slice(1);
+        var title = document.getElementById("histTitle");
+        if (title) title.textContent = pretty + " — Past Years";
+        var lead = document.getElementById("histLead");
+        if (lead) lead.textContent = "Every past running of the " + pretty + " tournament at F&H Golf Course.";
+      }
+
       fetch(FH_API.url("/api/tournament-signups?archives=1"), { cache: "no-store" })
         .then(function (r) { return r.json(); })
         .then(function (j) {
           var host = document.getElementById("pubHist");
           if (!j || !j.ok) { host.innerHTML = '<p class="noms__msg">Couldn\'t load archives right now — please try again later.</p>'; return; }
           var recs = j.records || [];
-          if (!recs.length) { host.innerHTML = '<p class="noms__msg" style="text-align:center;padding:2rem 1rem;">The archive is empty. Once a tournament is committed by staff, it will show up here.</p>'; return; }
+          if (filterName) {
+            var needle = filterName.toLowerCase();
+            recs = recs.filter(function (r) { return String((r.fields || {}).Name || "").toLowerCase().indexOf(needle) !== -1; });
+          }
+          if (!recs.length) {
+            var emptyMsg = filterName
+              ? 'No past runnings of the ' + esc(filterName) + ' tournament are on record yet. Check back after this year is finished.'
+              : 'The archive is empty. Once a tournament is committed by staff, it will show up here.';
+            host.innerHTML = '<p class="noms__msg" style="text-align:center;padding:2rem 1rem;">' + emptyMsg + '</p>'; return;
+          }
           host.innerHTML = recs.map(function (r) {
             var f = r.fields || {};
             var snap = null; try { snap = f.Snapshot ? JSON.parse(f.Snapshot) : null; } catch (e) {}
