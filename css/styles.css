@@ -685,7 +685,10 @@ img { max-width: 100%; display: block; }
 .nextup__detail { color: var(--muted); margin-top: 0.4rem; }
 .nextup__note { color: var(--ink); margin-top: 0.2rem; font-style: italic; }
 .nextup__card .schedule__full { max-width: 360px; margin: 1.1rem auto 0; }
-.nextup__btn { margin-top: 1.3rem; }
+.nextup__nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem 0.5rem; margin: 1.1rem auto 0.15rem; max-width: 480px; }
+.nextup__nav-link { display: inline-flex; align-items: center; padding: 0.4rem 0.9rem; border: 1px solid var(--primary-green); border-radius: 999px; background: #fff; color: var(--primary-green); text-decoration: none; font-weight: 700; font-size: 0.88rem; letter-spacing: 0.02em; transition: background 0.15s, color 0.15s; }
+.nextup__nav-link:hover, .nextup__nav-link:focus { background: var(--primary-green); color: #fff; }
+.nextup__btn { margin-top: 1.1rem; }
 
 /* Per-row Sign Up button on the schedule */
 .schedule__signup { flex-basis: 100%; align-self: flex-start; margin-top: 0.6rem; padding: 0.5rem 1.2rem; font-size: 0.85rem; }
