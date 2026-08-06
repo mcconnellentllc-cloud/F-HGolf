@@ -153,6 +153,20 @@
         var groups = {};
         recs.forEach(function (r) { var fl = (r.fields || {}).Flight; var k = (fl != null && fl !== "") ? Number(fl) : 0; (groups[k] = groups[k] || []).push(r); });
 
+        // Before Day 1 scores exist there are no flights yet — show the whole
+        // field as one bucket with a "Waiting for Day 1" note.
+        var anyGross = recs.some(function (r) { return d1g(r) != null; });
+        if (!anyGross) {
+          var listAll = recs.slice().sort(function (a, b) { return (teamNumbers[a.id] || 999) - (teamNumbers[b.id] || 999); });
+          var utrs = listAll.map(function (r) {
+            var tn = teamNumbers[r.id];
+            var badge = tn ? '<span class="fl__tnum">T-' + String(tn).padStart(2, "0") + '</span>' : '';
+            return '<tr><td class="fl__team">' + badge + esc(teamShortNames(r.fields || {})) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+          }).join("");
+          body.innerHTML = '<div class="fl"><div class="fl__hdr"><h2 class="fl__name">Field</h2><span class="fl__meta">' + listAll.length + ' teams · flights cut after Day 1</span></div>'
+            + '<table><thead><tr><th>Team</th><th>Front 9</th><th>Back 9</th><th>Day 1</th><th>HCP</th></tr></thead><tbody>' + utrs + '</tbody></table></div>';
+          return;
+        }
         var _flKeys = Object.keys(groups).map(Number);
         var _maxFl = Math.max(4, _flKeys.reduce(function (m, k) { return k > m ? k : m; }, 0));
         var _flRange = []; for (var _fi = 1; _fi <= _maxFl; _fi++) _flRange.push(_fi);

@@ -988,24 +988,75 @@
           + '<button type="button" class="ci-rename" data-role="' + role + '" title="Rename inline"' + disabled + ">&#9998;</button>"
           + "</span>";
       }
-      function ciRow(rec) {
-        var f = rec.fields || {}, pp = teamPlayers(f, rec), isAlt = !!f["Alternate"];
-        var em = typeof f["Extra Meals"] === "number" ? f["Extra Meals"] : "";
-        return '<tr class="ci-row" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
-          + '<td class="ci-c-name">' + nameCell("p1", pp.p1) + "</td>"
-          + '<td class="ci-c-name">' + nameCell("p2", pp.p2) + "</td>"
-          + '<td><select class="ci__start" title="Wave">' + startOptions(esc(f["Start"] || "")) + "</select></td>"
-          + '<td><select class="ci__cart" title="Cart">' + cartOptions(esc(f["Cart Type"] || "")) + "</select></td>"
-          + '<td><input type="number" class="ci__meals" title="Extra meals" min="0" max="20" step="1" value="' + esc(String(em)) + '" placeholder="0" /></td>'
-          + '<td><select class="ci__p1 paysel">' + paidOptions(esc(f["Player 1 Paid"] || "")) + "</select></td>"
-          + '<td><select class="ci__p2 paysel"' + (pp.hasP2 ? "" : " disabled") + ">" + paidOptions(esc(f["Player 2 Paid"] || "")) + "</select></td>"
-          + '<td class="ci-c-act"><button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + "</button>"
-          + '<button type="button" class="ci__remove" title="Remove team">✕</button>'
-          + '<span class="ci__status"></span></td></tr>';
+      // Compact cart chip row — 0 / 1 / 2 / Rental / Own. Value stored in the
+      // "Cart Type" field. 0 (no cart) clears the field, others store a label.
+      var CART_OPTS = [
+        { v: "",       label: "0",      title: "No cart" },
+        { v: "1 cart", label: "1",      title: "1 cart" },
+        { v: "2 cart", label: "2",      title: "2 carts" },
+        { v: "Rental", label: "Rental", title: "Rental cart" },
+        { v: "Owned",  label: "Own",    title: "Owns cart" }
+      ];
+      function cartChips(cur) {
+        return CART_OPTS.map(function (o) {
+          var on = (o.v === cur) ? " is-on" : "";
+          return '<button type="button" class="ci-chip' + on + '" data-val="' + esc(o.v) + '" title="' + esc(o.title) + '">' + esc(o.label) + '</button>';
+        }).join("");
       }
+      function ciCard(rec, teamNum) {
+        var f = rec.fields || {}, pp = teamPlayers(f, rec), isAlt = !!f["Alternate"];
+        var em = typeof f["Extra Meals"] === "number" ? f["Extra Meals"] : 0;
+        var entryPP = (loadCalc().entryPP || 0);
+        var mealPP = (loadCalc().mealPP || 0);
+        var teams = [[pp.p1, "p1", f["Player 1 Paid"] || ""]];
+        if (pp.hasP2) teams.push([pp.p2, "p2", f["Player 2 Paid"] || ""]);
+        var owedPerPlayer = entryPP;
+        var totalOwed = owedPerPlayer * teams.length + (Number(em) || 0) * mealPP;
+        var totalPaid = teams.reduce(function (s, t) { return s + (t[2] ? owedPerPlayer : 0); }, 0);
+        var remaining = Math.max(0, totalOwed - totalPaid);
+        var tnBadge = teamNum != null ? String(teamNum).padStart(2, "0") : "";
+
+        var playerRows = teams.map(function (t) {
+          var name = t[0], role = t[1], method = t[2];
+          var checked = method ? " is-paid" : "";
+          return '<div class="ci-p" data-role="' + esc(role) + '">'
+            + '<label class="ci-p__check' + checked + '" title="Toggle paid"><input type="checkbox" class="ci-p__box" data-role="' + esc(role) + '"' + (method ? " checked" : "") + ' /><span>Paid</span></label>'
+            + '<div class="ci-p__name">' + nameCell(role, name) + '</div>'
+            + '<div class="ci-p__amt">' + money(owedPerPlayer) + '</div>'
+            + '<select class="ci-p__method" data-role="' + esc(role) + '"' + (name ? "" : " disabled") + '>'
+            + ['','Cash','Check','Card','Online'].map(function (m) { return '<option value="' + m + '"' + (m === method ? " selected" : "") + ">" + (m || "method") + "</option>"; }).join("")
+            + '</select>'
+            + '</div>';
+        }).join("");
+
+        return '<article class="ci-card' + (isAlt ? " is-alt" : "") + (totalPaid >= totalOwed && totalOwed > 0 ? " is-fully-paid" : "") + '" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
+          + '<header class="ci-card__hd">'
+          + '<span class="ci-card__tnum">Team ' + esc(tnBadge || "—") + '</span>'
+          + '<select class="ci__start ci-card__start" title="Wave">' + startOptions(esc(f["Start"] || "")) + '</select>'
+          + '<span class="ci__status ci-card__status"></span>'
+          + '</header>'
+          + '<div class="ci-card__players">' + playerRows + '</div>'
+          + '<div class="ci-card__extras">'
+          + '<div class="ci-extra"><span class="ci-extra__lbl">Cart</span><div class="ci-chips ci__cart-chips">' + cartChips(String(f["Cart Type"] || "")) + '</div></div>'
+          + '<div class="ci-extra"><span class="ci-extra__lbl">Meals+</span><input type="number" class="ci__meals ci-extra__meals" min="0" max="20" step="1" value="' + esc(String(em)) + '" placeholder="0" /><span class="ci-extra__mealsx">× ' + money(mealPP) + '</span></div>'
+          + '</div>'
+          + '<footer class="ci-card__ft">'
+          + '<span class="ci-tot"><small>Total</small><b>' + money(totalOwed) + '</b></span>'
+          + '<span class="ci-tot ci-tot--paid"><small>Paid</small><b>' + money(totalPaid) + '</b></span>'
+          + '<span class="ci-tot ci-tot--owe"><small>Still owes</small><b>' + money(remaining) + '</b></span>'
+          + '<div class="ci-card__acts">'
+          + '<button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + '</button>'
+          + '<button type="button" class="ci__remove" title="Remove team">&times;</button>'
+          + '</div>'
+          + '</footer>'
+          + '</article>';
+      }
+      // Table wrapper kept as a function (name preserved) so callers don't
+      // change; now it emits a card grid instead. AM/PM waves are shown in
+      // whatever order teams sit — the wave chip lives on each card header.
       function ciTable(rows) {
-        return '<div class="table-scroll"><table class="ci-table"><thead><tr><th>Player 1</th><th>Player 2</th><th>Wave</th><th>Cart</th><th title="Extra meals for guests / spouses">Meals+</th><th>P1 Paid</th><th>P2 Paid</th><th></th></tr></thead><tbody>'
-          + rows.map(ciRow).join("") + "</tbody></table></div>";
+        var teamNumbers = computeTeamNumbers(rows);
+        return '<div class="ci-grid">' + rows.map(function (r) { return ciCard(r, teamNumbers[r.id]); }).join("") + '</div>';
       }
 
       var rosterRecs = [];
@@ -1028,44 +1079,80 @@
         if (paid.length) html += '<details class="ci-fold" open><summary>Paid &amp; done <span>(' + paid.length + ")</span></summary>" + ciTable(paid) + "</details>";
         if (alts.length) html += '<details class="ci-fold ci-fold--alt"><summary>Alternates — standby <span>(' + alts.length + ")</span></summary>" + ciTable(alts) + "</details>";
         list.innerHTML = html;
-        attachRowFilter(list, { rowSelector: ".ci-row" });
+        attachRowFilter(list, { rowSelector: ".ci-card" });
 
-        // Wire per-team controls across all tables.
-        Array.prototype.forEach.call(list.querySelectorAll(".ci-row"), function (row) {
-          var id = row.getAttribute("data-id");
-          var startSel = row.querySelector(".ci__start"), cartSel = row.querySelector(".ci__cart");
-          var p1 = row.querySelector(".ci__p1"), p2 = row.querySelector(".ci__p2");
-          var statusEl = row.querySelector(".ci__status");
-          var remove = row.querySelector(".ci__remove"), altBtn = row.querySelector(".ci__alt");
+        // Wire per-team card controls.
+        Array.prototype.forEach.call(list.querySelectorAll(".ci-card"), function (card) {
+          var id = card.getAttribute("data-id");
+          var statusEl = card.querySelector(".ci__status");
+          var startSel = card.querySelector(".ci__start");
+          var altBtn = card.querySelector(".ci__alt");
+          var remove = card.querySelector(".ci__remove");
+
           if (startSel) startSel.addEventListener("change", function () { saveCheckin(id, { start: startSel.value }, statusEl, startSel); });
-          if (cartSel) cartSel.addEventListener("change", function () { saveCheckin(id, { cartType: cartSel.value }, statusEl, cartSel); });
-          var mealsInp = row.querySelector(".ci__meals");
+
+          // Cart chip row — click to select, save immediately.
+          Array.prototype.forEach.call(card.querySelectorAll(".ci-chip"), function (chip) {
+            chip.addEventListener("click", function () {
+              var v = chip.getAttribute("data-val");
+              Array.prototype.forEach.call(card.querySelectorAll(".ci-chip"), function (c) { c.classList.toggle("is-on", c === chip); });
+              saveCheckin(id, { cartType: v }, statusEl, chip);
+            });
+          });
+
+          // Extra meals (debounced) — also mutate cache + refresh P&L in-place.
+          var mealsInp = card.querySelector(".ci__meals");
           if (mealsInp) {
             var mealsT = null;
             mealsInp.addEventListener("input", function () {
               clearTimeout(mealsT);
               mealsT = setTimeout(function () {
                 saveCheckin(id, { extraMeals: mealsInp.value }, statusEl, mealsInp);
-                // Reflect in-cache so the P&L updates without a full reload.
                 for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
                   scAllCache[i].fields = scAllCache[i].fields || {};
                   scAllCache[i].fields["Extra Meals"] = mealsInp.value === "" ? null : Number(mealsInp.value);
                   break;
                 }
+                refreshCardTotals(card);
                 try { renderPL(); } catch (e) {}
               }, 500);
             });
           }
-          if (p1) p1.addEventListener("change", function () { saveCheckin(id, { player1Paid: p1.value }, statusEl, p1); });
-          if (p2) p2.addEventListener("change", function () { saveCheckin(id, { player2Paid: p2.value }, statusEl, p2); });
-          if (altBtn) altBtn.addEventListener("click", function () { var cur = row.getAttribute("data-alt") === "1"; saveCheckin(id, { alternate: !cur }, statusEl, altBtn); });
+
+          // Per-player paid toggle + method dropdown. Checkbox on/off maps
+          // to method = "" ↔ default "Cash" (or keeps existing method).
+          Array.prototype.forEach.call(card.querySelectorAll(".ci-p"), function (pRow) {
+            var role = pRow.getAttribute("data-role");
+            var payload = role === "p1" ? "player1Paid" : "player2Paid";
+            var box = pRow.querySelector(".ci-p__box");
+            var meth = pRow.querySelector(".ci-p__method");
+            var check = pRow.querySelector(".ci-p__check");
+            if (box) box.addEventListener("change", function () {
+              var v = box.checked ? (meth.value || "Cash") : "";
+              if (meth) meth.value = v;
+              if (check) check.classList.toggle("is-paid", !!v);
+              var p = {}; p[payload] = v;
+              saveCheckin(id, p, statusEl, box);
+              refreshCardTotals(card);
+            });
+            if (meth) meth.addEventListener("change", function () {
+              if (box) box.checked = !!meth.value;
+              if (check) check.classList.toggle("is-paid", !!meth.value);
+              var p = {}; p[payload] = meth.value;
+              saveCheckin(id, p, statusEl, meth);
+              refreshCardTotals(card);
+            });
+          });
+
+          if (altBtn) altBtn.addEventListener("click", function () { var cur = card.getAttribute("data-alt") === "1"; saveCheckin(id, { alternate: !cur }, statusEl, altBtn); });
           if (remove) remove.addEventListener("click", function () {
-            var who = (row.querySelector(".ci-c-name") || {}).textContent || "this team";
+            var who = (card.querySelector(".ci-name") || {}).textContent || "this team";
             if (!window.confirm("Remove " + who.trim() + " from this tournament? This can't be undone.")) return;
             removeTeam(id, statusEl, remove);
           });
+
           // Name = link opens Player Card. ✎ pencil = inline rename in place.
-          Array.prototype.forEach.call(row.querySelectorAll(".ci-name"), function (link) {
+          Array.prototype.forEach.call(card.querySelectorAll(".ci-name"), function (link) {
             link.addEventListener("click", function (e) {
               e.preventDefault();
               var role = link.getAttribute("data-role");
@@ -1074,7 +1161,7 @@
               openPlayerCard(id, role, name);
             });
           });
-          Array.prototype.forEach.call(row.querySelectorAll(".ci-rename"), function (btn) {
+          Array.prototype.forEach.call(card.querySelectorAll(".ci-rename"), function (btn) {
             btn.addEventListener("click", function () {
               var role = btn.getAttribute("data-role");
               var wrap = btn.parentNode, link = wrap.querySelector(".ci-name");
@@ -1082,6 +1169,31 @@
             });
           });
         });
+      }
+
+      // Rewrite the footer totals in-place after a change — avoids a full
+      // roster re-render for a simple paid / meals edit.
+      function refreshCardTotals(card) {
+        var entryPP = (loadCalc().entryPP || 0);
+        var mealPP = (loadCalc().mealPP || 0);
+        var paidCount = 0, teamPlayersN = 0;
+        Array.prototype.forEach.call(card.querySelectorAll(".ci-p"), function (pRow) {
+          teamPlayersN++;
+          var meth = pRow.querySelector(".ci-p__method");
+          if (meth && meth.value) paidCount++;
+        });
+        var mealsInp = card.querySelector(".ci__meals");
+        var em = mealsInp && mealsInp.value ? Number(mealsInp.value) : 0;
+        var owed = entryPP * teamPlayersN + em * mealPP;
+        var paid = entryPP * paidCount;
+        var remaining = Math.max(0, owed - paid);
+        var tots = card.querySelectorAll(".ci-tot b");
+        if (tots.length >= 3) {
+          tots[0].textContent = money(owed);
+          tots[1].textContent = money(paid);
+          tots[2].textContent = money(remaining);
+        }
+        card.classList.toggle("is-fully-paid", paid >= owed && owed > 0);
       }
 
       // Inline rename: swap the .ci-name link for a text input; save on Enter/blur,
