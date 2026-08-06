@@ -2251,6 +2251,8 @@
             var each = combined / teams.length;
             teams.forEach(function (t) {
               flightPayouts.push({
+                signupId: t.id,
+                savedCheck: (t.rec && t.rec.fields && t.rec.fields["Flight Check #"]) || "",
                 recipient: t.name, teamName: t.name, amount: each,
                 flight: fl.name, place: place, tied: teams.length > 1,
                 note: fl.name + " Flight — " + ordinal(place) + " place gross" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
@@ -2274,6 +2276,8 @@
             var each = combined / teams.length;
             teams.forEach(function (t) {
               calPayouts.push({
+                signupId: t.id,
+                savedCheck: (t.rec && t.rec.fields && t.rec.fields["Calcutta Check #"]) || "",
                 recipient: (t.buyer && t.buyer.trim()) || "(no buyer)",
                 teamName: t.name, amount: each,
                 flight: fl.name, place: place, tied: teams.length > 1,
@@ -2283,25 +2287,18 @@
           });
         });
 
-        // Check numbers persist per (tournament, category, flight, place, recipient) in localStorage.
-        function checkKey(p) { return "flight" in p ? (p.category || "?") + "|" + p.flight + "|" + p.place + "|" + p.recipient : "?"; }
-        var CHECK_STORE_KEY = "fh_checks_" + KEY;
-        var checkStore = {};
-        try { checkStore = JSON.parse(localStorage.getItem(CHECK_STORE_KEY) || "{}"); } catch (e) { checkStore = {}; }
-        function saveCheckStore() { try { localStorage.setItem(CHECK_STORE_KEY, JSON.stringify(checkStore)); } catch (e) {} }
-
+        // Check #s persist on the signup record. Flight winnings → "Flight Check #",
+        // Calcutta payouts → "Calcutta Check #". Debounced PATCH via tournament-checkin.
         function renderPayoutTable(list, kind, category) {
           if (!list.length) return '<p class="noms__msg">Nothing to pay in this category yet.</p>';
           var trs = list.map(function (p) {
             p.category = category;
-            var key = checkKey(p);
-            var chk = checkStore[key] || "";
-            return '<tr data-check-key="' + esc(key) + '">'
+            return '<tr data-signup-id="' + esc(p.signupId || "") + '" data-category="' + esc(category) + '">'
               + "<td>" + esc(p.recipient) + (p.recipient === "(no buyer)" ? ' <span class="po-warn">no buyer set</span>' : "") + "</td>"
               + "<td>" + esc(p.teamName) + "</td>"
               + "<td>" + esc(p.note) + "</td>"
               + '<td class="po-tbl__amt"><b>' + money(p.amount) + "</b></td>"
-              + '<td class="po-tbl__chk"><input type="text" class="po-check" data-check-key="' + esc(key) + '" value="' + esc(chk) + '" placeholder="—" autocomplete="off" maxlength="12" /></td>'
+              + '<td class="po-tbl__chk"><input type="text" class="po-check" data-signup-id="' + esc(p.signupId || "") + '" data-category="' + esc(category) + '" value="' + esc(p.savedCheck || "") + '" placeholder="—" autocomplete="off" maxlength="12" /></td>'
               + "</tr>";
           }).join("");
           var total = list.reduce(function (s, p) { return s + p.amount; }, 0);
@@ -2325,15 +2322,25 @@
           + '<h4 class="po-hdr">Calcutta payouts (by net, top-' + calSplit.length + ')</h4>' + renderPayoutTable(calPayouts, "Calcutta", "calcutta")
           + '<div class="po-grand">Grand total to pay out: <b>' + money(grand) + '</b></div>';
 
-        // Wire the Check # inputs — persist per row to localStorage so numbers
-        // survive reloads. Enter blurs (submit the number and move on).
+        // Wire the Check # inputs — debounced PATCH via tournament-checkin.
+        // Flight Check # / Calcutta Check # both live on the signup record.
+        var poPending = {};
         Array.prototype.forEach.call(body.querySelectorAll(".po-check"), function (inp) {
           inp.addEventListener("input", function () {
-            var k = inp.getAttribute("data-check-key");
-            if (!k) return;
-            var v = inp.value.trim();
-            if (v) checkStore[k] = v; else delete checkStore[k];
-            saveCheckStore();
+            var id = inp.getAttribute("data-signup-id");
+            var cat = inp.getAttribute("data-category");
+            if (!id) return;
+            var payload = { id: id };
+            payload[cat === "flight" ? "flightCheck" : "calcuttaCheck"] = inp.value.trim();
+            var k = id + ":" + cat;
+            if (poPending[k]) clearTimeout(poPending[k]);
+            poPending[k] = setTimeout(function () {
+              fetch(FH_API.url("/api/tournament-checkin"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+                body: JSON.stringify(payload)
+              }).catch(function () {});
+            }, 600);
           });
           inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } });
         });

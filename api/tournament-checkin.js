@@ -67,6 +67,10 @@ module.exports = async (req, res) => {
     if (body.buyAmount === null || body.buyAmount === "") fields["Buy Amount"] = null;
     else { var amt = Number(body.buyAmount); if (isFinite(amt) && amt >= 0) fields["Buy Amount"] = amt; }
   }
+  // Payout reconciliation — check numbers written for a team's flight prize
+  // and for the Buyer's Calcutta payout. Two separate fields on the signup.
+  if (typeof body.flightCheck === "string") fields["Flight Check #"] = body.flightCheck ? body.flightCheck.slice(0, 40) : null;
+  if (typeof body.calcuttaCheck === "string") fields["Calcutta Check #"] = body.calcuttaCheck ? body.calcuttaCheck.slice(0, 40) : null;
 
   if (!Object.keys(fields).length) {
     return res.status(400).json({ ok: false, error: "Nothing to update." });
