@@ -130,12 +130,7 @@
               </select>
               <button class="btn btn--solid" type="button" id="prPrint">Print tee sheet</button>
               <button class="btn btn--solid" type="button" id="prPrintAnnounce">Announcement page</button>
-              <select id="prCardsDay" class="pr-print-which" aria-label="Which day">
-                <option value="both" selected>Cards: Both days</option>
-                <option value="1">Cards: Day 1 only</option>
-                <option value="2">Cards: Day 2 only</option>
-              </select>
-              <button class="btn btn--solid" type="button" id="prPrintCards">Print scorecards</button>
+              <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards">Print scorecards</button>
             </div>
           </div>
           <p class="scaffold__desc">Two teams to a tee. Tap a hole up top to add a <em>Tee A</em> or <em>A+B</em> &mdash; teams auto-fill from Unplaced. Drag a team onto another (or use its dropdown) to swap seats. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
@@ -2478,151 +2473,93 @@
       }
 
       // ---- Pairings: printable team scorecards ----
-      // Two cards per portrait letter page (stacked). Each card is a wide
-      // 18-hole grid (front 9 + OUT · back 9 + IN · TOTAL) with Blue / White
-      // / Red yardages, Men's & Ladies handicap indexes, and Par printed as
-      // reference rows. Below that: two blank score rows the team fills in
-      // during play, plus signature block. Front & back nines reuse CARD9
-      // (F&H is a 9-hole course played twice).
+      // Overlay-only. Physical F&H scorecards feed through the printer; we
+      // print ONLY team names on top of them. One page per tee slot (a slot
+      // is two teams sharing one card). Team 1 lands on the top blank line
+      // of the top half; Team 2 on the top blank line under the grey "Hole"
+      // bar. Positions tune via CARD_OFFSETS below — do one test print,
+      // measure, and adjust here.
+      var CARD_OFFSETS = {
+        paperSize: "letter portrait", // "letter portrait" | "letter landscape"
+        // Distance from top-left of the printable area. Everything absolute.
+        headerTop: "0.30in",  // small "Tee 1-A · 8 AM" tag at very top
+        headerLeft: "0.55in",
+        team1Top: "3.30in",   // top blank line, TOP half of the card
+        team2Top: "6.40in",   // top blank line, BOTTOM half (below "Hole" bar)
+        teamLeft: "0.85in",   // horizontal position of team-name text
+        nameSize: "16pt"
+      };
       function printScorecards() {
         if (!prRecs || !prRecs.length) { alert("No teams yet — import the field or add teams on Check-In first."); return; }
-        var daySel = document.getElementById("prCardsDay");
         var waveSel = document.getElementById("prPrintWhich");
-        var dayChoice = daySel ? daySel.value : "both";
         var waveChoice = waveSel ? waveSel.value : "both";
         var waves = waveChoice === "am" ? ["8 AM"] : (waveChoice === "pm" ? ["1 PM"] : ["8 AM", "1 PM"]);
-        var days = dayChoice === "1" ? [1] : (dayChoice === "2" ? [2] : [1, 2]);
 
         var teamNumbers = computeTeamNumbers(prRecs);
-        // Order teams within each wave by start hole then slot then created
-        // — same order they're announced and take the tee.
-        var ordered = [];
+        // Group teams by (wave, hole, slot). Each group is one physical card
+        // with up to two teams. Only groups with at least one placed team
+        // print — unassigned teams are skipped.
+        var groups = [];
         waves.forEach(function (w) {
-          var arr = prRecs.filter(function (r) { return ((r.fields || {}).Start || "") === w; }).slice();
-          arr.sort(function (a, b) {
-            var af = a.fields || {}, bf = b.fields || {};
-            var ah = Number(af.Hole) || 99, bh = Number(bf.Hole) || 99;
-            if (ah !== bh) return ah - bh;
-            var as = String(af.Slot || "Z"), bs = String(bf.Slot || "Z");
-            if (as !== bs) return as < bs ? -1 : 1;
-            return byCreated(a, b);
+          var placed = prRecs.filter(function (r) {
+            var f = r.fields || {};
+            return (f.Start || "") === w && Number(f.Hole) && (String(f.Slot || "").toUpperCase() === "A" || String(f.Slot || "").toUpperCase() === "B");
           });
-          arr.forEach(function (r) { ordered.push({ rec: r, wave: w }); });
+          // Bucket
+          var byKey = {};
+          placed.forEach(function (r) {
+            var f = r.fields || {};
+            var k = w + "|" + Number(f.Hole) + "|" + String(f.Slot).toUpperCase();
+            if (!byKey[k]) byKey[k] = { wave: w, hole: Number(f.Hole), slot: String(f.Slot).toUpperCase(), teams: [] };
+            byKey[k].teams.push(r);
+          });
+          Object.keys(byKey).forEach(function (k) {
+            var g = byKey[k];
+            g.teams.sort(byCreated);
+            groups.push(g);
+          });
         });
-        if (!ordered.length) { alert("No teams in that wave yet."); return; }
+        if (!groups.length) { alert("No teams placed on a tee yet."); return; }
+        groups.sort(function (a, b) {
+          if (a.wave !== b.wave) return a.wave === "8 AM" ? -1 : 1;
+          if (a.hole !== b.hole) return a.hole - b.hole;
+          return a.slot < b.slot ? -1 : 1;
+        });
 
-        // Precompute nine-hole and 18-hole totals for the reference rows.
-        function sum9(arr) { var t = 0; for (var i = 0; i < 9; i++) t += Number(arr[i]) || 0; return t; }
-        var blueOut = sum9(CARD9.blue), whiteOut = sum9(CARD9.white), redOut = sum9(CARD9.red);
-        var parOut = sum9(CARD9.parF), parIn = parOut, parTot = parOut + parIn;
-        var blueTot = blueOut * 2, whiteTot = whiteOut * 2, redTot = redOut * 2;
-
-        var DAY_LABELS = { 1: "Day 1 · Saturday, Aug 8", 2: "Day 2 · Sunday, Aug 9" };
-
-        function cardHtml(entry, day) {
-          var r = entry.rec, f = r.fields || {};
-          var tn = teamNumbers[r.id];
-          var tag = tn ? "T-" + String(tn).padStart(2, "0") : "—";
-          var teamNames = teamShortNames(f);
-          var wave = entry.wave === "8 AM" ? "8:00 A.M. Shotgun" : "1:00 P.M. Shotgun";
-          var startHole = Number(f.Hole) || null;
-          var startTag = startHole ? ("Start Hole " + startHole + (f.Slot ? " · Tee " + f.Slot : "")) : "";
-
-          // Column header cells: Holes 1-9, OUT, 10-18, IN, TOT, HCP, NET
-          var cols = '<th class="sc__lbl"></th>';
-          for (var h = 1; h <= 9; h++) cols += '<th>' + h + '</th>';
-          cols += '<th class="sc__sum">OUT</th>';
-          for (var h2 = 10; h2 <= 18; h2++) cols += '<th>' + h2 + '</th>';
-          cols += '<th class="sc__sum">IN</th><th class="sc__tot">TOT</th><th>HCP</th><th class="sc__net">NET</th>';
-
-          function refRow(cls, label, arr9, front9Total, back9Total, total) {
-            var cells = '<th class="sc__lbl">' + label + '</th>';
-            for (var i = 0; i < 9; i++) cells += '<td>' + (arr9[i] != null ? arr9[i] : "&mdash;") + '</td>';
-            cells += '<td class="sc__sum">' + (front9Total != null ? front9Total : "") + '</td>';
-            for (var j = 0; j < 9; j++) cells += '<td>' + (arr9[j] != null ? arr9[j] : "&mdash;") + '</td>';
-            cells += '<td class="sc__sum">' + (back9Total != null ? back9Total : "") + '</td>';
-            cells += '<td class="sc__tot">' + (total != null ? total : "") + '</td>';
-            cells += '<td></td><td></td>';
-            return '<tr class="' + cls + '">' + cells + '</tr>';
-          }
-          // Handicap rows show only the index number (differs per nine).
-          function hcpRow(cls, label, arrF, arrB) {
-            var cells = '<th class="sc__lbl">' + label + '</th>';
-            for (var i = 0; i < 9; i++) cells += '<td>' + arrF[i] + '</td>';
-            cells += '<td class="sc__sum"></td>';
-            for (var j = 0; j < 9; j++) cells += '<td>' + arrB[j] + '</td>';
-            cells += '<td class="sc__sum"></td><td class="sc__tot"></td><td></td><td></td>';
-            return '<tr class="' + cls + '">' + cells + '</tr>';
-          }
-          // Blank score-entry row for the team to fill in during play.
-          function scoreRow(label) {
-            var cells = '<th class="sc__lbl">' + label + '</th>';
-            for (var i = 0; i < 9; i++) cells += '<td class="sc__blank"></td>';
-            cells += '<td class="sc__blank sc__sum"></td>';
-            for (var j = 0; j < 9; j++) cells += '<td class="sc__blank"></td>';
-            cells += '<td class="sc__blank sc__sum"></td><td class="sc__blank sc__tot"></td><td class="sc__blank"></td><td class="sc__blank sc__net"></td>';
-            return '<tr class="sc__score">' + cells + '</tr>';
-          }
-
-          return '<article class="sc">'
-            + '<header class="sc__head">'
-            +   '<img class="sc__logo" src="images/logo.png" alt="F&amp;H Golf" />'
-            +   '<div class="sc__title">'
-            +     '<div class="sc__eyebrow">Founder&rsquo;s Tournament &middot; ' + esc(DAY_LABELS[day]) + '</div>'
-            +     '<h2>F&amp;H Golf Course</h2>'
-            +     '<div class="sc__sub">2-man scramble &middot; 18 holes &middot; Par 72</div>'
-            +   '</div>'
-            +   '<div class="sc__team">'
-            +     '<div class="sc__tnum">' + esc(tag) + '</div>'
-            +     '<div class="sc__names">' + esc(teamNames) + '</div>'
-            +     '<div class="sc__wave">' + esc(wave) + (startTag ? " &middot; " + esc(startTag) : "") + '</div>'
-            +   '</div>'
-            + '</header>'
-            + '<table class="sc__grid"><thead><tr>' + cols + '</tr></thead><tbody>'
-            +   refRow("sc__ref sc__ref--blue",  "Blue",  CARD9.blue,  blueOut,  blueOut,  blueTot)
-            +   refRow("sc__ref sc__ref--white", "White", CARD9.white, whiteOut, whiteOut, whiteTot)
-            +   refRow("sc__ref sc__ref--red",   "Red",   CARD9.red,   redOut,   redOut,   redTot)
-            +   hcpRow("sc__hcp", "M Hcp", CARD9.mHcpF, CARD9.mHcpB)
-            +   refRow("sc__par", "PAR", CARD9.parF, parOut, parIn, parTot)
-            +   hcpRow("sc__hcp", "L Hcp", CARD9.lHcpF, CARD9.lHcpB)
-            +   scoreRow("Team")
-            +   scoreRow("&nbsp;")
-            + '</tbody></table>'
-            + '<footer class="sc__foot">'
-            +   '<div class="sc__sig"><span class="sc__sig-lbl">Scorer</span><span class="sc__sig-line"></span></div>'
-            +   '<div class="sc__sig"><span class="sc__sig-lbl">Attest</span><span class="sc__sig-line"></span></div>'
-            +   '<div class="sc__sig sc__sig--date"><span class="sc__sig-lbl">Date</span><span class="sc__sig-line"></span></div>'
-            + '</footer>'
-            + '</article>';
+        function teamLine(rec) {
+          if (!rec) return "";
+          var tn = teamNumbers[rec.id];
+          var tag = tn ? "T-" + String(tn).padStart(2, "0") + "  " : "";
+          return tag + teamShortNames(rec.fields || {});
         }
 
-        // Build one page per two cards. If Both Days is picked, each team's
-        // Day-1 and Day-2 cards land on the same page so they hand out as a
-        // pair. If a single day is picked, we pair up consecutive teams.
-        var pages = [];
-        if (days.length === 2) {
-          ordered.forEach(function (entry) {
-            pages.push('<div class="sc-page">' + cardHtml(entry, 1) + cardHtml(entry, 2) + '</div>');
-          });
-        } else {
-          var d = days[0];
-          for (var i = 0; i < ordered.length; i += 2) {
-            var a = cardHtml(ordered[i], d);
-            var b = ordered[i + 1] ? cardHtml(ordered[i + 1], d) : '<article class="sc sc--empty"></article>';
-            pages.push('<div class="sc-page">' + a + b + '</div>');
-          }
-        }
+        var pages = groups.map(function (g) {
+          var waveTag = g.wave === "8 AM" ? "8 AM" : "1 PM";
+          var slotTag = "Tee " + g.hole + "-" + g.slot + " · " + waveTag;
+          return '<div class="sc-page">'
+            + '<div class="sc-hdr">' + esc(slotTag) + '</div>'
+            + '<div class="sc-name sc-name--1">' + esc(teamLine(g.teams[0])) + '</div>'
+            + '<div class="sc-name sc-name--2">' + esc(teamLine(g.teams[1] || null)) + '</div>'
+            + '</div>';
+        }).join("");
 
         var host = document.createElement("div");
         host.id = "prCardsHost";
         host.className = "pr-cards";
-        host.innerHTML = pages.join("");
+        host.innerHTML = pages;
 
         document.body.appendChild(host);
         document.body.classList.add("is-print-cards");
         var pageStyle = document.createElement("style");
         pageStyle.id = "pr-cards-page";
-        pageStyle.textContent = "@page { size: letter portrait; margin: 0.3in; }";
+        // Zero margin @page so absolute inch offsets measure from the actual
+        // paper edge, matching how the pre-printed card sits in the tray.
+        pageStyle.textContent =
+          "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
+          + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
+          + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
+          + " body.is-print-cards .sc-name--1 { top: " + CARD_OFFSETS.team1Top + "; }"
+          + " body.is-print-cards .sc-name--2 { top: " + CARD_OFFSETS.team2Top + "; }";
         document.head.appendChild(pageStyle);
         function cleanup() {
           document.body.classList.remove("is-print-cards");

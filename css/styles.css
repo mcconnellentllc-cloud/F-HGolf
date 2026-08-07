@@ -1455,49 +1455,20 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
   body.is-print-ann .pr-ann__names { font-size: 12pt; font-weight: 700; color: #000; letter-spacing: 0; }
   body.is-print-ann .pr-ann__foot { text-align: center; margin-top: 14pt; padding-top: 6pt; border-top: 1pt solid #1B5E20; color: #444; font-size: 8.5pt; letter-spacing: 0.08em; }
 
-  /* Printable team scorecards — two per portrait letter page (stacked). */
+  /* Printable team scorecards — NAME OVERLAY ONLY. Physical F&H cards feed
+     through the printer; each page prints just three lines of text at fixed
+     positions so they land on the pre-printed blank lines. One page per
+     tee slot. Coordinates come from CARD_OFFSETS in tournament-admin.html
+     via a JS-injected <style> — tune there, not here. */
   body.is-print-cards > *:not(#prCardsHost) { display: none !important; }
-  body.is-print-cards .pr-cards { display: block !important; color: #000; background: #fff; font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; }
-  body.is-print-cards .sc-page { display: flex; flex-direction: column; gap: 14pt; page-break-after: always; height: 10.4in; }
+  body.is-print-cards .pr-cards { display: block !important; color: #000; background: transparent; font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; }
+  body.is-print-cards .sc-page { position: relative; page-break-after: always; width: 100%; height: 100%; }
   body.is-print-cards .sc-page:last-child { page-break-after: auto; }
-  body.is-print-cards .sc { flex: 1 1 0; border: 1pt solid #1B5E20; border-radius: 5pt; padding: 8pt 10pt; display: flex; flex-direction: column; page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-cards .sc--empty { border: 1pt dashed #ccc; background: #fafafa; }
-  body.is-print-cards .sc__head { display: flex; align-items: center; gap: 10pt; padding-bottom: 5pt; margin-bottom: 5pt; border-bottom: 2pt solid #1B5E20; }
-  body.is-print-cards .sc__logo { width: 42pt; height: 42pt; object-fit: contain; flex: 0 0 auto; }
-  body.is-print-cards .sc__title { flex: 1; text-align: center; }
-  body.is-print-cards .sc__eyebrow { display: block; text-transform: uppercase; letter-spacing: 0.16em; color: #8a1c25; font-weight: 700; font-size: 8pt; margin-bottom: 1pt; }
-  body.is-print-cards .sc__title h2 { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: #1B5E20; margin: 0; font-size: 15pt; letter-spacing: 0.01em; }
-  body.is-print-cards .sc__sub { display: block; color: #333; font-size: 8.5pt; margin-top: 1pt; font-style: italic; }
-  body.is-print-cards .sc__team { flex: 0 0 auto; text-align: right; min-width: 150pt; }
-  body.is-print-cards .sc__tnum { display: inline-block; background: #1B5E20; color: #fff; font-family: "Source Sans 3", monospace; font-weight: 800; font-size: 10pt; padding: 1.5pt 6pt; border-radius: 3pt; letter-spacing: 0.06em; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-cards .sc__names { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 12pt; color: #000; margin-top: 2pt; letter-spacing: 0; }
-  body.is-print-cards .sc__wave { display: block; color: #555; font-size: 8pt; margin-top: 1pt; text-transform: uppercase; letter-spacing: 0.06em; }
-
-  body.is-print-cards .sc__grid { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 3pt 0; font-size: 8.5pt; }
-  body.is-print-cards .sc__grid th, body.is-print-cards .sc__grid td { border: 0.5pt solid #999; text-align: center; padding: 1.5pt 0; vertical-align: middle; }
-  body.is-print-cards .sc__grid thead th { background: #1B5E20; color: #fff; font-weight: 700; letter-spacing: 0.03em; font-size: 8pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-cards .sc__grid .sc__lbl { text-align: left; padding-left: 4pt; background: #f4f0e6; font-weight: 700; color: #1B5E20; width: 42pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-cards .sc__grid thead .sc__sum, body.is-print-cards .sc__grid thead .sc__tot, body.is-print-cards .sc__grid thead .sc__net { background: #123f14; letter-spacing: 0.05em; }
-  body.is-print-cards .sc__grid tbody .sc__sum { background: #f4f0e6; font-weight: 700; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-cards .sc__grid tbody .sc__tot { background: #e8dfc7; font-weight: 800; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-cards .sc__grid tbody .sc__net { background: #fff7dc; font-weight: 800; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-cards .sc__ref { color: #333; }
-  body.is-print-cards .sc__ref--blue .sc__lbl { color: #0d3d78; }
-  body.is-print-cards .sc__ref--white .sc__lbl { color: #444; }
-  body.is-print-cards .sc__ref--red .sc__lbl { color: #8a1c25; }
-  body.is-print-cards .sc__hcp { color: #555; font-size: 7.5pt; }
-  body.is-print-cards .sc__par { background: #fff7dc; font-weight: 800; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-cards .sc__par td { background: #fff7dc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-cards .sc__par .sc__lbl { background: #fff7dc; }
-  body.is-print-cards .sc__score td, body.is-print-cards .sc__score th { height: 22pt; }
-  body.is-print-cards .sc__score .sc__lbl { background: #fff; color: #000; font-family: "Fraunces", Georgia, serif; font-size: 10pt; }
-  body.is-print-cards .sc__blank { background: #fff; }
-
-  body.is-print-cards .sc__foot { display: flex; gap: 12pt; padding-top: 6pt; margin-top: auto; }
-  body.is-print-cards .sc__sig { flex: 1; display: flex; align-items: flex-end; gap: 4pt; }
-  body.is-print-cards .sc__sig--date { flex: 0 0 130pt; }
-  body.is-print-cards .sc__sig-lbl { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.14em; color: #1B5E20; font-weight: 700; flex: 0 0 auto; }
-  body.is-print-cards .sc__sig-line { flex: 1; border-bottom: 0.75pt solid #333; height: 14pt; }
+  /* Small tee-slot tag at top so the operator can verify each printed card
+     is landing on the right physical scorecard. Muted grey so it doesn't
+     compete with the pre-printed header. */
+  body.is-print-cards .sc-hdr { position: absolute; font-size: 9pt; color: #555; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
+  body.is-print-cards .sc-name { position: absolute; font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; font-weight: 700; color: #000; letter-spacing: 0; white-space: nowrap; }
 
   /* Letterhead (JS-injected .ca-print-head): logo · title · logo, deep green rule. */
   .ca-print-head, .ca-print-foot { display: none; }
