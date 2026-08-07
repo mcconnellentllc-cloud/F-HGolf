@@ -75,6 +75,26 @@
     .rules__table td:nth-child(3) { color: rgba(246,249,244,0.85); }
     .rules__ref { color: var(--muted); font-size: 0.85em; font-style: italic; }
 
+    .rules__expand { margin: 0.7rem 0 0.2rem; background: rgba(0,0,0,0.16); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .rules__expand[open] { background: rgba(0,0,0,0.24); }
+    .rules__expand summary { cursor: pointer; padding: 0.6rem 0.9rem; font-weight: 700; color: var(--gold); letter-spacing: 0.02em; list-style: none; display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; }
+    .rules__expand summary::-webkit-details-marker { display: none; }
+    .rules__expand summary::before { content: "▸"; color: var(--gold); font-size: 0.85em; transition: transform 0.15s ease; display: inline-block; }
+    .rules__expand[open] summary::before { transform: rotate(90deg); }
+    .rules__expand-body { padding: 0.2rem 1rem 0.9rem; }
+    .rules__expand-body p, .rules__expand-body ol, .rules__expand-body ul { color: rgba(246,249,244,0.9); font-size: clamp(0.95rem, 1.2vw, 1.05rem); line-height: 1.55; }
+    .rules__expand-body ol { padding-left: 1.3rem; margin: 0.4rem 0; }
+    .rules__expand-body li { margin: 0.25rem 0; }
+    .rules__expand-body table { width: 100%; border-collapse: collapse; margin: 0.5rem 0 0.3rem; font-size: 0.95em; }
+    .rules__expand-body th, .rules__expand-body td { padding: 0.35rem 0.6rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.09); }
+    .rules__expand-body th { background: rgba(0,0,0,0.35); color: var(--gold); font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 0.9em; }
+    .rules__expand-body td:first-child { font-weight: 800; color: var(--gold); width: 4rem; text-align: center; }
+    .rules__expand-body td:nth-child(2) { color: rgba(246,249,244,0.9); }
+
+    .rules__callout { margin: 0.7rem 0 0.2rem; padding: 0.75rem 1rem; background: rgba(245,197,66,0.10); border-left: 4px solid var(--gold); border-radius: 0 8px 8px 0; }
+    .rules__callout b { color: var(--gold); }
+    .rules__callout p { margin: 0.15rem 0; line-height: 1.55; color: rgba(246,249,244,0.92); font-size: clamp(1rem, 1.25vw, 1.1rem); }
+
     .rules__back { display: inline-flex; align-items: center; gap: 0.4rem; color: rgba(246,249,244,0.75); text-decoration: none; font-weight: 700; letter-spacing: 0.04em; margin: 0 0 1.2rem; }
     .rules__back:hover { color: var(--gold); }
 
@@ -106,6 +126,19 @@
       .rules__table td { color: #000 !important; font-size: 9pt; border-bottom: 0.25pt solid #999; }
       .rules__table td:nth-child(2) { color: #8a1c25 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .rules__ref { color: #555 !important; }
+      .rules__expand { background: transparent !important; border: 0.5pt solid #1B5E20 !important; border-radius: 2pt !important; page-break-inside: avoid; }
+      .rules__expand summary { color: #1B5E20 !important; padding: 4pt 8pt; font-size: 10pt; }
+      .rules__expand[open] summary::before, .rules__expand summary::before { color: #1B5E20 !important; }
+      .rules__expand-body { padding: 2pt 8pt 6pt; }
+      .rules__expand-body p, .rules__expand-body li { color: #000 !important; font-size: 9.5pt; }
+      .rules__expand-body th { background: #f4f0e6 !important; color: #1B5E20 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .rules__expand-body td { color: #000 !important; border-bottom: 0.25pt solid #999; font-size: 9.5pt; }
+      .rules__expand-body td:first-child { color: #8a1c25 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      /* Force <details> open for print so nothing's hidden. */
+      .rules__expand { }
+      .rules__callout { background: transparent !important; border-left: 2pt solid #b48000 !important; border-radius: 0 !important; padding: 4pt 8pt; }
+      .rules__callout b { color: #8a1c25 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .rules__callout p { color: #000 !important; font-size: 9.5pt; }
     }
   </style>
 </head>
@@ -187,6 +220,30 @@
           whether a ball is in or out, <b>play a provisional</b> before leaving
           the tee/spot; sort it out when you reach the ball.
         </p>
+
+        <details class="rules__expand">
+          <summary>What &ldquo;stroke and distance&rdquo; actually means</summary>
+          <div class="rules__expand-body">
+            <p>It&rsquo;s a two-part penalty. You&rsquo;re charged both a <b>stroke</b> (one added to your score) <b>and the distance</b> (you replay from the spot of your previous shot &mdash; you don&rsquo;t get to drop where the ball came to rest).</p>
+            <p><b>Example &mdash; hole&nbsp;1 tee shot goes OB west of the white stakes:</b></p>
+            <table>
+              <thead><tr><th>Stroke</th><th>What happens</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>Drive off the tee &mdash; goes OB.</td></tr>
+                <tr><td>2</td><td>Penalty stroke.</td></tr>
+                <tr><td>3</td><td>Re-tee and hit again.</td></tr>
+              </tbody>
+            </table>
+            <p>Your next full shot is your <b>4th</b>. The OB ball is dead &mdash; you don&rsquo;t play it, and you don&rsquo;t get to drop near the fence.</p>
+            <p><b>Two-man scramble version:</b></p>
+            <ul>
+              <li>If <b>one</b> of the two drives is in bounds, the team simply picks that drive and plays on &mdash; <b>no penalty</b>, the OB ball just doesn&rsquo;t get selected.</li>
+              <li>If <b>both</b> drives go OB, add one penalty stroke to the team score and both players re-tee.</li>
+              <li>If a shot from the selected spot (approach, iron, wedge) goes OB, the team takes S&amp;D: one penalty stroke, both players replay from that selected spot.</li>
+            </ul>
+            <p><b>Save the walk-back &mdash; play a provisional.</b> Any time OB or a lost ball is even a possibility, announce &ldquo;playing a provisional&rdquo; before you leave the tee and hit another ball (<span class="rules__ref">Rule&nbsp;18.3</span>). If the first ball is found in bounds, the provisional is picked up &mdash; no penalty. If the first is OB or lost, the provisional is already in play and the group didn&rsquo;t have to wait.</p>
+          </div>
+        </details>
       </section>
 
       <section class="rules__section" id="hazards">
@@ -246,14 +303,33 @@
       </section>
 
       <section class="rules__section" id="pace">
-        <h2><span class="rules__num">5.</span> Pace, etiquette &amp; ties</h2>
+        <h2><span class="rules__num">5.</span> Pace of play, etiquette &amp; ties</h2>
+        <p>
+          Pace of play matters. This is a <b>shotgun-start, 64-team, two-day</b>
+          tournament &mdash; every group finishes when the slowest group
+          finishes, and the meal / calcutta payout / awards all wait on the
+          field. Target pace is <b>~4:15 for 18</b>. Your group&rsquo;s
+          reference point is <b>the group ahead of you</b> &mdash; keep pace with
+          them, not with the group behind.
+        </p>
+
+        <div class="rules__callout">
+          <p><b>Play a provisional every time OB is even a possibility.</b> A provisional ball costs you nothing if the first ball is found in bounds &mdash; and it saves the whole group a 300-yard walk back to the tee if it isn&rsquo;t. Announce <em>&ldquo;playing a provisional&rdquo;</em> before you leave the tee or the previous spot, then hit again. This is the single biggest thing you can do to keep the field moving (<span class="rules__ref">Rule&nbsp;18.3</span>).</p>
+        </div>
+
+        <p><b>Habits that keep the pace up:</b></p>
         <ul>
-          <li>Keep pace with the group ahead of you. If you fall a full hole behind, wave the group behind through.</li>
+          <li><b>Ready golf.</b> Whoever is ready hits &mdash; honors on the tee is nice, but not worth waiting for.</li>
+          <li><b>Be ready when it&rsquo;s your turn.</b> Read your putt while others are reading theirs; pull the club you need while walking to your ball.</li>
+          <li><b>3-minute search max</b> for a lost ball (<span class="rules__ref">Rule&nbsp;18.2</span>). After three minutes the ball is lost &mdash; go to your provisional (or take stroke and distance).</li>
+          <li><b>Keep pace with the group ahead.</b> If a full hole opens between you and the group ahead, pick up the pace. If you can&rsquo;t close it, wave the group behind through.</li>
+          <li><b>Don&rsquo;t scout the whole shot.</b> One look, pick a target, hit it. Scrambles are usually the fastest format because the team can talk strategy while walking &mdash; use that.</li>
           <li>Repair ball marks, replace divots, rake bunkers.</li>
           <li>No cell-phone calls or music that carries across the course.</li>
-          <li><b>Tie-break for flight prizes:</b> Day&nbsp;2 gross &rarr; back-nine of Day&nbsp;2 &rarr; last-6 of Day&nbsp;2 &rarr; last-3 of Day&nbsp;2 &rarr; hole-by-hole match-of-cards. If still tied, the committee may call a <b>chip-off</b> for prize order.</li>
-          <li><b>Scorecards</b> must be turned in <b>signed by the scorer and attested</b> by another team member. Cards can&rsquo;t be changed after they&rsquo;re turned in.</li>
         </ul>
+
+        <p><b>Tie-break for flight prizes:</b> Day&nbsp;2 gross &rarr; back-nine of Day&nbsp;2 &rarr; last-6 of Day&nbsp;2 &rarr; last-3 of Day&nbsp;2 &rarr; hole-by-hole match-of-cards. If still tied, the committee may call a <b>chip-off</b> for prize order.</p>
+        <p><b>Scorecards</b> must be turned in <b>signed by the scorer and attested</b> by another team member. Cards can&rsquo;t be changed after they&rsquo;re turned in.</p>
       </section>
 
       <section class="rules__section" id="penalties">
