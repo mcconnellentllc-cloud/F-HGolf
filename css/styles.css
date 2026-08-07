@@ -1715,6 +1715,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-p__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .ci-p__method { padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; font-weight: 600; width: 100%; }
 .ci-p__method:disabled { background: var(--paper-2); color: var(--muted); }
+.ci-p__surcharge { grid-column: 1 / -1; justify-self: end; display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; background: rgba(139, 28, 37, 0.1); color: #7d1218; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; }
 
 /* Inline paid / cart pill checkboxes on the player row + cart line. */
 .ci-check { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 0.78rem; font-weight: 700; color: var(--muted); cursor: pointer; user-select: none; white-space: nowrap; }
