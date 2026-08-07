@@ -1430,6 +1430,31 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
   /* Sticky columns are irrelevant on paper and confuse the print engine. */
   body.is-print-ca .ca-tbl th, body.is-print-ca .ca-tbl td { position: static !important; box-shadow: none !important; background: transparent !important; }
 
+  /* Pairings Announcement — starter's read-aloud sheet. Everything else is
+     hidden and the injected .pr-ann host takes over the page. */
+  body.is-print-ann > *:not(#prAnnHost) { display: none !important; }
+  body.is-print-ann .pr-ann { display: block !important; color: #000; background: #fff; font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; }
+  body.is-print-ann .pr-ann__head { display: flex; align-items: center; justify-content: space-between; gap: 12pt; padding: 0 0 10pt; margin: 0 0 14pt; border-bottom: 3pt double #1B5E20; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-ann .pr-ann__logo { width: 60pt; height: 60pt; object-fit: contain; flex: 0 0 auto; }
+  body.is-print-ann .pr-ann__title { text-align: center; flex: 1; }
+  body.is-print-ann .pr-ann__eyebrow { display: block; text-transform: uppercase; letter-spacing: 0.25em; color: #8a1c25; font-weight: 700; font-size: 9pt; margin-bottom: 3pt; }
+  body.is-print-ann .pr-ann__title h1 { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: #1B5E20; margin: 0; font-size: 24pt; letter-spacing: 0.01em; }
+  body.is-print-ann .pr-ann__sub { display: block; color: #333; font-size: 10pt; margin-top: 3pt; font-style: italic; }
+  body.is-print-ann .pr-ann__wave { margin-bottom: 14pt; page-break-inside: avoid; }
+  body.is-print-ann .pr-ann__wave + .pr-ann__wave { page-break-before: always; margin-top: 0; }
+  body.is-print-ann .pr-ann__wave-hd { display: flex; justify-content: space-between; align-items: baseline; padding: 4pt 10pt; background: #1B5E20; color: #fff; border-radius: 4pt 4pt 0 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-ann .pr-ann__wave-hd h2 { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 18pt; margin: 0; letter-spacing: 0.02em; }
+  body.is-print-ann .pr-ann__wave-count { font-size: 10pt; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.85; }
+  body.is-print-ann .pr-ann__grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; border: 1pt solid #1B5E20; border-top: none; }
+  body.is-print-ann .pr-ann__slot { padding: 5pt 10pt; border-bottom: 0.5pt solid #ccc; border-right: 0.5pt solid #ccc; page-break-inside: avoid; }
+  body.is-print-ann .pr-ann__slot:nth-child(2n) { border-right: none; }
+  body.is-print-ann .pr-ann__slot-hd { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: #1B5E20; font-size: 12pt; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3pt; border-bottom: 0.75pt solid #1B5E20; padding-bottom: 1pt; }
+  body.is-print-ann .pr-ann__team { display: flex; align-items: center; gap: 6pt; padding: 2.5pt 0; }
+  body.is-print-ann .pr-ann__team + .pr-ann__team { border-top: 0.4pt dotted #999; }
+  body.is-print-ann .pr-ann__tnum { display: inline-block; background: #1B5E20; color: #fff; font-family: "Source Sans 3", monospace; font-weight: 800; font-size: 8pt; letter-spacing: 0.05em; padding: 1pt 4pt; border-radius: 3pt; min-width: 30pt; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-ann .pr-ann__names { font-size: 12pt; font-weight: 700; color: #000; letter-spacing: 0; }
+  body.is-print-ann .pr-ann__foot { text-align: center; margin-top: 14pt; padding-top: 6pt; border-top: 1pt solid #1B5E20; color: #444; font-size: 8.5pt; letter-spacing: 0.08em; }
+
   /* Letterhead (JS-injected .ca-print-head): logo · title · logo, deep green rule. */
   .ca-print-head, .ca-print-foot { display: none; }
   body.is-print-ca .ca-print-head {
