@@ -128,7 +128,9 @@
                 <option value="am">Print A.M. only</option>
                 <option value="pm">Print P.M. only</option>
               </select>
-              <button class="btn btn--primary" type="button" id="prPrint">Print now</button>
+              <button class="btn btn--solid" type="button" id="prPrint">Print tee sheet</button>
+              <button class="btn btn--solid" type="button" id="prPrintAnnounce">Announcement page</button>
+              <button class="btn btn--solid" type="button" id="prPrintCards" title="Scorecards — dimensions to come">Print scorecards</button>
             </div>
           </div>
           <p class="scaffold__desc">Two teams to a tee. Tap a hole up top to add a <em>Tee A</em> or <em>A+B</em> &mdash; teams auto-fill from Unplaced. Drag a team onto another (or use its dropdown) to swap seats. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
@@ -2379,6 +2381,83 @@
         positionSaveMany(assignments);
       }
 
+      // ---- Pairings: announcement page (starter's read-aloud sheet) ----
+      // Renders every occupied tee slot in reading order (Hole 1 A/B → Hole 9
+      // A/B, AM then PM) into a print-only DOM host. Big serif headers, big
+      // team names — designed to be read at a podium mic.
+      function printAnnouncement() {
+        if (!prRecs || !prRecs.length) { alert("No teams yet — import the field or add teams on Check-In first."); return; }
+        var teamNumbers = computeTeamNumbers(prRecs);
+        var host = document.createElement("div");
+        host.id = "prAnnHost";
+        host.className = "pr-ann";
+
+        var wavesHtml = WAVES.map(function (w) {
+          var cfg = loadSlotCfg(w.k);
+          var slots = activeSlots(cfg);
+          if (!slots.length) return "";
+          var teams = prRecs.filter(function (r) { return ((r.fields || {}).Start || "") === w.k; }).sort(byCreated);
+          if (!teams.length) return "";
+          var placed = {};
+          slots.forEach(function (s) { placed[s.hole + s.slot] = []; });
+          teams.forEach(function (t) {
+            var f = t.fields || {}, h = Number(f.Hole), sl = String(f.Slot || "").toUpperCase();
+            var k = h + sl;
+            if (h && (sl === "A" || sl === "B") && placed[k] && placed[k].length < TEAMS_PER_TEE) placed[k].push(t);
+          });
+          var rows = slots.map(function (s) {
+            var arr = placed[s.hole + s.slot];
+            if (!arr || !arr.length) return "";
+            var teamsHtml = arr.map(function (t) {
+              var tn = teamNumbers[t.id];
+              var tag = tn ? "T-" + String(tn).padStart(2, "0") : "&mdash;";
+              return '<div class="pr-ann__team">'
+                + '<span class="pr-ann__tnum">' + esc(tag) + '</span>'
+                + '<span class="pr-ann__names">' + esc(teamShortNames(t.fields || {})) + '</span>'
+                + '</div>';
+            }).join("");
+            return '<div class="pr-ann__slot pr-ann__slot--h' + s.hole + '">'
+              + '<div class="pr-ann__slot-hd">Hole ' + s.hole + ' &middot; Tee ' + esc(s.slot) + '</div>'
+              + '<div class="pr-ann__slot-teams">' + teamsHtml + '</div>'
+              + '</div>';
+          }).join("");
+          return '<section class="pr-ann__wave">'
+            + '<header class="pr-ann__wave-hd">'
+            + '<h2>' + esc(w.title || w.k) + '</h2>'
+            + '<span class="pr-ann__wave-count">' + teams.length + ' teams</span>'
+            + '</header>'
+            + '<div class="pr-ann__grid">' + rows + '</div>'
+            + '</section>';
+        }).join("");
+
+        host.innerHTML =
+          '<header class="pr-ann__head">'
+          + '<img class="pr-ann__logo" src="images/logo.png" alt="F&H Golf Course" />'
+          + '<div class="pr-ann__title"><span class="pr-ann__eyebrow">2026 Founders Tournament</span>'
+          + '<h1>Pairings Announcement</h1>'
+          + '<span class="pr-ann__sub">F&amp;H Golf Course &middot; Aug 8&ndash;9 &middot; Shotgun start</span></div>'
+          + '<img class="pr-ann__logo" src="images/logo.png" alt="" aria-hidden="true" />'
+          + '</header>'
+          + wavesHtml
+          + '<footer class="pr-ann__foot">F&amp;H Golf Course &middot; (970) 774-6362 &middot; fandhgolf.com</footer>';
+
+        document.body.appendChild(host);
+        document.body.classList.add("is-print-ann");
+        var pageStyle = document.createElement("style");
+        pageStyle.id = "pr-ann-page";
+        pageStyle.textContent = "@page { size: letter portrait; margin: 0.45in; }";
+        document.head.appendChild(pageStyle);
+        function cleanup() {
+          document.body.classList.remove("is-print-ann");
+          if (host && host.parentNode) host.parentNode.removeChild(host);
+          var ps = document.getElementById("pr-ann-page"); if (ps) ps.remove();
+          window.removeEventListener("afterprint", cleanup);
+        }
+        window.addEventListener("afterprint", cleanup);
+        setTimeout(function () { window.print(); }, 60);
+        setTimeout(cleanup, 3000);
+      }
+
       // ---- Flights + Leaderboard ----
       var FLIGHT_NAMES = ["Champ", "First", "Second", "Third", "5th", "6th", "7th", "8th"];
       function flightName(n) { return FLIGHT_NAMES[n - 1] || ("Flight " + n); }
@@ -3854,8 +3933,15 @@
           function cleanup() { document.body.classList.remove("is-print-am", "is-print-pm", "is-print-both"); window.removeEventListener("afterprint", cleanup); }
           window.addEventListener("afterprint", cleanup);
           setTimeout(function () { window.print(); }, 30);
-          setTimeout(cleanup, 2000); // fallback if afterprint doesn't fire (Safari, some mobile browsers)
+          setTimeout(cleanup, 2000);
         });
+
+        // Announcement page — a single sheet listing every tee slot with the
+        // teams reading order, for the starter to call names at shotgun start.
+        var prAnn = document.getElementById("prPrintAnnounce");
+        if (prAnn) prAnn.addEventListener("click", printAnnouncement);
+        var prCards = document.getElementById("prPrintCards");
+        if (prCards) prCards.addEventListener("click", function () { alert("Scorecards need the paper dimensions + layout you're planning to use. Send those over and I'll wire it up next."); });
 
         loadRoster();
         loadExpenses();
