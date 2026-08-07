@@ -201,6 +201,13 @@
           </div>
           <p class="scaffold__desc">Buyer + amount per team. Each flight shows its running pool and payout total. Toggle <b>Auction view</b> to collapse the score columns so the buyer / amount boxes stay in easy reach.</p>
           <div class="ca-viewbar">
+            <label class="ca-auctionpick">
+              <span>Currently auctioning:</span>
+              <select id="caAuctionFlight" aria-label="Which flight is on the block right now">
+                <option value="pol">Pick of the Litter (whole field)</option>
+              </select>
+              <small class="ca-auctionpick__sub" id="caAuctionPickStatus">This drives the public Calcutta display.</small>
+            </label>
             <label class="ca-viewtoggle"><input type="checkbox" id="caAuctionView" checked /> <span>Auction view</span> <small>(hide scores; keeps team + buyer + $)</small></label>
           </div>
           <div id="caBody"><p class="noms__msg">Loading…</p></div>
@@ -4211,6 +4218,62 @@
           av.addEventListener("change", function () {
             try { localStorage.setItem("fh_ca_auction_" + KEY, av.checked ? "1" : "0"); } catch (e) {}
             applyAuctionView();
+          });
+        }
+
+        // "Currently auctioning" picker — drives the public Calcutta display.
+        // Value "pol" = Pick of the Litter (whole field visible). Otherwise a
+        // flight number, matching the Flight field on Signups. Persisted in
+        // Tournament Config (Airtable) via tournament-flights.saveConfig so
+        // all devices + the public display see the same selection.
+        var caFlightSel = document.getElementById("caAuctionFlight");
+        var caFlightStatus = document.getElementById("caAuctionPickStatus");
+        function populateAuctionFlightOptions(currentVal) {
+          if (!caFlightSel) return;
+          var nF = (function () { try { return Number(loadCalc && loadCalc().nF) || 4; } catch (e) { return 4; } })();
+          var opts = ['<option value="pol">Pick of the Litter (whole field)</option>'];
+          for (var i = 1; i <= nF; i++) {
+            opts.push('<option value="' + i + '">' + esc(flightName(i)) + ' Flight</option>');
+          }
+          opts.push('<option value="done">Auction complete</option>');
+          caFlightSel.innerHTML = opts.join("");
+          if (currentVal != null) caFlightSel.value = String(currentVal);
+        }
+        function loadAuctionFlight() {
+          if (!caFlightSel) return;
+          populateAuctionFlightOptions("pol");
+          fetch(FH_API.url("/api/tournament-flights"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify({ action: "getConfig", tournament: KEY })
+          })
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+              var st = j && j.ok && j.auctionState ? j.auctionState : {};
+              var fl = st.flight != null ? String(st.flight) : "pol";
+              populateAuctionFlightOptions(fl);
+            })
+            .catch(function () {});
+        }
+        if (caFlightSel) {
+          loadAuctionFlight();
+          caFlightSel.addEventListener("change", function () {
+            var v = caFlightSel.value;
+            if (caFlightStatus) caFlightStatus.textContent = "Saving…";
+            fetch(FH_API.url("/api/tournament-flights"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+              body: JSON.stringify({ action: "saveConfig", tournament: KEY, auctionState: { flight: v } })
+            })
+              .then(function (r) { return r.json().catch(function () { return {}; }); })
+              .then(function (j) {
+                if (j && j.ok) {
+                  if (caFlightStatus) caFlightStatus.textContent = "Saved ✓ — public display updates within ~15s.";
+                } else if (caFlightStatus) {
+                  caFlightStatus.textContent = (j && j.error) || "Save failed.";
+                }
+              })
+              .catch(function () { if (caFlightStatus) caFlightStatus.textContent = "Network error."; });
           });
         }
 

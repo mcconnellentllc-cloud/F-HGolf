@@ -205,6 +205,26 @@ module.exports = async (req, res) => {
     if (!isAdmin) res.setHeader("Cache-Control", "public, s-maxage=10, stale-while-revalidate=30");
     const payload = { ok: true, count: out.length, records: out };
     if (!isAdmin) payload.totals = buildTotals(records);
+    // Public auction state — read from the Tournament Config table so the
+    // Calcutta display can show only the flight currently up for auction.
+    // Best-effort: if the table doesn't exist or the read fails, we return an
+    // empty map and the display falls back to showing the whole field.
+    try {
+      const cfgTable = process.env.CONFIG_TABLE || "Tournament Config";
+      const cfgUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}?pageSize=100`;
+      const cr = await fetch(cfgUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      if (cr.ok) {
+        const cdata = await cr.json();
+        const auctionStates = {};
+        (cdata.records || []).forEach((rec) => {
+          const f = rec.fields || {};
+          const name = String(f["Tournament"] || "").trim();
+          if (!name || typeof f["Auction State"] !== "string") return;
+          try { auctionStates[name] = JSON.parse(f["Auction State"]) || {}; } catch (e) {}
+        });
+        payload.auctionStates = auctionStates;
+      }
+    } catch (e) { /* auction-state read is best-effort */ }
     return res.status(200).json(payload);
   } catch (e) {
     console.error("tournament-signups read error", e);

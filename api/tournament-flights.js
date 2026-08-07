@@ -55,38 +55,49 @@ module.exports = async (req, res) => {
       const q = `?filterByFormula=${encodeURIComponent(`{Tournament}='${t.replace(/'/g, "\\'")}'`)}&maxRecords=1`;
       const r = await fetch(cfgUrl + q, { headers: { Authorization: auth.Authorization } });
       if (!r.ok) {
-        if (r.status === 404) return res.status(200).json({ ok: true, config: {} });
+        if (r.status === 404) return res.status(200).json({ ok: true, config: {}, auctionState: {} });
         const d = await r.text(); console.error("getConfig", r.status, d);
-        return res.status(200).json({ ok: true, config: {}, warning: "Config table missing — using localStorage only." });
+        return res.status(200).json({ ok: true, config: {}, auctionState: {}, warning: "Config table missing — using localStorage only." });
       }
       const data = await r.json();
       const rec = (data.records || [])[0];
-      let cfg = {};
-      if (rec && rec.fields && typeof rec.fields["Slot Config"] === "string") {
-        try { cfg = JSON.parse(rec.fields["Slot Config"]) || {}; } catch (e) { cfg = {}; }
+      let cfg = {}, aState = {};
+      if (rec && rec.fields) {
+        if (typeof rec.fields["Slot Config"] === "string") {
+          try { cfg = JSON.parse(rec.fields["Slot Config"]) || {}; } catch (e) { cfg = {}; }
+        }
+        if (typeof rec.fields["Auction State"] === "string") {
+          try { aState = JSON.parse(rec.fields["Auction State"]) || {}; } catch (e) { aState = {}; }
+        }
       }
-      return res.status(200).json({ ok: true, config: cfg, id: rec ? rec.id : null });
+      return res.status(200).json({ ok: true, config: cfg, auctionState: aState, id: rec ? rec.id : null });
     }
     if (body.action === "saveConfig") {
       const t = clean(body.tournament, 200);
       if (!t) return res.status(400).json({ ok: false, error: "tournament required." });
-      const cfg = (body.config && typeof body.config === "object") ? body.config : {};
-      const payload = JSON.stringify(cfg).slice(0, 20000);
+      // Accept slot config, auction state, or both. Missing keys leave the
+      // stored value unchanged so a partial write from one screen doesn't
+      // wipe out settings owned by another.
+      const cfg = (body.config && typeof body.config === "object") ? body.config : null;
+      const aState = (body.auctionState && typeof body.auctionState === "object") ? body.auctionState : null;
+      if (!cfg && !aState) return res.status(400).json({ ok: false, error: "config or auctionState required." });
       const q = `?filterByFormula=${encodeURIComponent(`{Tournament}='${t.replace(/'/g, "\\'")}'`)}&maxRecords=1`;
       const findR = await fetch(cfgUrl + q, { headers: { Authorization: auth.Authorization } });
       if (!findR.ok) {
         const d = await findR.text(); console.error("saveConfig find", findR.status, d);
-        return res.status(200).json({ ok: false, error: "Config table missing — add a Tournament Config table (fields: Tournament, Slot Config) in Airtable to enable cross-device pairings." });
+        return res.status(200).json({ ok: false, error: "Config table missing — add a Tournament Config table (fields: Tournament, Slot Config, Auction State) in Airtable." });
       }
       const findData = await findR.json();
       const existing = (findData.records || [])[0];
-      const fields = { Tournament: t, "Slot Config": payload };
+      const fields = { Tournament: t };
+      if (cfg) fields["Slot Config"] = JSON.stringify(cfg).slice(0, 20000);
+      if (aState) fields["Auction State"] = JSON.stringify(aState).slice(0, 4000);
       if (existing && existing.id) {
         const upR = await fetch(cfgUrl, { method: "PATCH", headers: auth, body: JSON.stringify({ records: [{ id: existing.id, fields }] }) });
-        if (!upR.ok) { const d = await upR.text(); console.error("saveConfig patch", upR.status, d); return res.status(502).json({ ok: false, error: "Couldn't update slot config." }); }
+        if (!upR.ok) { const d = await upR.text(); console.error("saveConfig patch", upR.status, d); return res.status(502).json({ ok: false, error: "Couldn't update tournament config." }); }
       } else {
         const upR = await fetch(cfgUrl, { method: "POST", headers: auth, body: JSON.stringify({ records: [{ fields }] }) });
-        if (!upR.ok) { const d = await upR.text(); console.error("saveConfig create", upR.status, d); return res.status(502).json({ ok: false, error: "Couldn't save slot config." }); }
+        if (!upR.ok) { const d = await upR.text(); console.error("saveConfig create", upR.status, d); return res.status(502).json({ ok: false, error: "Couldn't save tournament config." }); }
       }
       return res.status(200).json({ ok: true });
     }

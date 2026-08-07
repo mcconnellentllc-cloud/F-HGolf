@@ -44,6 +44,10 @@
     .disp__ftot__count { color: var(--muted); font-size: clamp(0.7rem, 0.95vw, 0.85rem); margin-top: 0.05em; }
     .disp__ftot--grand { background: rgba(245,197,66,0.12); border-color: rgba(245,197,66,0.5); }
     .disp__ftot--grand .disp__ftot__name { color: var(--gold); }
+    .disp__ftot--now { background: rgba(230,67,57,0.14); border-color: rgba(230,67,57,0.55); }
+    .disp__ftot--now .disp__ftot__name { color: #ff7a70; }
+    .disp__ftot__amt--now { font-family: "Fraunces", Georgia, serif; font-size: clamp(1.05rem, 1.9vw, 1.6rem); color: #fff; line-height: 1.1; }
+    .disp__ftot--current { outline: 2px solid var(--gold); outline-offset: -2px; }
 
     .disp__body { flex: 1; padding: clamp(0.4rem, 1vw, 0.8rem) clamp(0.8rem, 1.8vw, 1.4rem) 3rem; }
 
@@ -263,6 +267,23 @@
         var recs = records.filter(function (r) { var f = r.fields || {}; if (f.Tournament !== KEY) return false; if (f.Alternate === true || String(f.Alternate) === "true") return false; return true; });
         var teamNumbers = computeTeamNumbers(recs);
 
+        // Auction state — set by staff on the Calcutta tab. "pol" (or missing)
+        // shows the whole field (Pick of the Litter). Any flight number
+        // filters the display to only teams in that flight. "done" hides team
+        // lists once the auction is complete.
+        var aState = (payload.auctionStates && payload.auctionStates[KEY]) || {};
+        var currentFlight = aState.flight != null ? String(aState.flight) : "pol";
+        var auctionMode = "pol";
+        var filterFlight = null;
+        if (currentFlight === "done") { auctionMode = "done"; }
+        else if (currentFlight !== "pol" && currentFlight !== "") {
+          var fn = Number(currentFlight);
+          if (isFinite(fn) && fn >= 1) { auctionMode = "flight"; filterFlight = fn; }
+        }
+        if (auctionMode === "flight") {
+          recs = recs.filter(function (r) { return Number((r.fields || {}).Flight) === filterFlight; });
+        }
+
         // Are flights assigned? Drives strip layout + section grouping.
         var _tKeys = Object.keys(totals.teams || {}).map(Number);
         var maxFlight = Math.max(4, _tKeys.reduce(function (m, k) { return k > m ? k : m; }, 0));
@@ -279,43 +300,74 @@
 
         var strip = document.getElementById("dispStrip");
         var stripHtml = "";
+        // "Currently auctioning" pill leads the strip so the room knows what's
+        // on the block at a glance.
+        var modeLabel = auctionMode === "flight"
+          ? (esc(flightName(filterFlight)) + " Flight")
+          : (auctionMode === "done" ? "Complete" : "Pick of the Litter");
+        var modeSub = auctionMode === "flight"
+          ? "flight-by-flight round"
+          : (auctionMode === "done" ? "auction closed" : "whole field — buy any team");
+        stripHtml += '<div class="disp__ftot disp__ftot--now"><div class="disp__ftot__name">Now Auctioning</div>'
+          + '<div class="disp__ftot__amt disp__ftot__amt--now">' + modeLabel + '</div>'
+          + '<div class="disp__ftot__count">' + modeSub + '</div></div>';
         if (hasFlights) {
           strip.classList.remove("disp__strip--stacked");
-          stripHtml = flightRange.map(function (fl) {
+          stripHtml += flightRange.map(function (fl) {
             var tot = teamCounts[fl] || 0;
             var sold = soldCounts[fl] || 0;
             var pool = pools[fl] || 0;
-            return '<div class="disp__ftot"><div class="disp__ftot__name">' + esc(flightName(fl)) + ' Flight</div>'
+            var isCurrent = auctionMode === "flight" && filterFlight === fl;
+            return '<div class="disp__ftot' + (isCurrent ? ' disp__ftot--current' : '') + '"><div class="disp__ftot__name">' + esc(flightName(fl)) + ' Flight</div>'
               + '<div class="disp__ftot__amt">' + money(pool) + '</div>'
               + '<div class="disp__ftot__count">' + sold + ' / ' + tot + ' sold</div></div>';
           }).join("");
         } else {
           strip.classList.add("disp__strip--stacked");
-          stripHtml = '<div class="disp__ftot"><div class="disp__ftot__name">All Flights</div>'
+          stripHtml += '<div class="disp__ftot"><div class="disp__ftot__name">All Flights</div>'
             + '<div class="disp__ftot__amt">' + money(grandPool) + '</div>'
-            + '<div class="disp__ftot__count">' + grandSold + ' / ' + recs.length + ' sold · flights not cut yet</div></div>';
+            + '<div class="disp__ftot__count">' + grandSold + ' / ' + records.length + ' sold · flights not cut yet</div></div>';
         }
         stripHtml += '<div class="disp__ftot disp__ftot--grand"><div class="disp__ftot__name">Total Pool</div>'
           + '<div class="disp__ftot__amt">' + money(grandPool) + '</div>'
-          + '<div class="disp__ftot__count">' + grandSold + ' / ' + recs.length + ' sold</div></div>';
+          + '<div class="disp__ftot__count">' + grandSold + ' / ' + records.length + ' sold</div></div>';
         strip.innerHTML = stripHtml;
 
         var body = document.getElementById("dispBody");
-        if (!recs.length) { body.innerHTML = '<p class="disp__empty-msg">No teams registered yet.</p>'; return; }
+        if (auctionMode === "done") {
+          body.innerHTML = '<p class="disp__empty-msg disp__empty-msg--all">Auction complete &mdash; thanks everyone!</p>';
+          return;
+        }
+        if (!recs.length) {
+          var msg = auctionMode === "flight"
+            ? "No teams in " + esc(flightName(filterFlight)) + " Flight yet."
+            : "No teams registered yet.";
+          body.innerHTML = '<p class="disp__empty-msg">' + msg + '</p>';
+          return;
+        }
 
         var available = recs.filter(function (r) { return !isSold(r); });
         var sold = recs.filter(isSold);
         available.sort(function (a, b) { return (teamNumbers[a.id] || 999) - (teamNumbers[b.id] || 999); });
         sold.sort(function (a, b) { return (teamNumbers[a.id] || 999) - (teamNumbers[b.id] || 999); });
 
+        // When auctioning a single flight, force the section renderer into
+        // "no-flights" grouping so we don't repeat the flight name inside the
+        // Available band header — it's already announced in the strip.
+        var groupByFlight = hasFlights && auctionMode !== "flight";
+
         var html = "";
         if (available.length) {
-          html += '<div class="band band--avail"><div class="band__hdr"><h2>Available</h2><span class="band__meta">' + available.length + ' teams · up for bid</span></div>' + sectionsFor(available, teamNumbers, false, hasFlights, pools) + '</div>';
+          var scope = auctionMode === "flight" ? esc(flightName(filterFlight)) + " Flight" : "up for bid";
+          html += '<div class="band band--avail"><div class="band__hdr"><h2>Available</h2><span class="band__meta">' + available.length + ' teams · ' + scope + '</span></div>' + sectionsFor(available, teamNumbers, false, groupByFlight, pools) + '</div>';
         } else {
-          html += '<p class="disp__empty-msg disp__empty-msg--all">All teams sold. Enjoy the auction!</p>';
+          var doneMsg = auctionMode === "flight"
+            ? esc(flightName(filterFlight)) + " Flight is fully sold — ready to move on."
+            : "All teams sold. Enjoy the auction!";
+          html += '<p class="disp__empty-msg disp__empty-msg--all">' + doneMsg + '</p>';
         }
         if (sold.length) {
-          html += '<div class="band band--sold"><div class="band__hdr"><h2>Sold</h2><span class="band__meta">' + sold.length + ' teams</span></div>' + sectionsFor(sold, teamNumbers, true, hasFlights, pools) + '</div>';
+          html += '<div class="band band--sold"><div class="band__hdr"><h2>Sold</h2><span class="band__meta">' + sold.length + ' teams</span></div>' + sectionsFor(sold, teamNumbers, true, groupByFlight, pools) + '</div>';
         }
         body.innerHTML = html;
       }
