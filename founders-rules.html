@@ -59,7 +59,21 @@
 
     .rules__ob { display: flex; align-items: center; gap: 0.4rem; }
     .rules__stake { display: inline-block; width: 0.5rem; height: 1rem; background: #fff; border: 1px solid rgba(0,0,0,0.4); border-radius: 1px; vertical-align: middle; }
+    .rules__stake--red { background: #d63a3a; border-color: #7a1c1c; }
     .rules__pill { display: inline-block; padding: 0.1em 0.6em; border-radius: 999px; font-size: 0.72em; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 800; background: rgba(255,107,107,0.18); color: var(--red); margin-left: 0.4rem; vertical-align: middle; }
+
+    .rules__toc { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1.5rem; }
+    .rules__toc a { display: inline-block; padding: 0.35rem 0.8rem; border-radius: 999px; background: rgba(255,255,255,0.06); color: rgba(246,249,244,0.85); text-decoration: none; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.02em; border: 1px solid var(--line); }
+    .rules__toc a:hover { background: var(--gold); color: #0b1a10; border-color: var(--gold); }
+
+    .rules__table { width: 100%; border-collapse: collapse; margin: 0.4rem 0 0.2rem; font-size: clamp(0.9rem, 1.15vw, 1rem); background: rgba(0,0,0,0.14); border-radius: 8px; overflow: hidden; }
+    .rules__table th, .rules__table td { padding: 0.55rem 0.7rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.09); vertical-align: top; }
+    .rules__table th { background: rgba(0,0,0,0.35); color: var(--gold); font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 0.95em; letter-spacing: 0.02em; }
+    .rules__table tr:last-child td { border-bottom: none; }
+    .rules__table td:first-child { font-weight: 700; color: var(--ink); width: 34%; }
+    .rules__table td:nth-child(2) { color: var(--gold); font-weight: 800; white-space: nowrap; width: 22%; }
+    .rules__table td:nth-child(3) { color: rgba(246,249,244,0.85); }
+    .rules__ref { color: var(--muted); font-size: 0.85em; font-style: italic; }
 
     .rules__back { display: inline-flex; align-items: center; gap: 0.4rem; color: rgba(246,249,244,0.75); text-decoration: none; font-weight: 700; letter-spacing: 0.04em; margin: 0 0 1.2rem; }
     .rules__back:hover { color: var(--gold); }
@@ -85,6 +99,13 @@
       .rules__section p, .rules__section li { color: #000 !important; font-size: 10pt; }
       .rules__pill { background: transparent !important; color: #8a1c25 !important; border: 0.5pt solid #8a1c25; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .rules__stake { background: #fff !important; border: 0.5pt solid #000 !important; }
+      .rules__stake--red { background: #d63a3a !important; border: 0.5pt solid #7a1c1c !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .rules__toc { display: none !important; }
+      .rules__table { background: transparent !important; border: 0.5pt solid #1B5E20 !important; border-radius: 2pt !important; }
+      .rules__table th { background: #f4f0e6 !important; color: #1B5E20 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 9pt; }
+      .rules__table td { color: #000 !important; font-size: 9pt; border-bottom: 0.25pt solid #999; }
+      .rules__table td:nth-child(2) { color: #8a1c25 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .rules__ref { color: #555 !important; }
     }
   </style>
 </head>
@@ -111,17 +132,29 @@
         recorded on the team&rsquo;s scorecard.
       </p>
 
-      <section class="rules__section">
-        <h2><span class="rules__num">1.</span> Format</h2>
+      <nav class="rules__toc" aria-label="Rules sections">
+        <a href="#format">Format</a>
+        <a href="#ob">Out of Bounds</a>
+        <a href="#hazards">Penalty Areas</a>
+        <a href="#ball">Playing the Ball</a>
+        <a href="#pace">Pace &amp; Ties</a>
+        <a href="#penalties">Penalties</a>
+        <a href="#committee">Committee</a>
+      </nav>
+
+      <section class="rules__section" id="format">
+        <h2><span class="rules__num">1.</span> Format &amp; scramble mechanics</h2>
         <ul>
-          <li><b>Two-man scramble</b> &mdash; both players tee off, best drive selected, both play from there.</li>
-          <li>Continue best-ball on every shot through the hole. One team score per hole.</li>
-          <li>Play the <b>full 18 holes</b> each day (front nine + back nine). Two-day cumulative total decides flight winners.</li>
+          <li><b>Two-man scramble.</b> Both players tee off; the team selects the best of the two drives. Both players then play the next shot from within <b>one club length</b> of the selected spot, <b>no closer to the hole</b>, in the <b>same condition</b> (fairway to fairway, rough to rough, penalty area to penalty area).</li>
+          <li>Continue best-ball on every shot until the ball is holed. <b>One team score per hole.</b></li>
+          <li><b>On the putting green</b>, the selected ball is marked. The team plays subsequent putts from within <b>one putter-head length</b> of the mark, no closer to the hole. Once any team member holes the selected ball, the hole is complete.</li>
+          <li>Play the <b>full 18 holes</b> each day (front nine + back nine). Two-day cumulative gross decides flight winners.</li>
           <li>Shotgun starts: <b>8:00 AM</b> (A.M. wave) and <b>1:00 PM</b> (P.M. wave). Report to your assigned hole 10 minutes early.</li>
+          <li><b>Handicaps &amp; flights</b> are set by Day&nbsp;1 gross &mdash; flights announced after Day&nbsp;1. Day&nbsp;2 is played within your flight.</li>
         </ul>
       </section>
 
-      <section class="rules__section">
+      <section class="rules__section" id="ob">
         <h2><span class="rules__num">2.</span> Out of Bounds <span class="rules__pill">OB</span></h2>
         <p>
           <b>Hole #1 &mdash; both sides.</b> Out of bounds runs down both
@@ -141,19 +174,47 @@
           </li>
         </ul>
         <p>
-          Standard OB penalty applies (stroke and distance). If you&rsquo;re
-          unsure whether a ball is in or out, play a provisional and sort it out
-          when you reach the spot.
+          <b>Penalty:</b> stroke and distance &mdash; add one penalty stroke
+          and replay from where the previous shot was played (USGA
+          <span class="rules__ref">Rule&nbsp;18.2</span>). If you&rsquo;re unsure
+          whether a ball is in or out, <b>play a provisional</b> before leaving
+          the tee/spot; sort it out when you reach the ball.
         </p>
       </section>
 
-      <section class="rules__section">
-        <h2><span class="rules__num">3.</span> Playing the ball</h2>
+      <section class="rules__section" id="hazards">
+        <h2><span class="rules__num">3.</span> Penalty areas &amp; hazards <span class="rules__pill">Local</span></h2>
+        <p>The following on-course areas are played as <b>penalty areas</b>:</p>
+        <ul>
+          <li><b>Between holes #3 and #4</b> &mdash; the low area / hazard running between those fairways.</li>
+          <li><b>Between holes #6 and #7</b> &mdash; the low area / hazard between those fairways.</li>
+          <li><b>West of the driving range</b> &mdash; the hole / low area on the west side of the range.</li>
+        </ul>
+        <p>
+          <b>Local rule &mdash; no grounding of clubs</b> in these penalty areas.
+          Take your address without letting the clubhead touch the ground or
+          any loose impediment. This local rule restores the pre-2019
+          restriction and is enforced as if the areas were bunkers under USGA
+          <span class="rules__ref">Rule&nbsp;12.2b(1)</span>.
+        </p>
+        <p><b>Options when your ball is in one of these penalty areas</b> (all cost <b>one penalty stroke</b>):</p>
+        <ul>
+          <li><b>Play it as it lies</b> from inside the penalty area &mdash; no penalty, but <b>no grounding the club</b> before the stroke. Grounding = two-stroke penalty.</li>
+          <li><b>Stroke and distance</b> &mdash; replay from where the previous shot was played.</li>
+          <li><b>Back-on-line relief</b> &mdash; keep the point where the ball last crossed the edge of the penalty area between you and the hole, and drop anywhere on that line.</li>
+          <li><b>Lateral relief (2 club lengths)</b> &mdash; drop within two club lengths of the point where the ball last crossed the edge, no closer to the hole.</li>
+        </ul>
+        <p class="rules__ref">Relief options track USGA Rule&nbsp;17. Modern USGA rules allow grounding a club in a penalty area &mdash; the Founders committee tightens that back to no-grounding as a local rule.</p>
+      </section>
+
+      <section class="rules__section" id="ball">
+        <h2><span class="rules__num">4.</span> Playing the ball</h2>
         <ul>
           <li>
             <b>Play the ball down.</b> Play it as it lies &mdash; <b>no fluffing</b>
             (lifting grass under the ball to improve the lie) and <b>no bumping</b>
-            (nudging the ball to a better spot).
+            (nudging the ball to a better spot). Improving your lie or line of
+            play is a <b>two-stroke penalty</b> (USGA <span class="rules__ref">Rule&nbsp;8.1</span>).
           </li>
           <li>
             <b>Drops.</b> When taking a drop, drop the ball from
@@ -169,26 +230,60 @@
             <b>Protecting the young trees is critical</b> &mdash; always take
             the relief rather than risk damaging a trunk or roots.
           </li>
+          <li>
+            <b>Unplayable ball</b> (anywhere except a penalty area): <b>one
+            penalty stroke</b>, then choose stroke-and-distance, back-on-line,
+            or two-club-length lateral relief (USGA <span class="rules__ref">Rule&nbsp;19</span>).
+          </li>
         </ul>
       </section>
 
-      <section class="rules__section">
-        <h2><span class="rules__num">4.</span> Pace &amp; etiquette</h2>
+      <section class="rules__section" id="pace">
+        <h2><span class="rules__num">5.</span> Pace, etiquette &amp; ties</h2>
         <ul>
           <li>Keep pace with the group ahead of you. If you fall a full hole behind, wave the group behind through.</li>
-          <li>Repair ball marks, replace divots, and rake bunkers.</li>
-          <li>Ties for flight prizes are broken by <b>Day 2 gross</b>, then by the back-nine of Day 2, then by hole-by-hole match-of-cards.</li>
+          <li>Repair ball marks, replace divots, rake bunkers.</li>
+          <li>No cell-phone calls or music that carries across the course.</li>
+          <li><b>Tie-break for flight prizes:</b> Day&nbsp;2 gross &rarr; back-nine of Day&nbsp;2 &rarr; last-6 of Day&nbsp;2 &rarr; last-3 of Day&nbsp;2 &rarr; hole-by-hole match-of-cards. If still tied, the committee may call a <b>chip-off</b> for prize order.</li>
+          <li><b>Scorecards</b> must be turned in <b>signed by the scorer and attested</b> by another team member. Cards can&rsquo;t be changed after they&rsquo;re turned in.</li>
         </ul>
       </section>
 
-      <section class="rules__section">
-        <h2><span class="rules__num">5.</span> Anything not covered here</h2>
+      <section class="rules__section" id="penalties">
+        <h2><span class="rules__num">6.</span> Penalties at a glance</h2>
+        <p>Quick reference for on-course rulings. All penalties are stroke-play penalties applied to the team&rsquo;s score for the hole.</p>
+        <table class="rules__table" aria-label="Penalties at a glance">
+          <thead>
+            <tr><th>Situation</th><th>Penalty</th><th>What to do</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Ball out of bounds</td><td>+1 stroke (stroke &amp; distance)</td><td>Replay from previous spot. Play a provisional if in doubt. <span class="rules__ref">R.&nbsp;18.2</span></td></tr>
+            <tr><td>Lost ball (3-minute search)</td><td>+1 stroke (stroke &amp; distance)</td><td>Replay from previous spot. <span class="rules__ref">R.&nbsp;18.2</span></td></tr>
+            <tr><td>Ball in penalty area &mdash; take relief</td><td>+1 stroke</td><td>Stroke &amp; distance, back-on-line, or 2-club-length lateral. <span class="rules__ref">R.&nbsp;17</span></td></tr>
+            <tr><td>Ball unplayable outside a penalty area</td><td>+1 stroke</td><td>Stroke &amp; distance, back-on-line, or 2-club-length lateral. <span class="rules__ref">R.&nbsp;19</span></td></tr>
+            <tr><td>Grounding club in a bunker</td><td>+2 strokes</td><td>Address the ball without touching sand or loose impediments. <span class="rules__ref">R.&nbsp;12.2b</span></td></tr>
+            <tr><td>Grounding club in a Founders penalty area</td><td>+2 strokes</td><td><b>Local rule.</b> Same treatment as a bunker.</td></tr>
+            <tr><td>Improving lie, stance, or line of play</td><td>+2 strokes</td><td>No fluffing, no bumping, don&rsquo;t break off branches or press down grass. <span class="rules__ref">R.&nbsp;8.1</span></td></tr>
+            <tr><td>Playing the wrong ball</td><td>+2 strokes</td><td>Correct by playing the right ball; the wrong-ball strokes don&rsquo;t count. <span class="rules__ref">R.&nbsp;6.3c</span></td></tr>
+            <tr><td>Playing from the wrong place</td><td>+2 strokes</td><td>Includes a scramble team playing outside the one-club-length drop. <span class="rules__ref">R.&nbsp;14.7</span></td></tr>
+            <tr><td>Ball moved by player before stroke</td><td>+1 stroke</td><td>Replace the ball at its original spot. <span class="rules__ref">R.&nbsp;9.4</span></td></tr>
+            <tr><td>Ball moved by outside influence</td><td>No penalty</td><td>Replace at estimated original spot. <span class="rules__ref">R.&nbsp;9.6</span></td></tr>
+            <tr><td>Advice from outside the team</td><td>+2 strokes</td><td>Team members may share advice with each other only. <span class="rules__ref">R.&nbsp;10.2</span></td></tr>
+            <tr><td>Signing an incorrect scorecard (too low)</td><td>Disqualification</td><td>Verify the total before signing. <span class="rules__ref">R.&nbsp;3.3b</span></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="rules__section" id="committee">
+        <h2><span class="rules__num">7.</span> Committee &amp; disputes</h2>
         <p>
-          Play by the <b>USGA Rules of Golf</b>. If a situation isn&rsquo;t
-          covered above and isn&rsquo;t obvious from the rulebook, call over
-          the pro shop or the tournament committee &mdash; don&rsquo;t
-          adjudicate it yourselves and slow the group.
+          If you have a rules question you can&rsquo;t resolve on the course:
         </p>
+        <ul>
+          <li>Call the pro shop or wave down a committee member. <b>Don&rsquo;t adjudicate it yourselves</b> and slow the group.</li>
+          <li>If a ruling can&rsquo;t reach you in a reasonable time, the team may <b>play a second ball</b> under both interpretations (USGA <span class="rules__ref">Rule&nbsp;20.1c(3)</span>). Note which ball was played under which rule on the scorecard and the committee will decide which score counts.</li>
+          <li>Anything not covered above &mdash; play by the <b>USGA Rules of Golf</b>. The tournament committee is the final authority on all rulings, ties, and disputes.</li>
+        </ul>
       </section>
     </div>
 
