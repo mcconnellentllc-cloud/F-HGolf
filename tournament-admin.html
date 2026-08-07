@@ -2732,19 +2732,20 @@
       // bar. Positions tune via CARD_OFFSETS below — do one test print,
       // measure, and adjust here.
       var CARD_OFFSETS = {
-        // Physical F&H scorecard: 5 7/8" wide × 12" tall, fed short-edge
-        // first. @page uses those exact dimensions (custom size) so absolute
-        // inch offsets measure from the real card edges.
-        paperSize: "5.875in 12in",
-        // All measurements from the top-left of the card, in inches. If the
-        // printed names land off, adjust ONE number here and reprint one
-        // card — the whole batch shifts with it.
-        headerTop: "0.28in",  // small "Tee 1-A · 8 AM" verification tag
+        // Physical F&H scorecard is landscape: 12" wide × 5 7/8" tall. It
+        // feeds with the LONG edge as the top, so @page is set landscape and
+        // all offsets measure from the top-left of the card in that
+        // orientation.
+        paperSize: "12in 5.875in",
+        // All measurements from the top-left of the card, in inches. Do one
+        // test card, eyeball the gap to the pre-printed blank line, then
+        // update ONE number here and reprint — the whole batch shifts.
+        headerTop: "0.15in",   // small verification tag ("Tee 1-A · 8 AM") at the top-left corner
         headerLeft: "0.35in",
-        team1Top: "3.20in",   // top blank line, TOP half (above "Hole" bar)
-        team2Top: "8.20in",   // top blank line, BOTTOM half (below "Hole" bar)
-        teamLeft: "0.55in",   // horizontal start of team-name text
-        nameSize: "15pt"
+        team1Top: "0.90in",    // top blank score line — above PAR / HOLE grey bar
+        team2Top: "3.10in",    // top blank score line — below the HOLE grey bar
+        teamLeft: "1.45in",    // horizontal start of team-name text (past the row-label column)
+        nameSize: "13pt"
       };
       function printScorecards() {
         if (!prRecs || !prRecs.length) { alert("No teams yet — import the field or add teams on Check-In first."); return; }
@@ -2824,8 +2825,8 @@
         // the pages collapse to zero and every team's name stacks on top of
         // the first one in the print preview.
         var _sz = String(CARD_OFFSETS.paperSize || "").trim().split(/\s+/);
-        var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "5.875in";
-        var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "12in";
+        var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "12in";
+        var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "5.875in";
         pageStyle.textContent =
           "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
           + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"
@@ -2925,8 +2926,8 @@
         var pageStyle = document.createElement("style");
         pageStyle.id = "pr-cards-page";
         var _sz = String(CARD_OFFSETS.paperSize || "").trim().split(/\s+/);
-        var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "5.875in";
-        var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "12in";
+        var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "12in";
+        var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "5.875in";
         pageStyle.textContent =
           "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
           + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"
@@ -2969,8 +2970,8 @@
         // the pages collapse to zero and every team's name stacks on top of
         // the first one in the print preview.
         var _sz = String(CARD_OFFSETS.paperSize || "").trim().split(/\s+/);
-        var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "5.875in";
-        var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "12in";
+        var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "12in";
+        var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "5.875in";
         pageStyle.textContent =
           "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
           + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"

@@ -1479,7 +1479,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
      absolute-positioned name divs all collapse onto the first sheet and the
      print preview shows every team stacked on top of each other. Values
      are re-injected by JS to match CARD_OFFSETS.paperSize. */
-  body.is-print-cards .sc-page { position: relative; width: 5.875in; height: 12in; page-break-after: always; break-after: page; page-break-inside: avoid; overflow: hidden; }
+  body.is-print-cards .sc-page { position: relative; width: 12in; height: 5.875in; page-break-after: always; break-after: page; page-break-inside: avoid; overflow: hidden; }
   body.is-print-cards .sc-page:last-child { page-break-after: auto; break-after: auto; }
   /* Small tee-slot tag at top so the operator can verify each printed card
      is landing on the right physical scorecard. Muted grey so it doesn't
