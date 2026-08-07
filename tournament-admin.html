@@ -2672,8 +2672,16 @@
         pageStyle.id = "pr-cards-page";
         // Zero margin @page so absolute inch offsets measure from the actual
         // paper edge, matching how the pre-printed card sits in the tray.
+        // Split "5.875in 12in" (or "letter portrait") into a width + height
+        // and force each .sc-page to fill exactly one sheet — without this
+        // the pages collapse to zero and every team's name stacks on top of
+        // the first one in the print preview.
+        var _sz = String(CARD_OFFSETS.paperSize || "").trim().split(/\s+/);
+        var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "5.875in";
+        var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "12in";
         pageStyle.textContent =
           "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
+          + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"
           + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
           + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
           + " body.is-print-cards .sc-name--1 { top: " + CARD_OFFSETS.team1Top + "; }"
@@ -2708,8 +2716,16 @@
         document.body.classList.add("is-print-cards");
         var pageStyle = document.createElement("style");
         pageStyle.id = "pr-cards-page";
+        // Split "5.875in 12in" (or "letter portrait") into a width + height
+        // and force each .sc-page to fill exactly one sheet — without this
+        // the pages collapse to zero and every team's name stacks on top of
+        // the first one in the print preview.
+        var _sz = String(CARD_OFFSETS.paperSize || "").trim().split(/\s+/);
+        var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "5.875in";
+        var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "12in";
         pageStyle.textContent =
           "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
+          + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"
           + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
           + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
           + " body.is-print-cards .sc-name--1 { top: " + CARD_OFFSETS.team1Top + "; }"
