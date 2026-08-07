@@ -92,6 +92,29 @@
       .disp__logo { margin: 0 auto; }
       .disp__logo--r { display: none; }
     }
+
+    /* "Show QR" button pinned to the top-right of the hero. Small footprint,
+       big effect — click it before the auction to fill the screen with the
+       scannable QR code + URL. */
+    .disp__qrbtn { position: absolute; top: 0.9rem; right: 1rem; background: var(--gold); color: #0b1a10; border: none; border-radius: 999px; padding: 0.5rem 1.1rem; font-family: inherit; font-weight: 800; letter-spacing: 0.05em; font-size: 0.95rem; cursor: pointer; z-index: 3; box-shadow: 0 6px 22px rgba(0,0,0,0.4); }
+    .disp__qrbtn:hover { background: #fff; }
+    .disp__hero { position: relative; }
+    @media (max-width: 720px) { .disp__qrbtn { position: static; margin: 0.5rem auto 0; } }
+
+    /* Fullscreen QR showcase overlay. Absolute top layer with a big centered
+       QR canvas and the URL underneath in large type as a fallback if a
+       phone camera can't lock onto the code. */
+    .qrshow { position: fixed; inset: 0; background: rgba(6,12,8,0.98); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 999; padding: clamp(1rem, 4vw, 3rem); text-align: center; }
+    .qrshow.is-open { display: flex; }
+    .qrshow__eyebrow { color: var(--gold); font-weight: 800; letter-spacing: 0.4em; text-transform: uppercase; font-size: clamp(0.9rem, 1.4vw, 1.15rem); margin-bottom: 0.5rem; }
+    .qrshow__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(2rem, 4.5vw, 3.6rem); margin: 0 0 0.4em; color: #fff; line-height: 1.05; }
+    .qrshow__card { background: #fff; padding: clamp(1rem, 2vw, 1.5rem); border-radius: 18px; box-shadow: 0 30px 80px rgba(0,0,0,0.7); }
+    .qrshow__canvas, .qrshow__img { display: block; width: min(60vh, 60vmin); height: min(60vh, 60vmin); image-rendering: pixelated; }
+    .qrshow__url { color: #fff; font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; font-weight: 700; letter-spacing: 0.02em; font-size: clamp(1.1rem, 2.2vw, 1.8rem); margin-top: clamp(1rem, 2vw, 1.5rem); word-break: break-all; }
+    .qrshow__hint { color: rgba(255,255,255,0.7); font-size: clamp(0.9rem, 1.3vw, 1.1rem); margin-top: 0.7rem; font-style: italic; }
+    .qrshow__close { position: absolute; top: 1rem; right: 1.2rem; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; width: 3rem; height: 3rem; font-size: 1.5rem; cursor: pointer; }
+    .qrshow__close:hover { background: rgba(255,255,255,0.18); }
+    .qrshow__err { color: rgba(255,255,255,0.7); text-align: center; padding: 2rem; font-style: italic; }
   </style>
 </head>
 <body>
@@ -104,7 +127,19 @@
         <p class="disp__sub">F&amp;H Golf Course · Aug 8&ndash;9</p>
       </div>
       <img class="disp__logo disp__logo--r" src="images/logo.png" alt="" aria-hidden="true" />
+      <button class="disp__qrbtn" type="button" id="qrShowBtn">Show QR</button>
     </header>
+
+    <div class="qrshow" id="qrShow" role="dialog" aria-modal="true" aria-label="Scan to open live Calcutta auction">
+      <button class="qrshow__close" type="button" id="qrShowClose" aria-label="Close">×</button>
+      <div class="qrshow__eyebrow">Scan to Join</div>
+      <h2 class="qrshow__title">Live Calcutta Auction</h2>
+      <div class="qrshow__card" id="qrShowCard">
+        <canvas class="qrshow__canvas" id="qrShowCanvas"></canvas>
+      </div>
+      <div class="qrshow__url" id="qrShowUrl"></div>
+      <div class="qrshow__hint">Point your phone camera at the code &mdash; or type the URL into any browser.</div>
+    </div>
 
     <div class="disp__strip" id="dispStrip"></div>
 
@@ -116,7 +151,48 @@
   </main>
 
   <script src="js/api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
   <script>
+    /* "Show QR" — fullscreen scan card. Generates the QR code locally via
+       qrcode.js (jsdelivr). If the CDN is blocked and the library never
+       loads, the URL below the QR area is still legible and the auction
+       can proceed with a typed-in address. Bound to the button, ESC, and
+       backdrop clicks. */
+    (function () {
+      var btn = document.getElementById("qrShowBtn");
+      var modal = document.getElementById("qrShow");
+      var closeBtn = document.getElementById("qrShowClose");
+      var canvas = document.getElementById("qrShowCanvas");
+      var card = document.getElementById("qrShowCard");
+      var urlEl = document.getElementById("qrShowUrl");
+      if (!btn || !modal) return;
+      var pageUrl = location.origin + location.pathname;
+      urlEl.textContent = pageUrl.replace(/^https?:\/\//, "");
+      var rendered = false;
+      function open() {
+        modal.classList.add("is-open");
+        // First open: try to draw the QR. If qrcode.js isn't loaded yet
+        // (slow network), retry once after a beat before giving up.
+        if (rendered) return;
+        function draw() {
+          if (typeof QRCode === "undefined" || !QRCode.toCanvas) {
+            card.innerHTML = '<div class="qrshow__err">QR generator didn’t load &mdash; use the URL below.</div>';
+            return;
+          }
+          QRCode.toCanvas(canvas, pageUrl, { width: 640, margin: 1, color: { dark: "#0b1a10", light: "#ffffff" } }, function (err) {
+            if (err) { card.innerHTML = '<div class="qrshow__err">Couldn’t draw QR &mdash; use the URL below.</div>'; }
+          });
+          rendered = true;
+        }
+        if (typeof QRCode === "undefined") { setTimeout(draw, 400); } else { draw(); }
+      }
+      function close() { modal.classList.remove("is-open"); }
+      btn.addEventListener("click", open);
+      closeBtn.addEventListener("click", close);
+      modal.addEventListener("click", function (e) { if (e.target === modal) close(); });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal.classList.contains("is-open")) close(); });
+    })();
+
     (function () {
       var KEY = "Founder's Tournament (Aug 8–9)";
       function flightName(n) {
