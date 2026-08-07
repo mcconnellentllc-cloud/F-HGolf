@@ -132,6 +132,7 @@
               <button class="btn btn--solid" type="button" id="prPrint">Print tee sheet</button>
               <button class="btn btn--solid" type="button" id="prPrintAnnounce">Announcement page</button>
               <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards">Print scorecards</button>
+              <button class="btn btn--ghost" type="button" id="prPrintTestCard" title="Print one card with dummy names to calibrate alignment">Print test card</button>
             </div>
           </div>
           <p class="scaffold__desc">Two teams to a tee. Tap a hole up top to add a <em>Tee A</em> or <em>A+B</em> &mdash; teams auto-fill from Unplaced. Drag a team onto another (or use its dropdown) to swap seats. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
@@ -2628,6 +2629,42 @@
         setTimeout(cleanup, 4000);
       }
 
+      // Single-card test print — dummy names, one page, no team data
+      // required. Uses the same CARD_OFFSETS geometry as the real
+      // scorecards print so a nudge here translates 1:1 to the batch.
+      function printTestCard() {
+        var host = document.createElement("div");
+        host.id = "prCardsHost";
+        host.className = "pr-cards";
+        host.innerHTML =
+          '<div class="sc-page">'
+          + '<div class="sc-hdr">TEST CARD &middot; align only</div>'
+          + '<div class="sc-name sc-name--1">T-01  J. Smith / M. Jones</div>'
+          + '<div class="sc-name sc-name--2">T-02  R. Davis / K. Wilson</div>'
+          + '</div>';
+
+        document.body.appendChild(host);
+        document.body.classList.add("is-print-cards");
+        var pageStyle = document.createElement("style");
+        pageStyle.id = "pr-cards-page";
+        pageStyle.textContent =
+          "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
+          + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
+          + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
+          + " body.is-print-cards .sc-name--1 { top: " + CARD_OFFSETS.team1Top + "; }"
+          + " body.is-print-cards .sc-name--2 { top: " + CARD_OFFSETS.team2Top + "; }";
+        document.head.appendChild(pageStyle);
+        function cleanup() {
+          document.body.classList.remove("is-print-cards");
+          if (host && host.parentNode) host.parentNode.removeChild(host);
+          var ps = document.getElementById("pr-cards-page"); if (ps) ps.remove();
+          window.removeEventListener("afterprint", cleanup);
+        }
+        window.addEventListener("afterprint", cleanup);
+        setTimeout(function () { window.print(); }, 80);
+        setTimeout(cleanup, 4000);
+      }
+
       // ---- Flights + Leaderboard ----
       var FLIGHT_NAMES = ["Champ", "First", "Second", "Third", "5th", "6th", "7th", "8th"];
       function flightName(n) { return FLIGHT_NAMES[n - 1] || ("Flight " + n); }
@@ -4112,6 +4149,8 @@
         if (prAnn) prAnn.addEventListener("click", printAnnouncement);
         var prCards = document.getElementById("prPrintCards");
         if (prCards) prCards.addEventListener("click", printScorecards);
+        var prTestCard = document.getElementById("prPrintTestCard");
+        if (prTestCard) prTestCard.addEventListener("click", printTestCard);
 
         loadRoster();
         loadExpenses();
