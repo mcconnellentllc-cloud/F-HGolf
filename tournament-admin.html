@@ -71,6 +71,7 @@
           <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
           <button type="button" class="wb-tab" data-sheet="calc" role="tab">Calc</button>
+          <button type="button" class="wb-tab" data-sheet="rules" role="tab">Rules</button>
           <button type="button" class="wb-tab wb-tab--history" data-sheet="history" role="tab">History</button>
           <span class="wb-tabs__spacer" aria-hidden="true"></span>
           <button type="button" class="wb-tab wb-tab--disp" data-sheet="dispCalcutta" role="tab">Calcutta Disp</button>
@@ -130,7 +131,7 @@
               </select>
               <button class="btn btn--solid" type="button" id="prPrint">Print tee sheet</button>
               <button class="btn btn--solid" type="button" id="prPrintAnnounce">Announcement page</button>
-              <button class="btn btn--solid" type="button" id="prPrintCards" title="Scorecards — dimensions to come">Print scorecards</button>
+              <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards">Print scorecards</button>
             </div>
           </div>
           <p class="scaffold__desc">Two teams to a tee. Tap a hole up top to add a <em>Tee A</em> or <em>A+B</em> &mdash; teams auto-fill from Unplaced. Drag a team onto another (or use its dropdown) to swap seats. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
@@ -277,6 +278,50 @@
           </div>
           <p class="scaffold__desc">Past tournaments — every year committed from the $ Summary page lives here as a full snapshot (leaderboard, calcutta, payouts, P&amp;L). Read-only.</p>
           <div class="hist" id="histBody"><p class="noms__msg">Loading archived tournaments…</p></div>
+        </section>
+
+        <!-- Rules — format + local rules. Public page is the source of truth. -->
+        <section class="noms wb-sheet" data-sheet="rules" id="twRules" aria-label="Rules" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Rules &amp; Format</h3>
+            <a class="btn btn--solid" href="founders-rules.html" target="_blank" rel="noopener">Open public rules page &rarr;</a>
+          </div>
+          <p class="scaffold__desc">Public-facing rules for the Founders. Same page is linked from the tournament card and the Rules chip on the public site. To edit, update <code>founders-rules.html</code>.</p>
+          <div class="rules-preview">
+            <h4>Format &amp; scramble mechanics</h4>
+            <ul>
+              <li><b>Two-man scramble.</b> Both tee off, team selects best drive, both play next shot within <b>1 club length</b> (no closer to hole, same condition).</li>
+              <li>Continue best-ball until holed. One team score per hole. Full 18 each day; two-day cumulative gross decides flight winners.</li>
+              <li>On the green: mark selected ball, place subsequent putts within <b>1 putter-head length</b>, no closer to hole.</li>
+              <li>Shotguns at <b>8:00 AM</b> and <b>1:00 PM</b>. Report 10 min early. Flights set by Day 1 gross.</li>
+            </ul>
+            <h4>Out of Bounds</h4>
+            <ul>
+              <li><b>Hole #1</b> is OB on <b>both sides</b>. West side <b>white stakes</b> — OB line only runs as far north as the <b>northernmost stake</b>; further north (still to the west) is <b>in play</b>.</li>
+              <li>The <b>exterior fence</b> of the entire course is OB.</li>
+              <li>Penalty: <b>stroke and distance</b> (USGA R.18.2). Play a provisional when in doubt.</li>
+            </ul>
+            <h4>Penalty areas — local rule (no grounding)</h4>
+            <ul>
+              <li>Penalty areas at: <b>between holes #3 &amp; #4</b>, <b>between holes #6 &amp; #7</b>, and the <b>hole west of the driving range</b>.</li>
+              <li><b>No grounding clubs</b> in these areas — enforced like a bunker (R.12.2b). Grounding = <b>+2 strokes</b>.</li>
+              <li>Relief options (all <b>+1 stroke</b>): stroke &amp; distance, back-on-line, or <b>2 club lengths</b> lateral from where the ball crossed the edge, no closer to hole (R.17).</li>
+            </ul>
+            <h4>Playing the ball</h4>
+            <ul>
+              <li><b>Play it down.</b> No fluffing, no bumping. Improving lie/line = <b>+2 strokes</b> (R.8.1).</li>
+              <li><b>Drops:</b> from <b>higher than knee</b>, within <b>1 club length</b>, in the <b>same cut of grass</b> as the chosen point.</li>
+              <li><b>Tree relief (young trees):</b> trunk under <b>4″ diameter</b> → <b>2 club lengths</b> relief, no closer to hole.</li>
+              <li><b>Unplayable</b> (outside penalty area): <b>+1 stroke</b>, then stroke &amp; distance / back-on-line / 2 club lengths lateral (R.19).</li>
+            </ul>
+            <h4>Ties &amp; committee</h4>
+            <ul>
+              <li>Tie-break: Day 2 gross → back-9 of Day 2 → last-6 → last-3 → match-of-cards → committee chip-off.</li>
+              <li>Rules question: call the pro shop / committee, or play a second ball (R.20.1c(3)) and let committee decide.</li>
+              <li>Everything else: <b>USGA Rules of Golf</b>. Committee is the final authority.</li>
+            </ul>
+            <p><a href="founders-rules.html" target="_blank" rel="noopener">Open the full public rules page →</a> (includes the penalties-at-a-glance table for on-course rulings.)</p>
+          </div>
         </section>
 
         <!-- Calcutta Display — public broadcast board -->
@@ -1617,6 +1662,20 @@
       // Total par per 9 = 36; 18-hole par = 72.
       var PAR9 = [4, 3, 4, 4, 5, 4, 4, 3, 5];
       var PARS = PAR9.concat(PAR9);
+      // Course card — per-hole reference data used on the printed scorecards.
+      // Yardages/handicap indexes are per-nine and repeated on the back nine
+      // (F&H is a 9-hole course played twice). Edit these if the printed card
+      // shows a wrong number — everything downstream reads from here.
+      var CARD9 = {
+        blue:   [387, 349, 361, 490, 402, 383, 371, 145, 553],
+        white:  [376, 191, 343, 352, 477, 386, 371, 141, 546],
+        red:    [364, 140, 238, 343, 397, 316, 360, 106, 415],
+        parF:   [4, 3, 4, 4, 5, 4, 4, 3, 5],
+        mHcpF:  [10, 2, 16, 6, 18, 4, 8, 12, 14],
+        mHcpB:  [9, 15, 5, 17, 3, 7, 11, 13, 1],
+        lHcpF:  [5, 15, 11, 9, 3, 13, 7, 17, 1],
+        lHcpB:  [6, 16, 12, 10, 14, 8, 18, 2, 4]
+      };
       function parseScores(str) { try { var a = JSON.parse(str); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
 
       // ---- Scores — spreadsheet grid + CSV import ----
@@ -2456,6 +2515,106 @@
         window.addEventListener("afterprint", cleanup);
         setTimeout(function () { window.print(); }, 60);
         setTimeout(cleanup, 3000);
+      }
+
+      // ---- Pairings: printable team scorecards ----
+      // Overlay-only. Physical F&H scorecards feed through the printer; we
+      // print ONLY team names on top of them. One page per tee slot (a slot
+      // is two teams sharing one card). Team 1 lands on the top blank line
+      // of the top half; Team 2 on the top blank line under the grey "Hole"
+      // bar. Positions tune via CARD_OFFSETS below — do one test print,
+      // measure, and adjust here.
+      var CARD_OFFSETS = {
+        paperSize: "letter portrait", // "letter portrait" | "letter landscape"
+        // Distance from top-left of the printable area. Everything absolute.
+        headerTop: "0.30in",  // small "Tee 1-A · 8 AM" tag at very top
+        headerLeft: "0.55in",
+        team1Top: "3.30in",   // top blank line, TOP half of the card
+        team2Top: "6.40in",   // top blank line, BOTTOM half (below "Hole" bar)
+        teamLeft: "0.85in",   // horizontal position of team-name text
+        nameSize: "16pt"
+      };
+      function printScorecards() {
+        if (!prRecs || !prRecs.length) { alert("No teams yet — import the field or add teams on Check-In first."); return; }
+        var waveSel = document.getElementById("prPrintWhich");
+        var waveChoice = waveSel ? waveSel.value : "both";
+        var waves = waveChoice === "am" ? ["8 AM"] : (waveChoice === "pm" ? ["1 PM"] : ["8 AM", "1 PM"]);
+
+        var teamNumbers = computeTeamNumbers(prRecs);
+        // Group teams by (wave, hole, slot). Each group is one physical card
+        // with up to two teams. Only groups with at least one placed team
+        // print — unassigned teams are skipped.
+        var groups = [];
+        waves.forEach(function (w) {
+          var placed = prRecs.filter(function (r) {
+            var f = r.fields || {};
+            return (f.Start || "") === w && Number(f.Hole) && (String(f.Slot || "").toUpperCase() === "A" || String(f.Slot || "").toUpperCase() === "B");
+          });
+          // Bucket
+          var byKey = {};
+          placed.forEach(function (r) {
+            var f = r.fields || {};
+            var k = w + "|" + Number(f.Hole) + "|" + String(f.Slot).toUpperCase();
+            if (!byKey[k]) byKey[k] = { wave: w, hole: Number(f.Hole), slot: String(f.Slot).toUpperCase(), teams: [] };
+            byKey[k].teams.push(r);
+          });
+          Object.keys(byKey).forEach(function (k) {
+            var g = byKey[k];
+            g.teams.sort(byCreated);
+            groups.push(g);
+          });
+        });
+        if (!groups.length) { alert("No teams placed on a tee yet."); return; }
+        groups.sort(function (a, b) {
+          if (a.wave !== b.wave) return a.wave === "8 AM" ? -1 : 1;
+          if (a.hole !== b.hole) return a.hole - b.hole;
+          return a.slot < b.slot ? -1 : 1;
+        });
+
+        function teamLine(rec) {
+          if (!rec) return "";
+          var tn = teamNumbers[rec.id];
+          var tag = tn ? "T-" + String(tn).padStart(2, "0") + "  " : "";
+          return tag + teamShortNames(rec.fields || {});
+        }
+
+        var pages = groups.map(function (g) {
+          var waveTag = g.wave === "8 AM" ? "8 AM" : "1 PM";
+          var slotTag = "Tee " + g.hole + "-" + g.slot + " · " + waveTag;
+          return '<div class="sc-page">'
+            + '<div class="sc-hdr">' + esc(slotTag) + '</div>'
+            + '<div class="sc-name sc-name--1">' + esc(teamLine(g.teams[0])) + '</div>'
+            + '<div class="sc-name sc-name--2">' + esc(teamLine(g.teams[1] || null)) + '</div>'
+            + '</div>';
+        }).join("");
+
+        var host = document.createElement("div");
+        host.id = "prCardsHost";
+        host.className = "pr-cards";
+        host.innerHTML = pages;
+
+        document.body.appendChild(host);
+        document.body.classList.add("is-print-cards");
+        var pageStyle = document.createElement("style");
+        pageStyle.id = "pr-cards-page";
+        // Zero margin @page so absolute inch offsets measure from the actual
+        // paper edge, matching how the pre-printed card sits in the tray.
+        pageStyle.textContent =
+          "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
+          + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
+          + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
+          + " body.is-print-cards .sc-name--1 { top: " + CARD_OFFSETS.team1Top + "; }"
+          + " body.is-print-cards .sc-name--2 { top: " + CARD_OFFSETS.team2Top + "; }";
+        document.head.appendChild(pageStyle);
+        function cleanup() {
+          document.body.classList.remove("is-print-cards");
+          if (host && host.parentNode) host.parentNode.removeChild(host);
+          var ps = document.getElementById("pr-cards-page"); if (ps) ps.remove();
+          window.removeEventListener("afterprint", cleanup);
+        }
+        window.addEventListener("afterprint", cleanup);
+        setTimeout(function () { window.print(); }, 80);
+        setTimeout(cleanup, 4000);
       }
 
       // ---- Flights + Leaderboard ----
@@ -3941,7 +4100,7 @@
         var prAnn = document.getElementById("prPrintAnnounce");
         if (prAnn) prAnn.addEventListener("click", printAnnouncement);
         var prCards = document.getElementById("prPrintCards");
-        if (prCards) prCards.addEventListener("click", function () { alert("Scorecards need the paper dimensions + layout you're planning to use. Send those over and I'll wire it up next."); });
+        if (prCards) prCards.addEventListener("click", printScorecards);
 
         loadRoster();
         loadExpenses();

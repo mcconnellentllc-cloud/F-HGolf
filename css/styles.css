@@ -1166,6 +1166,14 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .pl-commit .btn:hover { background: var(--red-deep); }
 .pl-commit__hint { color: var(--muted); font-size: 0.85rem; margin: 0.6rem 0 0; }
 
+/* Rules tab (admin preview — public source of truth is founders-rules.html) */
+.rules-preview { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.25rem; line-height: 1.55; }
+.rules-preview h4 { font-family: var(--font-display); margin: 0.6rem 0 0.35rem; color: var(--brand); font-size: 1.05rem; letter-spacing: 0.005em; }
+.rules-preview h4:first-child { margin-top: 0; }
+.rules-preview ul { margin: 0 0 0.5rem 1.1rem; padding: 0; }
+.rules-preview li { margin: 0.15rem 0; color: var(--ink); }
+.rules-preview li b { color: #7d1218; }
+
 /* History tab */
 .hist { display: flex; flex-direction: column; gap: 0.5rem; }
 .hist__row { background: #fff; border: 1px solid var(--line); border-left: 5px solid #b48000; border-radius: 10px; padding: 0; overflow: hidden; }
@@ -1454,6 +1462,21 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
   body.is-print-ann .pr-ann__tnum { display: inline-block; background: #1B5E20; color: #fff; font-family: "Source Sans 3", monospace; font-weight: 800; font-size: 8pt; letter-spacing: 0.05em; padding: 1pt 4pt; border-radius: 3pt; min-width: 30pt; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body.is-print-ann .pr-ann__names { font-size: 12pt; font-weight: 700; color: #000; letter-spacing: 0; }
   body.is-print-ann .pr-ann__foot { text-align: center; margin-top: 14pt; padding-top: 6pt; border-top: 1pt solid #1B5E20; color: #444; font-size: 8.5pt; letter-spacing: 0.08em; }
+
+  /* Printable team scorecards — NAME OVERLAY ONLY. Physical F&H cards feed
+     through the printer; each page prints just three lines of text at fixed
+     positions so they land on the pre-printed blank lines. One page per
+     tee slot. Coordinates come from CARD_OFFSETS in tournament-admin.html
+     via a JS-injected <style> — tune there, not here. */
+  body.is-print-cards > *:not(#prCardsHost) { display: none !important; }
+  body.is-print-cards .pr-cards { display: block !important; color: #000; background: transparent; font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; }
+  body.is-print-cards .sc-page { position: relative; page-break-after: always; width: 100%; height: 100%; }
+  body.is-print-cards .sc-page:last-child { page-break-after: auto; }
+  /* Small tee-slot tag at top so the operator can verify each printed card
+     is landing on the right physical scorecard. Muted grey so it doesn't
+     compete with the pre-printed header. */
+  body.is-print-cards .sc-hdr { position: absolute; font-size: 9pt; color: #555; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
+  body.is-print-cards .sc-name { position: absolute; font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; font-weight: 700; color: #000; letter-spacing: 0; white-space: nowrap; }
 
   /* Letterhead (JS-injected .ca-print-head): logo · title · logo, deep green rule. */
   .ca-print-head, .ca-print-foot { display: none; }
