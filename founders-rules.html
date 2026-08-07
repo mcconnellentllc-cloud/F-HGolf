@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2026 Founders — Rules &amp; Format</title>
+  <meta name="description" content="Format and local rules for the F&H Golf Founders Tournament — 2-man scramble, hole #1 out-of-bounds markers, exterior fence." />
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <meta name="theme-color" content="#0b1a10" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700;800&family=Source+Sans+3:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b1a10;
+      --bg-2: #12261a;
+      --panel: rgba(255,255,255,0.06);
+      --line: rgba(255,255,255,0.14);
+      --gold: #f5c542;
+      --green: #3fbc6b;
+      --red: #ff6b6b;
+      --ink: #f6f9f4;
+      --muted: rgba(246,249,244,0.62);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; min-height: 100vh; }
+    body { background: radial-gradient(ellipse at top, var(--bg-2) 0%, var(--bg) 60%); }
+
+    .disp { min-height: 100vh; display: flex; flex-direction: column; }
+    .disp__hero { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: clamp(0.75rem, 2vw, 1.5rem); padding: clamp(1rem, 2vw, 1.5rem) clamp(1rem, 2vw, 1.75rem); background: #000; border-bottom: 3px solid #000; position: relative; }
+    .disp__logo { width: clamp(3.4rem, 6vw, 5.4rem); height: clamp(3.4rem, 6vw, 5.4rem); border-radius: 50%; background: #fff; padding: clamp(0.25rem, 0.5vw, 0.45rem); box-shadow: 0 0 0 3px #000, 0 0 0 5px rgba(255,255,255,0.15); object-fit: contain; }
+    .disp__logo--r { justify-self: end; }
+    .disp__hero__title { text-align: center; }
+    .disp__eyebrow { text-transform: uppercase; letter-spacing: 0.4em; color: #fff; font-weight: 800; font-size: clamp(0.7rem, 1.15vw, 0.95rem); }
+    .disp__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(2.1rem, 5vw, 4.2rem); margin: 0.1em 0 0; line-height: 1; color: #fff; }
+    .disp__sub { color: rgba(255,255,255,0.75); font-size: clamp(0.95rem, 1.5vw, 1.2rem); margin: 0.15em 0 0; font-style: italic; }
+    .disp__print { position: absolute; top: 1rem; right: 1rem; background: #fff; color: #0b1a10; border: none; border-radius: 999px; padding: 0.5rem 1.1rem; font-family: inherit; font-weight: 700; cursor: pointer; z-index: 2; }
+    .disp__print:hover { background: var(--gold); }
+    @media (max-width: 720px) {
+      .disp__hero { grid-template-columns: 1fr; text-align: center; padding-top: 1rem; }
+      .disp__logo { margin: 0 auto; }
+      .disp__logo--r { display: none; }
+      .disp__print { position: static; margin: 0.5rem auto 0; }
+    }
+
+    .disp__body { flex: 1; padding: clamp(1rem, 2vw, 2rem) clamp(1rem, 2vw, 2rem) 3rem; max-width: 62rem; margin: 0 auto; width: 100%; }
+
+    .rules__lead { font-size: clamp(1.05rem, 1.4vw, 1.2rem); line-height: 1.6; color: rgba(246,249,244,0.85); margin: 0 0 1.5rem; }
+    .rules__lead b { color: var(--gold); font-weight: 800; }
+
+    .rules__section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: clamp(1rem, 2vw, 1.5rem) clamp(1rem, 2vw, 1.75rem); margin-bottom: clamp(0.9rem, 1.5vw, 1.2rem); }
+    .rules__section h2 { font-family: "Fraunces", Georgia, serif; margin: 0 0 0.5rem; font-size: clamp(1.25rem, 1.9vw, 1.6rem); color: var(--ink); letter-spacing: 0.005em; display: flex; align-items: baseline; gap: 0.6rem; }
+    .rules__num { display: inline-block; min-width: 1.5em; text-align: center; color: var(--gold); font-weight: 800; letter-spacing: 0; }
+    .rules__section p { margin: 0.35rem 0 0.6rem; line-height: 1.55; color: rgba(246,249,244,0.88); font-size: clamp(1rem, 1.25vw, 1.1rem); }
+    .rules__section p:last-child { margin-bottom: 0; }
+    .rules__section ul { margin: 0.35rem 0 0.6rem 1.1rem; padding: 0; line-height: 1.55; }
+    .rules__section li { margin: 0.15rem 0; color: rgba(246,249,244,0.88); font-size: clamp(1rem, 1.25vw, 1.1rem); }
+    .rules__section li b { color: var(--gold); }
+
+    .rules__ob { display: flex; align-items: center; gap: 0.4rem; }
+    .rules__stake { display: inline-block; width: 0.5rem; height: 1rem; background: #fff; border: 1px solid rgba(0,0,0,0.4); border-radius: 1px; vertical-align: middle; }
+    .rules__pill { display: inline-block; padding: 0.1em 0.6em; border-radius: 999px; font-size: 0.72em; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 800; background: rgba(255,107,107,0.18); color: var(--red); margin-left: 0.4rem; vertical-align: middle; }
+
+    .rules__back { display: inline-flex; align-items: center; gap: 0.4rem; color: rgba(246,249,244,0.75); text-decoration: none; font-weight: 700; letter-spacing: 0.04em; margin: 0 0 1.2rem; }
+    .rules__back:hover { color: var(--gold); }
+
+    .disp__foot { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0.6rem 1rem 1.2rem; letter-spacing: 0.08em; }
+
+    /* Print — clean B&W. */
+    @media print {
+      @page { size: letter portrait; margin: 0.4in; }
+      html, body { background: #fff !important; color: #000 !important; }
+      .disp__hero { padding: 0 0 8pt; grid-template-columns: auto 1fr auto; gap: 12pt; background: #fff !important; border-bottom: 2pt solid #1B5E20; }
+      .disp__eyebrow { color: #8a1c25; letter-spacing: 0.25em; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .disp__title { color: #1B5E20 !important; font-size: 22pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .disp__sub { color: #333; font-style: italic; }
+      .disp__logo { width: 56pt !important; height: 56pt !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; }
+      .disp__print, .disp__foot, .rules__back { display: none !important; }
+      .disp__body { padding: 0; max-width: none; }
+      .rules__lead { color: #000; }
+      .rules__lead b { color: #1B5E20; }
+      .rules__section { background: transparent !important; border: 0.5pt solid #1B5E20 !important; border-radius: 4pt !important; margin-bottom: 8pt !important; padding: 8pt 12pt !important; page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .rules__section h2 { color: #1B5E20 !important; font-size: 13pt; }
+      .rules__num { color: #8a1c25 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .rules__section p, .rules__section li { color: #000 !important; font-size: 10pt; }
+      .rules__pill { background: transparent !important; color: #8a1c25 !important; border: 0.5pt solid #8a1c25; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .rules__stake { background: #fff !important; border: 0.5pt solid #000 !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="disp">
+    <header class="disp__hero">
+      <img class="disp__logo" src="images/logo.png" alt="F&amp;H Golf Course" />
+      <div class="disp__hero__title">
+        <span class="disp__eyebrow">2026 Founders Tournament</span>
+        <h1 class="disp__title">Rules &amp; Format</h1>
+        <p class="disp__sub">F&amp;H Golf Course &middot; Aug 8&ndash;9</p>
+      </div>
+      <img class="disp__logo disp__logo--r" src="images/logo.png" alt="" aria-hidden="true" />
+      <button class="disp__print" type="button" onclick="window.print()">Print</button>
+    </header>
+
+    <div class="disp__body">
+      <a class="rules__back" href="tournaments.html">&larr; Back to tournaments</a>
+
+      <p class="rules__lead">
+        The Founders is a <b>two-day, two-man scramble</b>. Both players tee off,
+        the team picks the best ball, and both play their next shots from that
+        spot &mdash; continuing until the ball is holed. One score per hole,
+        recorded on the team&rsquo;s scorecard.
+      </p>
+
+      <section class="rules__section">
+        <h2><span class="rules__num">1.</span> Format</h2>
+        <ul>
+          <li><b>Two-man scramble</b> &mdash; both players tee off, best drive selected, both play from there.</li>
+          <li>Continue best-ball on every shot through the hole. One team score per hole.</li>
+          <li>Play the <b>full 18 holes</b> each day (front nine + back nine). Two-day cumulative total decides flight winners.</li>
+          <li>Shotgun starts: <b>8:00 AM</b> (A.M. wave) and <b>1:00 PM</b> (P.M. wave). Report to your assigned hole 10 minutes early.</li>
+        </ul>
+      </section>
+
+      <section class="rules__section">
+        <h2><span class="rules__num">2.</span> Out of Bounds <span class="rules__pill">OB</span></h2>
+        <p>
+          <b>Hole #1 &mdash; both sides.</b> Out of bounds runs down both
+          the east and west sides of the fairway on hole one.
+        </p>
+        <ul>
+          <li>
+            <b>West side</b> is marked by
+            <span class="rules__ob"><span class="rules__stake" aria-hidden="true"></span><b>white stakes</b></span>.
+            The OB line runs only <b>as far north as the northernmost white
+            stake</b>. If your ball comes to rest <b>north of that last stake</b>
+            and still to the west, you&rsquo;re <b>in play</b>.
+          </li>
+          <li>
+            The <b>exterior fence of the entire golf course</b> is out of bounds.
+            Any ball beyond the fence line, on any hole, is OB.
+          </li>
+        </ul>
+        <p>
+          Standard OB penalty applies (stroke and distance). If you&rsquo;re
+          unsure whether a ball is in or out, play a provisional and sort it out
+          when you reach the spot.
+        </p>
+      </section>
+
+      <section class="rules__section">
+        <h2><span class="rules__num">3.</span> Pace &amp; etiquette</h2>
+        <ul>
+          <li>Keep pace with the group ahead of you. If you fall a full hole behind, wave the group behind through.</li>
+          <li>Repair ball marks, replace divots, and rake bunkers.</li>
+          <li>Ties for flight prizes are broken by <b>Day 2 gross</b>, then by the back-nine of Day 2, then by hole-by-hole match-of-cards.</li>
+        </ul>
+      </section>
+
+      <section class="rules__section">
+        <h2><span class="rules__num">4.</span> Anything not covered here</h2>
+        <p>
+          Play by the <b>USGA Rules of Golf</b>. If a situation isn&rsquo;t
+          covered above and isn&rsquo;t obvious from the rulebook, call over
+          the pro shop or the tournament committee &mdash; don&rsquo;t
+          adjudicate it yourselves and slow the group.
+        </p>
+      </section>
+    </div>
+
+    <footer class="disp__foot">
+      F&amp;H Golf Course &middot; (970) 774-6362 &middot; fandhgolf.com
+    </footer>
+  </main>
+</body>
+</html>

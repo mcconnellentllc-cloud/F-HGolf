@@ -21,6 +21,7 @@
       format: "2-day 2-man scramble", note: "2-day tournament · 2 shotgun starts · Calcutta",
       ctaLabel: "Enter the Founders",
       links: [
+        { label: "Rules", href: "founders-rules.html" },
         { label: "Flights", href: "founders-flights.html" },
         { label: "Calcutta", href: "founders-calcutta-display.html" },
         { label: "Results", href: "founders-leaderboard-display.html" },

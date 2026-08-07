@@ -71,6 +71,7 @@
           <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
           <button type="button" class="wb-tab" data-sheet="calc" role="tab">Calc</button>
+          <button type="button" class="wb-tab" data-sheet="rules" role="tab">Rules</button>
           <button type="button" class="wb-tab wb-tab--history" data-sheet="history" role="tab">History</button>
           <span class="wb-tabs__spacer" aria-hidden="true"></span>
           <button type="button" class="wb-tab wb-tab--disp" data-sheet="dispCalcutta" role="tab">Calcutta Disp</button>
@@ -277,6 +278,36 @@
           </div>
           <p class="scaffold__desc">Past tournaments — every year committed from the $ Summary page lives here as a full snapshot (leaderboard, calcutta, payouts, P&amp;L). Read-only.</p>
           <div class="hist" id="histBody"><p class="noms__msg">Loading archived tournaments…</p></div>
+        </section>
+
+        <!-- Rules — format + local rules. Public page is the source of truth. -->
+        <section class="noms wb-sheet" data-sheet="rules" id="twRules" aria-label="Rules" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Rules &amp; Format</h3>
+            <a class="btn btn--solid" href="founders-rules.html" target="_blank" rel="noopener">Open public rules page &rarr;</a>
+          </div>
+          <p class="scaffold__desc">Public-facing rules for the Founders. Same page is linked from the tournament card and the Rules chip on the public site. To edit, update <code>founders-rules.html</code>.</p>
+          <div class="rules-preview">
+            <h4>Format</h4>
+            <ul>
+              <li><b>Two-man scramble</b> — both players tee off, best drive selected, both play from there.</li>
+              <li>Continue best-ball on every shot until holed. One team score per hole.</li>
+              <li>Full 18 holes each day; two-day cumulative total decides flight winners.</li>
+              <li>Shotguns at <b>8:00 AM</b> and <b>1:00 PM</b>. Report 10 min early.</li>
+            </ul>
+            <h4>Out of Bounds</h4>
+            <ul>
+              <li><b>Hole #1</b> is OB on <b>both sides</b>.</li>
+              <li>West side: <b>white stakes</b>. OB line only runs as far north as the <b>northernmost white stake</b> — anything further north (still to the west) is <b>in play</b>.</li>
+              <li>The <b>exterior fence of the entire course</b> is out of bounds.</li>
+              <li>Standard OB penalty (stroke and distance). Play a provisional when in doubt.</li>
+            </ul>
+            <h4>Ties &amp; anything not covered</h4>
+            <ul>
+              <li>Tie-break: Day 2 gross → back-nine of Day 2 → match-of-cards.</li>
+              <li>Everything else: <b>USGA Rules of Golf</b>. Call the pro shop for anything gray.</li>
+            </ul>
+          </div>
         </section>
 
         <!-- Calcutta Display — public broadcast board -->

@@ -1166,6 +1166,14 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .pl-commit .btn:hover { background: var(--red-deep); }
 .pl-commit__hint { color: var(--muted); font-size: 0.85rem; margin: 0.6rem 0 0; }
 
+/* Rules tab (admin preview — public source of truth is founders-rules.html) */
+.rules-preview { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.25rem; line-height: 1.55; }
+.rules-preview h4 { font-family: var(--font-display); margin: 0.6rem 0 0.35rem; color: var(--brand); font-size: 1.05rem; letter-spacing: 0.005em; }
+.rules-preview h4:first-child { margin-top: 0; }
+.rules-preview ul { margin: 0 0 0.5rem 1.1rem; padding: 0; }
+.rules-preview li { margin: 0.15rem 0; color: var(--ink); }
+.rules-preview li b { color: #7d1218; }
+
 /* History tab */
 .hist { display: flex; flex-direction: column; gap: 0.5rem; }
 .hist__row { background: #fff; border: 1px solid var(--line); border-left: 5px solid #b48000; border-radius: 10px; padding: 0; overflow: hidden; }
