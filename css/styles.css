@@ -1034,7 +1034,10 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 
 /* Auction view — collapse hole / loop / D1 columns so the auctioneer only
    sees # / Team / $ Buy / Buyer. Save cell + delete cell stay visible. */
-.ca-viewbar { display: flex; justify-content: flex-end; margin: 0 0 0.6rem; }
+.ca-viewbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin: 0 0 0.6rem; }
+.ca-auctionpick { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.7rem; background: rgba(139, 28, 37, 0.06); border: 1px solid rgba(139, 28, 37, 0.35); border-radius: 8px; font-weight: 700; }
+.ca-auctionpick select { font: inherit; font-weight: 700; padding: 0.15rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.ca-auctionpick__sub { color: var(--muted); font-weight: 400; font-style: italic; }
 .ca-viewtoggle { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.35rem 0.7rem; background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; font-weight: 700; cursor: pointer; user-select: none; }
 .ca-viewtoggle small { color: var(--muted); font-weight: 400; }
 body.is-auction-view .ca-tbl .ca-hole, body.is-auction-view .ca-tbl .ca-loop, body.is-auction-view .ca-tbl .ca-d1 { display: none !important; }
