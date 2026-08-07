@@ -2181,44 +2181,70 @@
         return names.length ? names : ["(no name)"];
       }
 
-      // Build the move-to <select> options for a given wave's active slot list.
-      // "" = Unplaced. Slot values are encoded as "1A", "1B", etc.
-      function moveOptions(slots, curH, curS) {
-        var curV = (curH && (curS === "A" || curS === "B")) ? (curH + curS) : "";
+      // Build the move-to <select> options for a given wave's active slot
+      // list. One option per SEAT (Team 1 or Team 2) at each active tee, so
+      // an operator can send a team to a specific card — top slot (Team 1)
+      // or bottom slot (Team 2). Value format: "<hole><slot><seat>", e.g.
+      // "3A1", "3A2", "3B1", "3B2". "" = Unplaced.
+      function moveOptions(slots, curH, curS, curSeat) {
+        var curV = (curH && (curS === "A" || curS === "B") && (curSeat === 1 || curSeat === 2))
+          ? (curH + curS + curSeat) : "";
         var out = ['<option value=""' + (curV === "" ? " selected" : "") + ">— unplaced —</option>"];
         slots.forEach(function (s) {
-          var v = s.hole + s.slot;
-          out.push('<option value="' + v + '"' + (v === curV ? " selected" : "") + ">Hole " + s.hole + " · Tee " + s.slot + "</option>");
+          for (var seat = 1; seat <= 2; seat++) {
+            var v = s.hole + s.slot + seat;
+            out.push('<option value="' + v + '"' + (v === curV ? " selected" : "")
+              + ">Hole " + s.hole + " · Tee " + s.slot + " · Team " + seat + "</option>");
+          }
         });
         return out.join("");
       }
 
-      function prTeamCard(r, slots, wave, teamNum) {
+      function prTeamCard(r, slots, wave, teamNum, curSeat) {
         var f = r.fields || {};
         var curH = Number(f.Hole), curS = String(f.Slot || "").toUpperCase();
-        var opts = moveOptions(slots || [], curH, curS);
+        var seat = Number(curSeat) === 1 || Number(curSeat) === 2 ? Number(curSeat) : null;
+        var opts = moveOptions(slots || [], curH, curS, seat);
         var players = fullPlayerNames(f).map(function (n) { return '<div class="pr-team__player">' + esc(n) + '</div>'; }).join("");
         var badge = teamNum ? '<span class="pr-team__num">Team ' + String(teamNum).padStart(2, "0") + '</span>' : '';
-        return '<div class="pr-team" draggable="true" data-id="' + esc(r.id) + '" data-wave="' + esc(wave || "") + '">'
+        return '<div class="pr-team" draggable="true" data-id="' + esc(r.id) + '" data-wave="' + esc(wave || "") + '" data-seat="' + (seat || "") + '">'
           + '<div class="pr-team__hd">' + badge + '</div>'
           + '<div class="pr-team__players">' + players + '</div>'
-          + '<select class="pr-team__move" data-id="' + esc(r.id) + '" data-wave="' + esc(wave || "") + '" aria-label="Move team to a different tee">' + opts + "</select>"
+          + '<select class="pr-team__move" data-id="' + esc(r.id) + '" data-wave="' + esc(wave || "") + '" data-seat="' + (seat || "") + '" aria-label="Move team to a different tee">' + opts + "</select>"
           + "</div>";
       }
 
       function renderWaveBlock(w, teams) {
         var cfg = loadSlotCfg(w.k);
         var slots = activeSlots(cfg);
+        // placed[k] is a 2-slot array indexed by Seat (0 = seat 1, 1 = seat 2).
+        // Slots are hole+letter strings ("3A", "3B" …). Teams with an explicit
+        // Seat field land in that seat directly; teams without seat data
+        // (older records or newly-imported field) fall into whichever seat is
+        // still empty, seat 1 first — a one-time backfill so nobody drops off
+        // the board while an operator hasn't yet clicked through each card.
         var placed = {};
-        slots.forEach(function (s) { placed[s.hole + s.slot] = []; });
+        slots.forEach(function (s) { placed[s.hole + s.slot] = [null, null]; });
         var pool = [];
+        var pendingBackfill = []; // teams needing implicit seat resolution
         teams.forEach(function (t) {
           var f = t.fields || {};
           var h = Number(f.Hole);
           var sl = String(f.Slot || "").toUpperCase();
           var k = h + sl;
-          if (h && (sl === "A" || sl === "B") && placed[k] && placed[k].length < TEAMS_PER_TEE) placed[k].push(t);
-          else pool.push(t);
+          if (!(h && (sl === "A" || sl === "B") && placed[k])) { pool.push(t); return; }
+          var seat = Number(f.Seat);
+          if (seat === 1 || seat === 2) {
+            if (!placed[k][seat - 1]) placed[k][seat - 1] = t;
+            else pendingBackfill.push({ t: t, k: k });
+          } else {
+            pendingBackfill.push({ t: t, k: k });
+          }
+        });
+        pendingBackfill.forEach(function (b) {
+          if (!placed[b.k][0]) placed[b.k][0] = b.t;
+          else if (!placed[b.k][1]) placed[b.k][1] = b.t;
+          else pool.push(b.t);
         });
 
         // Config row — each hole cycles off / A / A+B.  Each hole 1–9 carries a
@@ -2250,7 +2276,12 @@
           var thru = thruHole(s.hole);
           var seatEls = [];
           for (var i = 0; i < TEAMS_PER_TEE; i++) {
-            seatEls.push(arr[i] ? prTeamCard(arr[i], slots, w.k, teamNumbers[arr[i].id]) : '<div class="pr-team pr-team--empty" data-empty="1">seat open</div>');
+            var t = arr[i], seatNum = i + 1;
+            if (t) {
+              seatEls.push(prTeamCard(t, slots, w.k, teamNumbers[t.id], seatNum));
+            } else {
+              seatEls.push('<div class="pr-team pr-team--empty" data-empty="1" data-seat="' + seatNum + '">seat ' + seatNum + ' open</div>');
+            }
           }
           return '<div class="pr-tee pr-tee--h' + s.hole + '" data-hole="' + s.hole + '" data-slot="' + s.slot + '" data-wave="' + w.k + '">'
             + '<div class="pr-tee__side">'
@@ -2395,6 +2426,7 @@
               id: el.getAttribute("data-id"),
               srcHole: tee ? Number(tee.getAttribute("data-hole")) : null,
               srcSlot: tee ? tee.getAttribute("data-slot") : "",
+              srcSeat: Number(el.getAttribute("data-seat")) || null,
               srcWave: wave || ""
             };
             el.classList.add("is-drag");
@@ -2412,32 +2444,47 @@
             prDrag = null;
           });
         });
-        // Move-to dropdown per team card — same move + swap logic as drag/drop.
+        // Move-to dropdown per team card. Target is a specific seat within a
+        // tee: value format "<hole><slot><seat>", e.g. "3A1" = Hole 3, Tee A,
+        // Team 1. If a team already occupies that exact seat, swap it into
+        // the source's seat (or Unplaced if source was the pool).
         Array.prototype.forEach.call(board.querySelectorAll(".pr-team__move"), function (sel) {
-          // Don't let a click on the dropdown start a drag on the parent card.
           sel.addEventListener("mousedown", function (e) { e.stopPropagation(); });
           sel.addEventListener("change", function () {
             var id = sel.getAttribute("data-id");
             var wave = sel.getAttribute("data-wave");
             var val = sel.value;
-            // Source (where this team currently sits).
             var srcTee = sel.closest(".pr-tee");
             var srcHole = srcTee ? Number(srcTee.getAttribute("data-hole")) : null;
             var srcSlot = srcTee ? srcTee.getAttribute("data-slot") : "";
-            if (!val) { positionSaveMany([{ id: id, hole: "", slot: "", start: wave }]); return; }
-            var m = /^(\d+)([AB])$/.exec(val);
+            var srcSeat = Number(sel.getAttribute("data-seat")) || null;
+            if (!val) {
+              // Send to Unplaced — clear position + seat.
+              positionSaveMany([{ id: id, hole: "", slot: "", seat: "", start: wave }]);
+              return;
+            }
+            var m = /^(\d+)([AB])([12])$/.exec(val);
             if (!m) return;
-            var tgtHole = Number(m[1]), tgtSlot = m[2];
-            if (tgtHole === srcHole && tgtSlot === srcSlot) return; // no-op
+            var tgtHole = Number(m[1]), tgtSlot = m[2], tgtSeat = Number(m[3]);
+            if (tgtHole === srcHole && tgtSlot === srcSlot && tgtSeat === srcSeat) return;
+            // Look up the exact seat's current occupant. Empty seat placeholders
+            // carry data-empty="1"; occupied seats are .pr-team cards with the
+            // team's data-id. Both share data-seat so the query is one shot.
             var zone = board.querySelector('.pr-tee[data-wave="' + wave + '"][data-hole="' + tgtHole + '"][data-slot="' + tgtSlot + '"]');
-            var occupants = zone
-              ? Array.prototype.map.call(zone.querySelectorAll(".pr-team[draggable='true']"), function (el) { return el.getAttribute("data-id"); })
-                  .filter(function (oid) { return oid !== id; })
-              : [];
-            var assignments = [{ id: id, hole: tgtHole, slot: tgtSlot, start: wave }];
-            if (occupants.length >= TEAMS_PER_TEE) {
-              // Target tee is full → swap with the first-occupant team.
-              assignments.push({ id: occupants[0], hole: srcHole || "", slot: srcSlot || "", start: wave });
+            var occupantId = null;
+            if (zone) {
+              var seatEl = zone.querySelector('.pr-team[data-seat="' + tgtSeat + '"][data-id]');
+              if (seatEl && seatEl.getAttribute("data-id") !== id) occupantId = seatEl.getAttribute("data-id");
+            }
+            var assignments = [{ id: id, hole: tgtHole, slot: tgtSlot, seat: tgtSeat, start: wave }];
+            if (occupantId) {
+              // Swap: displaced team takes the moved team's source seat, or
+              // goes to Unplaced if the source was the pool.
+              if (srcHole && srcSlot && srcSeat) {
+                assignments.push({ id: occupantId, hole: srcHole, slot: srcSlot, seat: srcSeat, start: wave });
+              } else {
+                assignments.push({ id: occupantId, hole: "", slot: "", seat: "", start: wave });
+              }
             }
             positionSaveMany(assignments);
           });
@@ -2446,27 +2493,29 @@
 
       function handleDrop(zone, drag) {
         if (zone.classList.contains("pr-pool")) {
-          // Dropped onto pool → clear position (also normalize wave to the pool's wave).
           var w = zone.getAttribute("data-wave") || drag.srcWave || "";
-          positionSaveMany([{ id: drag.id, hole: "", slot: "", start: w }]);
+          positionSaveMany([{ id: drag.id, hole: "", slot: "", seat: "", start: w }]);
           return;
         }
         var tgtHole = Number(zone.getAttribute("data-hole"));
         var tgtSlot = zone.getAttribute("data-slot");
         var tgtWave = zone.getAttribute("data-wave") || drag.srcWave;
-        // No-op if same target as source
         if (drag.srcHole === tgtHole && drag.srcSlot === tgtSlot && drag.srcWave === tgtWave) return;
-        // Occupants of the target tee (excluding the dragged team if it was already there).
-        var occupants = Array.prototype.map.call(zone.querySelectorAll(".pr-team[draggable='true']"), function (el) { return el.getAttribute("data-id"); })
-          .filter(function (id) { return id !== drag.id; });
-        var assignments = [{ id: drag.id, hole: tgtHole, slot: tgtSlot, start: tgtWave }];
-        if (occupants.length >= TEAMS_PER_TEE) {
-          // Swap: displaced team goes to drag source (or unplaced if source was pool).
-          var displacedId = occupants[0];
-          if (drag.srcHole) {
-            assignments.push({ id: displacedId, hole: drag.srcHole, slot: drag.srcSlot, start: drag.srcWave });
+        // Prefer the first empty seat; fall back to seat 1 for a swap.
+        var seat1El = zone.querySelector('[data-seat="1"]');
+        var seat2El = zone.querySelector('[data-seat="2"]');
+        var seat1Occupant = seat1El && seat1El.getAttribute("data-id") && seat1El.getAttribute("data-id") !== drag.id ? seat1El.getAttribute("data-id") : null;
+        var seat2Occupant = seat2El && seat2El.getAttribute("data-id") && seat2El.getAttribute("data-id") !== drag.id ? seat2El.getAttribute("data-id") : null;
+        var tgtSeat, displacedId = null;
+        if (!seat1Occupant) { tgtSeat = 1; }
+        else if (!seat2Occupant) { tgtSeat = 2; }
+        else { tgtSeat = 1; displacedId = seat1Occupant; }
+        var assignments = [{ id: drag.id, hole: tgtHole, slot: tgtSlot, seat: tgtSeat, start: tgtWave }];
+        if (displacedId) {
+          if (drag.srcHole && drag.srcSlot && drag.srcSeat) {
+            assignments.push({ id: displacedId, hole: drag.srcHole, slot: drag.srcSlot, seat: drag.srcSeat, start: drag.srcWave });
           } else {
-            assignments.push({ id: displacedId, hole: "", slot: "", start: drag.srcWave || tgtWave });
+            assignments.push({ id: displacedId, hole: "", slot: "", seat: "", start: drag.srcWave || tgtWave });
           }
         }
         positionSaveMany(assignments);
@@ -2487,21 +2536,30 @@
           // the Unplaced pool for the user to place manually or add slots for.
           if (!silent) { setMsg("Need " + (teams.length - totalSeats) + " more seat(s) — add more A/B slots first."); return; }
         }
-        // Preserve teams already seated at active slots; fill the rest from unplaced pool in order.
+        // Preserve teams already seated at active slots; fill remaining seats
+        // from the unplaced pool in order. Each slot has two explicit seats
+        // (1 and 2). If a placed team is missing a Seat value, it gets seat
+        // 1 by default and the next placement lands in seat 2.
         var placed = {}, seated = {};
-        slots.forEach(function (s) { placed[s.hole + s.slot] = []; });
+        slots.forEach(function (s) { placed[s.hole + s.slot] = [null, null]; });
         teams.forEach(function (t) {
           var f = t.fields || {}, h = Number(f.Hole), sl = String(f.Slot || "").toUpperCase(), k = h + sl;
-          if (h && (sl === "A" || sl === "B") && placed[k] && placed[k].length < TEAMS_PER_TEE) { placed[k].push(t); seated[t.id] = true; }
+          if (!(h && (sl === "A" || sl === "B") && placed[k])) return;
+          var seatVal = Number(f.Seat);
+          if (seatVal === 1 || seatVal === 2) {
+            if (!placed[k][seatVal - 1]) { placed[k][seatVal - 1] = t; seated[t.id] = true; }
+          } else if (!placed[k][0]) { placed[k][0] = t; seated[t.id] = true; }
+          else if (!placed[k][1]) { placed[k][1] = t; seated[t.id] = true; }
         });
         var unplaced = teams.filter(function (t) { return !seated[t.id]; });
         var assignments = [];
         slots.forEach(function (s) {
-          var arr = placed[s.hole + s.slot];
-          while (arr.length < TEAMS_PER_TEE && unplaced.length) {
+          var k = s.hole + s.slot;
+          for (var i = 0; i < TEAMS_PER_TEE && unplaced.length; i++) {
+            if (placed[k][i]) continue;
             var t = unplaced.shift();
-            arr.push(t);
-            assignments.push({ id: t.id, hole: s.hole, slot: s.slot, start: wave });
+            placed[k][i] = t;
+            assignments.push({ id: t.id, hole: s.hole, slot: s.slot, seat: i + 1, start: wave });
           }
         });
         if (!assignments.length) { setMsg("All teams already seated in " + wave + " — nothing to fill."); return; }
@@ -2525,16 +2583,24 @@
           if (!slots.length) return "";
           var teams = prRecs.filter(function (r) { return ((r.fields || {}).Start || "") === w.k; }).sort(byCreated);
           if (!teams.length) return "";
-          var placed = {};
-          slots.forEach(function (s) { placed[s.hole + s.slot] = []; });
+          // Seat-aware placement — Team 1 always announced first, Team 2 second.
+          var placed = {}, backfill = [];
+          slots.forEach(function (s) { placed[s.hole + s.slot] = [null, null]; });
           teams.forEach(function (t) {
             var f = t.fields || {}, h = Number(f.Hole), sl = String(f.Slot || "").toUpperCase();
             var k = h + sl;
-            if (h && (sl === "A" || sl === "B") && placed[k] && placed[k].length < TEAMS_PER_TEE) placed[k].push(t);
+            if (!(h && (sl === "A" || sl === "B") && placed[k])) return;
+            var sv = Number(f.Seat);
+            if ((sv === 1 || sv === 2) && !placed[k][sv - 1]) placed[k][sv - 1] = t;
+            else backfill.push({ t: t, k: k });
+          });
+          backfill.forEach(function (b) {
+            if (!placed[b.k][0]) placed[b.k][0] = b.t;
+            else if (!placed[b.k][1]) placed[b.k][1] = b.t;
           });
           var rows = slots.map(function (s) {
-            var arr = placed[s.hole + s.slot];
-            if (!arr || !arr.length) return "";
+            var arr = (placed[s.hole + s.slot] || []).filter(Boolean);
+            if (!arr.length) return "";
             var teamsHtml = arr.map(function (t) {
               var tn = teamNumbers[t.id];
               var tag = tn ? "T-" + String(tn).padStart(2, "0") : "&mdash;";
@@ -2633,7 +2699,15 @@
           });
           Object.keys(byKey).forEach(function (k) {
             var g = byKey[k];
-            g.teams.sort(byCreated);
+            // Sort by explicit Seat first (Team 1 top of card, Team 2 bottom),
+            // fall back to creation order if Seat isn't set on old records.
+            g.teams.sort(function (a, b) {
+              var sa = Number((a.fields || {}).Seat), sb = Number((b.fields || {}).Seat);
+              var va = (sa === 1 || sa === 2) ? sa : 99;
+              var vb = (sb === 1 || sb === 2) ? sb : 99;
+              if (va !== vb) return va - vb;
+              return byCreated(a, b);
+            });
             groups.push(g);
           });
         });
