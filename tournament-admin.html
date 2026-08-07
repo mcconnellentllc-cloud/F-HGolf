@@ -2531,14 +2531,19 @@
       // bar. Positions tune via CARD_OFFSETS below — do one test print,
       // measure, and adjust here.
       var CARD_OFFSETS = {
-        paperSize: "letter portrait", // "letter portrait" | "letter landscape"
-        // Distance from top-left of the printable area. Everything absolute.
-        headerTop: "0.30in",  // small "Tee 1-A · 8 AM" tag at very top
-        headerLeft: "0.55in",
-        team1Top: "3.30in",   // top blank line, TOP half of the card
-        team2Top: "6.40in",   // top blank line, BOTTOM half (below "Hole" bar)
-        teamLeft: "0.85in",   // horizontal position of team-name text
-        nameSize: "16pt"
+        // Physical F&H scorecard: 5 7/8" wide × 12" tall, fed short-edge
+        // first. @page uses those exact dimensions (custom size) so absolute
+        // inch offsets measure from the real card edges.
+        paperSize: "5.875in 12in",
+        // All measurements from the top-left of the card, in inches. If the
+        // printed names land off, adjust ONE number here and reprint one
+        // card — the whole batch shifts with it.
+        headerTop: "0.28in",  // small "Tee 1-A · 8 AM" verification tag
+        headerLeft: "0.35in",
+        team1Top: "3.20in",   // top blank line, TOP half (above "Hole" bar)
+        team2Top: "8.20in",   // top blank line, BOTTOM half (below "Hole" bar)
+        teamLeft: "0.55in",   // horizontal start of team-name text
+        nameSize: "15pt"
       };
       function printScorecards() {
         if (!prRecs || !prRecs.length) { alert("No teams yet — import the field or add teams on Check-In first."); return; }
