@@ -578,6 +578,13 @@
 
       function money(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
 
+      // Card + Online (QR) payments pass through a 4% processing fee — added
+      // to the amount owed at check-in so the pro shop collects it up front.
+      var SURCHARGE_RATE = 0.04;
+      var SURCHARGE_METHODS = ["card", "online"];
+      function isSurchargeMethod(m) { return SURCHARGE_METHODS.indexOf(String(m || "").toLowerCase()) !== -1; }
+      function surchargeAmount(base, method) { return isSurchargeMethod(method) ? (Number(base) || 0) * SURCHARGE_RATE : 0; }
+
       var collectedTotal = 0, expensesTotal = 0, cashTotal = 0, checkTotal = 0, cardTotal = 0;
       // Entry fee is now single-source-of-truth on the Calc tab. Removed the
       // Check-In fee input so nobody accidentally overrides it locally.
@@ -1129,7 +1136,11 @@
           { name: pp.p1, role: "p1", method: m1, cart: p1Cart, meal: p1Meal },
           { name: pp.p2, role: "p2", method: m2, cart: p2Cart, meal: p2Meal }
         ];
-        var playerOwed = function (t) { return entryPP + (t.cart * cartFee) + (Number(t.meal) || 0) * extraMealFee; };
+        // Card and Online (QR) pay a 4% processing surcharge on top of the
+        // player's base amount. Kept in one place so a rate change touches
+        // every path (initial render, live recalc, downstream ledger).
+        var playerBase = function (t) { return entryPP + (t.cart * cartFee) + (Number(t.meal) || 0) * extraMealFee; };
+        var playerOwed = function (t) { var b = playerBase(t); return b + surchargeAmount(b, t.method); };
         var playerPaid = function (t) { return t.method ? playerOwed(t) : 0; };
         var totalOwed = players.reduce(function (s, t) { return s + playerOwed(t); }, 0);
         var totalPaid = players.reduce(function (s, t) { return s + playerPaid(t); }, 0);
@@ -1142,11 +1153,16 @@
         };
         var playerRows = players.map(function (t) {
           var paidCk = t.method ? " checked" : "";
+          var base = playerBase(t);
+          var surchargeHint = isSurchargeMethod(t.method) && base > 0
+            ? '<span class="ci-p__surcharge">+4% (' + money(base * SURCHARGE_RATE) + ')</span>'
+            : '';
           return '<div class="ci-p" data-role="' + esc(t.role) + '">'
             + '<div class="ci-p__name">' + nameCell(t.role, t.name) + '</div>'
             + '<label class="ci-check" title="Charge entry to this player"><input type="checkbox" class="ci-paid-box" data-role="' + esc(t.role) + '"' + paidCk + ' /><span>Entry</span></label>'
             + '<label class="ci-meal" title="Extra meals × ' + money(extraMealFee) + '"><input type="number" min="0" max="10" step="1" class="ci__extra-meal" data-role="' + esc(t.role) + '" value="' + (Number(t.meal) || 0) + '" /><span>Meals</span></label>'
             + '<select class="ci-p__method" data-role="' + esc(t.role) + '">' + methodOpts(t.method) + '</select>'
+            + surchargeHint
             + '</div>';
         }).join("");
         // Cart line — three checkboxes: P1 half share, P2 half share, one
@@ -1390,10 +1406,27 @@
           var paidBox = pRow.querySelector(".ci-paid-box");
           var mealCount = mealBox && mealBox.value ? Math.max(0, Number(mealBox.value) || 0) : 0;
           var cart = cartByRole[role] || 0;
-          var pOwed = entryPP + cart * cartFee + mealCount * extraMealFee;
+          var pBase = entryPP + cart * cartFee + mealCount * extraMealFee;
+          var methodVal = meth ? meth.value : "";
+          var pOwed = pBase + surchargeAmount(pBase, methodVal);
           owed += pOwed;
-          if (meth && meth.value) paid += pOwed;
-          if (paidBox) paidBox.checked = !!(meth && meth.value);
+          if (methodVal) paid += pOwed;
+          if (paidBox) paidBox.checked = !!methodVal;
+          // Small "+4%" hint next to the method dropdown so the pro shop can
+          // see the fee at a glance. Removed as soon as method flips back to
+          // Cash / Check / empty.
+          var hint = pRow.querySelector(".ci-p__surcharge");
+          var showHint = isSurchargeMethod(methodVal) && pBase > 0;
+          if (showHint) {
+            if (!hint) {
+              hint = document.createElement("span");
+              hint.className = "ci-p__surcharge";
+              (meth && meth.parentNode || pRow).appendChild(hint);
+            }
+            hint.textContent = "+4% (" + money(pBase * SURCHARGE_RATE) + ")";
+          } else if (hint) {
+            hint.parentNode.removeChild(hint);
+          }
         });
         var remaining = Math.max(0, owed - paid);
         var t = card.querySelector(".ci-tot__total"); if (t) t.textContent = money(owed);
