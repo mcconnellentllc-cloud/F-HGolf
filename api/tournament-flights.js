@@ -127,6 +127,14 @@ module.exports = async (req, res) => {
         if (typeof a.start === "string") fields.Start = a.start ? a.start.slice(0, 20) : null;
         if (a.hole !== undefined) { const h = Number(a.hole); fields.Hole = (a.hole === "" || a.hole == null || !isFinite(h)) ? null : h; }
         if (typeof a.slot === "string") fields.Slot = a.slot ? a.slot.slice(0, 10) : null;
+        // Seat: 1 or 2 within the tee slot (Team 1 / Team 2). Clears to null
+        // when a team goes back to Unplaced. Requires a "Seat" (Number) field
+        // on the Signups table — missing field returns a 502 from Airtable
+        // with a helpful hint from the catch below.
+        if (a.seat !== undefined) {
+          const s = Number(a.seat);
+          fields.Seat = (a.seat === "" || a.seat == null || !isFinite(s)) ? null : Math.max(1, Math.min(2, s));
+        }
         return { id: a.id, fields };
       })
       .filter((r) => Object.keys(r.fields).length);
@@ -134,7 +142,7 @@ module.exports = async (req, res) => {
     let updated = 0;
     for (let i = 0; i < records.length; i += 10) {
       const r = await fetch(url, { method: "PATCH", headers: auth, body: JSON.stringify({ records: records.slice(i, i + 10), typecast: true }) });
-      if (!r.ok) { const d = await r.text(); console.error("assignments patch", r.status, d); return res.status(502).json({ ok: false, error: "Could not save changes (are Flight/Start/Hole fields on the table?)." }); }
+      if (!r.ok) { const d = await r.text(); console.error("assignments patch", r.status, d); return res.status(502).json({ ok: false, error: "Could not save changes (are Flight/Start/Hole/Slot/Seat fields on the table?)." }); }
       const data = await r.json();
       updated += (data.records || []).length;
     }
