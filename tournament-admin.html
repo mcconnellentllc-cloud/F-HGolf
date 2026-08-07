@@ -2078,12 +2078,55 @@
       }
 
       // Persist slot layout (which holes have A / A+B) per tournament + wave.
+      // localStorage is the SYNC cache the render path reads. On page load we
+      // hydrate it from Airtable (tournament-flights ?action=getConfig) so a
+      // second device sees the same layout. Every saveSlotCfg mirrors back to
+      // Airtable so any device becomes the source of truth for the next load.
       function slotsKey(wave) { return "fh_slots_" + KEY + "_" + wave; }
       function loadSlotCfg(wave) {
         try { var j = JSON.parse(localStorage.getItem(slotsKey(wave)) || "null"); if (j && typeof j === "object") return j; } catch (e) {}
         return {}; // default: all holes off
       }
-      function saveSlotCfg(wave, cfg) { try { localStorage.setItem(slotsKey(wave), JSON.stringify(cfg)); } catch (e) {} }
+      function saveSlotCfg(wave, cfg) {
+        try { localStorage.setItem(slotsKey(wave), JSON.stringify(cfg)); } catch (e) {}
+        // Push the full per-wave config bundle up to Airtable so the OTHER
+        // devices (tablet, phone, another PC) see the same layout on refresh.
+        // Failure is silent — localStorage is still authoritative locally.
+        var bundle = {};
+        WAVES.forEach(function (w) { bundle[w.k] = loadSlotCfg(w.k); });
+        pushSlotCfgDebounced(bundle);
+      }
+      var _cfgPushTimer = null;
+      function pushSlotCfgDebounced(bundle) {
+        if (_cfgPushTimer) clearTimeout(_cfgPushTimer);
+        _cfgPushTimer = setTimeout(function () {
+          fetch(FH_API.url("/api/tournament-flights"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify({ action: "saveConfig", tournament: KEY, config: bundle })
+          }).catch(function () {});
+        }, 500);
+      }
+      function hydrateSlotCfgFromServer(done) {
+        fetch(FH_API.url("/api/tournament-flights"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "getConfig", tournament: KEY })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var cfg = j && j.ok && j.config ? j.config : null;
+            if (cfg && typeof cfg === "object") {
+              WAVES.forEach(function (w) {
+                if (cfg[w.k] && typeof cfg[w.k] === "object") {
+                  try { localStorage.setItem(slotsKey(w.k), JSON.stringify(cfg[w.k])); } catch (e) {}
+                }
+              });
+            }
+            if (typeof done === "function") done();
+          })
+          .catch(function () { if (typeof done === "function") done(); });
+      }
       function cycleState(s) { return s === "AB" ? "off" : (s === "A" ? "AB" : "A"); }
       // Fill order: hole 1 A, hole 1 B, hole 2 A, hole 2 B, ...
       function activeSlots(cfg) {
@@ -2286,8 +2329,15 @@
             var cfg = loadSlotCfg(w);
             var oldState = cfg[h] || "off";
             var newState = cycleState(oldState);
-            cfg[h] = newState;
-            saveSlotCfg(w, cfg);
+            // Snapshot BEFORE the cycle: was the wave in "initial setup" mode
+            // (no teams placed anywhere)? Once the operator has placed even
+            // one team, cycling a hole is a manual configuration change and
+            // MUST NOT trigger an autofill reshuffle of the rest of the wave.
+            var waveTeams = (prRecs || []).filter(function (r) { return ((r.fields || {}).Start || "") === w; });
+            var anyPlacedInWave = waveTeams.some(function (r) {
+              var f = r.fields || {}, sl = String(f.Slot || "").toUpperCase();
+              return Number(f.Hole) && (sl === "A" || sl === "B");
+            });
             // Determine which slot letters (A/B) are being removed by this cycle.
             var removed = [];
             var hadA = oldState === "A" || oldState === "AB";
@@ -2305,12 +2355,23 @@
                 }
               });
             }
-            // Save evictions first (if any), then re-render, then auto-autofill.
+            // Confirm before unseating placed teams — accidental cycles were
+            // silently wiping placements before.
+            if (evict.length) {
+              var msg = "Removing this tee will unseat " + evict.length + " placed team" + (evict.length === 1 ? "" : "s") + ". They'll go back to Unplaced. Continue?";
+              if (!window.confirm(msg)) return;
+            }
+            cfg[h] = newState;
+            saveSlotCfg(w, cfg);
+            // Save evictions first (if any), then re-render, then MAYBE auto-fill.
             var afterMove = function () {
               renderPairings(prRecs.length ? prRecs : []);
-              // Auto-autofill: fills any newly-empty seats from the unplaced pool.
-              // Guarded internally (seats vs teams) so it no-ops if not possible.
-              setTimeout(function () { autofillWave(w, /*silent=*/true); }, 60);
+              // Auto-fill only in initial-setup mode. If any team was already
+              // placed in this wave, the operator is now managing seats by
+              // hand — cycling a hole should never reshuffle the field.
+              if (!anyPlacedInWave) {
+                setTimeout(function () { autofillWave(w, /*silent=*/true); }, 60);
+              }
             };
             if (evict.length) {
               fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: evict }) })
@@ -4152,7 +4213,10 @@
         var prTestCard = document.getElementById("prPrintTestCard");
         if (prTestCard) prTestCard.addEventListener("click", printTestCard);
 
-        loadRoster();
+        // Pull the shared slot layout from Airtable BEFORE the first roster
+        // render so tee boxes appear consistently across devices. Falls
+        // through to loadRoster on error (localStorage will be used).
+        hydrateSlotCfgFromServer(function () { loadRoster(); });
         loadExpenses();
       });
     })();

@@ -1,16 +1,23 @@
 // Vercel serverless function — bulk Airtable writes for staff (admin-key).
-// Combines flight assignment, team positioning (wave/hole), and pairing-sheet
-// import into one endpoint to stay under Vercel's serverless-function limit.
-// All Airtable writes batch ≤10 records per request.
+// Combines flight assignment, team positioning (wave/hole), pairing-sheet
+// import, and per-tournament config storage (slot layouts) into one endpoint
+// to stay under Vercel's serverless-function limit. All Airtable writes batch
+// ≤10 records per request.
 //
 // Bodies:
 //   { assignments: [ { id, flight? , start?, hole? } ] }   -> patch teams
 //   { action: "import", tournament, teams: [ { name, partner?, start? } ] } -> seed field
+//   { action: "getConfig", tournament }                    -> read slot layout
+//   { action: "saveConfig", tournament, config: {...} }    -> upsert slot layout
 //
 // Needs on Tournament Signups: Flight (number), Start (single select), Hole (number).
+// Needs a "Tournament Config" table (or CONFIG_TABLE env override) with fields:
+//   · Tournament   (single line text, primary — used as the upsert key)
+//   · Slot Config  (long text — stores JSON like {"8 AM":{...},"1 PM":{...}})
 //
 // Env: AIRTABLE_TOKEN (data.records:write), AIRTABLE_BASE_ID,
-//      TOURNAMENTS_TABLE (defaults to "Tournament Signups"), ADMIN_KEY.
+//      TOURNAMENTS_TABLE (defaults to "Tournament Signups"),
+//      CONFIG_TABLE (defaults to "Tournament Config"), ADMIN_KEY.
 
 module.exports = async (req, res) => {
   if (require("./_cors")(req, res)) return;
@@ -21,6 +28,7 @@ module.exports = async (req, res) => {
 
   const { AIRTABLE_TOKEN, AIRTABLE_BASE_ID, ADMIN_KEY } = process.env;
   const TABLE = process.env.TOURNAMENTS_TABLE || "Tournament Signups";
+  const CFG_TABLE = process.env.CONFIG_TABLE || "Tournament Config";
   if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) return res.status(500).json({ ok: false, error: "Not configured." });
   const key = req.headers["x-admin-key"] || "";
   if (!ADMIN_KEY || key !== ADMIN_KEY) return res.status(401).json({ ok: false, error: "Unauthorized" });
@@ -30,10 +38,59 @@ module.exports = async (req, res) => {
   body = body || {};
 
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}`;
+  const cfgUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(CFG_TABLE)}`;
   const auth = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" };
   const clean = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
   try {
+    // ---- Slot config (pairings layout) ------------------------------------
+    // Reads/upserts a single record in Tournament Config keyed by Tournament
+    // name. Config JSON is small (<1 KB), so we store the whole per-wave map
+    // in one Slot Config text field. Missing table returns an empty config
+    // gracefully so the app still runs — the admin just loses cross-device
+    // slot persistence and falls back to localStorage.
+    if (body.action === "getConfig") {
+      const t = clean(body.tournament, 200);
+      if (!t) return res.status(400).json({ ok: false, error: "tournament required." });
+      const q = `?filterByFormula=${encodeURIComponent(`{Tournament}='${t.replace(/'/g, "\\'")}'`)}&maxRecords=1`;
+      const r = await fetch(cfgUrl + q, { headers: { Authorization: auth.Authorization } });
+      if (!r.ok) {
+        if (r.status === 404) return res.status(200).json({ ok: true, config: {} });
+        const d = await r.text(); console.error("getConfig", r.status, d);
+        return res.status(200).json({ ok: true, config: {}, warning: "Config table missing — using localStorage only." });
+      }
+      const data = await r.json();
+      const rec = (data.records || [])[0];
+      let cfg = {};
+      if (rec && rec.fields && typeof rec.fields["Slot Config"] === "string") {
+        try { cfg = JSON.parse(rec.fields["Slot Config"]) || {}; } catch (e) { cfg = {}; }
+      }
+      return res.status(200).json({ ok: true, config: cfg, id: rec ? rec.id : null });
+    }
+    if (body.action === "saveConfig") {
+      const t = clean(body.tournament, 200);
+      if (!t) return res.status(400).json({ ok: false, error: "tournament required." });
+      const cfg = (body.config && typeof body.config === "object") ? body.config : {};
+      const payload = JSON.stringify(cfg).slice(0, 20000);
+      const q = `?filterByFormula=${encodeURIComponent(`{Tournament}='${t.replace(/'/g, "\\'")}'`)}&maxRecords=1`;
+      const findR = await fetch(cfgUrl + q, { headers: { Authorization: auth.Authorization } });
+      if (!findR.ok) {
+        const d = await findR.text(); console.error("saveConfig find", findR.status, d);
+        return res.status(200).json({ ok: false, error: "Config table missing — add a Tournament Config table (fields: Tournament, Slot Config) in Airtable to enable cross-device pairings." });
+      }
+      const findData = await findR.json();
+      const existing = (findData.records || [])[0];
+      const fields = { Tournament: t, "Slot Config": payload };
+      if (existing && existing.id) {
+        const upR = await fetch(cfgUrl, { method: "PATCH", headers: auth, body: JSON.stringify({ records: [{ id: existing.id, fields }] }) });
+        if (!upR.ok) { const d = await upR.text(); console.error("saveConfig patch", upR.status, d); return res.status(502).json({ ok: false, error: "Couldn't update slot config." }); }
+      } else {
+        const upR = await fetch(cfgUrl, { method: "POST", headers: auth, body: JSON.stringify({ records: [{ fields }] }) });
+        if (!upR.ok) { const d = await upR.text(); console.error("saveConfig create", upR.status, d); return res.status(502).json({ ok: false, error: "Couldn't save slot config." }); }
+      }
+      return res.status(200).json({ ok: true });
+    }
+
     if (body.action === "import") {
       const tournament = clean(body.tournament, 120);
       if (!tournament || !Array.isArray(body.teams)) return res.status(400).json({ ok: false, error: "tournament and teams required." });
