@@ -131,7 +131,8 @@
               </select>
               <button class="btn btn--solid" type="button" id="prPrint">Print tee sheet</button>
               <button class="btn btn--solid" type="button" id="prPrintAnnounce">Announcement page</button>
-              <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards">Print scorecards</button>
+              <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards (Day 1 tee-sheet order)">Print scorecards</button>
+              <button class="btn btn--solid" type="button" id="prPrintCardsD2" title="Day 2 scorecards — pairs ordered by ascending Day 1 gross within flight">Print Day 2 scorecards</button>
               <button class="btn btn--ghost" type="button" id="prPrintTestCard" title="Print one card with dummy names to calibrate alignment">Print test card</button>
             </div>
           </div>
@@ -2779,6 +2780,107 @@
         setTimeout(cleanup, 4000);
       }
 
+      // Day 2 scorecards. Teams are re-paired for Day 2 by Day 1 gross —
+      // ascending within each flight, so the lowest scorer in a flight plays
+      // with the next lowest, and so on. If a flight has an odd number of
+      // teams the leftover team pairs with the next team in the overall
+      // sorted list (typically the fastest team from the flight below), so
+      // there's always a partner. Team 1 (lower gross) is the top blank line
+      // on the physical card; Team 2 (higher gross) is the bottom line.
+      function printDay2Scorecards() {
+        var recs = (prRecs || []).filter(function (r) { return !isAltRec(r); });
+        if (!recs.length) { alert("No teams yet — import the field or add teams on Check-In first."); return; }
+        var scored = recs.filter(function (r) { var g = d1g(r); return g && g > 0; });
+        if (!scored.length) { alert("No Day 1 scores yet. Enter Day 1 gross on the Scores tab before generating Day 2 pairings."); return; }
+        var teamNumbers = computeTeamNumbers(recs);
+
+        // Group by flight (0 = unflighted). Within a flight, sort by Day 1
+        // gross ascending. Then walk each flight in flight order and pull
+        // pairs sequentially — cross-flight fallback happens automatically
+        // at the boundary when the current flight ends mid-pair.
+        var byFlight = {};
+        scored.forEach(function (r) {
+          var fl = Number((r.fields || {}).Flight) || 0;
+          (byFlight[fl] = byFlight[fl] || []).push(r);
+        });
+        var flightKeys = Object.keys(byFlight).map(Number).sort(function (a, b) { return a - b; });
+        // If any team was assigned a flight, drop unflighted teams to the end
+        // rather than mixing them at the front.
+        if (flightKeys.length > 1 && byFlight[0]) {
+          flightKeys = flightKeys.filter(function (k) { return k !== 0; }).concat([0]);
+        }
+        flightKeys.forEach(function (k) {
+          byFlight[k].sort(function (a, b) {
+            var ga = d1g(a) || 999, gb = d1g(b) || 999;
+            if (ga !== gb) return ga - gb;
+            return byCreated(a, b);
+          });
+        });
+
+        // Flat pair walk. Track each team's home flight so a cross-flight
+        // pair labels itself with both flight names on the printed card.
+        var flatOrdered = [];
+        flightKeys.forEach(function (k) {
+          byFlight[k].forEach(function (r) { flatOrdered.push({ rec: r, flight: k }); });
+        });
+        if (!flatOrdered.length) { alert("No teams with a Day 1 gross to pair up."); return; }
+
+        function flLabel(k) { return k > 0 ? flightName(k) : "Unflighted"; }
+
+        var pages = [];
+        for (var i = 0; i < flatOrdered.length; i += 2) {
+          var a = flatOrdered[i], b = flatOrdered[i + 1] || null;
+          var flTag = b && a.flight === b.flight
+            ? flLabel(a.flight)
+            : (b ? flLabel(a.flight) + " / " + flLabel(b.flight) : flLabel(a.flight) + " · solo");
+          var pairNum = Math.floor(i / 2) + 1;
+          function teamLine(entry) {
+            if (!entry) return "";
+            var tn = teamNumbers[entry.rec.id];
+            var tag = tn ? "T-" + String(tn).padStart(2, "0") + "  " : "";
+            var gross = d1g(entry.rec);
+            var grossTag = gross ? "  (D1 " + gross + ")" : "";
+            return tag + teamShortNames(entry.rec.fields || {}) + grossTag;
+          }
+          var hdr = "DAY 2 · " + flTag + " · Pair " + pairNum;
+          pages.push('<div class="sc-page">'
+            + '<div class="sc-hdr">' + esc(hdr) + '</div>'
+            + '<div class="sc-name sc-name--1">' + esc(teamLine(a)) + '</div>'
+            + '<div class="sc-name sc-name--2">' + esc(teamLine(b)) + '</div>'
+            + '</div>');
+        }
+
+        var host = document.createElement("div");
+        host.id = "prCardsHost";
+        host.className = "pr-cards";
+        host.innerHTML = pages.join("");
+
+        document.body.appendChild(host);
+        document.body.classList.add("is-print-cards");
+        var pageStyle = document.createElement("style");
+        pageStyle.id = "pr-cards-page";
+        var _sz = String(CARD_OFFSETS.paperSize || "").trim().split(/\s+/);
+        var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "5.875in";
+        var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "12in";
+        pageStyle.textContent =
+          "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
+          + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"
+          + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
+          + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
+          + " body.is-print-cards .sc-name--1 { top: " + CARD_OFFSETS.team1Top + "; }"
+          + " body.is-print-cards .sc-name--2 { top: " + CARD_OFFSETS.team2Top + "; }";
+        document.head.appendChild(pageStyle);
+        function cleanup() {
+          document.body.classList.remove("is-print-cards");
+          if (host && host.parentNode) host.parentNode.removeChild(host);
+          var ps = document.getElementById("pr-cards-page"); if (ps) ps.remove();
+          window.removeEventListener("afterprint", cleanup);
+        }
+        window.addEventListener("afterprint", cleanup);
+        setTimeout(function () { window.print(); }, 80);
+        setTimeout(cleanup, 4000);
+      }
+
       // Single-card test print — dummy names, one page, no team data
       // required. Uses the same CARD_OFFSETS geometry as the real
       // scorecards print so a nudge here translates 1:1 to the batch.
@@ -4363,6 +4465,8 @@
         if (prAnn) prAnn.addEventListener("click", printAnnouncement);
         var prCards = document.getElementById("prPrintCards");
         if (prCards) prCards.addEventListener("click", printScorecards);
+        var prCardsD2 = document.getElementById("prPrintCardsD2");
+        if (prCardsD2) prCardsD2.addEventListener("click", printDay2Scorecards);
         var prTestCard = document.getElementById("prPrintTestCard");
         if (prTestCard) prTestCard.addEventListener("click", printTestCard);
 
