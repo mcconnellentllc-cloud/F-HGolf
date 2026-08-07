@@ -331,7 +331,9 @@
             </ul>
             <h4>Ties &amp; committee</h4>
             <ul>
-              <li>Tie-break: Day 2 gross → back-9 of Day 2 → last-6 → last-3 → match-of-cards → committee chip-off.</li>
+              <li><b>Calcutta ties → split the pot.</b> Every tied Calcutta payout position splits evenly. No playoff.</li>
+              <li><b>Flight money 2nd &amp; 3rd → split the pot.</b> Only 1st is played off.</li>
+              <li><b>Flight money 1st → scorecard playoff (Men's Hdcp order).</b> Hole 11 hardest, hole 2, hole 15, then down the list. First lower score wins. Walk Day 2 → then Day 1 → then committee chip-off.</li>
               <li>Rules question: call the pro shop / committee, or play a second ball (R.20.1c(3)) and let committee decide.</li>
               <li>Everything else: <b>USGA Rules of Golf</b>. Committee is the final authority.</li>
             </ul>
@@ -1681,6 +1683,36 @@
       // Yardages/handicap indexes are per-nine and repeated on the back nine
       // (F&H is a 9-hole course played twice). Edit these if the printed card
       // shows a wrong number — everything downstream reads from here.
+      // Men's Hdcp — hole numbers from HARDEST (index 1) to EASIEST (index 18).
+      // Used ONLY to break a 1st-place gross tie in each flight (scorecard
+      // playoff, per the board's ruling). The first three come from the pro
+      // shop: Hole 11 is hardest, Hole 2 is second, Hole 15 is third. The
+      // remaining fifteen are best-guess and may need reordering — the
+      // playoff walks this list in order until one team is lower. Update
+      // against the printed card if the tail is wrong.
+      var MENS_HARDNESS_ORDER = [11, 2, 15, 18, 14, 6, 12, 4, 7, 10, 1, 16, 8, 17, 9, 3, 13, 5];
+
+      // Scorecard playoff — walk Day 2 (then Day 1) hole scores in Men's Hdcp
+      // order. Returns <0 if `a` beats `b`, >0 if `b` beats `a`, 0 if all 18
+      // holes tied on both days (committee chip-off, per the rules page).
+      function scorecardPlayoff(a, b) {
+        function day(rec, key) { try { var v = JSON.parse((rec && rec.fields || {})[key] || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+        var days = [
+          [day(a.rec, "Day2 Scores"), day(b.rec, "Day2 Scores")],
+          [day(a.rec, "Day1 Scores"), day(b.rec, "Day1 Scores")]
+        ];
+        for (var d = 0; d < days.length; d++) {
+          var sa = days[d][0], sb = days[d][1];
+          for (var i = 0; i < MENS_HARDNESS_ORDER.length; i++) {
+            var h = MENS_HARDNESS_ORDER[i]; // 1-based
+            var va = sa[h - 1], vb = sb[h - 1];
+            if (va == null || vb == null) continue;
+            if (va !== vb) return va - vb;
+          }
+        }
+        return 0;
+      }
+
       var CARD9 = {
         blue:   [387, 349, 361, 490, 402, 383, 371, 145, 553],
         white:  [376, 191, 343, 352, 477, 386, 371, 141, 546],
@@ -3256,7 +3288,7 @@
               + holes
               + '<td class="ca-d1"><b>' + (x.a == null ? "&mdash;" : x.a) + '</b></td>'
               + '<td class="ca-tbl__amt"><input type="number" inputmode="decimal" min="0" step="1" class="ca-amt" data-id="' + esc(x.id) + '" value="' + (x.amount == null ? "" : x.amount) + '" placeholder="$0" /></td>'
-              + '<td class="ca-tbl__buyer"><input type="text" class="ca-buyer" data-id="' + esc(x.id) + '" value="' + esc(x.buyer) + '" placeholder="Buyer name" autocomplete="off" /></td>'
+              + '<td class="ca-tbl__buyer"><input type="text" class="ca-buyer" data-id="' + esc(x.id) + '" value="' + esc(x.buyer) + '" placeholder="Buyer name" autocomplete="off" list="caBuyerList" /></td>'
               + '<td class="ca-tbl__save"><span class="sc-tbl__save" title="Save state"></span></td>'
               + '<td class="ca-tbl__x"><button type="button" class="ca-clear" data-id="' + esc(x.id) + '" title="Clear buyer + amount">&times;</button></td>'
               + '</tr>';
@@ -3274,7 +3306,35 @@
         // matches the top strip pool total. Rendered as an =SUM row above the
         // Delete-all button.
         var grandBuy = recs.reduce(function (s, r) { var v = (r.fields || {})["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
-        body.innerHTML = strip
+
+        // Buyer autofill — every ca-buyer input references <datalist id="caBuyerList">.
+        // Suggestions merge two sources so a clerk typing a repeat buyer or a
+        // player name gets a one-tap dropdown match:
+        //   1. Every buyer name already recorded in this tournament (repeats
+        //      dominate — same three families buy most of the field).
+        //   2. Every player + partner name from the roster (buyers are almost
+        //      always players).
+        // De-duplicated case-insensitively; display retains whatever casing
+        // showed up first so autocomplete matches what's already on record.
+        var seen = {}, suggestions = [];
+        function addName(n) {
+          n = String(n || "").trim(); if (!n) return;
+          var k = n.toLowerCase();
+          if (seen[k]) return;
+          seen[k] = true;
+          suggestions.push(n);
+        }
+        recs.forEach(function (r) {
+          var f = r.fields || {};
+          addName(f["Buyer"]);
+          addName(f["Player Name"]);
+          String(f["Team / Partners"] || "").split(/\s*[\/,&]\s*|\s+and\s+/i).forEach(addName);
+        });
+        suggestions.sort(function (a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
+        var buyerListHtml = '<datalist id="caBuyerList">' + suggestions.map(function (n) { return '<option value="' + esc(n) + '"></option>'; }).join("") + '</datalist>';
+
+        body.innerHTML = buyerListHtml
+          + strip
           + (out || '<p class="noms__msg">Flights aren\'t assigned yet — set the cuts on the Flights tab first.</p>')
           + '<div class="ca-sumcheck">=SUM of $ Buy · <b id="caSumCheck">' + money(grandBuy) + '</b></div>'
           + '<div class="ca-footer"><button type="button" class="btn btn--solid ca-clear-all" id="caClearAll">Delete all Calcutta data</button></div>';
@@ -3467,10 +3527,34 @@
           });
           // Place by 2-day gross (ascending), ties get same place, next place skips.
           rankPlaces(fl.rows, "gross", "grossPlace");
-          // Place by net (ascending) — Calcutta ranks.
+          // Break 1st-place-only ties by scorecard playoff (Men's Hdcp order).
+          // Per the board: FLIGHT MONEY 1st place must be a single team; 2nd
+          // and 3rd may split. Calcutta ties always split. So we only touch
+          // grossPlace === 1 here — other tied ranks stay tied.
+          var tiedForFirst = fl.rows.filter(function (r) { return r.grossPlace === 1; });
+          if (tiedForFirst.length > 1) {
+            var resolved = tiedForFirst.slice().sort(scorecardPlayoff);
+            // If the playoff fully resolves, hand out ranks 1, 2, 3, … to the
+            // top-N teams in playoff order. If two teams remain tied at the
+            // end of the walk (all 18 holes matched), keep them tied at the
+            // lowest still-resolvable rank — committee chip-off decides.
+            for (var i = 0; i < resolved.length; i++) {
+              var same = 1;
+              while (i + same < resolved.length && scorecardPlayoff(resolved[i], resolved[i + same]) === 0) same++;
+              for (var j = 0; j < same; j++) resolved[i + j].grossPlace = i + 1;
+              resolved[i]._playoff = same > 1 ? "unresolved" : "won";
+              i += same - 1;
+            }
+          }
+          // Place by net (ascending) — Calcutta ranks. Ties SPLIT per the rules.
           rankPlaces(fl.rows, "net", "netPlace");
-          // Display sort: lowest gross first, nulls at the bottom.
-          fl.rows.sort(function (a, b) { return (a.gross == null ? 1e9 : a.gross) - (b.gross == null ? 1e9 : b.gross); });
+          // Display sort: gross ascending, playoff-decided 1st on top.
+          fl.rows.sort(function (a, b) {
+            var ga = a.gross == null ? 1e9 : a.gross, gb = b.gross == null ? 1e9 : b.gross;
+            if (ga !== gb) return ga - gb;
+            var pa = a.grossPlace || 1e9, pb = b.grossPlace || 1e9;
+            return pa - pb;
+          });
         });
         return { flights: flights, unassigned: unassigned, cuts: cuts, sortedScores: sortedScores };
       }
@@ -3773,6 +3857,8 @@
               // Detect tie by counting rows at same gross place.
               var ties = fl.rows.filter(function (r) { return r.grossPlace === row.grossPlace; }).length;
               flags.push('<span class="lbd-flag lbd-flag--gross lbd-flag--p' + row.grossPlace + '" title="Flight winner (gross)">' + (ties > 1 ? "T" : "") + ordinal(row.grossPlace) + " Place</span>");
+              if (row._playoff === "won") flags.push('<span class="lbd-flag lbd-flag--playoff" title="Won a scorecard playoff on Men’s Hdcp order">Playoff</span>');
+              else if (row._playoff === "unresolved" && row.grossPlace === 1) flags.push('<span class="lbd-flag lbd-flag--playoff" title="Playoff walked all 18 holes without a decision — committee chip-off">Chip-off</span>');
             }
             if (row.netPlace && row.netPlace <= nCalcuttaPrizes) {
               var netTies = fl.rows.filter(function (r) { return r.netPlace === row.netPlace; }).length;
