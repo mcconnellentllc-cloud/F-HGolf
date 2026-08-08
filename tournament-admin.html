@@ -3104,12 +3104,12 @@
         // then update ONE number here and reprint — the whole batch shifts.
         headerTop: "0.10in",   // small verification tag at top-left corner
         headerLeft: "0.35in",
-        team1Top: "1.30in",    // Team 1 P1 first name — top of upper score block
-        team2Top: "2.60in",    // Team 2 P1 first name — top of lower score block
+        team1Top: "1.30in",    // Team 1 player 1 (full name) — top of upper score block
+        team2Top: "2.75in",    // Team 2 player 1 (full name) — top of lower score block
         teamLeft: "0.70in",    // right of the row-label column
-        rowStep:  "0.22in",    // tight rows so 4 names fit in a compact block
+        rowStep:  "0.40in",    // one full 3/8"+ row between player 1 and player 2 lines
         nameSize: "11pt",
-        teeMarkTop: "2.75in",  // ring row in HOLE
+        teeMarkTop: "2.95in",  // ring row in HOLE — nudged down
         teeMarkStep: "0.44in", // per-hole horizontal step in the HOLE row
         teeMarkFirst: "1.18in" // x for hole 1 (adjust once against the card)
       };
@@ -3172,23 +3172,12 @@
         // top score area above the HOLE bar; Team 2 (P1 + P2) fills the bottom
         // area below the HOLE bar. A red circle marks the tee-off hole in the
         // HOLE row so scorers know at a glance where the group tees off.
-        function splitFirstLast(fullName) {
-          var s = String(fullName || "").trim();
-          if (!s) return { first: "", last: "" };
-          var parts = s.split(/\s+/);
-          if (parts.length === 1) return { first: parts[0], last: "" };
-          return { first: parts[0], last: parts.slice(1).join(" ") };
-        }
         function teamNameBlock(rec, blockClass) {
           if (!rec) return "";
           var names = fullPlayerNames(rec.fields || {});
-          var p1 = splitFirstLast(names[0] || "");
-          var p2 = splitFirstLast(names[1] || "");
           return '<div class="sc-block ' + blockClass + '">'
-            + '<div class="sc-nm sc-nm--p1f">' + esc(p1.first) + '</div>'
-            + '<div class="sc-nm sc-nm--p1l">' + esc(p1.last) + '</div>'
-            + '<div class="sc-nm sc-nm--p2f">' + esc(p2.first) + '</div>'
-            + '<div class="sc-nm sc-nm--p2l">' + esc(p2.last) + '</div>'
+            + '<div class="sc-nm sc-nm--p1">' + esc(names[0] || "") + '</div>'
+            + '<div class="sc-nm sc-nm--p2">' + esc(names[1] || "") + '</div>'
             + '</div>';
         }
 
@@ -3250,10 +3239,8 @@
           + " body.is-print-cards .sc-block--team1 { top: " + CARD_OFFSETS.team1Top + "; }"
           + " body.is-print-cards .sc-block--team2 { top: " + CARD_OFFSETS.team2Top + "; }"
           + " body.is-print-cards .sc-nm { position: absolute; left: 0; white-space: nowrap; }"
-          + " body.is-print-cards .sc-nm--p1f { top: 0; }"
-          + " body.is-print-cards .sc-nm--p1l { top: " + step + "; }"
-          + " body.is-print-cards .sc-nm--p2f { top: calc(" + step + " * 2); }"
-          + " body.is-print-cards .sc-nm--p2l { top: calc(" + step + " * 3); }"
+          + " body.is-print-cards .sc-nm--p1 { top: 0; }"
+          + " body.is-print-cards .sc-nm--p2 { top: " + step + "; }"
           + " body.is-print-cards .sc-teemark { position: absolute; top: " + CARD_OFFSETS.teeMarkTop + "; width: 0.32in; height: 0.32in; margin-left: -0.16in; margin-top: -0.16in; border: 1.4pt solid #b11e2d; border-radius: 999px; display: flex; align-items: center; justify-content: flex-end; padding-right: 3pt; color: #b11e2d; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-size: 12pt; font-weight: 800; line-height: 1; -webkit-print-color-adjust: exact; print-color-adjust: exact; }";
       }
 
@@ -3320,15 +3307,11 @@
             if (!entry) return "";
             var f = entry.rec.fields || {};
             var names = fullPlayerNames(f);
-            var p1 = splitFirstLast(names[0] || "");
-            var p2 = splitFirstLast(names[1] || "");
             var gross = d1g(entry.rec);
-            var seed = gross ? '<span class="d1-circle">' + gross + '</span>' : '';
+            var seed = gross ? ' <span class="d1-circle">' + gross + '</span>' : '';
             return '<div class="sc-block ' + blockClass + '">'
-              + '<div class="sc-nm sc-nm--p1f">' + esc(p1.first) + '</div>'
-              + '<div class="sc-nm sc-nm--p1l">' + esc(p1.last) + '</div>'
-              + '<div class="sc-nm sc-nm--p2f">' + esc(p2.first) + '</div>'
-              + '<div class="sc-nm sc-nm--p2l">' + esc(p2.last) + (seed ? ' ' + seed : '') + '</div>'
+              + '<div class="sc-nm sc-nm--p1">' + esc(names[0] || "") + '</div>'
+              + '<div class="sc-nm sc-nm--p2">' + esc(names[1] || "") + seed + '</div>'
               + '</div>';
           }
           var teeHtml = "";
@@ -3395,16 +3378,12 @@
         host.innerHTML =
           '<div class="sc-page">'
           + '<div class="sc-block sc-block--team1">'
-          +   '<div class="sc-nm sc-nm--p1f">Tom</div>'
-          +   '<div class="sc-nm sc-nm--p1l">Bornhoft</div>'
-          +   '<div class="sc-nm sc-nm--p2f">Kyle</div>'
-          +   '<div class="sc-nm sc-nm--p2l">McConnell</div>'
+          +   '<div class="sc-nm sc-nm--p1">Tom Bornhoft</div>'
+          +   '<div class="sc-nm sc-nm--p2">Kyle McConnell</div>'
           + '</div>'
           + '<div class="sc-block sc-block--team2">'
-          +   '<div class="sc-nm sc-nm--p1f">Ryan</div>'
-          +   '<div class="sc-nm sc-nm--p1l">Davis</div>'
-          +   '<div class="sc-nm sc-nm--p2f">Kris</div>'
-          +   '<div class="sc-nm sc-nm--p2l">Wilson</div>'
+          +   '<div class="sc-nm sc-nm--p1">Ryan Davis</div>'
+          +   '<div class="sc-nm sc-nm--p2">Kris Wilson</div>'
           + '</div>'
           + '<div class="sc-teemark" style="left: ' + teeLeftPx + '">A</div>'
           + '</div>';
