@@ -1628,6 +1628,10 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-c-act .ci__remove { background: none; border: none; color: var(--red-deep); font-size: 1rem; cursor: pointer; padding: 0.2rem 0.4rem; }
 .ci__status { font-size: 0.78rem; color: var(--muted); }
 .ci__status.is-error { color: var(--red-deep); }
+.ci-filters { display: flex; flex-wrap: wrap; gap: 0.9rem 1.4rem; align-items: center; margin: 0.6rem 0 1rem; padding: 0.55rem 0.8rem; background: var(--paper-2); border-radius: 10px; }
+.ci-filter-group { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+.ci-filter-label { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); margin-right: 0.2rem; }
+.ci-fchip { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
 .ci-fold { margin-top: 1rem; background: var(--paper-2); border-radius: 10px; padding: 0.5rem 0.8rem; }
 .ci-fold > summary { cursor: pointer; font-weight: 700; color: var(--primary-green); }
 .ci-fold > summary span { color: var(--muted); font-weight: 400; }

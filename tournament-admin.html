@@ -116,6 +116,22 @@
             <div id="golferList"></div>
           </details>
 
+          <div class="ci-filters" id="ciFilters" role="group" aria-label="Filter teams">
+            <div class="ci-filter-group">
+              <span class="ci-filter-label">Wave</span>
+              <button class="sc-tab ci-fchip is-active" type="button" data-fwave="all">All</button>
+              <button class="sc-tab ci-fchip" type="button" data-fwave="am">8 AM</button>
+              <button class="sc-tab ci-fchip" type="button" data-fwave="pm">1 PM</button>
+              <button class="sc-tab ci-fchip" type="button" data-fwave="none" title="No wave assigned yet">Unset</button>
+            </div>
+            <div class="ci-filter-group">
+              <span class="ci-filter-label">Payment</span>
+              <button class="sc-tab ci-fchip is-active" type="button" data-fpaid="all">All</button>
+              <button class="sc-tab ci-fchip" type="button" data-fpaid="unpaid">Unpaid</button>
+              <button class="sc-tab ci-fchip" type="button" data-fpaid="paid">Paid</button>
+            </div>
+          </div>
+
           <div class="noms__list" id="twRoster"><p class="noms__msg">Loading roster…</p></div>
         </section>
 
@@ -1250,6 +1266,31 @@
       }
 
       var rosterRecs = [];
+      // Persistent Check-In filters (wave + payment). Restored from
+      // localStorage so a busy operator's chip choices survive across
+      // reloads and Ctrl+Shift+R.
+      var CI_FILTERS = { wave: "all", paid: "all" };
+      try {
+        var _cif = localStorage.getItem("fh:ciFilters:" + KEY);
+        if (_cif) { var _p = JSON.parse(_cif); if (_p && typeof _p === "object") CI_FILTERS = { wave: _p.wave || "all", paid: _p.paid || "all" }; }
+      } catch (e) {}
+      function saveCiFilters() { try { localStorage.setItem("fh:ciFilters:" + KEY, JSON.stringify(CI_FILTERS)); } catch (e) {} }
+      function applyCiFilterChip(chipWave, chipPaid) {
+        Array.prototype.forEach.call(document.querySelectorAll('#ciFilters [data-fwave]'), function (b) { b.classList.toggle("is-active", b.getAttribute("data-fwave") === chipWave); });
+        Array.prototype.forEach.call(document.querySelectorAll('#ciFilters [data-fpaid]'), function (b) { b.classList.toggle("is-active", b.getAttribute("data-fpaid") === chipPaid); });
+      }
+      function ciFilterField(field) {
+        return field.filter(function (r) {
+          var f = r.fields || {};
+          if (CI_FILTERS.wave === "am"   && f.Start !== "8 AM") return false;
+          if (CI_FILTERS.wave === "pm"   && f.Start !== "1 PM") return false;
+          if (CI_FILTERS.wave === "none" && (f.Start === "8 AM" || f.Start === "1 PM")) return false;
+          if (CI_FILTERS.paid === "paid"   && !fullyPaid(r)) return false;
+          if (CI_FILTERS.paid === "unpaid" && fullyPaid(r))  return false;
+          return true;
+        });
+      }
+
       function renderRoster(all) {
         var list = document.getElementById("twRoster"), count = document.getElementById("twCount");
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
@@ -1259,14 +1300,32 @@
         actions(field);
         summarize(field);
         renderGolfers(field);
+        applyCiFilterChip(CI_FILTERS.wave, CI_FILTERS.paid);
         if (!recs.length) { list.innerHTML = '<p class="noms__msg">No sign-ups yet. Add a walk-up team above.</p>'; count.textContent = ""; return; }
 
+        var filtersActive = CI_FILTERS.wave !== "all" || CI_FILTERS.paid !== "all";
         var unpaid = field.filter(function (r) { return !fullyPaid(r); });
         var paid = field.filter(fullyPaid);
         count.textContent = "(" + field.length + " · " + paid.length + " paid" + (alts.length ? " · " + alts.length + " alt" : "") + ")";
 
-        var html = unpaid.length ? ciTable(unpaid) : '<p class="noms__msg">Everyone checked in has paid. 🎉</p>';
-        if (paid.length) html += '<details class="ci-fold" open><summary>Paid &amp; done <span>(' + paid.length + ")</span></summary>" + ciTable(paid) + "</details>";
+        var html;
+        if (filtersActive) {
+          // When any filter chip is on, flatten to a single filtered list
+          // sorted with unpaid first (still what the operator most cares
+          // about) then paid. Alternates fold stays at the bottom.
+          var visible = ciFilterField(field);
+          var vUnpaid = visible.filter(function (r) { return !fullyPaid(r); });
+          var vPaid = visible.filter(fullyPaid);
+          var ordered = vUnpaid.concat(vPaid);
+          if (!ordered.length) {
+            html = '<p class="noms__msg">No teams match the current filters.</p>';
+          } else {
+            html = ciTable(ordered);
+          }
+        } else {
+          html = unpaid.length ? ciTable(unpaid) : '<p class="noms__msg">Everyone checked in has paid. 🎉</p>';
+          if (paid.length) html += '<details class="ci-fold" open><summary>Paid &amp; done <span>(' + paid.length + ")</span></summary>" + ciTable(paid) + "</details>";
+        }
         if (alts.length) html += '<details class="ci-fold ci-fold--alt"><summary>Alternates — standby <span>(' + alts.length + ")</span></summary>" + ciTable(alts) + "</details>";
         list.innerHTML = html;
         attachRowFilter(list, { rowSelector: ".ci-card" });
@@ -4879,6 +4938,23 @@
 
         var tr = document.getElementById("twRefresh");
         if (tr) tr.addEventListener("click", loadRoster);
+
+        // Check-in filter chips (Wave + Payment). Re-render from cache on
+        // click — no network — so the operator sees an immediate response.
+        Array.prototype.forEach.call(document.querySelectorAll('#ciFilters [data-fwave]'), function (b) {
+          b.addEventListener("click", function () {
+            CI_FILTERS.wave = b.getAttribute("data-fwave") || "all";
+            saveCiFilters();
+            try { renderRoster(scAllCache); } catch (e) {}
+          });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('#ciFilters [data-fpaid]'), function (b) {
+          b.addEventListener("click", function () {
+            CI_FILTERS.paid = b.getAttribute("data-fpaid") || "all";
+            saveCiFilters();
+            try { renderRoster(scAllCache); } catch (e) {}
+          });
+        });
         // Scores tab switcher (Day 1 / Day 2 / Import CSV).
         Array.prototype.forEach.call(document.querySelectorAll("#scTabs .sc-tab"), function (b) {
           b.addEventListener("click", function () {
