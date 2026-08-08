@@ -134,6 +134,12 @@
               <button class="btn btn--solid" type="button" id="prPrintAnnounce">Announcement page</button>
               <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards (Day 1 tee-sheet order)">Print scorecards</button>
               <button class="btn btn--solid" type="button" id="prPrintCardsD2" title="Day 2 scorecards — pairs ordered by ascending Day 1 gross within flight">Print Day 2 scorecards</button>
+              <select id="prPaperSize" class="pr-print-which" aria-label="Paper size for scorecard prints" title="Match what your printer can actually feed">
+                <option value="5.875in 12in" selected>Paper: F&amp;H card portrait (5.875 × 12) — HP M227 Tray 1</option>
+                <option value="11in 8.5in">Paper: Letter landscape (11 × 8.5)</option>
+                <option value="14in 8.5in">Paper: Legal landscape (14 × 8.5)</option>
+                <option value="12in 5.875in">Paper: F&amp;H card landscape (12 × 5.875)</option>
+              </select>
               <button class="btn btn--solid" type="button" id="prPrintTestCard" title="Print one card with dummy names + corner markers to calibrate alignment">Print test scorecard</button>
             </div>
           </div>
@@ -3102,6 +3108,14 @@
         teamLeft: "1.45in",    // horizontal start past the 7/8" row-label column
         nameSize: "12pt"       // 12pt cap height ~9.5pt fits comfortably in a 3/8" (27pt) row
       };
+      // Paper size actually used per print — reads the Pairings-tab picker so
+      // staff can match whichever custom size the printer driver knows about,
+      // falling back to CARD_OFFSETS.paperSize when the picker isn't mounted.
+      function currentPaperSize() {
+        var sel = document.getElementById("prPaperSize");
+        var v = sel && sel.value ? sel.value.trim() : "";
+        return v || CARD_OFFSETS.paperSize;
+      }
       function printScorecards() {
         if (!prRecs || !prRecs.length) { alert("No teams yet — import the field or add teams on Check-In first."); return; }
         var waveSel = document.getElementById("prPrintWhich");
@@ -3184,11 +3198,12 @@
         // and force each .sc-page to fill exactly one sheet — without this
         // the pages collapse to zero and every team's name stacks on top of
         // the first one in the print preview.
-        var _sz = String(CARD_OFFSETS.paperSize || "").trim().split(/\s+/);
+        var _paper = currentPaperSize();
+        var _sz = String(_paper || "").trim().split(/\s+/);
         var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "12in";
         var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "5.875in";
         pageStyle.textContent =
-          "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
+          "@page { size: " + _paper + "; margin: 0; }"
           + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"
           + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
           + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
@@ -3293,11 +3308,12 @@
         document.body.classList.add("is-print-cards");
         var pageStyle = document.createElement("style");
         pageStyle.id = "pr-cards-page";
-        var _sz = String(CARD_OFFSETS.paperSize || "").trim().split(/\s+/);
+        var _paper = currentPaperSize();
+        var _sz = String(_paper || "").trim().split(/\s+/);
         var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "12in";
         var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "5.875in";
         pageStyle.textContent =
-          "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
+          "@page { size: " + _paper + "; margin: 0; }"
           + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"
           + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
           + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
@@ -3348,11 +3364,12 @@
         // and force each .sc-page to fill exactly one sheet — without this
         // the pages collapse to zero and every team's name stacks on top of
         // the first one in the print preview.
-        var _sz = String(CARD_OFFSETS.paperSize || "").trim().split(/\s+/);
+        var _paper = currentPaperSize();
+        var _sz = String(_paper || "").trim().split(/\s+/);
         var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "12in";
         var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "5.875in";
         pageStyle.textContent =
-          "@page { size: " + CARD_OFFSETS.paperSize + "; margin: 0; }"
+          "@page { size: " + _paper + "; margin: 0; }"
           + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"
           + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
           + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
