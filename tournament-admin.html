@@ -137,6 +137,7 @@
               <select id="prPaperSize" class="pr-print-which" aria-label="Paper size for scorecard prints" title="Match what your printer can actually feed">
                 <option value="12in 5.875in" selected>Paper: F&amp;H card landscape (12 × 5.875)</option>
                 <option value="5.875in 12in">Paper: F&amp;H card portrait (5.875 × 12)</option>
+                <option value="8.5in 11in">Paper: Letter portrait (8.5 × 11) — driver test</option>
                 <option value="11in 8.5in">Paper: Letter landscape (11 × 8.5)</option>
                 <option value="14in 8.5in">Paper: Legal landscape (14 × 8.5)</option>
               </select>
@@ -3116,11 +3117,37 @@
       // Paper size actually used per print — reads the Pairings-tab picker so
       // staff can match whichever custom size the printer driver knows about,
       // falling back to CARD_OFFSETS.paperSize when the picker isn't mounted.
+      // The picker choice is persisted to localStorage so once the operator
+      // lands on the paper size their driver actually accepts, it sticks
+      // across reloads and Ctrl+Shift+R.
       function currentPaperSize() {
         var sel = document.getElementById("prPaperSize");
         var v = sel && sel.value ? sel.value.trim() : "";
         return v || CARD_OFFSETS.paperSize;
       }
+      (function restorePaperSize() {
+        try {
+          var saved = localStorage.getItem("fh:prPaperSize");
+          if (!saved) return;
+          function apply() {
+            var sel = document.getElementById("prPaperSize");
+            if (!sel) return;
+            var ok = false;
+            for (var i = 0; i < sel.options.length; i++) {
+              if (sel.options[i].value === saved) { ok = true; break; }
+            }
+            if (ok) sel.value = saved;
+            sel.addEventListener("change", function () {
+              try { localStorage.setItem("fh:prPaperSize", sel.value); } catch (e) {}
+            });
+          }
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", apply);
+          } else {
+            apply();
+          }
+        } catch (e) {}
+      })();
       function printScorecards() {
         if (!prRecs || !prRecs.length) { alert("No teams yet — import the field or add teams on Check-In first."); return; }
         var waveSel = document.getElementById("prPrintWhich");
