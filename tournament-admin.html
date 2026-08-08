@@ -3212,16 +3212,29 @@
         // then update ONE number here and reprint — the whole batch shifts.
         headerTop: "0.10in",   // small verification tag at top-left corner
         headerLeft: "0.35in",
-        team1Top: "1.20in",    // Team 1 player 1 (full name) — top of upper score block
-        team2Top: "3.15in",    // Team 2 player 1 (full name) — top of lower score block
-        teamLeft: "0.45in",    // right of the row-label column
+        team1Top: "1.20in",    // Team 1 player 1 cell — top of upper score block
+        team2Top: "3.15in",    // Team 2 player 1 cell — top of lower score block
+        teamLeft: "0.30in",    // right of the row-label column — hugs the outer margin
         rowStep:  "0.40in",    // one full 3/8"+ row between player 1 and player 2 lines
-        nameSize: "11pt",
-        teeMarkTop: "3.05in",  // ring row in HOLE — nudged down
+        cellW:    "0.75in",    // width of the name cell (first-top-left / last-bottom-right)
+        cellH:    "0.38in",    // height of a single player row on the card
+        nameSize: "9pt",       // smaller so two lines (first + last) fit in one cell
+        teeMarkTop: "3.05in",  // ring row in HOLE
         teeMarkStep: "0.44in", // per-hole horizontal step in the HOLE row
-        teeMarkFirst: "1.13in",// ring CENTER for hole 1 — sits over the preprinted "1"
-        teeMarkDia: "0.44in"   // ring diameter — wide enough to enclose the "1" and the "A" beside it
+        teeMarkFirst: "0.98in",// ring CENTER for hole 1 — sits over the preprinted "1" digit
+        teeMarkDia: "0.36in"   // ring diameter — tight around the "1"
       };
+      // Split "First M. Last" style names — first token is the first name,
+      // everything after joins as the last name. Preserves "Van Dyke",
+      // "St. John", "Smith Jr." etc. A single-word name goes on the last
+      // line so the top row can stay blank rather than mis-labeling it.
+      function splitFirstLast(fullName) {
+        var s = String(fullName || "").trim().replace(/\s+/g, " ");
+        if (!s) return { first: "", last: "" };
+        var parts = s.split(" ");
+        if (parts.length === 1) return { first: "", last: parts[0] };
+        return { first: parts[0], last: parts.slice(1).join(" ") };
+      }
       // Paper size actually used per print — reads the Pairings-tab picker so
       // staff can match whichever custom size the printer driver knows about,
       // falling back to CARD_OFFSETS.paperSize when the picker isn't mounted.
@@ -3310,9 +3323,17 @@
         function teamNameBlock(rec, blockClass) {
           if (!rec) return "";
           var names = fullPlayerNames(rec.fields || {});
+          var s0 = splitFirstLast(names[0] || "");
+          var s1 = splitFirstLast(names[1] || "");
           return '<div class="sc-block ' + blockClass + '">'
-            + '<div class="sc-nm sc-nm--p1">' + esc(names[0] || "") + '</div>'
-            + '<div class="sc-nm sc-nm--p2">' + esc(names[1] || "") + '</div>'
+            + '<div class="sc-nm sc-nm--p1">'
+            +   '<span class="sc-nm__first">' + esc(s0.first) + '</span>'
+            +   '<span class="sc-nm__last">' + esc(s0.last) + '</span>'
+            + '</div>'
+            + '<div class="sc-nm sc-nm--p2">'
+            +   '<span class="sc-nm__first">' + esc(s1.first) + '</span>'
+            +   '<span class="sc-nm__last">' + esc(s1.last) + '</span>'
+            + '</div>'
             + '</div>';
         }
 
@@ -3325,7 +3346,7 @@
             + '<div class="sc-hdr">' + esc(slotTag) + '</div>'
             + teamNameBlock(g.teams[0], "sc-block--team1")
             + teamNameBlock(g.teams[1] || null, "sc-block--team2")
-            + '<div class="sc-teemark" style="left: ' + teeLeftPx + '">' + g.slot + '</div>'
+            + '<div class="sc-teemark" style="left: ' + teeLeftPx + '"><span class="sc-teemark__slot">' + esc(g.slot) + '</span></div>'
             + '</div>';
         }).join("");
 
@@ -3367,16 +3388,22 @@
       // handwritten example.
       function scorecardPrintCss(paper, pw, ph) {
         var step = CARD_OFFSETS.rowStep || "0.42in";
+        var cellW = CARD_OFFSETS.cellW || "0.75in";
+        var cellH = CARD_OFFSETS.cellH || "0.38in";
+        var dia = CARD_OFFSETS.teeMarkDia || "0.44in";
         return "@page { size: " + paper + "; margin: 0; }"
           + " body.is-print-cards .sc-page { width: " + pw + "; height: " + ph + "; transform: rotate(180deg); transform-origin: center center; }"
           + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
           + " body.is-print-cards .sc-block { position: absolute; left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-weight: 700; color: #000; line-height: 1; }"
           + " body.is-print-cards .sc-block--team1 { top: " + CARD_OFFSETS.team1Top + "; }"
           + " body.is-print-cards .sc-block--team2 { top: " + CARD_OFFSETS.team2Top + "; }"
-          + " body.is-print-cards .sc-nm { position: absolute; left: 0; white-space: nowrap; }"
+          + " body.is-print-cards .sc-nm { position: absolute; left: 0; width: " + cellW + "; height: " + cellH + "; }"
           + " body.is-print-cards .sc-nm--p1 { top: 0; }"
           + " body.is-print-cards .sc-nm--p2 { top: " + step + "; }"
-          + " body.is-print-cards .sc-teemark { position: absolute; top: " + CARD_OFFSETS.teeMarkTop + "; width: " + (CARD_OFFSETS.teeMarkDia || "0.44in") + "; height: " + (CARD_OFFSETS.teeMarkDia || "0.44in") + "; margin-left: calc(" + (CARD_OFFSETS.teeMarkDia || "0.44in") + " / -2); margin-top: calc(" + (CARD_OFFSETS.teeMarkDia || "0.44in") + " / -2); border: 1.4pt solid #b11e2d; border-radius: 999px; display: flex; align-items: center; justify-content: flex-end; padding-right: 4pt; color: #b11e2d; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-size: 12pt; font-weight: 800; line-height: 1; -webkit-print-color-adjust: exact; print-color-adjust: exact; }";
+          + " body.is-print-cards .sc-nm__first { position: absolute; top: 0; left: 0; white-space: nowrap; }"
+          + " body.is-print-cards .sc-nm__last  { position: absolute; bottom: 0; right: 0; white-space: nowrap; }"
+          + " body.is-print-cards .sc-teemark { position: absolute; top: " + CARD_OFFSETS.teeMarkTop + "; width: " + dia + "; height: " + dia + "; margin-left: calc(" + dia + " / -2); margin-top: calc(" + dia + " / -2); border: 1.4pt solid #b11e2d; border-radius: 999px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }"
+          + " body.is-print-cards .sc-teemark__slot { position: absolute; top: 50%; left: calc(100% + 2pt); transform: translateY(-50%); color: #b11e2d; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-size: 10pt; font-weight: 800; line-height: 1; }";
       }
 
       // Day 2 scorecards. Teams are re-paired for Day 2 by Day 1 gross —
@@ -3442,11 +3469,19 @@
             if (!entry) return "";
             var f = entry.rec.fields || {};
             var names = fullPlayerNames(f);
+            var s0 = splitFirstLast(names[0] || "");
+            var s1 = splitFirstLast(names[1] || "");
             var gross = d1g(entry.rec);
             var seed = gross ? ' <span class="d1-circle">' + gross + '</span>' : '';
             return '<div class="sc-block ' + blockClass + '">'
-              + '<div class="sc-nm sc-nm--p1">' + esc(names[0] || "") + '</div>'
-              + '<div class="sc-nm sc-nm--p2">' + esc(names[1] || "") + seed + '</div>'
+              + '<div class="sc-nm sc-nm--p1">'
+              +   '<span class="sc-nm__first">' + esc(s0.first) + '</span>'
+              +   '<span class="sc-nm__last">' + esc(s0.last) + '</span>'
+              + '</div>'
+              + '<div class="sc-nm sc-nm--p2">'
+              +   '<span class="sc-nm__first">' + esc(s1.first) + '</span>'
+              +   '<span class="sc-nm__last">' + esc(s1.last) + seed + '</span>'
+              + '</div>'
               + '</div>';
           }
           var teeHtml = "";
@@ -3454,7 +3489,7 @@
           var aSlot = a && String((a.rec.fields || {}).Slot || "").toUpperCase();
           if (aHole && (aSlot === "A" || aSlot === "B")) {
             var teeLeftPx = "calc(" + CARD_OFFSETS.teeMarkFirst + " + " + CARD_OFFSETS.teeMarkStep + " * " + (aHole - 1) + ")";
-            teeHtml = '<div class="sc-teemark" style="left: ' + teeLeftPx + '">' + aSlot + '</div>';
+            teeHtml = '<div class="sc-teemark" style="left: ' + teeLeftPx + '"><span class="sc-teemark__slot">' + aSlot + '</span></div>';
           }
           var hdr = "DAY 2 · " + flTag + " · Pair " + pairNum;
           pages.push('<div class="sc-page">'
@@ -3513,14 +3548,14 @@
         host.innerHTML =
           '<div class="sc-page">'
           + '<div class="sc-block sc-block--team1">'
-          +   '<div class="sc-nm sc-nm--p1">Tom Bornhoft</div>'
-          +   '<div class="sc-nm sc-nm--p2">Kyle McConnell</div>'
+          +   '<div class="sc-nm sc-nm--p1"><span class="sc-nm__first">Tom</span><span class="sc-nm__last">Bornhoft</span></div>'
+          +   '<div class="sc-nm sc-nm--p2"><span class="sc-nm__first">Kyle</span><span class="sc-nm__last">McConnell</span></div>'
           + '</div>'
           + '<div class="sc-block sc-block--team2">'
-          +   '<div class="sc-nm sc-nm--p1">Ryan Davis</div>'
-          +   '<div class="sc-nm sc-nm--p2">Kris Wilson</div>'
+          +   '<div class="sc-nm sc-nm--p1"><span class="sc-nm__first">Ryan</span><span class="sc-nm__last">Davis</span></div>'
+          +   '<div class="sc-nm sc-nm--p2"><span class="sc-nm__first">Kris</span><span class="sc-nm__last">Wilson</span></div>'
           + '</div>'
-          + '<div class="sc-teemark" style="left: ' + teeLeftPx + '">A</div>'
+          + '<div class="sc-teemark" style="left: ' + teeLeftPx + '"><span class="sc-teemark__slot">A</span></div>'
           + '</div>';
 
         document.body.appendChild(host);
