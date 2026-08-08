@@ -2112,15 +2112,20 @@
 
       function loadRoster() {
         var list = document.getElementById("twRoster");
-        list.innerHTML = '<p class="noms__msg">Loading roster…</p>';
+        // Only show the "Loading roster…" placeholder on the very first
+        // fetch. Every subsequent refresh (after a save, a rename, a
+        // payment change) leaves the current grid on-screen so the tab
+        // doesn't blink to blank while the network round-trips.
+        var isEmpty = !list || !list.querySelector(".ci-grid, .noms__row");
+        if (isEmpty && list) list.innerHTML = '<p class="noms__msg">Loading roster…</p>';
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
             if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderLeaderboard(res.j.records); renderCalcutta(res.j.records); renderCalcuttaSummary(res.j.records); renderPayout(res.j.records); renderPairings(res.j.records); }
-            else if (res.status === 401) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
-            else { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
+            else if (res.status === 401 && list) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
+            else if (list) { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
           })
-          .catch(function () { list.innerHTML = '<p class="noms__msg">Network error loading roster.</p>'; });
+          .catch(function () { if (list && isEmpty) list.innerHTML = '<p class="noms__msg">Network error loading roster.</p>'; });
       }
 
       function removeTeam(id, statusEl, btn) {
@@ -4766,6 +4771,16 @@
         });
         var wa = document.getElementById("waAdd");
         if (wa) wa.addEventListener("click", addWalkup);
+        // Enter in any walk-up field submits the row (and cancels the
+        // browser default, which was blanking the tab as if the page had
+        // form-submitted).
+        ["waName", "waPartner", "waPhone"].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (!el) return;
+          el.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") { e.preventDefault(); addWalkup(); }
+          });
+        });
         var er = document.getElementById("expRefresh");
         if (er) er.addEventListener("click", loadExpenses);
         var ea = document.getElementById("expAdd");
