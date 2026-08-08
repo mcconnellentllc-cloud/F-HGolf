@@ -1085,16 +1085,30 @@
                 scAllCache[i].fields = Object.assign({}, scAllCache[i].fields || {}, returned);
                 break;
               }
-              // Reload only if the row would jump between paid ↔ unpaid or
-              // field ↔ alternate. Otherwise leave the DOM alone.
-              var isNowFullyPaid = null;
-              for (var j2 = 0; j2 < scAllCache.length; j2++) if (scAllCache[j2].id === id) { isNowFullyPaid = fullyPaid(scAllCache[j2]); break; }
-              if (forcesReload || wasFullyPaid !== isNowFullyPaid) {
+              // ONLY reload for row-moving events that alter identity
+              // (alternate/name changes). A paid-state flip used to trigger
+              // a full loadRoster so the team could hop between the "Unpaid"
+              // and "Paid & done" sections — but a full 64-card re-render
+              // on every checkbox tap made the page feel refresh-crazy. We
+              // now leave the card exactly where it is; the operator can
+              // click Refresh (or hit a Payment filter chip) if they want
+              // the roster re-sorted. Downstream $ Summary + P&L still get
+              // updated live.
+              if (forcesReload) {
                 loadRoster();
               } else {
                 if (statusEl) { statusEl.textContent = "Saved ✓"; statusEl.className = "ci__status is-ok"; setTimeout(function () { statusEl.textContent = ""; }, 1200); }
-                // Refresh downstream reads without re-rendering the roster.
                 try { summarize(scAllCache.filter(function (r) { return (r.fields || {}).Tournament === KEY && !isAltRec(r); })); } catch (e) {}
+                try { renderPL(); } catch (e) {}
+              }
+              // Surface any silently-stripped fields (Player 1 Paid,
+              // Player 2 Paid, Extra Meals, Calcutta Paid) so an operator
+              // sees when the endpoint auto-stripped a field that Airtable
+              // was missing — the click "saved" but nothing actually
+              // persisted for that field.
+              if (res.j.warning && statusEl) {
+                statusEl.textContent = res.j.warning;
+                statusEl.className = "ci__status is-error";
               }
             } else if (statusEl) {
               statusEl.textContent = (res.j && res.j.error) || "Couldn't save.";
@@ -1901,7 +1915,7 @@
           return '<tr data-id="' + esc(rec.id) + '"><td class="sc-tbl__team">' + esc(scTeamLabel(rec)) + '</td>' + cells + '</tr>';
         }).join("");
 
-        host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /><button type="button" class="btn btn--solid sc-toolbar__dangerBtn" id="scClearAll">Delete all Day ' + day + ' scores</button></div>'
+        host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /></div>'
           + '<div class="sc-tbl-wrap"><table class="sc-tbl">' + head + '<tbody>' + body + '</tbody></table></div>'
           + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right. Click × on any row to clear that team.</p>';
 
