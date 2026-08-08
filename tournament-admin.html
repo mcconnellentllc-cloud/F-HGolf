@@ -147,6 +147,7 @@
                 <option value="pm">Print P.M. only</option>
               </select>
               <button class="btn btn--solid" type="button" id="prImport" title="Paste the AM/PM pairings list — matches teams by last-name tokens and seats everybody in one shot">Import pairings</button>
+              <button class="btn btn--primary" type="button" id="prSavePairings" title="Force-save every team's current Hole/Slot/Seat/Wave to Airtable — use this if pairings seem to revert on reload.">Save pairings</button>
               <button class="btn btn--solid" type="button" id="prPrint">Print tee sheet</button>
               <button class="btn btn--solid" type="button" id="prPrintAnnounce">Announcement page</button>
               <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards (Day 1 tee-sheet order)">Print scorecards</button>
@@ -2373,8 +2374,53 @@
         var msg = document.getElementById("prMsg"); if (msg) msg.textContent = "Saving " + assignments.length + " move" + (assignments.length === 1 ? "" : "s") + "…";
         fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: assignments }) })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
-          .then(function (j) { if (j && j.ok) { if (msg) msg.textContent = "Saved " + j.updated + " ✓"; loadRoster(); } else if (msg) { msg.textContent = (j && j.error) || "Save failed."; } })
+          .then(function (j) {
+            if (j && j.ok) {
+              var text = "Saved " + j.updated + " ✓";
+              // Surface any silently-stripped fields (Seat, Slot, Hole, etc.)
+              // so an operator sees when a save "succeeded" but didn't
+              // actually persist the field they cared about.
+              if (j.warning) text += " — " + j.warning;
+              if (msg) msg.textContent = text;
+              loadRoster();
+            } else if (msg) { msg.textContent = (j && j.error) || "Save failed."; }
+          })
           .catch(function () { if (msg) msg.textContent = "Network error saving."; });
+      }
+      // Force-commit every team's current Hole/Slot/Seat/Start to Airtable.
+      // The escape hatch when pairings look right in the UI but revert on
+      // reload (often a symptom of Airtable silently dropping a missing
+      // field — the endpoint's warning surfaces which one).
+      function saveAllPairings() {
+        var msg = document.getElementById("prMsg");
+        var btn = document.getElementById("prSavePairings");
+        if (!prRecs || !prRecs.length) { if (msg) msg.textContent = "No teams to save."; return; }
+        var assignments = prRecs.map(function (r) {
+          var f = r.fields || {};
+          var hole = (f.Hole != null && f.Hole !== "") ? Number(f.Hole) : "";
+          var slot = typeof f.Slot === "string" ? f.Slot : "";
+          var seat = (f.Seat != null && f.Seat !== "") ? Number(f.Seat) : "";
+          var start = typeof f.Start === "string" ? f.Start : "";
+          return { id: r.id, hole: hole, slot: slot, seat: seat, start: start };
+        });
+        if (btn) btn.disabled = true;
+        if (msg) msg.textContent = "Saving all pairings (" + assignments.length + " teams)…";
+        fetch(FH_API.url("/api/tournament-flights"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ assignments: assignments }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (btn) btn.disabled = false;
+            if (j && j.ok) {
+              var text = "Saved all pairings — " + j.updated + " team" + (j.updated === 1 ? "" : "s") + " ✓";
+              if (j.warning) text += " — " + j.warning;
+              if (msg) msg.textContent = text;
+              loadRoster();
+            } else if (msg) { msg.textContent = (j && j.error) || "Save failed."; }
+          })
+          .catch(function () { if (btn) btn.disabled = false; if (msg) msg.textContent = "Network error saving."; });
       }
 
       // Auto-assign a stable Team number per wave, sorted by created time (so a
@@ -5219,6 +5265,8 @@
         if (prTestCard) prTestCard.addEventListener("click", printTestCard);
         var prImp = document.getElementById("prImport");
         if (prImp) prImp.addEventListener("click", openPairingsImport);
+        var prSave = document.getElementById("prSavePairings");
+        if (prSave) prSave.addEventListener("click", saveAllPairings);
         var piModal = document.getElementById("pairImportModal");
         if (piModal) {
           Array.prototype.forEach.call(piModal.querySelectorAll("[data-close], #piClose, #piCancel"), function (el) {
