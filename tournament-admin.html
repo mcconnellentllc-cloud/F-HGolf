@@ -3138,11 +3138,16 @@
           return a.slot < b.slot ? -1 : 1;
         });
 
-        function teamLine(rec) {
+        // Card format per team, full first + last:
+        //   "Tom Bornhoft   Kyle McConnell   Tee - 1 A"
+        // Full names (not shortened) so a starter or scorer can call players
+        // by first name; tee suffix restates the tee-off spot so it's on the
+        // card in a scorer's hand even if the header tag is missed.
+        function teamLine(rec, hole, slot) {
           if (!rec) return "";
-          var tn = teamNumbers[rec.id];
-          var tag = tn ? "T-" + String(tn).padStart(2, "0") + "  " : "";
-          return tag + teamShortNames(rec.fields || {});
+          var names = fullPlayerNames(rec.fields || {}).join("   ");
+          var teeSuffix = (hole && slot) ? "   Tee - " + hole + " " + slot : "";
+          return names + teeSuffix;
         }
 
         var pages = groups.map(function (g) {
@@ -3150,8 +3155,8 @@
           var slotTag = "Tee " + g.hole + "-" + g.slot + " · " + waveTag;
           return '<div class="sc-page">'
             + '<div class="sc-hdr">' + esc(slotTag) + '</div>'
-            + '<div class="sc-name sc-name--1">' + esc(teamLine(g.teams[0])) + '</div>'
-            + '<div class="sc-name sc-name--2">' + esc(teamLine(g.teams[1] || null)) + '</div>'
+            + '<div class="sc-name sc-name--1">' + esc(teamLine(g.teams[0], g.hole, g.slot)) + '</div>'
+            + '<div class="sc-name sc-name--2">' + esc(teamLine(g.teams[1] || null, g.hole, g.slot)) + '</div>'
             + '</div>';
         }).join("");
 
@@ -3248,11 +3253,10 @@
           var pairNum = Math.floor(i / 2) + 1;
           function teamLine(entry) {
             if (!entry) return "";
-            var tn = teamNumbers[entry.rec.id];
-            var tag = tn ? "T-" + String(tn).padStart(2, "0") + "  " : "";
+            var names = fullPlayerNames(entry.rec.fields || {}).join("   ");
             var gross = d1g(entry.rec);
-            var grossTag = gross ? "  (D1 " + gross + ")" : "";
-            return tag + teamShortNames(entry.rec.fields || {}) + grossTag;
+            var grossTag = gross ? "   D1 " + gross : "";
+            return names + grossTag;
           }
           var hdr = "DAY 2 · " + flTag + " · Pair " + pairNum;
           pages.push('<div class="sc-page">'
@@ -3303,8 +3307,8 @@
         host.innerHTML =
           '<div class="sc-page">'
           + '<div class="sc-hdr">TEST CARD &middot; align only</div>'
-          + '<div class="sc-name sc-name--1">T-01  J. Smith / M. Jones</div>'
-          + '<div class="sc-name sc-name--2">T-02  R. Davis / K. Wilson</div>'
+          + '<div class="sc-name sc-name--1">Tom Bornhoft   Kyle McConnell   Tee - 1 A</div>'
+          + '<div class="sc-name sc-name--2">Ryan Davis   Kris Wilson   Tee - 1 A</div>'
           + '</div>';
 
         document.body.appendChild(host);
