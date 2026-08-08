@@ -3083,15 +3083,19 @@
         // all offsets measure from the top-left of the card in that
         // orientation.
         paperSize: "12in 5.875in",
-        // All measurements from the top-left of the card, in inches. Do one
-        // test card, eyeball the gap to the pre-printed blank line, then
-        // update ONE number here and reprint — the whole batch shifts.
+        // Each blank score row on the physical card is 3/8" tall (~0.375")
+        // and the "name" area on the row is 7/8" wide before the hole cells
+        // start. Team name spans across the hole cells at 12pt so it stays
+        // clear of the top/bottom of the 3/8" row.
+        //
+        // Do one test card, eyeball the gap to the pre-printed blank line,
+        // then update ONE number here and reprint — the whole batch shifts.
         headerTop: "0.15in",   // small verification tag ("Tee 1-A · 8 AM") at the top-left corner
         headerLeft: "0.35in",
-        team1Top: "0.90in",    // top blank score line — above PAR / HOLE grey bar
-        team2Top: "3.10in",    // top blank score line — below the HOLE grey bar
-        teamLeft: "1.45in",    // horizontal start of team-name text (past the row-label column)
-        nameSize: "13pt"
+        team1Top: "0.98in",    // top blank score row (3/8" tall) above PAR / HOLE grey bar — centered
+        team2Top: "3.18in",    // top blank score row below the HOLE grey bar — centered
+        teamLeft: "1.45in",    // horizontal start past the 7/8" row-label column
+        nameSize: "12pt"       // 12pt cap height ~9.5pt fits comfortably in a 3/8" (27pt) row
       };
       function printScorecards() {
         if (!prRecs || !prRecs.length) { alert("No teams yet — import the field or add teams on Check-In first."); return; }
