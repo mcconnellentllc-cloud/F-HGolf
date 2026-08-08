@@ -3251,18 +3251,27 @@
             ? flLabel(a.flight)
             : (b ? flLabel(a.flight) + " / " + flLabel(b.flight) : flLabel(a.flight) + " · solo");
           var pairNum = Math.floor(i / 2) + 1;
-          function teamLine(entry) {
+          // Day 2 line: "Names   Tee - H L   ⓭"
+          // Tee info comes from the team's current Airtable placement (staff
+          // re-pairs on the Pairings tab before Day 2), and the Day 1 gross
+          // is wrapped in a print-only .d1-circle span so it renders inside
+          // a hand-drawn-looking ring after the tee info. Returns raw HTML;
+          // caller must NOT escape it before injecting.
+          function teamLineHtml(entry) {
             if (!entry) return "";
-            var names = fullPlayerNames(entry.rec.fields || {}).join("   ");
+            var f = entry.rec.fields || {};
+            var names = fullPlayerNames(f).join("   ");
+            var hole = Number(f.Hole), slot = String(f.Slot || "").toUpperCase();
+            var teeTag = (hole && (slot === "A" || slot === "B")) ? "   Tee - " + hole + " " + slot : "";
             var gross = d1g(entry.rec);
-            var grossTag = gross ? "   D1 " + gross : "";
-            return names + grossTag;
+            var grossTag = gross ? '   <span class="d1-circle">' + gross + '</span>' : "";
+            return esc(names) + esc(teeTag) + grossTag;
           }
           var hdr = "DAY 2 · " + flTag + " · Pair " + pairNum;
           pages.push('<div class="sc-page">'
             + '<div class="sc-hdr">' + esc(hdr) + '</div>'
-            + '<div class="sc-name sc-name--1">' + esc(teamLine(a)) + '</div>'
-            + '<div class="sc-name sc-name--2">' + esc(teamLine(b)) + '</div>'
+            + '<div class="sc-name sc-name--1">' + teamLineHtml(a) + '</div>'
+            + '<div class="sc-name sc-name--2">' + teamLineHtml(b) + '</div>'
             + '</div>');
         }
 
