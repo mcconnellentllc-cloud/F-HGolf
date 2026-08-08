@@ -2117,22 +2117,49 @@
         });
       }
 
+      // Debounced roster reload — coalesces rapid-fire saves during check-in
+      // (each paid-status flip normally schedules a reload, so a burst of
+      // staff activity used to fire many overlapping fetches). 200ms is
+      // short enough to feel instant to the operator, long enough to fold
+      // 3–4 near-simultaneous saves into one Airtable read.
       function loadRoster() {
+        clearTimeout(loadRoster._t);
+        loadRoster._t = setTimeout(_doLoadRoster, 200);
+      }
+      function _doLoadRoster() {
         var list = document.getElementById("twRoster");
-        // Only show the "Loading roster…" placeholder on the very first
-        // fetch. Every subsequent refresh (after a save, a rename, a
-        // payment change) leaves the current grid on-screen so the tab
-        // doesn't blink to blank while the network round-trips.
         var isEmpty = !list || !list.querySelector(".ci-grid, .noms__row");
         if (isEmpty && list) list.innerHTML = '<p class="noms__msg">Loading roster…</p>';
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderLeaderboard(res.j.records); renderCalcutta(res.j.records); renderCalcuttaSummary(res.j.records); renderPayout(res.j.records); renderPairings(res.j.records); }
+            if (res.j && res.j.ok) {
+              // Keep the shared record cache fresh so lazy renders on tab
+              // switch have current data.
+              scAllCache = res.j.records || [];
+              renderSheetsForActive(scAllCache);
+            }
             else if (res.status === 401 && list) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
             else if (list) { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
           })
           .catch(function () { if (list && isEmpty) list.innerHTML = '<p class="noms__msg">Network error loading roster.</p>'; });
+      }
+      // Render only the currently-visible tab. All other tabs lazy-render
+      // on tab open (see showSheet). Check-In is the working tab during the
+      // tournament so it always renders — that keeps paid-status flips and
+      // walk-up adds instantly visible.
+      function renderSheetsForActive(all) {
+        var s = window.__fhActive || "check";
+        try { renderRoster(all); } catch (e) {}
+        try {
+          if (s === "scores") renderScores(all);
+          else if (s === "pairings") renderPairings(all);
+          else if (s === "leaderboard") renderLeaderboard(all);
+          else if (s === "calcutta") renderCalcutta(all);
+          else if (s === "calcuttaSummary") renderCalcuttaSummary(all);
+          else if (s === "payout") renderPayout(all);
+          else if (s === "flights") renderBoard(all);
+        } catch (e) {}
       }
 
       function removeTeam(id, statusEl, btn) {
@@ -4738,16 +4765,25 @@
           Array.prototype.forEach.call(document.querySelectorAll(".wb-sheet"), function (el) { el.hidden = (el.getAttribute("data-sheet") !== s); });
           Array.prototype.forEach.call(document.querySelectorAll(".wb-tab"), function (b) { b.classList.toggle("is-active", b.getAttribute("data-sheet") === s); });
           try { localStorage.setItem("fh_wb_tab_" + KEY, s); } catch (e) {}
+          // Track active tab so loadRoster can skip DOM writes for hidden
+          // sheets — the biggest perf win during a busy check-in period.
+          window.__fhActive = s;
           // Load the public-display iframes lazily — only when their tab opens.
           if (s === "dispCalcutta" || s === "dispLeaderboard") mountDisplayTab(s);
           if (s === "history") loadHistory();
-          // Force a fresh Summary render on tab open. Flush any pending
-          // Calcutta saves first so buyers just typed on the Calcutta tab
-          // show up immediately here — no 700ms debounce wait.
-          if (s === "calcuttaSummary") {
-            try { flushCalcuttaPending(); } catch (e) {}
-            try { renderCalcuttaSummary(scAllCache); } catch (e) {}
-          }
+          // Lazy-render the freshly-opened tab from the shared cache so
+          // switching tabs shows current data without a network round-trip.
+          // (Check-In already renders on every roster load — it's the
+          // working tab during the tournament.)
+          try {
+            if (s === "scores") renderScores(scAllCache);
+            else if (s === "pairings") renderPairings(scAllCache);
+            else if (s === "leaderboard") renderLeaderboard(scAllCache);
+            else if (s === "calcutta") renderCalcutta(scAllCache);
+            else if (s === "calcuttaSummary") { try { flushCalcuttaPending(); } catch (e) {} renderCalcuttaSummary(scAllCache); }
+            else if (s === "payout") renderPayout(scAllCache);
+            else if (s === "flights") renderBoard(scAllCache);
+          } catch (e) {}
         }
         Array.prototype.forEach.call(document.querySelectorAll(".wb-tab"), function (b) {
           b.addEventListener("click", function () { showSheet(b.getAttribute("data-sheet")); });
