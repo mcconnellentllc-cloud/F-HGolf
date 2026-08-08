@@ -91,6 +91,7 @@
         <section class="noms wb-sheet" data-sheet="check" aria-label="Check-in and payment">
           <div class="noms__bar">
             <h3 class="noms__title">Check-in &amp; Money <span class="noms__count" id="twCount"></span></h3>
+            <span class="ci-load-status" id="twLoadStatus" hidden aria-live="polite"></span>
             <button class="btn btn--solid" type="button" id="twRefresh">Refresh</button>
           </div>
 
@@ -2197,11 +2198,31 @@
               // switch have current data.
               scAllCache = res.j.records || [];
               renderSheetsForActive(scAllCache);
+              flashLoadStatus("");
             }
             else if (res.status === 401 && list) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
-            else if (list) { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
+            else {
+              // Transient error (429, 5xx, network hiccup). Keep the current
+              // roster DOM intact — blanking to "Couldn't load" is worse than
+              // showing slightly stale rows during a rate-limit blip. Only
+              // replace innerHTML if the roster hasn't been rendered yet.
+              if (isEmpty && list) list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>";
+              else flashLoadStatus("Sync paused — retrying…");
+            }
           })
-          .catch(function () { if (list && isEmpty) list.innerHTML = '<p class="noms__msg">Network error loading roster.</p>'; });
+          .catch(function () {
+            if (isEmpty && list) list.innerHTML = '<p class="noms__msg">Network error loading roster.</p>';
+            else flashLoadStatus("Sync paused — retrying…");
+          });
+      }
+      // Small transient indicator in the summary bar so a rate-limit blip
+      // doesn't blank the whole screen. Auto-clears on the next successful
+      // load. Message is empty-string to hide the pill.
+      function flashLoadStatus(msg) {
+        var el = document.getElementById("twLoadStatus");
+        if (!el) return;
+        el.textContent = msg || "";
+        el.hidden = !msg;
       }
       // Render only the currently-visible tab. All other tabs lazy-render
       // on tab open (see showSheet). Check-In is the working tab during the

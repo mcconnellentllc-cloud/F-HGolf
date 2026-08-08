@@ -36,6 +36,18 @@ function stripRecord(rec) {
   return { id: rec.id, created: rec.created, fields: out };
 }
 
+// Short-window in-memory cache on the admin read. During check-in / auction
+// bursts, multiple staff devices ping this endpoint within the same second
+// (each debounced client re-fetches after any save). With warm instances,
+// this coalesces the traffic — the first request within a window fetches
+// Airtable, everyone else reads the cached payload. 1500ms is short enough
+// that new saves show up almost immediately, long enough to fold a rapid
+// series of check-ins into one Airtable read and stay well clear of the
+// 5-req/sec base limit.
+const ADMIN_CACHE_MS = 1500;
+let _adminCache = null;
+let _adminCacheAt = 0;
+
 // Per-tournament, per-flight aggregates (pool $ + sold + total counts). Safe to
 // expose publicly — no way to reverse-engineer any individual team's bid.
 function buildTotals(records) {
@@ -179,6 +191,16 @@ module.exports = async (req, res) => {
     }
   }
 
+  // Admin burst-coalescing cache — serve the last payload if it's under
+  // ADMIN_CACHE_MS old. Not authoritative across container boundaries
+  // (each warm Vercel instance has its own memory), but a big help within
+  // a single instance during check-in / auction rush.
+  if (isAdmin && _adminCache && (Date.now() - _adminCacheAt) < ADMIN_CACHE_MS) {
+    res.setHeader("Cache-Control", "private, max-age=1");
+    res.setHeader("X-FH-Cache", "hit");
+    return res.status(200).json(_adminCache);
+  }
+
   try {
     const records = [];
     let offset = "";
@@ -201,30 +223,37 @@ module.exports = async (req, res) => {
     records.sort((a, b) => String(b.created || "").localeCompare(String(a.created || "")));
     const out = isAdmin ? records : records.map(stripRecord);
     // Public displays poll every ~15s — allow a tiny edge cache but keep it
-    // fresh enough that new scores/buyers show up on the TV promptly.
+    // fresh enough that new scores/buyers show up on the TV promptly. Admin
+    // gets a 1-second browser cache so mashing Refresh doesn't storm the API.
     if (!isAdmin) res.setHeader("Cache-Control", "public, s-maxage=10, stale-while-revalidate=30");
+    else res.setHeader("Cache-Control", "private, max-age=1");
     const payload = { ok: true, count: out.length, records: out };
     if (!isAdmin) payload.totals = buildTotals(records);
     // Public auction state — read from the Tournament Config table so the
     // Calcutta display can show only the flight currently up for auction.
-    // Best-effort: if the table doesn't exist or the read fails, we return an
-    // empty map and the display falls back to showing the whole field.
-    try {
-      const cfgTable = process.env.CONFIG_TABLE || "Tournament Config";
-      const cfgUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}?pageSize=100`;
-      const cr = await fetch(cfgUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
-      if (cr.ok) {
-        const cdata = await cr.json();
-        const auctionStates = {};
-        (cdata.records || []).forEach((rec) => {
-          const f = rec.fields || {};
-          const name = String(f["Tournament"] || "").trim();
-          if (!name || typeof f["Auction State"] !== "string") return;
-          try { auctionStates[name] = JSON.parse(f["Auction State"]) || {}; } catch (e) {}
-        });
-        payload.auctionStates = auctionStates;
-      }
-    } catch (e) { /* auction-state read is best-effort */ }
+    // Admin doesn't use this field (staff drive the auction directly), so
+    // skip the extra Airtable round-trip on admin GETs. Public GET is
+    // already edge-cached, so this only fires ~once per 10s regardless of
+    // TV-display polling.
+    if (!isAdmin) {
+      try {
+        const cfgTable = process.env.CONFIG_TABLE || "Tournament Config";
+        const cfgUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}?pageSize=100`;
+        const cr = await fetch(cfgUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        if (cr.ok) {
+          const cdata = await cr.json();
+          const auctionStates = {};
+          (cdata.records || []).forEach((rec) => {
+            const f = rec.fields || {};
+            const name = String(f["Tournament"] || "").trim();
+            if (!name || typeof f["Auction State"] !== "string") return;
+            try { auctionStates[name] = JSON.parse(f["Auction State"]) || {}; } catch (e) {}
+          });
+          payload.auctionStates = auctionStates;
+        }
+      } catch (e) { /* auction-state read is best-effort */ }
+    }
+    if (isAdmin) { _adminCache = payload; _adminCacheAt = Date.now(); }
     return res.status(200).json(payload);
   } catch (e) {
     console.error("tournament-signups read error", e);
