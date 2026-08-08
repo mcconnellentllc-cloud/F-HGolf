@@ -1178,12 +1178,16 @@
       }
       // Name cell: clickable link opens the Player Card modal; ✎ starts inline rename.
       function nameCell(role, name) {
+        return '<span class="ci-name-wrap">' + nameCellInner(role, name) + "</span>";
+      }
+      // Inner content only — used by startInlineRename to swap the <input>
+      // back to a link + pencil without wiping the outer wrap or forcing a
+      // full renderRoster / loadRoster cycle.
+      function nameCellInner(role, name) {
         var display = name || (role === "p2" ? "—" : "(no name)");
         var disabled = (role === "p2" && !name) ? ' style="visibility:hidden"' : "";
-        return '<span class="ci-name-wrap">'
-          + '<a href="#" class="ci-name" data-role="' + role + '">' + esc(display) + "</a>"
-          + '<button type="button" class="ci-rename" data-role="' + role + '" title="Rename inline"' + disabled + ">&#9998;</button>"
-          + "</span>";
+        return '<a href="#" class="ci-name" data-role="' + role + '">' + esc(display) + "</a>"
+          + '<button type="button" class="ci-rename" data-role="' + role + '" title="Rename inline"' + disabled + ">&#9998;</button>";
       }
       function ciCard(rec, teamNum) {
         var f = rec.fields || {}, pp = teamPlayers(f, rec), isAlt = !!f["Alternate"];
@@ -1558,11 +1562,39 @@
         wrap.appendChild(input);
         input.focus(); input.select();
         var done = false;
+        // Restore the link + pencil in place without re-fetching or
+        // re-rendering the roster. Rebuilding the wrap's inner HTML is
+        // O(1); loadRoster used to trigger a fetch + 64-card re-render.
+        function restoreLink(displayText) {
+          wrap.innerHTML = nameCellInner(role, displayText);
+          var newLink = wrap.querySelector(".ci-name");
+          if (newLink) newLink.addEventListener("click", function (e) {
+            e.preventDefault();
+            var name = newLink.textContent.trim();
+            if (name === "—" || name === "(no name)") name = "";
+            openPlayerCard(signupId, role, name);
+          });
+          var newBtn = wrap.querySelector(".ci-rename");
+          if (newBtn) newBtn.addEventListener("click", function () {
+            startInlineRename(wrap, wrap.querySelector(".ci-name"), newBtn, role, signupId, statusEl);
+          });
+        }
         function commit(save) {
           if (done) return; done = true;
           var next = input.value.trim();
-          if (!save || next === current) { loadRoster(); return; }
+          if (!save || next === current) { restoreLink(current); return; }
           if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "ci__status"; }
+          // Optimistic: swap link back with the new value immediately so the
+          // operator's next action isn't blocked on the network.
+          restoreLink(next);
+          // Reflect the change in the in-memory cache so any subsequent
+          // renders (tab switch, refresh) see the new name without a fetch.
+          for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === signupId) {
+            scAllCache[i].fields = scAllCache[i].fields || {};
+            if (role === "p1") scAllCache[i].fields["Player Name"] = next;
+            else scAllCache[i].fields["Team / Partners"] = next;
+            break;
+          }
           var payload = { id: signupId };
           if (role === "p1") payload.playerName = next;
           else payload.teamPartners = next;
@@ -1573,21 +1605,26 @@
           })
             .then(function (r) { return r.json().catch(function () { return {}; }); })
             .then(function (j) {
-              if (!j || !j.ok) { if (statusEl) { statusEl.textContent = (j && j.error) || "Rename failed."; statusEl.className = "ci__status is-error"; } return; }
+              if (!j || !j.ok) {
+                // Roll back optimistic display.
+                restoreLink(current);
+                if (statusEl) { statusEl.textContent = (j && j.error) || "Rename failed."; statusEl.className = "ci__status is-error"; }
+                return;
+              }
+              if (statusEl) { statusEl.textContent = "Saved ✓"; statusEl.className = "ci__status is-ok"; setTimeout(function () { statusEl.textContent = ""; }, 1200); }
               // For P1 renames on a signup that's linked to a Player Card,
-              // push the new name to the canonical Player + every other signup
-              // linked to that same player. The Player Card is gospel.
+              // propagate the new name to the canonical Player + every other
+              // signup that shares it. The other cards on-screen still show
+              // the old name until the next refresh — a tradeoff for keeping
+              // this rename fast. Operator can hit Refresh to pull the
+              // cascade or the tab-switch lazy render will pick it up.
               if (role === "p1") {
                 var signup = (rosterRecs || []).find(function (r) { return r.id === signupId; });
                 var linked = signup && signup.fields && Array.isArray(signup.fields.Player) ? signup.fields.Player[0] : "";
-                if (linked) {
-                  propagatePlayerName(linked, next).then(function () { loadRoster(); });
-                  return;
-                }
+                if (linked) { propagatePlayerName(linked, next).catch(function () {}); }
               }
-              loadRoster();
             })
-            .catch(function () { if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
+            .catch(function () { restoreLink(current); if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
         }
         input.addEventListener("blur", function () { commit(true); });
         input.addEventListener("keydown", function (e) {
@@ -1732,24 +1769,48 @@
             pmSetVal("pmNotes", savedF.Notes || "");
             var memEl = document.getElementById("pmMember"); if (memEl) memEl.checked = !!savedF.Member;
             if (status) { status.textContent = "Saved ✓"; status.className = "pm-status is-ok"; }
-            // Link the signup to this Player + reflect renamed name back on the roster.
+            // Link the signup to this Player + reflect renamed name back on
+            // the roster. Update just the affected card's name node in place
+            // — no loadRoster, no 64-card re-render. The cascade to other
+            // signups (propagatePlayerName) runs in the background; other
+            // cards on-screen still show the old name until the next
+            // manual refresh, a tradeoff for keeping this save fast.
             var link = { id: pmCurrent.signupId, playerId: j.id };
-            if (pmCurrent.role === "p1") link.playerName = name;
-            else if (pmCurrent.role === "p2") link.teamPartners = name;
+            var linkRole = pmCurrent.role;
+            var linkSignupId = pmCurrent.signupId;
+            if (linkRole === "p1") link.playerName = name;
+            else if (linkRole === "p2") link.teamPartners = name;
             fetch(FH_API.url("/api/tournament-checkin"), {
               method: "POST",
               headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
               body: JSON.stringify(link)
             })
               .then(function () {
-                // Player Card is gospel — push this saved name to every other signup
-                // linked to the same Player. Only applies to P1 (Player link field).
-                if (pmCurrent && pmCurrent.role === "p1") {
-                  return propagatePlayerName(j.id, name);
+                // Update in-memory cache so subsequent tab-switch renders
+                // see the new name.
+                for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === linkSignupId) {
+                  scAllCache[i].fields = scAllCache[i].fields || {};
+                  if (linkRole === "p1") scAllCache[i].fields["Player Name"] = name;
+                  else if (linkRole === "p2") scAllCache[i].fields["Team / Partners"] = name;
+                  scAllCache[i].fields["Player"] = [j.id];
+                  break;
                 }
+                // Update the card's name node in place. Split-name fields
+                // like "Team / Partners" only show the first token on the
+                // roster, but a full update is close enough — a next
+                // refresh will finalize the layout.
+                var card = document.querySelector('.ci-card[data-id="' + linkSignupId + '"]');
+                if (card) {
+                  var nameEl = card.querySelector('.ci-name[data-role="' + linkRole + '"]');
+                  if (nameEl) nameEl.textContent = name;
+                }
+                // Cascade to other signups sharing this Player row, but
+                // don't wait on it and don't reload — the tab-switch lazy
+                // render will pull in the cascade when the operator moves
+                // on.
+                if (linkRole === "p1") { propagatePlayerName(j.id, name).catch(function () {}); }
               })
-              .then(function () { loadRoster(); })
-              .catch(function () { loadRoster(); })
+              .catch(function () {})
               .finally(function () { setTimeout(closePlayerCard, 500); });
           })
           .catch(function () { if (status) { status.textContent = "Network error."; status.className = "pm-status is-error"; } });
