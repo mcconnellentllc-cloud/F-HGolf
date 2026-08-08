@@ -3104,12 +3104,12 @@
         // then update ONE number here and reprint — the whole batch shifts.
         headerTop: "0.10in",   // small verification tag at top-left corner
         headerLeft: "0.35in",
-        team1Top: "1.15in",    // Team 1 P1 first name — top of upper score block
-        team2Top: "3.03in",    // Team 2 P1 first name — top of lower score block
-        teamLeft: "0.55in",    // right of the row-label column ("White Tees" ends ~0.5in)
-        rowStep:  "0.35in",    // vertical gap between stacked name rows (tighter)
+        team1Top: "1.30in",    // Team 1 P1 first name — top of upper score block
+        team2Top: "2.60in",    // Team 2 P1 first name — top of lower score block
+        teamLeft: "0.70in",    // right of the row-label column
+        rowStep:  "0.22in",    // tight rows so 4 names fit in a compact block
         nameSize: "11pt",
-        teeMarkTop: "2.90in",  // circle around the tee-off hole in HOLE row
+        teeMarkTop: "2.75in",  // ring row in HOLE
         teeMarkStep: "0.44in", // per-hole horizontal step in the HOLE row
         teeMarkFirst: "1.18in" // x for hole 1 (adjust once against the card)
       };
@@ -3254,7 +3254,7 @@
           + " body.is-print-cards .sc-nm--p1l { top: " + step + "; }"
           + " body.is-print-cards .sc-nm--p2f { top: calc(" + step + " * 2); }"
           + " body.is-print-cards .sc-nm--p2l { top: calc(" + step + " * 3); }"
-          + " body.is-print-cards .sc-teemark { position: absolute; top: " + CARD_OFFSETS.teeMarkTop + "; width: 0.32in; height: 0.32in; margin-left: -0.16in; margin-top: -0.16in; border: 1.4pt solid #b11e2d; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #b11e2d; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-size: 12pt; font-weight: 800; line-height: 1; -webkit-print-color-adjust: exact; print-color-adjust: exact; }";
+          + " body.is-print-cards .sc-teemark { position: absolute; top: " + CARD_OFFSETS.teeMarkTop + "; width: 0.32in; height: 0.32in; margin-left: -0.16in; margin-top: -0.16in; border: 1.4pt solid #b11e2d; border-radius: 999px; display: flex; align-items: center; justify-content: flex-end; padding-right: 3pt; color: #b11e2d; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-size: 12pt; font-weight: 800; line-height: 1; -webkit-print-color-adjust: exact; print-color-adjust: exact; }";
       }
 
       // Day 2 scorecards. Teams are re-paired for Day 2 by Day 1 gross —
