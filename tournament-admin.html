@@ -2974,7 +2974,8 @@
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
             if (j && j.ok) {
-              if (msg) msg.textContent = "Applied " + (j.updated || assignments.length) + " placements ✓";
+              var note = j.warning ? " ⚠ " + j.warning : "";
+              if (msg) msg.textContent = "Applied " + (j.updated || assignments.length) + " placements ✓" + note;
               closePairingsImport();
               loadRoster();
             } else if (msg) {

@@ -150,14 +150,42 @@ module.exports = async (req, res) => {
       })
       .filter((r) => Object.keys(r.fields).length);
     if (!records.length) return res.status(400).json({ ok: false, error: "Nothing to update." });
+    // Optional-field auto-heal. Airtable rejects the whole batch when it sees
+    // a field name the table doesn't have (Seat, Slot, Cart Type — these
+    // arrived in later PRs and some bases haven't added them yet). Rather
+    // than fail the whole apply, we detect UNKNOWN_FIELD_NAME, drop the
+    // offending field from every record, and retry the same batch. Repeat
+    // until Airtable accepts or every field is stripped.
+    const stripped = new Set();
+    async function patchBatch(batch) {
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const r = await fetch(url, { method: "PATCH", headers: auth, body: JSON.stringify({ records: batch, typecast: true }) });
+        if (r.ok) return await r.json();
+        const detail = await r.text();
+        let missing = null;
+        try { const parsed = JSON.parse(detail); const msg = parsed && parsed.error && parsed.error.message; const m = /Unknown field name[s]?:\s*"([^"]+)"/i.exec(msg || ""); if (m) missing = m[1]; } catch (e) {}
+        if (!missing) { console.error("assignments patch", r.status, detail); throw new Error(detail); }
+        stripped.add(missing);
+        batch.forEach((rec) => { if (rec.fields && Object.prototype.hasOwnProperty.call(rec.fields, missing)) delete rec.fields[missing]; });
+        // Skip records that ended up with no fields at all after stripping.
+        batch = batch.filter((rec) => rec.fields && Object.keys(rec.fields).length);
+        if (!batch.length) return { records: [] };
+      }
+      throw new Error("Retry limit hit while stripping unknown fields.");
+    }
     let updated = 0;
     for (let i = 0; i < records.length; i += 10) {
-      const r = await fetch(url, { method: "PATCH", headers: auth, body: JSON.stringify({ records: records.slice(i, i + 10), typecast: true }) });
-      if (!r.ok) { const d = await r.text(); console.error("assignments patch", r.status, d); return res.status(502).json({ ok: false, error: "Could not save changes (are Flight/Start/Hole/Slot/Seat fields on the table?)." }); }
-      const data = await r.json();
-      updated += (data.records || []).length;
+      try {
+        const data = await patchBatch(records.slice(i, i + 10));
+        updated += (data.records || []).length;
+      } catch (e) {
+        console.error("assignments patch (after strip)", e.message);
+        return res.status(502).json({ ok: false, error: "Could not save changes (are Flight/Start/Hole/Slot/Seat fields on the table?).", strippedFields: [...stripped] });
+      }
     }
-    return res.status(200).json({ ok: true, updated });
+    const payload = { ok: true, updated };
+    if (stripped.size) payload.warning = "Applied without " + [...stripped].join(", ") + " (add those fields on the Signups table to store them).";
+    return res.status(200).json(payload);
   } catch (e) {
     console.error("tournament-flights error", e);
     return res.status(500).json({ ok: false, error: "Something went wrong updating teams." });
