@@ -1132,6 +1132,29 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 
 /* Destructive confirm modal (reuses pm-modal skeleton) */
 .cd-panel { max-width: 480px; }
+
+/* Pairings import modal — big two-column: paste on the left, preview on the right. */
+.pi-panel { max-width: min(72rem, 96vw); width: 96vw; }
+.pi__intro { margin: 0 0 0.75rem; color: var(--muted); }
+.pi__grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 1rem; align-items: stretch; }
+@media (max-width: 900px) { .pi__grid { grid-template-columns: 1fr; } }
+.pi__col { display: flex; flex-direction: column; min-width: 0; }
+.pi__lbl { font-family: var(--font-display); font-weight: 700; color: var(--ink); margin: 0 0 0.35rem; letter-spacing: 0.01em; }
+.pi__col textarea { flex: 1; font: 0.85rem/1.45 ui-monospace, "SFMono-Regular", Menlo, monospace; padding: 0.6rem 0.7rem; border: 1px solid var(--line); border-radius: 8px; resize: vertical; background: #fff; min-height: 22rem; }
+.pi__preview { flex: 1; background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.7rem; min-height: 22rem; overflow: hidden; display: flex; flex-direction: column; gap: 0.5rem; }
+.pi__hint { color: var(--muted); font-style: italic; margin: 0.4rem 0.2rem; }
+.pi__error { background: rgba(139, 28, 37, 0.08); color: #7d1218; padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.9rem; margin: 0; }
+.pi__summary { display: flex; gap: 0.4rem; }
+.pi__preview-scroll { flex: 1; overflow: auto; }
+.pi__table { width: 100%; border-collapse: collapse; font-size: 0.87rem; background: #fff; }
+.pi__table th, .pi__table td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--line); text-align: left; }
+.pi__table th { background: var(--paper); font-family: var(--font-display); font-weight: 700; color: var(--brand); position: sticky; top: 0; }
+.pi-row--unmatched td { background: rgba(230, 67, 57, 0.06); }
+.pi-row--weak td { background: rgba(245, 197, 66, 0.10); }
+.pi-badge { display: inline-block; padding: 0.05em 0.55em; border-radius: 999px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.pi-badge--ok { background: #1B5E20; color: #fff; }
+.pi-badge--weak { background: #b48000; color: #fff; }
+.pi-badge--miss { background: #b11e2d; color: #fff; }
 .cd-body { font-size: 0.98rem; color: var(--ink); margin: 0; }
 .cd-confirm { background: var(--red); color: #fff; border: 1px solid var(--red); }
 .cd-confirm:hover { background: var(--red-deep); border-color: var(--red-deep); }
