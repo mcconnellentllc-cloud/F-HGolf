@@ -129,6 +129,7 @@
                 <option value="am">Print A.M. only</option>
                 <option value="pm">Print P.M. only</option>
               </select>
+              <button class="btn btn--solid" type="button" id="prImport" title="Paste the AM/PM pairings list — matches teams by last-name tokens and seats everybody in one shot">Import pairings</button>
               <button class="btn btn--solid" type="button" id="prPrint">Print tee sheet</button>
               <button class="btn btn--solid" type="button" id="prPrintAnnounce">Announcement page</button>
               <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards (Day 1 tee-sheet order)">Print scorecards</button>
@@ -394,6 +395,35 @@
       </div>
     </div>
   </section>
+
+  <!-- ==================== BULK PAIRINGS IMPORT MODAL ==================== -->
+  <div class="pm-modal pi-modal" id="pairImportModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="piTitle">
+    <div class="pm-modal__backdrop" data-close="1"></div>
+    <div class="pm-modal__panel pi-panel">
+      <div class="pm-modal__head">
+        <h3 id="piTitle">Import pairings</h3>
+        <button type="button" class="pm-modal__close" id="piClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="pm-modal__body">
+        <p class="pi__intro">Paste or edit the pairings below, then <b>Match & preview</b>. The tool sets each hole&rsquo;s A / A+B state and seats every team. Unmatched rows are highlighted &mdash; fix the names on the left and re-match, or leave them for a manual drag afterward.</p>
+        <div class="pi__grid">
+          <div class="pi__col">
+            <label for="piList" class="pi__lbl">Pairings list</label>
+            <textarea id="piList" spellcheck="false" rows="24"></textarea>
+          </div>
+          <div class="pi__col pi__col--preview">
+            <div class="pi__lbl">Preview</div>
+            <div class="pi__preview" id="piPreview"><p class="pi__hint">Click <b>Match &amp; preview</b> to see how each row lines up with the roster.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="pm-modal__foot">
+        <button type="button" class="btn btn--solid" id="piCancel">Cancel</button>
+        <button type="button" class="btn btn--solid" id="piMatch">Match &amp; preview</button>
+        <button type="button" class="btn btn--primary" id="piApply" disabled>Apply pairings</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ==================== CONFIRM (DESTRUCTIVE) MODAL ==================== -->
   <div class="pm-modal cd-modal" id="confirmModal" hidden aria-hidden="true" role="alertdialog" aria-modal="true" aria-labelledby="cdTitle">
@@ -2639,6 +2669,321 @@
         positionSaveMany(assignments);
       }
 
+      // ---- Pairings: bulk import from a paired list --------------------
+      // Turns the paper AM/PM sheets into one big paste-and-apply flow. The
+      // starter's list uses hole/tee/seat coordinates against last-name
+      // pairs; we resolve each pair to a Signups record by comparing last-
+      // name tokens against Player Name + Team / Partners, preview every
+      // match, and then bulk-save Slot Config + assignments in one shot.
+      // Grammar (one row per team, one blank line between tees is fine):
+      //   [WAVE]        wave header — WAVE or [WAVE:8AM] / [WAVE:1PM]
+      //   1A1: Harms Landry           # hole 1, tee A, seat 1
+      //   1A2: Lambrecht Gebhart      # seat 2
+      //   3B1: J. Freeman M. Everitt  # hole 3, tee B
+      var PAIRING_IMPORT_DEFAULT =
+        "[AM]\n"
+        + "1A1: Harms Landry\n"
+        + "1A2: Lambrecht Gebhart\n"
+        + "2A1: Bishop Bishop\n"
+        + "2A2: Cochran Cochran\n"
+        + "3A1: A. Schaerfer B. Schaefer\n"
+        + "3A2: O. Schaefer Demaria\n"
+        + "4A1: Yockey James\n"
+        + "4A2: T. Wilson T. Ham\n"
+        + "5A1: Wernsman Wernsman\n"
+        + "5A2: Wernsman Wernsman\n"
+        + "6A1: Noble Whalen\n"
+        + "6A2: T. Schaefer J. Roche\n"
+        + "7A1: Chintala Chintala\n"
+        + "7A2: King King\n"
+        + "8A1: Mark Bornhoft Bo\n"
+        + "8A2: Ma. Bornhoft Cox\n"
+        + "9A1: Stone Stone\n"
+        + "9A2: Sanchez Sanchez\n"
+        + "1B1: Roberts Baseggio\n"
+        + "1B2: Owen Szabo T. Kuntz\n"
+        + "3B1: J. Freeman M. Everitt\n"
+        + "3B2: J. Feather Chapman\n"
+        + "4B1: Conover Bohlers\n"
+        + "4B2: Carper Harshberger\n"
+        + "6B1: Foor Burton\n"
+        + "6B2: Kirkwood McConnell\n"
+        + "7B1: B. Lock C. Lock\n"
+        + "7B2: D. Firme C. Firme\n"
+        + "8B1: Bucelli Glelert\n"
+        + "8B2: J. Larson J. Mitchell\n"
+        + "9B1: Schilling Larsen\n"
+        + "9B2: Chapdelaine Schilling\n"
+        + "\n"
+        + "[PM]\n"
+        + "1A1: B. Carruthers Curlee\n"
+        + "1A2: Rameriz Shino\n"
+        + "2A1: Gorman Rahm\n"
+        + "2A2: Brophy Shellberg\n"
+        + "3A1: T. Bornhoft K. McConnell\n"
+        + "3A2: Harms Schlenz\n"
+        + "4A1: D. Johnson Johnson\n"
+        + "4A2: K. Ham D. Ham\n"
+        + "5A1: J. Fime C. Cochrane\n"
+        + "5A2: D. Harris L. Scott\n"
+        + "6A1: Thompson Koberstein\n"
+        + "6A2: Fetzer Dennis\n"
+        + "7A1: D. Nolin R. Nolin\n"
+        + "7A2: Workman Workman\n"
+        + "8A1: Tempel Fuesz\n"
+        + "8A2: G. Edwards P. Korpi\n"
+        + "9A1: B. Vandenbark W. Cochrane\n"
+        + "9A2: J. Vandenbark T. Vandenbark\n"
+        + "1B1: Chapdelaine Jones\n"
+        + "1B2: Chapdelaine Pierce\n"
+        + "3B1: Koberstein Koberstein\n"
+        + "3B2: Goddard Goddard\n"
+        + "4B1: Harris Sonnenberg\n"
+        + "4B2: Owens Jameson\n"
+        + "6B1: Vance Mari\n"
+        + "6B2: K. Anderson A. Holston\n"
+        + "7B1: Knode Gerk\n"
+        + "7B2: S. Thompson D. Saylards\n"
+        + "8B1: M. Tempel J. Philla\n"
+        + "8B2: M. Gerk\n"
+        + "9B1: Karsten Anderson E. Van Wyke\n"
+        + "9B2: Bornhoft Davis\n";
+
+      function normalizeToken(s) {
+        return String(s || "").toLowerCase()
+          .replace(/[.,'’]/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+      // Extract last-name tokens for a team record. Player Name is one
+      // player; Team / Partners is slash-separated. For each raw name we
+      // take the LAST whitespace-separated word as the surname. Multi-part
+      // surnames like "Van Wyke" get collapsed to "vanwyke".
+      function recordSurnames(rec) {
+        var f = rec.fields || {};
+        var raw = [];
+        raw.push(f["Player Name"] || "");
+        String(f["Team / Partners"] || "").split(/\s*[\/,&]\s*|\s+and\s+/i).forEach(function (n) { raw.push(n); });
+        var out = [];
+        raw.forEach(function (n) {
+          n = String(n || "").trim();
+          if (!n) return;
+          var parts = n.split(/\s+/);
+          if (parts.length === 1) { out.push(normalizeToken(parts[0])); return; }
+          // Collapse two-word surnames commonly seen ("Van Wyke", "Owen Szabo").
+          out.push(normalizeToken(parts.slice(-1)[0]));
+          if (parts.length >= 3) out.push(normalizeToken(parts.slice(-2).join("")));
+        });
+        return out.filter(Boolean);
+      }
+      // Same idea for the raw entry on the paper sheet — "Harms Landry" or
+      // "K. Anderson A. Holston". Strip initials, keep the surnames.
+      function entrySurnames(text) {
+        var s = String(text || "").trim();
+        if (!s) return [];
+        // Strip initial-only tokens like "K." or "Ma."; collapse doubles.
+        var parts = s.split(/\s+/);
+        var out = [];
+        for (var i = 0; i < parts.length; i++) {
+          var p = parts[i];
+          if (/^[A-Za-z]{1,3}\.$/.test(p)) continue; // initial
+          out.push(normalizeToken(p));
+        }
+        // Sliding-window join of two-word surnames ("Van Wyke", "Owen Szabo").
+        for (var j = 0; j < parts.length - 1; j++) {
+          if (/^[A-Z][a-z]+$/.test(parts[j]) && /^[A-Z][a-z]+$/.test(parts[j + 1])) {
+            out.push(normalizeToken(parts[j] + parts[j + 1]));
+          }
+        }
+        return out.filter(Boolean);
+      }
+      function scoreMatch(entryTokens, recTokens) {
+        if (!entryTokens.length || !recTokens.length) return 0;
+        var used = {};
+        var hits = 0;
+        entryTokens.forEach(function (e) {
+          for (var i = 0; i < recTokens.length; i++) {
+            if (used[i]) continue;
+            if (recTokens[i] === e) { used[i] = true; hits++; break; }
+          }
+        });
+        return hits;
+      }
+
+      function parsePairingImport(text) {
+        var lines = String(text || "").split(/\r?\n/);
+        var wave = null;
+        var out = { entries: [], errors: [] };
+        lines.forEach(function (line, idx) {
+          var s = line.replace(/#.*$/, "").trim();
+          if (!s) return;
+          var wm = /^\[(am|pm|8\s*am|1\s*pm)\s*[:\-]?\s*(am|pm|8\s*am|1\s*pm)?\s*\]$/i.exec(s);
+          if (wm) {
+            var raw = (wm[2] || wm[1]).toLowerCase().replace(/\s+/g, "");
+            wave = (raw === "am" || raw === "8am") ? "8 AM" : ((raw === "pm" || raw === "1pm") ? "1 PM" : null);
+            return;
+          }
+          var m = /^(\d)\s*([AaBb])\s*([12])\s*:\s*(.+)$/.exec(s);
+          if (!m) { out.errors.push({ line: idx + 1, text: line, why: "unrecognized row (expected \"1A1: Names\")" }); return; }
+          if (!wave) { out.errors.push({ line: idx + 1, text: line, why: "row seen before an [AM] / [PM] header" }); return; }
+          out.entries.push({
+            wave: wave,
+            hole: Number(m[1]),
+            slot: m[2].toUpperCase(),
+            seat: Number(m[3]),
+            names: String(m[4]).trim(),
+            line: idx + 1
+          });
+        });
+        return out;
+      }
+
+      function resolveMatches(entries, records) {
+        // Build every candidate score; assign each entry to its best-scoring
+        // record, preventing double-assignment. Ties → "ambiguous". No score
+        // above 0 → "unmatched".
+        var recTokens = records.map(function (r) { return { rec: r, tokens: recordSurnames(r) }; });
+        var scored = entries.map(function (e) {
+          var tokens = entrySurnames(e.names);
+          var scores = recTokens.map(function (rt, idx) { return { idx: idx, score: scoreMatch(tokens, rt.tokens) }; })
+            .filter(function (s) { return s.score > 0; })
+            .sort(function (a, b) { return b.score - a.score; });
+          return { entry: e, tokens: tokens, scores: scores };
+        });
+        var taken = {};
+        // Greedy pass 1: assign highest-scoring uncontested matches first.
+        scored.sort(function (a, b) { return (b.scores[0] ? b.scores[0].score : 0) - (a.scores[0] ? a.scores[0].score : 0); });
+        scored.forEach(function (s) {
+          for (var i = 0; i < s.scores.length; i++) {
+            var idx = s.scores[i].idx;
+            if (!taken[idx]) { s.pickIdx = idx; s.pickScore = s.scores[i].score; taken[idx] = true; return; }
+          }
+          s.pickIdx = null;
+        });
+        // Restore paste order for the preview.
+        scored.sort(function (a, b) { return a.entry.line - b.entry.line; });
+        return scored.map(function (s) {
+          var picked = s.pickIdx != null ? recTokens[s.pickIdx].rec : null;
+          var status = "matched";
+          if (!picked) status = "unmatched";
+          else if (s.pickScore < 2 && entrySurnames(s.entry.names).length >= 2) status = "weak";
+          return {
+            wave: s.entry.wave, hole: s.entry.hole, slot: s.entry.slot, seat: s.entry.seat,
+            names: s.entry.names, tokens: s.tokens,
+            recordId: picked ? picked.id : null,
+            recordName: picked ? teamShortNames(picked.fields || {}) : "",
+            score: s.pickScore || 0,
+            status: status
+          };
+        });
+      }
+
+      function renderImportPreview(rows, errors) {
+        var host = document.getElementById("piPreview"); if (!host) return;
+        var matched = rows.filter(function (r) { return r.status === "matched"; }).length;
+        var weak = rows.filter(function (r) { return r.status === "weak"; }).length;
+        var unmatched = rows.filter(function (r) { return r.status === "unmatched"; }).length;
+        var trs = rows.map(function (r) {
+          var badgeCls = r.status === "matched" ? "pi-badge pi-badge--ok"
+            : (r.status === "weak" ? "pi-badge pi-badge--weak" : "pi-badge pi-badge--miss");
+          var badgeText = r.status === "matched" ? "match"
+            : (r.status === "weak" ? "weak" : "no match");
+          return "<tr class=\"pi-row pi-row--" + r.status + "\">"
+            + "<td>" + esc(r.wave === "8 AM" ? "AM" : "PM") + "</td>"
+            + "<td>" + r.hole + esc(r.slot) + "-" + r.seat + "</td>"
+            + "<td>" + esc(r.names) + "</td>"
+            + "<td>" + esc(r.recordName || "—") + "</td>"
+            + "<td><span class=\"" + badgeCls + "\">" + badgeText + "</span></td>"
+            + "</tr>";
+        }).join("");
+        var errHtml = errors && errors.length
+          ? '<p class="pi__error"><b>Skipped ' + errors.length + ' bad line' + (errors.length === 1 ? '' : 's') + ':</b> '
+            + errors.map(function (e) { return "line " + e.line + " (" + esc(e.why) + ")"; }).join(", ")
+            + "</p>"
+          : "";
+        host.innerHTML =
+          '<div class="pi__summary">'
+          + '<span class="pi-badge pi-badge--ok">' + matched + ' matched</span> '
+          + '<span class="pi-badge pi-badge--weak">' + weak + ' weak</span> '
+          + '<span class="pi-badge pi-badge--miss">' + unmatched + ' unmatched</span>'
+          + '</div>'
+          + errHtml
+          + '<div class="pi__preview-scroll"><table class="pi__table"><thead><tr><th>Wave</th><th>Slot</th><th>Names</th><th>Matched team</th><th>Status</th></tr></thead><tbody>'
+          + (trs || '<tr><td colspan="5" class="pi__hint">No rows to preview.</td></tr>')
+          + '</tbody></table></div>';
+      }
+
+      var piLastResolved = null;
+      function openPairingsImport() {
+        var modal = document.getElementById("pairImportModal"); if (!modal) return;
+        var ta = document.getElementById("piList");
+        if (ta && !ta.value) ta.value = PAIRING_IMPORT_DEFAULT;
+        var apply = document.getElementById("piApply"); if (apply) apply.disabled = true;
+        var host = document.getElementById("piPreview");
+        if (host) host.innerHTML = '<p class="pi__hint">Click <b>Match &amp; preview</b> to see how each row lines up with the roster.</p>';
+        modal.hidden = false; modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("modal-open");
+      }
+      function closePairingsImport() {
+        var modal = document.getElementById("pairImportModal");
+        if (modal) { modal.hidden = true; modal.setAttribute("aria-hidden", "true"); }
+        document.body.classList.remove("modal-open");
+      }
+      function runPairingsImportMatch() {
+        var ta = document.getElementById("piList");
+        var parsed = parsePairingImport(ta ? ta.value : "");
+        var recs = (prRecs || []).filter(function (r) { return !isAltRec(r); });
+        var resolved = resolveMatches(parsed.entries, recs);
+        renderImportPreview(resolved, parsed.errors);
+        piLastResolved = { rows: resolved, errors: parsed.errors };
+        var apply = document.getElementById("piApply");
+        var okCount = resolved.filter(function (r) { return r.recordId; }).length;
+        if (apply) apply.disabled = !okCount;
+      }
+      function applyPairingsImport() {
+        if (!piLastResolved || !piLastResolved.rows.length) { alert("Nothing to apply — click Match & preview first."); return; }
+        var rows = piLastResolved.rows.filter(function (r) { return r.recordId; });
+        if (!rows.length) { alert("No matched rows to apply."); return; }
+        // Build slot config per wave — any hole used gets its state promoted:
+        // seen A only → "A"; seen A and B → "AB". This overwrites whatever
+        // config was there before and mirrors the actual paper layout.
+        var byWave = { "8 AM": {}, "1 PM": {} };
+        rows.forEach(function (r) {
+          var cfg = byWave[r.wave]; if (!cfg) return;
+          var cur = cfg[r.hole] || "off";
+          if (r.slot === "B") cfg[r.hole] = "AB";
+          else if (cur === "off") cfg[r.hole] = "A";
+          else if (cur === "AB") cfg[r.hole] = "AB";
+          else cfg[r.hole] = "A";
+        });
+        Object.keys(byWave).forEach(function (w) { saveSlotCfg(w, byWave[w]); });
+        // De-dup any team that appears twice in the paste (shouldn't happen
+        // but be safe) — last row wins.
+        var byId = {};
+        rows.forEach(function (r) { byId[r.recordId] = r; });
+        var assignments = Object.keys(byId).map(function (id) {
+          var r = byId[id];
+          return { id: id, hole: r.hole, slot: r.slot, seat: r.seat, start: r.wave };
+        });
+        var msg = document.getElementById("prMsg"); if (msg) msg.textContent = "Applying " + assignments.length + " placements…";
+        fetch(FH_API.url("/api/tournament-flights"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ assignments: assignments })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.ok) {
+              if (msg) msg.textContent = "Applied " + (j.updated || assignments.length) + " placements ✓";
+              closePairingsImport();
+              loadRoster();
+            } else if (msg) {
+              msg.textContent = (j && j.error) || "Bulk save failed.";
+            }
+          })
+          .catch(function () { if (msg) msg.textContent = "Network error during bulk apply."; });
+      }
+
       // ---- Pairings: announcement page (starter's read-aloud sheet) ----
       // Renders every occupied tee slot in reading order (Hole 1 A/B → Hole 9
       // A/B, AM then PM) into a print-only DOM host. Big serif headers, big
@@ -4589,6 +4934,18 @@
         if (prCardsD2) prCardsD2.addEventListener("click", printDay2Scorecards);
         var prTestCard = document.getElementById("prPrintTestCard");
         if (prTestCard) prTestCard.addEventListener("click", printTestCard);
+        var prImp = document.getElementById("prImport");
+        if (prImp) prImp.addEventListener("click", openPairingsImport);
+        var piModal = document.getElementById("pairImportModal");
+        if (piModal) {
+          Array.prototype.forEach.call(piModal.querySelectorAll("[data-close], #piClose, #piCancel"), function (el) {
+            el.addEventListener("click", closePairingsImport);
+          });
+        }
+        var piMatch = document.getElementById("piMatch");
+        if (piMatch) piMatch.addEventListener("click", runPairingsImportMatch);
+        var piApply = document.getElementById("piApply");
+        if (piApply) piApply.addEventListener("click", applyPairingsImport);
 
         // Pull the shared slot layout from Airtable BEFORE the first roster
         // render so tee boxes appear consistently across devices. Falls
