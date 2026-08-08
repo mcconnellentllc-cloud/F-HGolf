@@ -1509,6 +1509,15 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
      compete with the pre-printed header. */
   body.is-print-cards .sc-hdr { position: absolute; font-size: 9pt; color: #555; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
   body.is-print-cards .sc-name { position: absolute; font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; font-weight: 700; color: #000; letter-spacing: 0; white-space: nowrap; }
+  /* Diagnostic elements — only used by Print test scorecard so we can see
+     whether the printer is honoring the page size and where the browser is
+     placing content on the sheet. */
+  body.is-print-cards .sc-frame { position: absolute; inset: 4pt; border: 2pt solid #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cards .sc-mark { position: absolute; font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; font-weight: 800; color: #b11e2d; font-size: 10pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cards .sc-mark--tl { top: 0.15in; left: 0.15in; }
+  body.is-print-cards .sc-mark--tr { top: 0.15in; right: 0.15in; }
+  body.is-print-cards .sc-mark--bl { bottom: 0.15in; left: 0.15in; }
+  body.is-print-cards .sc-mark--br { bottom: 0.15in; right: 0.15in; }
   /* Day 2 cards wrap the previous day's gross in this ring so scorers can
      see the seed at a glance without confusing it with hole-by-hole scores.
      print-color-adjust: exact keeps the border from getting dropped by
