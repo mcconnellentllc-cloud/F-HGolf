@@ -135,10 +135,10 @@
               <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards (Day 1 tee-sheet order)">Print scorecards</button>
               <button class="btn btn--solid" type="button" id="prPrintCardsD2" title="Day 2 scorecards — pairs ordered by ascending Day 1 gross within flight">Print Day 2 scorecards</button>
               <select id="prPaperSize" class="pr-print-which" aria-label="Paper size for scorecard prints" title="Match what your printer can actually feed">
-                <option value="5.875in 12in" selected>Paper: F&amp;H card portrait (5.875 × 12) — HP M227 Tray 1</option>
+                <option value="12in 5.875in" selected>Paper: F&amp;H card landscape (12 × 5.875)</option>
+                <option value="5.875in 12in">Paper: F&amp;H card portrait (5.875 × 12)</option>
                 <option value="11in 8.5in">Paper: Letter landscape (11 × 8.5)</option>
                 <option value="14in 8.5in">Paper: Legal landscape (14 × 8.5)</option>
-                <option value="12in 5.875in">Paper: F&amp;H card landscape (12 × 5.875)</option>
               </select>
               <button class="btn btn--solid" type="button" id="prPrintTestCard" title="Print one card with dummy names + corner markers to calibrate alignment">Print test scorecard</button>
             </div>
@@ -3089,24 +3089,29 @@
       // bar. Positions tune via CARD_OFFSETS below — do one test print,
       // measure, and adjust here.
       var CARD_OFFSETS = {
-        // Physical F&H scorecard is landscape: 12" wide × 5 7/8" tall. It
-        // feeds with the LONG edge as the top, so @page is set landscape and
-        // all offsets measure from the top-left of the card in that
-        // orientation.
+        // Physical F&H scorecard is landscape: 12" wide × 5 7/8" tall. Fed
+        // long-edge-first so the 12" edge enters the printer; paper size in
+        // the picker matches (default: F&H card portrait 5.875×12 for HP
+        // M227). Positions below are LANDSCAPE coordinates (reading
+        // orientation) — the printer driver handles the rotation.
         paperSize: "12in 5.875in",
-        // Each blank score row on the physical card is 3/8" tall (~0.375")
-        // and the "name" area on the row is 7/8" wide before the hole cells
-        // start. Team name spans across the hole cells at 12pt so it stays
-        // clear of the top/bottom of the 3/8" row.
+        // Names stack in the LEFT-most column of the card. Each player takes
+        // two rows (first name, last name). Row height on the card is 3/8"
+        // (~0.375in). Team 1 fills the top score area (above the HOLE bar),
+        // Team 2 fills the bottom area (below the HOLE bar).
         //
-        // Do one test card, eyeball the gap to the pre-printed blank line,
+        // Do one test card, eyeball the gap to the pre-printed blank rows,
         // then update ONE number here and reprint — the whole batch shifts.
-        headerTop: "0.15in",   // small verification tag ("Tee 1-A · 8 AM") at the top-left corner
+        headerTop: "0.10in",   // small verification tag at top-left corner
         headerLeft: "0.35in",
-        team1Top: "0.98in",    // top blank score row (3/8" tall) above PAR / HOLE grey bar — centered
-        team2Top: "3.18in",    // top blank score row below the HOLE grey bar — centered
-        teamLeft: "1.45in",    // horizontal start past the 7/8" row-label column
-        nameSize: "12pt"       // 12pt cap height ~9.5pt fits comfortably in a 3/8" (27pt) row
+        team1Top: "0.95in",    // Team 1 P1 first name — top of upper score block
+        team2Top: "3.55in",    // Team 2 P1 first name — top of lower score block
+        teamLeft: "0.20in",    // LEFT-most column (label area, before hole 1)
+        rowStep:  "0.42in",    // vertical gap between stacked name rows (~3/8")
+        nameSize: "11pt",      // fits the narrow left column, still legible
+        teeMarkTop: "3.05in",  // circle around the tee-off hole in HOLE row
+        teeMarkStep: "0.44in", // per-hole horizontal step in the HOLE row
+        teeMarkFirst: "1.62in" // x for hole 1 (adjust once against the card)
       };
       // Paper size actually used per print — reads the Pairings-tab picker so
       // staff can match whichever custom size the printer driver knows about,
@@ -3161,25 +3166,42 @@
           return a.slot < b.slot ? -1 : 1;
         });
 
-        // Card format per team, full first + last:
-        //   "Tom Bornhoft   Kyle McConnell   Tee - 1 A"
-        // Full names (not shortened) so a starter or scorer can call players
-        // by first name; tee suffix restates the tee-off spot so it's on the
-        // card in a scorer's hand even if the header tag is missed.
-        function teamLine(rec, hole, slot) {
+        // New layout matches the pro-shop's handwritten example: names go in
+        // the LEFT-most column (label area) with each player's first name on
+        // one row and last name on the row below. Team 1 (P1 + P2) fills the
+        // top score area above the HOLE bar; Team 2 (P1 + P2) fills the bottom
+        // area below the HOLE bar. A red circle marks the tee-off hole in the
+        // HOLE row so scorers know at a glance where the group tees off.
+        function splitFirstLast(fullName) {
+          var s = String(fullName || "").trim();
+          if (!s) return { first: "", last: "" };
+          var parts = s.split(/\s+/);
+          if (parts.length === 1) return { first: parts[0], last: "" };
+          return { first: parts[0], last: parts.slice(1).join(" ") };
+        }
+        function teamNameBlock(rec, blockClass) {
           if (!rec) return "";
-          var names = fullPlayerNames(rec.fields || {}).join("   ");
-          var teeSuffix = (hole && slot) ? "   Tee - " + hole + " " + slot : "";
-          return names + teeSuffix;
+          var names = fullPlayerNames(rec.fields || {});
+          var p1 = splitFirstLast(names[0] || "");
+          var p2 = splitFirstLast(names[1] || "");
+          return '<div class="sc-block ' + blockClass + '">'
+            + '<div class="sc-nm sc-nm--p1f">' + esc(p1.first) + '</div>'
+            + '<div class="sc-nm sc-nm--p1l">' + esc(p1.last) + '</div>'
+            + '<div class="sc-nm sc-nm--p2f">' + esc(p2.first) + '</div>'
+            + '<div class="sc-nm sc-nm--p2l">' + esc(p2.last) + '</div>'
+            + '</div>';
         }
 
         var pages = groups.map(function (g) {
           var waveTag = g.wave === "8 AM" ? "8 AM" : "1 PM";
           var slotTag = "Tee " + g.hole + "-" + g.slot + " · " + waveTag;
+          // Tee-mark absolute left = first-hole x + (hole - 1) × per-hole step.
+          var teeLeftPx = "calc(" + CARD_OFFSETS.teeMarkFirst + " + " + CARD_OFFSETS.teeMarkStep + " * " + (g.hole - 1) + ")";
           return '<div class="sc-page">'
             + '<div class="sc-hdr">' + esc(slotTag) + '</div>'
-            + '<div class="sc-name sc-name--1">' + esc(teamLine(g.teams[0], g.hole, g.slot)) + '</div>'
-            + '<div class="sc-name sc-name--2">' + esc(teamLine(g.teams[1] || null, g.hole, g.slot)) + '</div>'
+            + teamNameBlock(g.teams[0], "sc-block--team1")
+            + teamNameBlock(g.teams[1] || null, "sc-block--team2")
+            + '<div class="sc-teemark" style="left: ' + teeLeftPx + '">' + g.hole + g.slot + '</div>'
             + '</div>';
         }).join("");
 
@@ -3202,13 +3224,7 @@
         var _sz = String(_paper || "").trim().split(/\s+/);
         var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "12in";
         var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "5.875in";
-        pageStyle.textContent =
-          "@page { size: " + _paper + "; margin: 0; }"
-          + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"
-          + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
-          + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
-          + " body.is-print-cards .sc-name--1 { top: " + CARD_OFFSETS.team1Top + "; }"
-          + " body.is-print-cards .sc-name--2 { top: " + CARD_OFFSETS.team2Top + "; }";
+        pageStyle.textContent = scorecardPrintCss(_paper, _pw, _ph);
         document.head.appendChild(pageStyle);
         function cleanup() {
           document.body.classList.remove("is-print-cards");
@@ -3219,6 +3235,26 @@
         window.addEventListener("afterprint", cleanup);
         setTimeout(function () { window.print(); }, 80);
         setTimeout(cleanup, 4000);
+      }
+
+      // Shared style block for all three scorecard prints. Team block CSS
+      // stacks four rows per team (P1 first, P1 last, P2 first, P2 last)
+      // in the LEFT-most column so the layout matches the pro-shop
+      // handwritten example.
+      function scorecardPrintCss(paper, pw, ph) {
+        var step = CARD_OFFSETS.rowStep || "0.42in";
+        return "@page { size: " + paper + "; margin: 0; }"
+          + " body.is-print-cards .sc-page { width: " + pw + "; height: " + ph + "; }"
+          + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
+          + " body.is-print-cards .sc-block { position: absolute; left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-weight: 700; color: #000; line-height: 1; }"
+          + " body.is-print-cards .sc-block--team1 { top: " + CARD_OFFSETS.team1Top + "; }"
+          + " body.is-print-cards .sc-block--team2 { top: " + CARD_OFFSETS.team2Top + "; }"
+          + " body.is-print-cards .sc-nm { position: absolute; left: 0; white-space: nowrap; }"
+          + " body.is-print-cards .sc-nm--p1f { top: 0; }"
+          + " body.is-print-cards .sc-nm--p1l { top: " + step + "; }"
+          + " body.is-print-cards .sc-nm--p2f { top: calc(" + step + " * 2); }"
+          + " body.is-print-cards .sc-nm--p2l { top: calc(" + step + " * 3); }"
+          + " body.is-print-cards .sc-teemark { position: absolute; top: " + CARD_OFFSETS.teeMarkTop + "; font-size: " + CARD_OFFSETS.nameSize + "; font-weight: 800; color: #b11e2d; border: 1.4pt solid #b11e2d; border-radius: 999px; padding: 0.5pt 5pt 1pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }";
       }
 
       // Day 2 scorecards. Teams are re-paired for Day 2 by Day 1 gross —
@@ -3275,27 +3311,39 @@
             ? flLabel(a.flight)
             : (b ? flLabel(a.flight) + " / " + flLabel(b.flight) : flLabel(a.flight) + " · solo");
           var pairNum = Math.floor(i / 2) + 1;
-          // Day 2 line: "Names   Tee - H L   ⓭"
-          // Tee info comes from the team's current Airtable placement (staff
-          // re-pairs on the Pairings tab before Day 2), and the Day 1 gross
-          // is wrapped in a print-only .d1-circle span so it renders inside
-          // a hand-drawn-looking ring after the tee info. Returns raw HTML;
-          // caller must NOT escape it before injecting.
-          function teamLineHtml(entry) {
+          // Day 2 uses the same stacked-name block as Day 1. Each player's
+          // first name lands on one row and last name on the next; teams
+          // stack: Team 1 above the HOLE bar, Team 2 below. The tee mark
+          // circles the tee-off hole in the HOLE row if the team already
+          // has a Day 2 placement in Airtable.
+          function d2Block(entry, blockClass) {
             if (!entry) return "";
             var f = entry.rec.fields || {};
-            var names = fullPlayerNames(f).join("   ");
-            var hole = Number(f.Hole), slot = String(f.Slot || "").toUpperCase();
-            var teeTag = (hole && (slot === "A" || slot === "B")) ? "   Tee - " + hole + " " + slot : "";
+            var names = fullPlayerNames(f);
+            var p1 = splitFirstLast(names[0] || "");
+            var p2 = splitFirstLast(names[1] || "");
             var gross = d1g(entry.rec);
-            var grossTag = gross ? '   <span class="d1-circle">' + gross + '</span>' : "";
-            return esc(names) + esc(teeTag) + grossTag;
+            var seed = gross ? '<span class="d1-circle">' + gross + '</span>' : '';
+            return '<div class="sc-block ' + blockClass + '">'
+              + '<div class="sc-nm sc-nm--p1f">' + esc(p1.first) + '</div>'
+              + '<div class="sc-nm sc-nm--p1l">' + esc(p1.last) + '</div>'
+              + '<div class="sc-nm sc-nm--p2f">' + esc(p2.first) + '</div>'
+              + '<div class="sc-nm sc-nm--p2l">' + esc(p2.last) + (seed ? ' ' + seed : '') + '</div>'
+              + '</div>';
+          }
+          var teeHtml = "";
+          var aHole = a && Number((a.rec.fields || {}).Hole);
+          var aSlot = a && String((a.rec.fields || {}).Slot || "").toUpperCase();
+          if (aHole && (aSlot === "A" || aSlot === "B")) {
+            var teeLeftPx = "calc(" + CARD_OFFSETS.teeMarkFirst + " + " + CARD_OFFSETS.teeMarkStep + " * " + (aHole - 1) + ")";
+            teeHtml = '<div class="sc-teemark" style="left: ' + teeLeftPx + '">' + aHole + aSlot + '</div>';
           }
           var hdr = "DAY 2 · " + flTag + " · Pair " + pairNum;
           pages.push('<div class="sc-page">'
             + '<div class="sc-hdr">' + esc(hdr) + '</div>'
-            + '<div class="sc-name sc-name--1">' + teamLineHtml(a) + '</div>'
-            + '<div class="sc-name sc-name--2">' + teamLineHtml(b) + '</div>'
+            + d2Block(a, "sc-block--team1")
+            + d2Block(b, "sc-block--team2")
+            + teeHtml
             + '</div>');
         }
 
@@ -3312,13 +3360,7 @@
         var _sz = String(_paper || "").trim().split(/\s+/);
         var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "12in";
         var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "5.875in";
-        pageStyle.textContent =
-          "@page { size: " + _paper + "; margin: 0; }"
-          + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"
-          + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
-          + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
-          + " body.is-print-cards .sc-name--1 { top: " + CARD_OFFSETS.team1Top + "; }"
-          + " body.is-print-cards .sc-name--2 { top: " + CARD_OFFSETS.team2Top + "; }";
+        pageStyle.textContent = scorecardPrintCss(_paper, _pw, _ph);
         document.head.appendChild(pageStyle);
         function cleanup() {
           document.body.classList.remove("is-print-cards");
@@ -3344,6 +3386,7 @@
         // the printer honored the 12 × 5.875 custom size. If any corner
         // label is missing, the print is being cropped and we need to
         // adjust CARD_OFFSETS.paperSize (or pick a wider stock).
+        var teeLeftPx = "calc(" + CARD_OFFSETS.teeMarkFirst + " + " + CARD_OFFSETS.teeMarkStep + " * 0)";
         host.innerHTML =
           '<div class="sc-page sc-page--test">'
           + '<div class="sc-frame" aria-hidden="true"></div>'
@@ -3352,8 +3395,19 @@
           + '<div class="sc-mark sc-mark--bl">↙ BOT-LEFT (0, 5.875)</div>'
           + '<div class="sc-mark sc-mark--br">BOT-RIGHT (12, 5.875) ↘</div>'
           + '<div class="sc-hdr">TEST CARD &middot; align only</div>'
-          + '<div class="sc-name sc-name--1">Tom Bornhoft   Kyle McConnell   Tee - 1 A</div>'
-          + '<div class="sc-name sc-name--2">Ryan Davis   Kris Wilson   Tee - 1 A</div>'
+          + '<div class="sc-block sc-block--team1">'
+          +   '<div class="sc-nm sc-nm--p1f">Tom</div>'
+          +   '<div class="sc-nm sc-nm--p1l">Bornhoft</div>'
+          +   '<div class="sc-nm sc-nm--p2f">Kyle</div>'
+          +   '<div class="sc-nm sc-nm--p2l">McConnell</div>'
+          + '</div>'
+          + '<div class="sc-block sc-block--team2">'
+          +   '<div class="sc-nm sc-nm--p1f">Ryan</div>'
+          +   '<div class="sc-nm sc-nm--p1l">Davis</div>'
+          +   '<div class="sc-nm sc-nm--p2f">Kris</div>'
+          +   '<div class="sc-nm sc-nm--p2l">Wilson</div>'
+          + '</div>'
+          + '<div class="sc-teemark" style="left: ' + teeLeftPx + '">1A</div>'
           + '</div>';
 
         document.body.appendChild(host);
@@ -3368,13 +3422,7 @@
         var _sz = String(_paper || "").trim().split(/\s+/);
         var _pw = /in$|cm$|mm$|pt$|px$/.test(_sz[0] || "") ? _sz[0] : "12in";
         var _ph = /in$|cm$|mm$|pt$|px$/.test(_sz[1] || "") ? _sz[1] : "5.875in";
-        pageStyle.textContent =
-          "@page { size: " + _paper + "; margin: 0; }"
-          + " body.is-print-cards .sc-page { width: " + _pw + "; height: " + _ph + "; }"
-          + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
-          + " body.is-print-cards .sc-name { left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; }"
-          + " body.is-print-cards .sc-name--1 { top: " + CARD_OFFSETS.team1Top + "; }"
-          + " body.is-print-cards .sc-name--2 { top: " + CARD_OFFSETS.team2Top + "; }";
+        pageStyle.textContent = scorecardPrintCss(_paper, _pw, _ph);
         document.head.appendChild(pageStyle);
         function cleanup() {
           document.body.classList.remove("is-print-cards");
