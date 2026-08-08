@@ -3201,8 +3201,7 @@
             + '<div class="sc-hdr">' + esc(slotTag) + '</div>'
             + teamNameBlock(g.teams[0], "sc-block--team1")
             + teamNameBlock(g.teams[1] || null, "sc-block--team2")
-            + '<div class="sc-teemark" style="left: ' + teeLeftPx + '"></div>'
-            + '<div class="sc-teeslot" style="left: calc(' + teeLeftPx + ' + 0.35in)">' + g.slot + '</div>'
+            + '<div class="sc-teemark" style="left: ' + teeLeftPx + '">' + g.slot + '</div>'
             + '</div>';
         }).join("");
 
@@ -3245,7 +3244,7 @@
       function scorecardPrintCss(paper, pw, ph) {
         var step = CARD_OFFSETS.rowStep || "0.42in";
         return "@page { size: " + paper + "; margin: 0; }"
-          + " body.is-print-cards .sc-page { width: " + pw + "; height: " + ph + "; }"
+          + " body.is-print-cards .sc-page { width: " + pw + "; height: " + ph + "; transform: rotate(180deg); transform-origin: center center; }"
           + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
           + " body.is-print-cards .sc-block { position: absolute; left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-weight: 700; color: #000; line-height: 1; }"
           + " body.is-print-cards .sc-block--team1 { top: " + CARD_OFFSETS.team1Top + "; }"
@@ -3338,8 +3337,7 @@
           var aSlot = a && String((a.rec.fields || {}).Slot || "").toUpperCase();
           if (aHole && (aSlot === "A" || aSlot === "B")) {
             var teeLeftPx = "calc(" + CARD_OFFSETS.teeMarkFirst + " + " + CARD_OFFSETS.teeMarkStep + " * " + (aHole - 1) + ")";
-            teeHtml = '<div class="sc-teemark" style="left: ' + teeLeftPx + '"></div>'
-              + '<div class="sc-teeslot" style="left: calc(' + teeLeftPx + ' + 0.35in)">' + aSlot + '</div>';
+            teeHtml = '<div class="sc-teemark" style="left: ' + teeLeftPx + '">' + aSlot + '</div>';
           }
           var hdr = "DAY 2 · " + flTag + " · Pair " + pairNum;
           pages.push('<div class="sc-page">'
@@ -3390,14 +3388,13 @@
         // label is missing, the print is being cropped and we need to
         // adjust CARD_OFFSETS.paperSize (or pick a wider stock).
         var teeLeftPx = "calc(" + CARD_OFFSETS.teeMarkFirst + " + " + CARD_OFFSETS.teeMarkStep + " * 0)";
+        // Test card mirrors the REAL scorecard output exactly — same stacked
+        // name blocks + tee ring — so calibration on the test print
+        // translates 1:1 to the real batch. No diagnostic markers, no page
+        // frame, no TEST CARD tag — those only made sense for debugging on
+        // plain paper and print onto the physical card too.
         host.innerHTML =
-          '<div class="sc-page sc-page--test">'
-          + '<div class="sc-frame" aria-hidden="true"></div>'
-          + '<div class="sc-mark sc-mark--tl">↖ TOP-LEFT (0, 0)</div>'
-          + '<div class="sc-mark sc-mark--tr">TOP-RIGHT (12, 0) ↗</div>'
-          + '<div class="sc-mark sc-mark--bl">↙ BOT-LEFT (0, 5.875)</div>'
-          + '<div class="sc-mark sc-mark--br">BOT-RIGHT (12, 5.875) ↘</div>'
-          + '<div class="sc-hdr">TEST CARD &middot; align only</div>'
+          '<div class="sc-page">'
           + '<div class="sc-block sc-block--team1">'
           +   '<div class="sc-nm sc-nm--p1f">Tom</div>'
           +   '<div class="sc-nm sc-nm--p1l">Bornhoft</div>'
@@ -3410,8 +3407,7 @@
           +   '<div class="sc-nm sc-nm--p2f">Kris</div>'
           +   '<div class="sc-nm sc-nm--p2l">Wilson</div>'
           + '</div>'
-          + '<div class="sc-teemark" style="left: ' + teeLeftPx + '"></div>'
-          + '<div class="sc-teeslot" style="left: calc(' + teeLeftPx + ' + 0.35in)">A</div>'
+          + '<div class="sc-teemark" style="left: ' + teeLeftPx + '">A</div>'
           + '</div>';
 
         document.body.appendChild(host);
