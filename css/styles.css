@@ -1509,6 +1509,11 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
      compete with the pre-printed header. */
   body.is-print-cards .sc-hdr { position: absolute; font-size: 9pt; color: #555; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
   body.is-print-cards .sc-name { position: absolute; font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; font-weight: 700; color: #000; letter-spacing: 0; white-space: nowrap; }
+  /* Day 2 cards wrap the previous day's gross in this ring so scorers can
+     see the seed at a glance without confusing it with hole-by-hole scores.
+     print-color-adjust: exact keeps the border from getting dropped by
+     draft-mode printers. */
+  body.is-print-cards .d1-circle { display: inline-block; border: 1.4pt solid #000; border-radius: 999px; padding: 0.5pt 6pt 1pt; font-weight: 800; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   /* Letterhead (JS-injected .ca-print-head): logo · title · logo, deep green rule. */
   .ca-print-head, .ca-print-foot { display: none; }
