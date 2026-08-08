@@ -3131,6 +3131,15 @@
           return { id: id, hole: r.hole, slot: r.slot, seat: r.seat, start: r.wave };
         });
         var msg = document.getElementById("prMsg"); if (msg) msg.textContent = "Applying " + assignments.length + " placements…";
+        // Close the modal IMMEDIATELY so the operator can see the tee sheet
+        // update live behind it. Previously we only closed on success — if
+        // the response was ambiguous the modal stuck open, the operator hit
+        // Cancel, and it looked like the pairings had reverted (the reload
+        // just hadn't arrived yet). Also disable the Apply button until the
+        // save completes to prevent accidental double-clicks re-firing.
+        var applyBtn = document.getElementById("piApply");
+        if (applyBtn) applyBtn.disabled = true;
+        closePairingsImport();
         fetch(FH_API.url("/api/tournament-flights"), {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
@@ -3138,16 +3147,19 @@
         })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
+            if (applyBtn) applyBtn.disabled = false;
             if (j && j.ok) {
               var note = j.warning ? " ⚠ " + j.warning : "";
               if (msg) msg.textContent = "Applied " + (j.updated || assignments.length) + " placements ✓" + note;
-              closePairingsImport();
               loadRoster();
             } else if (msg) {
-              msg.textContent = (j && j.error) || "Bulk save failed.";
+              msg.textContent = (j && j.error) || "Bulk save failed. Re-open Import pairings to try again.";
             }
           })
-          .catch(function () { if (msg) msg.textContent = "Network error during bulk apply."; });
+          .catch(function () {
+            if (applyBtn) applyBtn.disabled = false;
+            if (msg) msg.textContent = "Network error during bulk apply. Re-open Import pairings to try again.";
+          });
       }
 
       // ---- Pairings: announcement page (starter's read-aloud sheet) ----
