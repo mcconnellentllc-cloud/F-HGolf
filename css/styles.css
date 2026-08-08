@@ -1563,6 +1563,10 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
   body.is-print-ca .ca-hole { text-align: center; }
   body.is-print-ca .ca-loop, body.is-print-ca .ca-d1 { background: #e8ecdd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; text-align: center; font-weight: 700; }
   body.is-print-ca .ca-num, body.is-print-ca .ca-tbl__team, body.is-print-ca .ca-tbl__buyer { min-width: 0 !important; max-width: none !important; white-space: nowrap; }
+  /* Widen Buyer column on the print sheet — soaks up the space freed by the
+     hidden save/x cells so the auctioneer has a real line to write on. */
+  body.is-print-ca .ca-tbl__buyer { width: 1.5in !important; border-bottom: 0.75pt solid #000 !important; }
+  body.is-print-ca .ca-buyer { width: 100% !important; padding: 2pt 4pt !important; }
   body.is-print-ca .ca-tbl__team { font-weight: 700; }
   body.is-print-ca .lb-tnum { font-size: 7pt; padding: 0.05rem 0.25rem; background: #1B5E20 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
