@@ -134,7 +134,7 @@
               <button class="btn btn--solid" type="button" id="prPrintAnnounce">Announcement page</button>
               <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards (Day 1 tee-sheet order)">Print scorecards</button>
               <button class="btn btn--solid" type="button" id="prPrintCardsD2" title="Day 2 scorecards — pairs ordered by ascending Day 1 gross within flight">Print Day 2 scorecards</button>
-              <button class="btn btn--ghost" type="button" id="prPrintTestCard" title="Print one card with dummy names to calibrate alignment">Print test card</button>
+              <button class="btn btn--solid" type="button" id="prPrintTestCard" title="Print one card with dummy names + corner markers to calibrate alignment">Print test scorecard</button>
             </div>
           </div>
           <p class="scaffold__desc">Two teams to a tee. Tap a hole up top to add a <em>Tee A</em> or <em>A+B</em> &mdash; teams auto-fill from Unplaced. Drag a team onto another (or use its dropdown) to swap seats. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
@@ -3322,8 +3322,19 @@
         var host = document.createElement("div");
         host.id = "prCardsHost";
         host.className = "pr-cards";
+        // Diagnostic test print — thick black outline of the whole page
+        // plus corner labels at the four corners, so the operator can see
+        // whether the browser is actually reaching the paper AND whether
+        // the printer honored the 12 × 5.875 custom size. If any corner
+        // label is missing, the print is being cropped and we need to
+        // adjust CARD_OFFSETS.paperSize (or pick a wider stock).
         host.innerHTML =
-          '<div class="sc-page">'
+          '<div class="sc-page sc-page--test">'
+          + '<div class="sc-frame" aria-hidden="true"></div>'
+          + '<div class="sc-mark sc-mark--tl">↖ TOP-LEFT (0, 0)</div>'
+          + '<div class="sc-mark sc-mark--tr">TOP-RIGHT (12, 0) ↗</div>'
+          + '<div class="sc-mark sc-mark--bl">↙ BOT-LEFT (0, 5.875)</div>'
+          + '<div class="sc-mark sc-mark--br">BOT-RIGHT (12, 5.875) ↘</div>'
           + '<div class="sc-hdr">TEST CARD &middot; align only</div>'
           + '<div class="sc-name sc-name--1">Tom Bornhoft   Kyle McConnell   Tee - 1 A</div>'
           + '<div class="sc-name sc-name--2">Ryan Davis   Kris Wilson   Tee - 1 A</div>'
