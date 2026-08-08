@@ -1100,6 +1100,14 @@
                 if (statusEl) { statusEl.textContent = "Saved ✓"; statusEl.className = "ci__status is-ok"; setTimeout(function () { statusEl.textContent = ""; }, 1200); }
                 try { summarize(scAllCache.filter(function (r) { return (r.fields || {}).Tournament === KEY && !isAltRec(r); })); } catch (e) {}
                 try { renderPL(); } catch (e) {}
+                // If the paid state flipped, schedule a lightweight roster
+                // re-render (from cache, no network) so paid rows migrate to
+                // the "Paid & done" fold and disappear from the "Unpaid"
+                // filter view. Debounced so a burst of paid clicks coalesces
+                // into ONE re-render at the end instead of one per click.
+                var isNowFullyPaid = null;
+                for (var _k = 0; _k < scAllCache.length; _k++) if (scAllCache[_k].id === id) { isNowFullyPaid = fullyPaid(scAllCache[_k]); break; }
+                if (wasFullyPaid !== isNowFullyPaid) scheduleRosterResort();
               }
               // Surface any silently-stripped fields (Player 1 Paid,
               // Player 2 Paid, Extra Meals, Calcutta Paid) so an operator
@@ -2253,6 +2261,18 @@
         });
       }
 
+      // Debounced roster RE-SORT — re-runs renderRoster from the in-memory
+      // scAllCache after a paid-state flip so rows migrate between the
+      // Unpaid / Paid folds (and the Payment filter chip visibility). No
+      // network fetch. 350ms debounce so a burst of Entry clicks lands
+      // together — otherwise every click would rebuild 64 cards.
+      // Only fires when the Check-In tab is actually visible.
+      var _rosterResortT = null;
+      function scheduleRosterResort() {
+        if (window.__fhActive && window.__fhActive !== "check") return;
+        clearTimeout(_rosterResortT);
+        _rosterResortT = setTimeout(function () { try { renderRoster(scAllCache); } catch (e) {} }, 350);
+      }
       // Debounced roster reload — coalesces rapid-fire saves during check-in
       // (each paid-status flip normally schedules a reload, so a burst of
       // staff activity used to fire many overlapping fetches). 200ms is
