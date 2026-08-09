@@ -638,12 +638,16 @@
 
       function money(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
 
-      // Card + Online (QR) payments pass through a 4% processing fee — added
-      // to the amount owed at check-in so the pro shop collects it up front.
-      var SURCHARGE_RATE = 0.04;
+      // Card + Online (QR) payments pass through a processing fee -- added to
+      // the amount owed at check-in so the pro shop collects it up front. Rate
+      // is editable on the Calc tab (surchargePct); default 4%.
+      function surchargeRate() {
+        try { var v = Number((loadCalc() || {}).surchargePct); if (isFinite(v) && v >= 0) return v / 100; } catch (e) {}
+        return 0.04;
+      }
       var SURCHARGE_METHODS = ["card", "online"];
       function isSurchargeMethod(m) { return SURCHARGE_METHODS.indexOf(String(m || "").toLowerCase()) !== -1; }
-      function surchargeAmount(base, method) { return isSurchargeMethod(method) ? (Number(base) || 0) * SURCHARGE_RATE : 0; }
+      function surchargeAmount(base, method) { return isSurchargeMethod(method) ? (Number(base) || 0) * surchargeRate() : 0; }
 
       var collectedTotal = 0, expensesTotal = 0, cashTotal = 0, checkTotal = 0, cardTotal = 0;
       // Entry fee is now single-source-of-truth on the Calc tab. Removed the
@@ -1265,8 +1269,9 @@
         var playerRows = players.map(function (t) {
           var paidCk = t.method ? " checked" : "";
           var base = playerBase(t);
+          var _srPct = Math.round(surchargeRate() * 1000) / 10;
           var surchargeHint = isSurchargeMethod(t.method) && base > 0
-            ? '<span class="ci-p__surcharge">+4% (' + money(base * SURCHARGE_RATE) + ')</span>'
+            ? '<span class="ci-p__surcharge">+' + _srPct + '% (' + money(base * surchargeRate()) + ')</span>'
             : '';
           return '<div class="ci-p" data-role="' + esc(t.role) + '">'
             + '<div class="ci-p__name">' + nameCell(t.role, t.name) + '</div>'
@@ -1577,7 +1582,8 @@
               hint.className = "ci-p__surcharge";
               (meth && meth.parentNode || pRow).appendChild(hint);
             }
-            hint.textContent = "+4% (" + money(pBase * SURCHARGE_RATE) + ")";
+            var srPct = Math.round(surchargeRate() * 1000) / 10;
+            hint.textContent = "+" + srPct + "% (" + money(pBase * surchargeRate()) + ")";
           } else if (hint) {
             hint.parentNode.removeChild(hint);
           }
@@ -1987,8 +1993,83 @@
         scRecs = recs;
         var cnt = document.getElementById("twScoreCount"); if (cnt) cnt.textContent = recs.length ? "(" + recs.length + ")" : "";
         if (!recs.length) { host.innerHTML = '<p class="noms__msg">No teams yet.</p>'; return; }
-        if (scDay === "import") renderScoresImport(host);
-        else renderScoresGrid(host, Number(scDay));
+        if (scDay === "import") { renderScoresImport(host); return; }
+        // Multi-terminal safe re-render: if a grid already exists, merge the
+        // fresh score data INTO the existing rows instead of wiping the DOM.
+        // Rows the current operator is actively editing (focused input or a
+        // still-dirty save) are left alone so an incoming refresh from a
+        // sibling terminal can't blow away in-progress input. New teams are
+        // appended; removed teams drop off.
+        var day = Number(scDay);
+        if (host.querySelector(".sc-tbl")) {
+          mergeScoresGrid(host, day);
+        } else {
+          renderScoresGrid(host, day);
+        }
+      }
+
+      // Merge fresh score data into the existing grid. Skips any row whose
+      // user is actively editing (focused .sc-cell or unsaved dirty/saving
+      // state) -- that row's inputs stay exactly as the user typed them.
+      function mergeScoresGrid(host, day) {
+        var tbody = host.querySelector(".sc-tbl tbody");
+        if (!tbody) { renderScoresGrid(host, day); return; }
+        // Day toggle (Day 1 <-> Day 2) needs a real rebuild -- cell data-day
+        // attributes and the score field being merged both differ.
+        var probe = tbody.querySelector(".sc-cell");
+        if (probe && Number(probe.getAttribute("data-day")) !== Number(day)) {
+          renderScoresGrid(host, day);
+          return;
+        }
+        var byId = {};
+        (scRecs || []).forEach(function (r) { byId[r.id] = r; });
+        var seen = {};
+        Array.prototype.forEach.call(tbody.querySelectorAll("tr[data-id]"), function (row) {
+          var id = row.getAttribute("data-id");
+          seen[id] = true;
+          var rec = byId[id];
+          if (!rec) { row.parentNode.removeChild(row); return; }
+          // Skip rows the operator is holding open -- their input is truth.
+          var hasFocus = row.querySelector(".sc-cell:focus");
+          var isDirty = row.classList.contains("is-dirty") || row.classList.contains("is-saving");
+          if (hasFocus || isDirty) return;
+          var scores = parseScores((rec.fields || {})["Day" + day + " Scores"]);
+          var cells = row.querySelectorAll(".sc-cell");
+          for (var h = 0; h < cells.length; h++) {
+            var v = (scores[h] != null) ? scores[h] : "";
+            if (String(cells[h].value) !== String(v)) cells[h].value = v;
+          }
+          recomputeRow(row);
+        });
+        // Append rows for teams that appeared since last render.
+        var newRows = (scRecs || []).filter(function (r) { return !seen[r.id]; });
+        if (newRows.length) {
+          newRows.forEach(function (rec) {
+            var tr = document.createElement("tr");
+            tr.innerHTML = buildScoreRowHtml(rec, day);
+            tr.setAttribute("data-id", rec.id);
+            tbody.appendChild(tr);
+            wireScoresRow(tr, host, day);
+            recomputeRow(tr);
+          });
+        }
+      }
+
+      // Row-level HTML (the innerHTML of one <tr data-id=...>). Extracted so
+      // mergeScoresGrid can build newly-arriving team rows on the fly.
+      function buildScoreRowHtml(rec, day) {
+        var f = rec.fields || {};
+        var scores = parseScores(f["Day" + day + " Scores"]);
+        var cells = "";
+        for (var h = 0; h < 18; h++) {
+          var v = (scores[h] != null) ? scores[h] : "";
+          var par = PARS[h];
+          cells += '<td class="sc-tbl__c" data-h="' + (h + 1) + '"><input type="number" inputmode="numeric" min="1" max="30" class="sc-cell" data-id="' + esc(rec.id) + '" data-day="' + day + '" data-h="' + (h + 1) + '" data-par="' + par + '" value="' + v + '" /></td>';
+          if (h === 8) cells += '<td class="sc-tbl__loop" data-loop="out">&mdash;</td>';
+        }
+        cells += '<td class="sc-tbl__loop" data-loop="in">&mdash;</td>';
+        cells += '<td class="sc-tbl__total"><span class="sc-tbl__totVal">&mdash;</span><span class="sc-tbl__save" title="Save state"></span></td>';
+        return '<td class="sc-tbl__team">' + esc(scTeamLabel(rec)) + '</td>' + cells;
       }
 
       function renderScoresGrid(host, day) {
@@ -2018,23 +2099,12 @@
         });
 
         var body = scRecs.map(function (rec) {
-          var f = rec.fields || {};
-          var scores = parseScores(f["Day" + day + " Scores"]);
-          var cells = "";
-          for (var h = 0; h < 18; h++) {
-            var v = (scores[h] != null) ? scores[h] : "";
-            var par = PARS[h];
-            cells += '<td class="sc-tbl__c" data-h="' + (h + 1) + '"><input type="number" inputmode="numeric" min="1" max="30" class="sc-cell" data-id="' + esc(rec.id) + '" data-day="' + day + '" data-h="' + (h + 1) + '" data-par="' + par + '" value="' + v + '" /></td>';
-            if (h === 8) cells += '<td class="sc-tbl__loop" data-loop="out">&mdash;</td>';
-          }
-          cells += '<td class="sc-tbl__loop" data-loop="in">&mdash;</td>';
-          cells += '<td class="sc-tbl__total"><span class="sc-tbl__totVal">&mdash;</span><span class="sc-tbl__save" title="Save state"></span></td>';
-          return '<tr data-id="' + esc(rec.id) + '"><td class="sc-tbl__team">' + esc(scTeamLabel(rec)) + '</td>' + cells + '</tr>';
+          return '<tr data-id="' + esc(rec.id) + '">' + buildScoreRowHtml(rec, day) + '</tr>';
         }).join("");
 
         host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /></div>'
           + '<div class="sc-tbl-wrap"><table class="sc-tbl">' + head + '<tbody>' + body + '</tbody></table></div>'
-          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right.</p>';
+          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right. Multiple terminals can enter scores at once — in-progress edits are never blown away by a background refresh.</p>';
 
         wireScoresGrid(host, day);
         Array.prototype.forEach.call(host.querySelectorAll("tr[data-id]"), function (row) {
@@ -2064,25 +2134,35 @@
             });
           });
         }
+        Array.prototype.forEach.call(host.querySelectorAll("tr[data-id]"), function (row) {
+          wireScoresRow(row, host, day);
+        });
+      }
 
-        Array.prototype.forEach.call(host.querySelectorAll(".sc-cell"), function (inp) {
+      // Wire the .sc-cell inputs of a single row. Idempotent-per-input via a
+      // flag so mergeScoresGrid can safely call this on appended rows without
+      // double-binding.
+      function wireScoresRow(row, host, day) {
+        Array.prototype.forEach.call(row.querySelectorAll(".sc-cell"), function (inp) {
+          if (inp.__scWired) return;
+          inp.__scWired = true;
           inp.addEventListener("focus", function () { try { inp.select(); } catch (e) {} });
           inp.addEventListener("input", function () {
-            var row = inp.closest("tr");
-            var id = row.getAttribute("data-id");
-            recomputeRow(row);
-            row.classList.remove("is-saved", "is-error");
-            row.classList.add("is-dirty");
+            var r = inp.closest("tr");
+            var id = r.getAttribute("data-id");
+            recomputeRow(r);
+            r.classList.remove("is-saved", "is-error");
+            r.classList.add("is-dirty");
             if (scPendingSave[id + ":" + day]) clearTimeout(scPendingSave[id + ":" + day]);
-            scPendingSave[id + ":" + day] = setTimeout(function () { saveScoreRow(row, day); }, 900);
+            scPendingSave[id + ":" + day] = setTimeout(function () { saveScoreRow(r, day); }, 900);
           });
           // Spreadsheet keys: Arrows move around; Enter = right; Tab = right (native).
           // Up/Down override the number-input increment (a golfer doesn't want +1 on a scorecard).
           inp.addEventListener("keydown", function (e) {
-            var row = inp.closest("tr");
-            var visRows = Array.prototype.filter.call(host.querySelectorAll("tbody tr[data-id]"), function (r) { return !r.hasAttribute("data-hidden"); });
-            var rowIdx = visRows.indexOf(row);
-            var rowCells = Array.prototype.slice.call(row.querySelectorAll(".sc-cell"));
+            var r = inp.closest("tr");
+            var visRows = Array.prototype.filter.call(host.querySelectorAll("tbody tr[data-id]"), function (x) { return !x.hasAttribute("data-hidden"); });
+            var rowIdx = visRows.indexOf(r);
+            var rowCells = Array.prototype.slice.call(r.querySelectorAll(".sc-cell"));
             var colIdx = rowCells.indexOf(inp);
             var moved = false;
             if (e.key === "Enter" || e.key === "ArrowRight") { scFocusCell(host, rowIdx, colIdx + 1); moved = true; }
@@ -2092,7 +2172,6 @@
             if (moved) e.preventDefault();
           });
         });
-
       }
 
       function recomputeRow(row) {
@@ -5027,6 +5106,7 @@
         otherPP: 0,                          // $ per person other deductions
         cartRentalFee: 22,                   // $ per team for a rental cart (checkbox on check-in)
         extraMealFee: 10,                    // $ per extra meal (guest/spouse) — cheaper than the entry-included meal
+        surchargePct: 4,                     // % processing fee added to Card/Online at check-in
         handicapMultiplier: 0.8,
         flights: 4,
         flightSplit: [50, 30, 20],           // % of prize pool to 1st/2nd/3rd (then ÷ # flights)
@@ -5072,7 +5152,9 @@
           + '<label class="calc__row">Other $ ' + numIn("cOther", gv("otherPP", 0), "1") + "</label>"
           + '<label class="calc__row">Cart rental $ (per team) ' + numIn("cCart", gv("cartRentalFee", 22), "1") + "</label>"
           + '<label class="calc__row">Extra meal $ (guest / spouse) ' + numIn("cExtraM", gv("extraMealFee", 10), "1") + "</label>"
-          + '<p class="calc__note">Assumes 2 players / team, all paid. Prize pool = (entry − green − meal − other) × players. Green &amp; meals go to the course.</p></div>'
+          + '<label class="calc__row">Card / Online surcharge % ' + numIn("cSur", gv("surchargePct", 4), "0.1") + "</label>"
+          + '<div class="calc__formula" id="calcMoneyFormula"></div>'
+          + '<p class="calc__note">Assumes 2 players / team. Prize pool = (entry − green − meal − other) × <b>paid</b> players + additional + custom income − custom expense − manual expenses. Green &amp; meals go to the course.</p></div>'
 
           + '<div class="calc__grp"><h4>Custom lines (extra expense / income)</h4>'
           + '<p class="calc__note">Add extra items that adjust the flight prize pool -- range balls, sponsorships, skins pot, ad-hoc supplies, etc. Income adds to the pool; expense subtracts. Per-player scales with paid players; lump-sum applies once.</p>'
@@ -5091,6 +5173,7 @@
           + '<label class="calc__row">2nd % ' + numIn("cF2", c.flightSplit[1], "1") + "</label>"
           + '<label class="calc__row">3rd % ' + numIn("cF3", c.flightSplit[2], "1") + "</label>"
           + '<label class="calc__row">Additional $ (added) ' + numIn("cAdd", gv("additionalFlight", 0), "1") + "</label>"
+          + '<div class="calc__formula" id="calcFlightFormula"></div>'
           + '<p class="calc__note">Every flight pays the same 1st / 2nd / 3rd dollar amount. Flight budget = pool ÷ # flights. Each budget splits by these %. Places by 2-day gross; ties split.</p></div>'
 
           + '<div class="calc__grp"><h4>Calcutta (top 4 net)</h4>'
@@ -5100,6 +5183,7 @@
           + '<label class="calc__row">2nd % ' + numIn("cS2", c.calcuttaSplit[1], "1") + "</label>"
           + '<label class="calc__row">3rd % ' + numIn("cS3", c.calcuttaSplit[2], "1") + "</label>"
           + '<label class="calc__row">4th % ' + numIn("cS4", c.calcuttaSplit[3], "1") + "</label>"
+          + '<div class="calc__formula" id="calcCalFormula"></div>'
           + '<p class="calc__note">Per flight: pool × (100 − commission)%, split by these percents to the top 4 net.</p></div>';
 
         // Custom lines are managed in-memory here and re-render into the
@@ -5168,6 +5252,7 @@
             otherPP: isFinite(g("cOther")) ? g("cOther") : 0,
             cartRentalFee: isFinite(g("cCart")) ? g("cCart") : 22,
             extraMealFee: isFinite(g("cExtraM")) ? g("cExtraM") : 10,
+            surchargePct: isFinite(g("cSur")) ? g("cSur") : 4,
             handicapMultiplier: isFinite(g("cMult")) ? g("cMult") : 0.8,
             flights: parseInt(g("cFlights"), 10) || 4,
             flightSplit: [g("cF1") || 0, g("cF2") || 0, g("cF3") || 0],
@@ -5228,6 +5313,84 @@
               + '<span class="calc__tot calc__tot--pool"><small>Payout to buyers</small><b>' + money(m.calcuttaPayout) + '</b></span>'
               + '</div>';
           }
+
+          // Live formulas -- show the exact math with current values substituted
+          // in so the operator can verify what's being calculated (and change
+          // any value above without a code edit).
+          function fnum(n) { return '<b>' + money(n) + '</b>'; }
+          function fint(n) { return '<b>' + (n || 0) + '</b>'; }
+          var mf = document.getElementById("calcMoneyFormula");
+          if (mf) {
+            var perPlayerNet = (m.entryPP - m.greenPP - m.mealPP - m.otherPP);
+            var customLinesRows = "";
+            if (m.customLines.length) {
+              customLinesRows = m.customLines.map(function (l) {
+                var amt = Number(l.amount) || 0;
+                if (amt <= 0) return "";
+                var mult = l.mode === "perPlayer" ? m.paidPlayers : 1;
+                var total = amt * mult;
+                var sign = l.type === "income" ? "+" : "−";
+                var multStr = l.mode === "perPlayer" ? (" × " + m.paidPlayers + " paid") : "";
+                return '<div class="calc__f-line calc__f-line--' + (l.type === "income" ? "in" : "out") + '">'
+                  + '<span>' + sign + " " + esc(l.desc || (l.type === "income" ? "Custom income" : "Custom expense")) + " (" + money(amt) + multStr + ")</span>"
+                  + '<b>' + sign + ' ' + money(total) + '</b></div>';
+              }).join("");
+            }
+            mf.innerHTML =
+              '<div class="calc__f-title">Flight prize pool — live formula</div>'
+              + '<div class="calc__f-body">'
+              +   '<div class="calc__f-line"><span>Entry per player</span>' + fnum(m.entryPP) + '</div>'
+              +   '<div class="calc__f-line calc__f-line--out"><span>− Green fee</span><b>− ' + money(m.greenPP) + '</b></div>'
+              +   '<div class="calc__f-line calc__f-line--out"><span>− Meal</span><b>− ' + money(m.mealPP) + '</b></div>'
+              +   '<div class="calc__f-line calc__f-line--out"><span>− Other</span><b>− ' + money(m.otherPP) + '</b></div>'
+              +   '<div class="calc__f-line calc__f-line--sub"><span>= Net per player toward pool</span>' + fnum(perPlayerNet) + '</div>'
+              +   '<div class="calc__f-line"><span>× Paid players</span>' + fint(m.paidPlayers) + '</div>'
+              +   '<div class="calc__f-line calc__f-line--sub"><span>= Base pool</span>' + fnum(m.basePool) + '</div>'
+              +   (m.addFlight ? '<div class="calc__f-line calc__f-line--in"><span>+ Additional flight money</span><b>+ ' + money(m.addFlight) + '</b></div>' : '')
+              +   customLinesRows
+              +   (m.manualExp ? '<div class="calc__f-line calc__f-line--out"><span>− Manual expenses (Expenses &amp; P&amp;L tab)</span><b>− ' + money(m.manualExp) + '</b></div>' : '')
+              +   '<div class="calc__f-line calc__f-line--total"><span>= Flight prize pool</span>' + fnum(m.flightPrizePool) + '</div>'
+              + '</div>';
+          }
+          var ff = document.getElementById("calcFlightFormula");
+          if (ff) {
+            var perF = m.perFlightBudget;
+            var placeRows = m.flightPrizes.map(function (amt, i) {
+              var lbl = ["1st", "2nd", "3rd"][i] || (i + 1);
+              var pct = m.flightSplit[i] || 0;
+              return '<div class="calc__f-line"><span>' + lbl + ' = per-flight budget × ' + pct + '%</span>'
+                + '<b>' + money(perF) + ' × ' + pct + '% = ' + money(amt) + '</b></div>';
+            }).join("");
+            ff.innerHTML =
+              '<div class="calc__f-title">Per-flight payout — live formula</div>'
+              + '<div class="calc__f-body">'
+              +   '<div class="calc__f-line"><span>Flight prize pool</span>' + fnum(m.flightPrizePool) + '</div>'
+              +   '<div class="calc__f-line"><span>÷ Number of flights</span>' + fint(m.nFlights) + '</div>'
+              +   '<div class="calc__f-line calc__f-line--sub"><span>= Per-flight budget</span>' + fnum(perF) + '</div>'
+              +   placeRows
+              + '</div>';
+          }
+          var cf = document.getElementById("calcCalFormula");
+          if (cf) {
+            var netCal = m.calcuttaPayout;
+            var perFlightCal = m.nFlights > 0 ? (netCal / m.nFlights) : 0;
+            var placeRowsC = (m.calSplit || []).map(function (pct, i) {
+              var lbl = ["1st", "2nd", "3rd", "4th"][i] || (i + 1);
+              var amt = perFlightCal * (Number(pct) || 0) / 100;
+              return '<div class="calc__f-line"><span>' + lbl + ' = per-flight × ' + pct + '%</span>'
+                + '<b>' + money(perFlightCal) + ' × ' + pct + '% = ' + money(amt) + '</b></div>';
+            }).join("");
+            cf.innerHTML =
+              '<div class="calc__f-title">Calcutta payout — live formula</div>'
+              + '<div class="calc__f-body">'
+              +   '<div class="calc__f-line"><span>Calcutta pool (buys)</span>' + fnum(m.calcuttaPool) + '</div>'
+              +   '<div class="calc__f-line calc__f-line--out"><span>− Commission (' + m.calcuttaCommissionPct + '%)</span><b>− ' + money(m.calcuttaCommission) + '</b></div>'
+              +   '<div class="calc__f-line calc__f-line--sub"><span>= Net to buyers</span>' + fnum(netCal) + '</div>'
+              +   '<div class="calc__f-line"><span>÷ Number of flights</span>' + fint(m.nFlights) + '</div>'
+              +   '<div class="calc__f-line calc__f-line--sub"><span>= Per-flight net</span>' + fnum(perFlightCal) + '</div>'
+              +   placeRowsC
+              + '</div>';
+          }
           // Downstream tabs read from the same source — refresh them so any
           // Calc tweak propagates instantly across P&L, Calcutta, Payout, etc.
           try { renderPL(); } catch (e) {}
@@ -5241,6 +5404,7 @@
       }
       function saveCalc() {
         var g = function (id) { var el = document.getElementById(id); return el ? parseFloat(el.value) : NaN; };
+        var prev = loadCalc();
         var c = {
           entryPP: isFinite(g("cEntry")) ? g("cEntry") : 120,
           greenFeePP: isFinite(g("cGreen")) ? g("cGreen") : 20,
@@ -5248,13 +5412,15 @@
           otherPP: isFinite(g("cOther")) ? g("cOther") : 0,
           cartRentalFee: isFinite(g("cCart")) ? g("cCart") : 22,
           extraMealFee: isFinite(g("cExtraM")) ? g("cExtraM") : 10,
+          surchargePct: isFinite(g("cSur")) ? g("cSur") : 4,
           handicapMultiplier: isFinite(g("cMult")) ? g("cMult") : 0.8,
           flights: parseInt(g("cFlights"), 10) || 4,
           flightSplit: [g("cF1") || 0, g("cF2") || 0, g("cF3") || 0],
           additionalFlight: isFinite(g("cAdd")) ? g("cAdd") : 0,
           calcuttaCommission: isFinite(g("cComm")) ? g("cComm") : 10,
           calcuttaSplit: [g("cS1") || 0, g("cS2") || 0, g("cS3") || 0, g("cS4") || 0],
-          pars: (loadCalc().pars || CALC_DEFAULTS.pars).slice()
+          customLines: Array.isArray(prev.customLines) ? prev.customLines : [],
+          pars: (prev.pars || CALC_DEFAULTS.pars).slice()
         };
         try { localStorage.setItem(CALCK, JSON.stringify(c)); } catch (e) {}
         PARS = c.pars.slice(0, 18);
