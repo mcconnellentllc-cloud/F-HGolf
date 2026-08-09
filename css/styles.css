@@ -918,6 +918,23 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .calc__note { font-size: 0.78rem; color: var(--muted); font-style: italic; margin-top: 0.3rem; }
 .calc__warn { font-size: 0.82rem; color: var(--red-deep); margin: 0.4rem 0 0; }
 
+/* Live formula panels -- show the exact math (with current values plugged in)
+   so the operator can see what each number came from and change any input
+   above without a code edit. */
+.calc__formula { background: #fff; border: 1px dashed var(--primary-green); border-radius: 8px; padding: 0.55rem 0.7rem; margin: 0.6rem 0 0.3rem; }
+.calc__f-title { font-size: 0.78rem; font-weight: 700; color: var(--primary-green); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.35rem; }
+.calc__f-body { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.82rem; }
+.calc__f-line { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; padding: 0.1rem 0; }
+.calc__f-line span { color: var(--muted); }
+.calc__f-line b { font-family: var(--font-display); color: var(--ink); font-weight: 600; }
+.calc__f-line--out b { color: var(--red-deep); }
+.calc__f-line--in b { color: var(--primary-green); }
+.calc__f-line--sub { border-top: 1px solid var(--line); margin-top: 0.15rem; padding-top: 0.25rem; }
+.calc__f-line--sub span { color: var(--ink); font-weight: 600; }
+.calc__f-line--total { border-top: 2px solid var(--primary-green); margin-top: 0.3rem; padding-top: 0.35rem; font-size: 0.95rem; }
+.calc__f-line--total span { color: var(--primary-green); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.calc__f-line--total b { color: var(--primary-green); font-size: 1.1rem; }
+
 /* Field summary banner at the top of the Calc tab. */
 .calc__summary { background: linear-gradient(135deg, var(--primary-green) 0%, #0e4517 100%); color: #fff; border-radius: 12px; padding: 0.9rem 1rem; margin-bottom: 1rem; }
 .calc__sum-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.6rem; }
