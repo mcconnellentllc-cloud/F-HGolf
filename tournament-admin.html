@@ -1966,7 +1966,7 @@
         for (var h = 1; h <= 9; h++) head += '<th class="sc-tbl__h">' + h + '<br><small>p' + PAR9[h - 1] + '</small></th>';
         head += '<th class="sc-tbl__loop">Out</th>';
         for (var h2 = 1; h2 <= 9; h2++) head += '<th class="sc-tbl__h">' + h2 + '<br><small>p' + PAR9[h2 - 1] + '</small></th>';
-        head += '<th class="sc-tbl__loop">In</th><th class="sc-tbl__total">Total</th><th class="sc-tbl__x" aria-label="Clear row"></th></tr></thead>';
+        head += '<th class="sc-tbl__loop">In</th><th class="sc-tbl__total">Total</th></tr></thead>';
 
         // Sort by that day's total ascending — lowest score at the top,
         // highest at the bottom. Teams that haven't finished the round
@@ -1999,13 +1999,12 @@
           }
           cells += '<td class="sc-tbl__loop" data-loop="in">&mdash;</td>';
           cells += '<td class="sc-tbl__total"><span class="sc-tbl__totVal">&mdash;</span><span class="sc-tbl__save" title="Save state"></span></td>';
-          cells += '<td class="sc-tbl__x"><button type="button" class="sc-clear" data-id="' + esc(rec.id) + '" title="Clear this row">&times;</button></td>';
           return '<tr data-id="' + esc(rec.id) + '"><td class="sc-tbl__team">' + esc(scTeamLabel(rec)) + '</td>' + cells + '</tr>';
         }).join("");
 
         host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /></div>'
           + '<div class="sc-tbl-wrap"><table class="sc-tbl">' + head + '<tbody>' + body + '</tbody></table></div>'
-          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right. Click × on any row to clear that team.</p>';
+          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right.</p>';
 
         wireScoresGrid(host, day);
         Array.prototype.forEach.call(host.querySelectorAll("tr[data-id]"), function (row) {
@@ -2064,36 +2063,6 @@
           });
         });
 
-        // Per-row clear: reset cells + save an all-null scores array.
-        Array.prototype.forEach.call(host.querySelectorAll(".sc-clear"), function (btn) {
-          btn.addEventListener("click", function () {
-            var row = btn.closest("tr");
-            Array.prototype.forEach.call(row.querySelectorAll(".sc-cell"), function (i) { i.value = ""; });
-            recomputeRow(row);
-            row.classList.remove("is-saved", "is-error");
-            row.classList.add("is-dirty");
-            saveScoreRow(row, day);
-          });
-        });
-
-        // Delete all Day N — confirmed by the shared modal.
-        var clearAllBtn = host.querySelector("#scClearAll");
-        if (clearAllBtn) clearAllBtn.addEventListener("click", function () {
-          confirmDestructive({
-            title: "Delete all Day " + day + " scores?",
-            body: "This clears every team's Day " + day + " scores across the whole tournament. This can't be undone.",
-            confirmLabel: "Delete all Day " + day,
-            onConfirm: function () {
-              var rows = Array.prototype.slice.call(host.querySelectorAll("tbody tr[data-id]"));
-              rows.forEach(function (row) {
-                Array.prototype.forEach.call(row.querySelectorAll(".sc-cell"), function (i) { i.value = ""; });
-                recomputeRow(row);
-                row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
-                saveScoreRow(row, day);
-              });
-            }
-          });
-        });
       }
 
       function recomputeRow(row) {
@@ -4088,7 +4057,6 @@
               + '<td class="ca-tbl__amt"><input type="number" inputmode="decimal" min="0" step="1" class="ca-amt" data-id="' + esc(x.id) + '" value="' + (x.amount == null ? "" : x.amount) + '" placeholder="$0" /></td>'
               + '<td class="ca-tbl__buyer"><input type="text" class="ca-buyer" data-id="' + esc(x.id) + '" value="' + esc(x.buyer) + '" placeholder="Buyer name" autocomplete="off" list="caBuyerList" /></td>'
               + '<td class="ca-tbl__save"><span class="sc-tbl__save" title="Save state"></span></td>'
-              + '<td class="ca-tbl__x"><button type="button" class="ca-clear" data-id="' + esc(x.id) + '" title="Clear buyer + amount">&times;</button></td>'
               + '</tr>';
           }).join("");
           var holeHead = "";
@@ -4097,7 +4065,7 @@
           for (var _hh2 = 10; _hh2 <= 18; _hh2++) holeHead += '<th class="ca-hole">' + _hh2 + '</th>';
           holeHead += '<th class="ca-loop">In</th>';
           return '<div class="lb-flight ca-flight">' + header
-            + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th class="ca-num">#</th><th>Team</th>' + holeHead + '<th class="ca-d1">D1</th><th class="ca-tbl__amt">$ Buy</th><th class="ca-tbl__buyer">Buyer</th><th class="ca-tbl__save"></th><th class="ca-tbl__x"></th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th class="ca-num">#</th><th>Team</th>' + holeHead + '<th class="ca-d1">D1</th><th class="ca-tbl__amt">$ Buy</th><th class="ca-tbl__buyer">Buyer</th><th class="ca-tbl__save"></th></tr></thead><tbody>'
             + tbody + '</tbody></table></div></div>';
         }).join("");
         // Grand sum of every $ Buy field on the page — a double-check that
@@ -4135,7 +4103,7 @@
           + strip
           + (out || '<p class="noms__msg">Flights aren\'t assigned yet — set the cuts on the Flights tab first.</p>')
           + '<div class="ca-sumcheck">=SUM of $ Buy · <b id="caSumCheck">' + money(grandBuy) + '</b></div>'
-          + '<div class="ca-footer"><button type="button" class="btn btn--solid ca-clear-all" id="caClearAll">Delete all Calcutta data</button></div>';
+          + '';
         // Mark every 2nd flight as a print page break so 2 flights land per landscape page.
         Array.prototype.forEach.call(body.querySelectorAll(".ca-flight"), function (el, idx) {
           if ((idx + 1) % 2 === 0) el.classList.add("ca-flight--pagebreak");
@@ -4160,42 +4128,6 @@
           }, 700);
         }
         Array.prototype.forEach.call(host.querySelectorAll(".ca-buyer"), function (inp) { inp.addEventListener("input", function () { onEdit(inp, "buyer"); }); });
-        Array.prototype.forEach.call(host.querySelectorAll(".ca-clear"), function (btn) {
-          btn.addEventListener("click", function () {
-            var row = btn.closest("tr");
-            var buyer = row.querySelector(".ca-buyer"), amt = row.querySelector(".ca-amt");
-            if (buyer) buyer.value = "";
-            if (amt) amt.value = "";
-            row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
-            recomputeCalcuttaTotals(host);
-            var id = row.getAttribute("data-id");
-            updateCacheBuys(id, row);
-            saveCalcuttaRow(id, row);
-            try { renderCalcuttaSummary(scAllCache); renderPL(); } catch (e) {}
-          });
-        });
-        var caAll = host.querySelector("#caClearAll");
-        if (caAll) caAll.addEventListener("click", function () {
-          confirmDestructive({
-            title: "Delete all Calcutta data?",
-            body: "This clears every team's Buyer + Buy Amount across the whole tournament. This can't be undone.",
-            confirmLabel: "Delete all Calcutta",
-            onConfirm: function () {
-              var rows = Array.prototype.slice.call(host.querySelectorAll("tr[data-id]"));
-              rows.forEach(function (row) {
-                var buyer = row.querySelector(".ca-buyer"), amt = row.querySelector(".ca-amt");
-                if (buyer) buyer.value = "";
-                if (amt) amt.value = "";
-                row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
-                var id = row.getAttribute("data-id");
-                updateCacheBuys(id, row);
-                saveCalcuttaRow(id, row);
-              });
-              recomputeCalcuttaTotals(host);
-              try { renderCalcuttaSummary(scAllCache); renderPL(); } catch (e) {}
-            }
-          });
-        });
         Array.prototype.forEach.call(host.querySelectorAll(".ca-amt"), function (inp) {
           inp.addEventListener("input", function () {
             onEdit(inp, "amount");
