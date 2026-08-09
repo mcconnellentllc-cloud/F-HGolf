@@ -1968,6 +1968,25 @@
         for (var h2 = 1; h2 <= 9; h2++) head += '<th class="sc-tbl__h">' + h2 + '<br><small>p' + PAR9[h2 - 1] + '</small></th>';
         head += '<th class="sc-tbl__loop">In</th><th class="sc-tbl__total">Total</th><th class="sc-tbl__x" aria-label="Clear row"></th></tr></thead>';
 
+        // Sort by that day's total ascending — lowest score at the top,
+        // highest at the bottom. Teams that haven't finished the round
+        // (any hole blank → total is null) fall to the bottom so they
+        // don't interleave with real results.
+        function _dayTotal(rec) {
+          var f = rec.fields || {};
+          var scores = parseScores(f["Day" + day + " Scores"]);
+          var s = 0;
+          for (var i = 0; i < 18; i++) { if (scores[i] == null) return null; s += scores[i]; }
+          return s;
+        }
+        scRecs = scRecs.slice().sort(function (a, b) {
+          var ta = _dayTotal(a), tb = _dayTotal(b);
+          if (ta == null && tb == null) return 0;
+          if (ta == null) return 1;
+          if (tb == null) return -1;
+          return ta - tb;
+        });
+
         var body = scRecs.map(function (rec) {
           var f = rec.fields || {};
           var scores = parseScores(f["Day" + day + " Scores"]);
