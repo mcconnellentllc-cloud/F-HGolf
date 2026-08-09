@@ -1195,6 +1195,16 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .pi__preview { flex: 1; background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.7rem; min-height: 22rem; overflow: hidden; display: flex; flex-direction: column; gap: 0.5rem; }
 .pi__hint { color: var(--muted); font-style: italic; margin: 0.4rem 0.2rem; }
 .pi__error { background: rgba(139, 28, 37, 0.08); color: #7d1218; padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.9rem; margin: 0; }
+
+/* Calcutta bulk-import preview list. Reused by other paste-preview flows. */
+.pi__prevhd { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.35rem; }
+.pi__prevlist { display: flex; flex-direction: column; gap: 0.25rem; max-height: 60vh; overflow-y: auto; }
+.pi__prevrow { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; padding: 0.35rem 0.55rem; border: 1px solid var(--line); border-radius: 6px; background: #fff; font-size: 0.85rem; }
+.pi__prevrow--err { background: rgba(230, 67, 57, 0.06); border-color: rgba(230, 67, 57, 0.35); }
+.pi__prevraw { color: var(--muted); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pi__prevright { color: var(--ink); text-align: right; }
+.pi__err { color: var(--red-deep); font-weight: 600; }
+.pi__status { font-size: 0.85rem; color: var(--muted); margin-left: 0.6rem; align-self: center; }
 .pi__summary { display: flex; gap: 0.4rem; }
 .pi__preview-scroll { flex: 1; overflow: auto; }
 .pi__table { width: 100%; border-collapse: collapse; font-size: 0.87rem; background: #fff; }
