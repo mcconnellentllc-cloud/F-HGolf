@@ -144,7 +144,7 @@ module.exports = async (req, res) => {
         // with a helpful hint from the catch below.
         if (a.seat !== undefined) {
           const s = Number(a.seat);
-          fields.Seat = (a.seat === "" || a.seat == null || !isFinite(s)) ? null : Math.max(1, Math.min(2, s));
+          fields.Seat = (a.seat === "" || a.seat == null || !isFinite(s)) ? null : Math.max(1, Math.min(3, s));
         }
         // Day 2 pairings — separate fields so Day 1 layout stays intact
         // as the operator arranges tomorrow's shotgun. Same shape as Day 1.
@@ -153,7 +153,7 @@ module.exports = async (req, res) => {
         if (typeof a.d2Slot === "string") fields["Day 2 Slot"] = a.d2Slot ? a.d2Slot.slice(0, 10) : null;
         if (a.d2Seat !== undefined) {
           const s2 = Number(a.d2Seat);
-          fields["Day 2 Seat"] = (a.d2Seat === "" || a.d2Seat == null || !isFinite(s2)) ? null : Math.max(1, Math.min(2, s2));
+          fields["Day 2 Seat"] = (a.d2Seat === "" || a.d2Seat == null || !isFinite(s2)) ? null : Math.max(1, Math.min(3, s2));
         }
         // Day 2 wave — separate from Start so a team can be Day 1 AM but
         // Day 2 PM (typical: Champ + 1st flight move to the afternoon,
