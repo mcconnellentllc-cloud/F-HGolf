@@ -2624,26 +2624,20 @@
           var slots = activeSlots(slotCfg);
           if (!slots.length) return;
           var teams = d2Waves[w.k] || [];
-          var N = teams.length;
-          if (!N) return;
-          // Trio placement: if the wave has an odd count, the FIRST slot
-          // (Hole 1 Tee A — the top of the ranked list) becomes a trio so
-          // the best golfers ride together. This matches the pro-shop
-          // convention that faster/better players fit a threesome without
-          // dragging the field. Extends to multiple trios if the count
-          // overflows even 2-per-slot capacity (rare, only if slots.length
-          // is undersized for the field).
-          var numTrios = (N % 2 === 1) ? 1 : 0;
-          if (N > slots.length * 2) numTrios = Math.min(N - slots.length * 2, slots.length);
+          if (!teams.length) return;
+          // Pairs-only autofill. If a wave has an odd count, the last used
+          // slot ends up with one team + one open seat; the operator picks
+          // where the trio goes via drag / the Team 3 (trio) dropdown.
+          // This keeps autofill predictable — operator decides which pair
+          // absorbs the extra team.
           var idx = 0;
-          slots.forEach(function (s, slotIdx) {
-            var cap = (slotIdx < numTrios) ? 3 : TEAMS_PER_TEE;
-            for (var seat = 1; seat <= cap && idx < teams.length; seat++) {
+          slots.forEach(function (s) {
+            for (var seat = 1; seat <= TEAMS_PER_TEE && idx < teams.length; seat++) {
               var t = teams[idx++];
               assignments.push({ id: t.rec.id, d2Hole: s.hole, d2Slot: s.slot, d2Seat: seat, d2Start: w.k });
             }
           });
-          // Overflow (more teams than seats) goes to unplaced on Day 2.
+          // Overflow (more teams than pair slots) goes to unplaced on Day 2.
           for (; idx < teams.length; idx++) {
             assignments.push({ id: teams[idx].rec.id, d2Hole: "", d2Slot: "", d2Seat: "", d2Start: w.k });
           }
