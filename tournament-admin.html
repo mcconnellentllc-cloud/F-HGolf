@@ -2863,6 +2863,15 @@
         // per-wave Autofill this wave button are the way to move things
         // after that.
         setTimeout(function () {
+          // Day 2 uses the flight-based reflighting via the manual "Autofill
+          // Day 2 from Day 1 scores" button — never auto-autofill on tab
+          // open. Otherwise this per-wave autofill would place teams by
+          // Day 1 wave + Day 1 gross order and stomp on any pending
+          // reflight (which is what caused the "Foor at Hole 1 A AM"
+          // regression: he shows in AM because his Day 1 wave was AM, even
+          // though he's a 1st-flight team that belongs in the Day 2 PM
+          // reflight).
+          if (PR_DAY === "d2") return;
           WAVES.forEach(function (w) {
             var cfg = loadSlotCfg(w.k);
             var slots = activeSlots(cfg);
