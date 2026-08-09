@@ -5224,17 +5224,34 @@
           + '<div class="po-card__total"><span>Total flight money to pay</span><b>' + _m(m.flightPrizePool) + '</b></div>'
           + '</section>';
 
-        // Build the Calcutta card per flight in the same order as the
-        // leaderboard flights so payouts line up with the standings.
-        var calRows = data.flights.map(function (fl) {
-          var pool = fl.rows.reduce(function (s, r) {
-            var v = r.rec && r.rec.fields && r.rec.fields["Buy Amount"];
+        // Build the Calcutta card by grouping teams on their Flight field
+        // (same source the Calcutta tab uses) instead of the D1-based
+        // leaderboard grouping. This way the card populates the moment a
+        // buyer + amount is saved -- BEFORE Day 1 scores exist -- which is
+        // when the operator actually needs to see it. Falls through to
+        // "Unassigned" for anything without a Flight yet.
+        var _calGroups = {};
+        for (var _fi = 1; _fi <= nF; _fi++) _calGroups[_fi] = { name: flightName(_fi), teams: [] };
+        _calGroups[0] = { name: "Unassigned", teams: [] };
+        recs.forEach(function (r) {
+          var f = r.fields || {};
+          var fl = (f["Flight"] != null && f["Flight"] !== "") ? Number(f["Flight"]) : 0;
+          if (!_calGroups[fl]) _calGroups[fl] = { name: fl === 0 ? "Unassigned" : flightName(fl), teams: [] };
+          _calGroups[fl].teams.push(r);
+        });
+        var _calOrder = [];
+        for (var _fi2 = 1; _fi2 <= nF; _fi2++) _calOrder.push(_fi2);
+        if (_calGroups[0] && _calGroups[0].teams.length) _calOrder.push(0);
+        var calRows = _calOrder.map(function (fnum) {
+          var g = _calGroups[fnum];
+          var pool = g.teams.reduce(function (s, r) {
+            var v = (r.fields || {})["Buy Amount"];
             return s + (typeof v === "number" ? v : 0);
           }, 0);
           var commAmt = pool * comm;
           var payout = Math.max(0, pool - commAmt);
           var prizes = calSplit.map(function (pct) { return payout * (pct / 100); });
-          return { name: fl.name, pool: pool, comm: commAmt, payout: payout, prizes: prizes };
+          return { name: g.name, pool: pool, comm: commAmt, payout: payout, prizes: prizes };
         });
         var totalCalPool = calRows.reduce(function (s, r) { return s + r.pool; }, 0);
         var totalCalComm = calRows.reduce(function (s, r) { return s + r.comm; }, 0);
