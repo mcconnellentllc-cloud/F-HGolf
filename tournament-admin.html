@@ -228,6 +228,7 @@
           <div class="noms__bar">
             <h3 class="noms__title">Calcutta</h3>
             <div class="noms__bar-actions">
+              <button class="btn btn--solid" type="button" id="caBulkOpen" title="Paste a list of buyers + amounts">Bulk import</button>
               <button class="btn btn--primary" type="button" id="caPrint">Print now</button>
             </div>
           </div>
@@ -451,6 +452,36 @@
         <button type="button" class="btn btn--solid" id="piCancel">Cancel</button>
         <button type="button" class="btn btn--solid" id="piMatch">Match &amp; preview</button>
         <button type="button" class="btn btn--primary" id="piApply" disabled>Apply pairings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CALCUTTA BULK IMPORT MODAL ==================== -->
+  <div class="pm-modal pi-modal" id="caBulkModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cbiTitle">
+    <div class="pm-modal__backdrop" data-close="1"></div>
+    <div class="pm-modal__panel pi-panel">
+      <div class="pm-modal__head">
+        <h3 id="cbiTitle">Bulk import Calcutta buyers</h3>
+        <button type="button" class="pm-modal__close" id="cbiClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="pm-modal__body">
+        <p class="pi__intro">Paste one row per team: <b>Team, Buyer, Amount</b>. The team can be a team number (<code>T-34</code> or <code>34</code>) or the team name shown on the Calcutta tab (matches on either partner's last name). Amounts can include a <code>$</code> and commas. Blank / unmatched rows are highlighted &mdash; fix and preview again.</p>
+        <div class="pi__grid">
+          <div class="pi__col">
+            <label for="cbiList" class="pi__lbl">Paste list</label>
+            <textarea id="cbiList" spellcheck="false" rows="24" placeholder="T-34, John Smith, 150&#10;Fetzer/Dennis, John Smith, 150&#10;L. Fetzer / J. Dennis, John Smith, $150"></textarea>
+          </div>
+          <div class="pi__col pi__col--preview">
+            <div class="pi__lbl">Preview</div>
+            <div class="pi__preview" id="cbiPreview"><p class="pi__hint">Click <b>Match &amp; preview</b> to see how each row lines up with the field.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="pm-modal__foot">
+        <button type="button" class="btn btn--solid" id="cbiCancel">Cancel</button>
+        <button type="button" class="btn btn--solid" id="cbiMatch">Match &amp; preview</button>
+        <button type="button" class="btn btn--primary" id="cbiApply" disabled>Import all matched</button>
+        <span class="pi__status" id="cbiStatus"></span>
       </div>
     </div>
   </div>
@@ -5767,6 +5798,175 @@
               })
               .catch(function () { if (caFlightStatus) caFlightStatus.textContent = "Network error."; });
           });
+        }
+
+        // ---- Calcutta bulk import (paste team,buyer,amount) --------------
+        // Written in a hurry during live tournament recovery: paste one row
+        // per team, match to signups, then one PATCH per matched row. Uses
+        // the same tournament-checkin endpoint every single-row edit uses,
+        // so the write path is already proven.
+        var caBulk = { rows: [], matched: [] };
+        var caBulkModal = document.getElementById("caBulkModal");
+        function openCaBulk() {
+          if (!caBulkModal) return;
+          caBulk = { rows: [], matched: [] };
+          var ta = document.getElementById("cbiList"); if (ta) ta.value = "";
+          var pv = document.getElementById("cbiPreview");
+          if (pv) pv.innerHTML = '<p class="pi__hint">Paste rows, then <b>Match &amp; preview</b>.</p>';
+          var apply = document.getElementById("cbiApply"); if (apply) apply.disabled = true;
+          var st = document.getElementById("cbiStatus"); if (st) st.textContent = "";
+          caBulkModal.hidden = false; caBulkModal.setAttribute("aria-hidden", "false");
+          setTimeout(function () { if (ta) ta.focus(); }, 30);
+        }
+        function closeCaBulk() {
+          if (!caBulkModal) return;
+          caBulkModal.hidden = true; caBulkModal.setAttribute("aria-hidden", "true");
+        }
+        function caLastToken(s) {
+          // Normalized last-name token from a raw partner string.
+          var parts = String(s || "").trim().split(/\s+/);
+          var last = parts[parts.length - 1] || "";
+          return last.replace(/[^a-z]/gi, "").toLowerCase();
+        }
+        function caTeamLastTokens(rec) {
+          var f = rec.fields || {};
+          var toks = [];
+          toks.push(caLastToken(f["Player Name"]));
+          String(f["Team / Partners"] || "").split(/\s*\/\s*/).forEach(function (p) { toks.push(caLastToken(p)); });
+          return toks.filter(Boolean);
+        }
+        function parseCaBulkRows(raw) {
+          // One row per line. Split on TAB, comma, or 2+ spaces. Amount can
+          // be $150, 150, 150.00, 1,500 etc. Team can be T-34, 34, or a
+          // team-name string (last-name substring match on either partner).
+          var lines = String(raw || "").split(/\r?\n/);
+          var out = [];
+          lines.forEach(function (line, idx) {
+            var s = line.trim();
+            if (!s) return;
+            // Prefer TAB (spreadsheet paste), fall back to first comma.
+            var parts;
+            if (s.indexOf("\t") >= 0) parts = s.split("\t");
+            else {
+              // Split so team, buyer, amount -- allow team names that
+              // contain "/" but not commas. First and last commas define
+              // the fields.
+              var first = s.indexOf(",");
+              var last = s.lastIndexOf(",");
+              if (first === -1 || first === last) { out.push({ raw: line, err: "Need Team, Buyer, Amount (comma-separated)." }); return; }
+              parts = [s.slice(0, first), s.slice(first + 1, last), s.slice(last + 1)];
+            }
+            parts = parts.map(function (x) { return String(x || "").trim(); });
+            while (parts.length < 3) parts.push("");
+            var team = parts[0], buyer = parts[1], amtRaw = parts[2];
+            var amt = Number(String(amtRaw).replace(/[$,\s]/g, ""));
+            if (!buyer) { out.push({ raw: line, err: "Missing buyer name." }); return; }
+            if (!isFinite(amt) || amt < 0) { out.push({ raw: line, err: "Amount not a number." }); return; }
+            out.push({ raw: line, team: team, buyer: buyer, amount: amt });
+          });
+          return out;
+        }
+        function matchCaBulk(rows) {
+          var recs = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+          var tnums = computeTeamNumbers(recs);
+          var byNum = {};
+          recs.forEach(function (r) { var n = tnums[r.id]; if (n) byNum[n] = r; });
+          rows.forEach(function (row) {
+            if (row.err) { row.rec = null; return; }
+            var team = String(row.team || "").trim();
+            var rec = null;
+            var mNum = team.match(/(\d{1,3})/);
+            if (mNum && byNum[Number(mNum[1])]) rec = byNum[Number(mNum[1])];
+            if (!rec) {
+              // Fuzzy last-name match: pick the rec whose team last-name
+              // tokens best cover the row's team string.
+              var tokens = team.toLowerCase().replace(/[^a-z\s\/]/gi, " ").split(/[\s\/]+/).filter(Boolean);
+              var best = null, bestScore = 0;
+              recs.forEach(function (r) {
+                var recToks = caTeamLastTokens(r);
+                var score = 0;
+                tokens.forEach(function (t) {
+                  recToks.forEach(function (rt) {
+                    if (rt && (rt === t || (t.length >= 3 && rt.indexOf(t) === 0))) score++;
+                  });
+                });
+                if (score > bestScore) { bestScore = score; best = r; }
+              });
+              if (bestScore >= 2 || (bestScore >= 1 && tokens.length === 1)) rec = best;
+            }
+            row.rec = rec;
+            row.err = rec ? null : (row.err || "No team matched.");
+            if (rec) row.recLabel = teamShortNames(rec.fields || {});
+          });
+          return rows;
+        }
+        function renderCaBulkPreview() {
+          var pv = document.getElementById("cbiPreview"); if (!pv) return;
+          if (!caBulk.rows.length) { pv.innerHTML = '<p class="pi__hint">No rows parsed yet.</p>'; return; }
+          var okN = caBulk.rows.filter(function (r) { return !!r.rec; }).length;
+          var errN = caBulk.rows.length - okN;
+          var head = '<div class="pi__prevhd">' + okN + ' matched &middot; ' + errN + ' unmatched</div>';
+          var body = caBulk.rows.map(function (r) {
+            var cls = r.rec ? "pi__prevrow" : "pi__prevrow pi__prevrow--err";
+            var right = r.rec
+              ? '<b>' + esc(r.recLabel || "") + '</b> &larr; ' + esc(r.buyer) + ' &middot; $' + Number(r.amount || 0).toLocaleString()
+              : '<span class="pi__err">' + esc(r.err || "unmatched") + '</span>';
+            return '<div class="' + cls + '"><span class="pi__prevraw">' + esc(r.raw) + '</span><span class="pi__prevright">' + right + '</span></div>';
+          }).join("");
+          pv.innerHTML = head + '<div class="pi__prevlist">' + body + '</div>';
+          var apply = document.getElementById("cbiApply"); if (apply) apply.disabled = okN === 0;
+        }
+        async function applyCaBulk() {
+          var apply = document.getElementById("cbiApply");
+          var st = document.getElementById("cbiStatus");
+          var okRows = caBulk.rows.filter(function (r) { return !!r.rec; });
+          if (!okRows.length) return;
+          if (apply) apply.disabled = true;
+          var done = 0, failed = 0;
+          for (var i = 0; i < okRows.length; i++) {
+            var r = okRows[i];
+            if (st) st.textContent = "Importing " + (i + 1) + " / " + okRows.length + "…";
+            try {
+              var resp = await fetch(FH_API.url("/api/tournament-checkin"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+                body: JSON.stringify({ id: r.rec.id, buyer: r.buyer, buyAmount: r.amount })
+              });
+              var j = await resp.json().catch(function () { return {}; });
+              if (j && j.ok) {
+                // Reflect in local cache so an immediate re-render shows the value.
+                for (var k = 0; k < scAllCache.length; k++) if (scAllCache[k].id === r.rec.id) {
+                  scAllCache[k].fields = scAllCache[k].fields || {};
+                  scAllCache[k].fields["Buyer"] = r.buyer;
+                  scAllCache[k].fields["Buy Amount"] = r.amount;
+                  break;
+                }
+                done++;
+              } else { failed++; }
+            } catch (e) { failed++; }
+            // Small delay to keep Airtable happy on 60+ writes.
+            await new Promise(function (res) { setTimeout(res, 80); });
+          }
+          if (st) st.textContent = done + " imported" + (failed ? ", " + failed + " failed" : "") + ".";
+          try { renderCalcutta(scAllCache); renderCalcuttaSummary(scAllCache); renderPL(); } catch (e) {}
+          if (apply) apply.disabled = false;
+          if (!failed) setTimeout(closeCaBulk, 900);
+        }
+        var caBulkOpen = document.getElementById("caBulkOpen");
+        if (caBulkOpen) caBulkOpen.addEventListener("click", openCaBulk);
+        if (caBulkModal) {
+          Array.prototype.forEach.call(caBulkModal.querySelectorAll("[data-close], #cbiClose, #cbiCancel"), function (el) {
+            el.addEventListener("click", closeCaBulk);
+          });
+          var mBtn = document.getElementById("cbiMatch");
+          if (mBtn) mBtn.addEventListener("click", function () {
+            var ta = document.getElementById("cbiList");
+            caBulk.rows = parseCaBulkRows(ta ? ta.value : "");
+            caBulk.rows = matchCaBulk(caBulk.rows);
+            renderCaBulkPreview();
+          });
+          var aBtn = document.getElementById("cbiApply");
+          if (aBtn) aBtn.addEventListener("click", applyCaBulk);
         }
 
         var caPr = document.getElementById("caPrint");
