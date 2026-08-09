@@ -158,9 +158,7 @@
         if (!anyGross) {
           var listAll = recs.slice().sort(function (a, b) { return (teamNumbers[a.id] || 999) - (teamNumbers[b.id] || 999); });
           var utrs = listAll.map(function (r) {
-            var tn = teamNumbers[r.id];
-            var badge = tn ? '<span class="fl__tnum">T-' + String(tn).padStart(2, "0") + '</span>' : '';
-            return '<tr><td class="fl__team">' + badge + esc(teamShortNames(r.fields || {})) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+            return '<tr><td class="fl__team">' + esc(teamShortNames(r.fields || {})) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
           }).join("");
           body.innerHTML = '<div class="fl"><div class="fl__hdr"><h2 class="fl__name">Field</h2><span class="fl__meta">' + listAll.length + ' teams · flights cut after Day 1</span></div>'
             + '<table><thead><tr><th>Team</th><th>Front 9</th><th>Back 9</th><th>Day 1</th><th>HCP</th></tr></thead><tbody>' + utrs + '</tbody></table></div>';
@@ -183,8 +181,7 @@
           });
           rows.sort(function (a, b) { if (a.d1 == null && b.d1 == null) return 0; if (a.d1 == null) return 1; if (b.d1 == null) return -1; return a.d1 - b.d1; });
           var trs = rows.map(function (r) {
-            var badge = r.tnum ? '<span class="fl__tnum">T-' + String(r.tnum).padStart(2, "0") + '</span>' : '';
-            return '<tr><td class="fl__team">' + badge + esc(r.name) + '</td>'
+            return '<tr><td class="fl__team">' + esc(r.name) + '</td>'
               + '<td>' + (r.front == null ? '&mdash;' : r.front) + '</td>'
               + '<td>' + (r.back == null ? '&mdash;' : r.back) + '</td>'
               + '<td><b>' + (r.d1 == null ? '&mdash;' : r.d1) + '</b></td>'
@@ -199,9 +196,7 @@
         if (una.length) {
           una.sort(function (a, b) { return String(a.created || "").localeCompare(String(b.created || "")); });
           var utrs = una.map(function (r) {
-            var tn = teamNumbers[r.id];
-            var badge = tn ? '<span class="fl__tnum">T-' + String(tn).padStart(2, "0") + '</span>' : '';
-            return '<tr><td class="fl__team">' + badge + esc(teamShortNames(r.fields || {})) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+            return '<tr><td class="fl__team">' + esc(teamShortNames(r.fields || {})) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
           }).join("");
           out += '<div class="fl"><div class="fl__hdr"><h2 class="fl__name">Unassigned</h2><span class="fl__meta">' + una.length + ' teams · flights not cut yet</span></div>'
             + '<table><thead><tr><th>Team</th><th>Front 9</th><th>Back 9</th><th>Day 1</th><th>HCP</th></tr></thead><tbody>' + utrs + '</tbody></table></div>';
