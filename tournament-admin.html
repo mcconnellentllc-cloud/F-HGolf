@@ -759,7 +759,20 @@
         // - Additional flight money (Calc tab) is added to the pool so it
         //   follows the same 1st/2nd/3rd split as the entry-driven pool.
         var basePool = (entryPP - greenPP - mealPP - otherPP) * paidPlayers;
-        var flightPrizePool = Math.max(0, basePool + addFlight - expensesTotal);
+        // Custom lines added on the Calc tab -- income adds to the pool,
+        // expense subtracts. Per-player lines scale with paidPlayers so an
+        // unpaid entry doesn't inflate the pool.
+        var customIncome = 0, customExpense = 0;
+        var customLines = Array.isArray(cfg.customLines) ? cfg.customLines : [];
+        customLines.forEach(function (line) {
+          var amt = Number(line && line.amount) || 0;
+          if (amt <= 0) return;
+          var multiplier = line.mode === "perPlayer" ? paidPlayers : 1;
+          var total = amt * multiplier;
+          if (line.type === "income") customIncome += total;
+          else customExpense += total;
+        });
+        var flightPrizePool = Math.max(0, basePool + addFlight + customIncome - expensesTotal - customExpense);
         var perFlightBudget = nFlights > 0 ? (flightPrizePool / nFlights) : 0;
         var flightPrizes = flightSplit.map(function (pct) {
           return perFlightBudget * (pct / 100);
@@ -773,6 +786,8 @@
           cartRentalsCount: cartRentalsCount, cartRentalRevenue: cartRentalRevenue,
           entryPP: entryPP, greenPP: greenPP, mealPP: mealPP, otherPP: otherPP,
           cartFee: cartFee, extraMealFee: extraMealFee,
+          customLines: customLines, customIncome: customIncome, customExpense: customExpense,
+          basePool: basePool, addFlight: addFlight, manualExp: expensesTotal,
           nFlights: nFlights, flightSplit: flightSplit, calSplit: calSplit,
           calcuttaCommissionPct: comm * 100,
           entryIncome: entryIncome, calcuttaPool: calcuttaPool, totalIncome: totalIncome,
@@ -5018,6 +5033,13 @@
         additionalFlight: 0,                 // flat $ added to flight money, spread (add ÷ flights) ÷ 3 / place
         calcuttaCommission: 10,              // % the club keeps
         calcuttaSplit: [40, 30, 20, 10],     // % of each flight's pool to net places 1–4 (top 4)
+        // Custom lines the operator can add on the Calc tab -- extra expense
+        // or income items that feed straight into the flight prize pool.
+        // Each entry: { desc, amount, type: "expense"|"income", mode: "perPlayer"|"lump" }
+        // Income per-player is added to base pool BEFORE the deductions;
+        // lump-sum income is added to the pool at the end. Same idea for
+        // expenses but subtracting.
+        customLines: [],
         pars: [4, 3, 4, 4, 5, 4, 4, 3, 5, 4, 3, 4, 4, 5, 4, 4, 3, 5]
       };
       function loadCalc() {
@@ -5052,6 +5074,12 @@
           + '<label class="calc__row">Extra meal $ (guest / spouse) ' + numIn("cExtraM", gv("extraMealFee", 10), "1") + "</label>"
           + '<p class="calc__note">Assumes 2 players / team, all paid. Prize pool = (entry − green − meal − other) × players. Green &amp; meals go to the course.</p></div>'
 
+          + '<div class="calc__grp"><h4>Custom lines (extra expense / income)</h4>'
+          + '<p class="calc__note">Add extra items that adjust the flight prize pool -- range balls, sponsorships, skins pot, ad-hoc supplies, etc. Income adds to the pool; expense subtracts. Per-player scales with paid players; lump-sum applies once.</p>'
+          + '<div id="calcCustomList" class="calc__custom"></div>'
+          + '<button type="button" class="btn btn--solid calc__add" id="calcAddLine">+ Add line</button>'
+          + '</div>'
+
           + '<div class="calc__grp"><h4>Handicap</h4>'
           + '<label class="calc__row">Multiplier (× stroke difference) ' + numIn("cMult", c.handicapMultiplier) + "</label>"
           + '<p class="calc__note">HCP = (team Day-1 gross − flight-leader Day-1 gross) × multiplier. Net = 2-day gross − HCP.</p></div>'
@@ -5074,6 +5102,59 @@
           + '<label class="calc__row">4th % ' + numIn("cS4", c.calcuttaSplit[3], "1") + "</label>"
           + '<p class="calc__note">Per flight: pool × (100 − commission)%, split by these percents to the top 4 net.</p></div>';
 
+        // Custom lines are managed in-memory here and re-render into the
+        // #calcCustomList container each time refreshTotals runs (persist
+        // handles saving them into the calc config JSON).
+        var _customLines = (loadCalc().customLines || []).map(function (l) { return { desc: l.desc || "", amount: Number(l.amount) || 0, type: l.type === "income" ? "income" : "expense", mode: l.mode === "perPlayer" ? "perPlayer" : "lump" }; });
+        function renderCustomLines() {
+          var host = document.getElementById("calcCustomList");
+          if (!host) return;
+          if (!_customLines.length) {
+            host.innerHTML = '<p class="calc__note calc__note--muted">No custom lines yet. Click <b>+ Add line</b> to add sponsorships, range balls, skins pot, etc.</p>';
+            return;
+          }
+          host.innerHTML = _customLines.map(function (l, idx) {
+            return '<div class="calc__custom-row" data-idx="' + idx + '">'
+              + '<input type="text" class="calc__in calc__custom-desc" data-field="desc" placeholder="Description (e.g. Range balls, Skins pot)" value="' + esc(l.desc) + '" />'
+              + '<input type="number" class="calc__in calc__custom-amt" data-field="amount" step="1" min="0" value="' + (l.amount || 0) + '" />'
+              + '<select class="calc__in calc__custom-type" data-field="type">'
+              +   '<option value="expense"' + (l.type === "expense" ? " selected" : "") + '>Expense (−)</option>'
+              +   '<option value="income"' + (l.type === "income" ? " selected" : "") + '>Income (+)</option>'
+              + '</select>'
+              + '<select class="calc__in calc__custom-mode" data-field="mode">'
+              +   '<option value="perPlayer"' + (l.mode === "perPlayer" ? " selected" : "") + '>Per player</option>'
+              +   '<option value="lump"' + (l.mode === "lump" ? " selected" : "") + '>Lump sum</option>'
+              + '</select>'
+              + '<button type="button" class="calc__custom-del" data-idx="' + idx + '" title="Remove this line">&times;</button>'
+              + '</div>';
+          }).join("");
+          Array.prototype.forEach.call(host.querySelectorAll("[data-field]"), function (el) {
+            el.addEventListener("input", function () {
+              var row = el.closest(".calc__custom-row");
+              if (!row) return;
+              var i = Number(row.getAttribute("data-idx"));
+              var field = el.getAttribute("data-field");
+              var val = el.value;
+              if (field === "amount") val = Number(val) || 0;
+              _customLines[i][field] = val;
+              refreshTotals();
+            });
+          });
+          Array.prototype.forEach.call(host.querySelectorAll(".calc__custom-del"), function (btn) {
+            btn.addEventListener("click", function () {
+              var i = Number(btn.getAttribute("data-idx"));
+              _customLines.splice(i, 1);
+              renderCustomLines();
+              refreshTotals();
+            });
+          });
+        }
+        var addBtn = document.getElementById("calcAddLine");
+        if (addBtn) addBtn.addEventListener("click", function () {
+          _customLines.push({ desc: "", amount: 0, type: "expense", mode: "lump" });
+          renderCustomLines();
+          refreshTotals();
+        });
         // Silent auto-save on input (no toast), then re-render the live totals
         // + downstream tabs off the shared computeMoney(). Everything reads
         // from the same source, so numbers always match across the site.
@@ -5093,6 +5174,7 @@
             additionalFlight: isFinite(g("cAdd")) ? g("cAdd") : 0,
             calcuttaCommission: isFinite(g("cComm")) ? g("cComm") : 10,
             calcuttaSplit: [g("cS1") || 0, g("cS2") || 0, g("cS3") || 0, g("cS4") || 0],
+            customLines: _customLines.slice(),
             pars: (cur.pars || CALC_DEFAULTS.pars).slice()
           };
           try { localStorage.setItem(CALCK, JSON.stringify(c)); } catch (e) {}
@@ -5151,6 +5233,7 @@
           try { renderPL(); } catch (e) {}
           try { renderCalcutta(scAllCache); renderPayout(scAllCache); } catch (e) {}
         }
+        renderCustomLines();
         refreshTotals();
         Array.prototype.forEach.call(box.querySelectorAll("input.calc__in"), function (el) {
           el.addEventListener("input", refreshTotals);
