@@ -2388,15 +2388,18 @@
       function _dPayloadSlotKey() { return PR_DAY === "d2" ? "d2Slot" : "slot"; }
       function _dPayloadSeatKey() { return PR_DAY === "d2" ? "d2Seat" : "seat"; }
       function _dAssign(base) {
-        // Translate {hole,slot,seat} -> {d2Hole,d2Slot,d2Seat} when needed so
-        // one caller can build the assignment naturally and this rewrites
-        // the keys at the boundary.
+        // Translate {hole,slot,seat,start} -> {d2Hole,d2Slot,d2Seat,d2Start}
+        // when the Pairings tab is editing Day 2, so the caller can build the
+        // assignment naturally and this rewrites the keys at the boundary.
+        // On Day 2 the wave itself is separate — a team can be Day 1 AM but
+        // Day 2 PM after flighting shuffles them.
         if (PR_DAY !== "d2") return base;
         var out = { id: base.id };
-        if (base.start !== undefined) out.start = base.start;
+        if (base.start !== undefined) out.d2Start = base.start;
         if (base.hole !== undefined) out.d2Hole = base.hole;
         if (base.slot !== undefined) out.d2Slot = base.slot;
         if (base.seat !== undefined) out.d2Seat = base.seat;
+        if (base.d2Start !== undefined) out.d2Start = base.d2Start;
         return out;
       }
       // Rewrite each record's fields so Hole/Slot/Seat reflect the currently-
@@ -2411,6 +2414,13 @@
           newF.Hole = f["Day 2 Hole"];
           newF.Slot = f["Day 2 Slot"];
           newF.Seat = f["Day 2 Seat"];
+          // Day 2 wave OVERRIDES Day 1 wave here — a team that played Day 1
+          // AM but finished in Champ flight will show in the Day 2 PM wave.
+          // Fall back to Day 1 Start until the Day 2 wave is set (autofill
+          // will populate it).
+          if (typeof f["Day 2 Start"] === "string" && f["Day 2 Start"]) {
+            newF.Start = f["Day 2 Start"];
+          }
           return { id: r.id, created: r.created, fields: newF, __src: r };
         });
       }
@@ -2556,57 +2566,80 @@
           })
           .catch(function () { if (btn) btn.disabled = false; if (msg) msg.textContent = "Network error saving."; });
       }
-      // Autofill Day 2 pairings from Day 1 gross. Within each wave, lowest
-      // Day 1 gross lands at Hole 1 Tee A Seat 1, then A Seat 2, then B
-      // Seat 1, then B Seat 2, marching across holes 1 → 9 (or however
-      // many active holes the wave's slot config has). Writes to Day 2
-      // Hole / Slot / Seat via the d2* payload keys. Teams without a Day 1
-      // gross fall to the tail of the wave (sorted last) so they don't
-      // steal top slots from teams that actually scored.
+      // Autofill Day 2 pairings from Day 1 gross scores + flight assignment.
+      //
+      // The Founders format re-flights players after Day 1 and REASSIGNS
+      // waves for Sunday:
+      //   Day 2 AM = 2nd + 3rd flight teams
+      //   Day 2 PM = Champ + 1st flight teams
+      // Doesn't matter which wave they teed off on Saturday — Sunday is
+      // score-based. Within each Day 2 wave, teams are sorted ascending by
+      // Day 1 gross, and the best pair goes to Hole 1 Tee A, then Hole 1
+      // Tee B, then Hole 2 Tee A ... marching across the wave's active
+      // slot layout.
+      //
+      // Writes to Day 2 Hole / Slot / Seat / Start so Day 1 pairings stay
+      // intact. Teams without a Day 1 gross land in "unplaced" on Day 2.
       function autofillDay2() {
         var btn = document.getElementById("prAutofillD2");
         var msg = document.getElementById("prMsg");
-        // Read the raw records straight from scAllCache — we don't want the
-        // Day 2 aliasing to leak into a sort by Day 1 gross.
+        // Raw records — we need Day 1 gross UNaliased even though the tab
+        // is showing Day 2 data.
         var raw = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         if (!raw.length) { if (msg) msg.textContent = "No teams to pair."; return; }
-        if (!confirm("Autofill Day 2 pairings from Day 1 gross scores? This overwrites any Day 2 placements you've made.")) return;
+        if (!confirm("Autofill Day 2 pairings? Teams are re-flighted from Day 1 scores, waves reassigned (Champ + 1st → PM, 2nd + 3rd → AM), and everyone's Day 2 tee is overwritten.")) return;
         if (btn) btn.disabled = true;
         function d1Gross(rec) {
           var scores = parseScores((rec.fields || {})["Day1 Scores"]);
           var s = 0; for (var i = 0; i < 18; i++) { if (scores[i] == null) return null; s += scores[i]; }
           return s;
         }
+        // Flight assignment — use the same cuts logic the Leaderboard tab
+        // uses so an operator who's already tuned the cuts sees the same
+        // groupings.
+        var cfg = loadCalc();
+        var nF = cfg.flights || 4;
+        var sortedD1 = raw.map(d1Gross).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
+        var cuts = loadCuts(nF, sortedD1);
+        // Bucket by Day 2 wave: flights 1 (Champ) + 2 (1st) go PM,
+        // flights 3 (2nd) + 4 (3rd) go AM. Anyone without a Day 1 gross
+        // stays UNPLACED on Day 2 so the operator has to decide.
+        var d2Waves = { "8 AM": [], "1 PM": [] };
+        var unplaced = [];
+        raw.forEach(function (r) {
+          var g = d1Gross(r);
+          if (g == null) { unplaced.push(r); return; }
+          var fl = flightForScore(g, cuts);
+          var wave = (fl === 1 || fl === 2) ? "1 PM" : "8 AM";
+          d2Waves[wave].push({ rec: r, gross: g });
+        });
+        // Within each Day 2 wave, sort ascending by Day 1 gross — best
+        // Sunday morning score gets Hole 1 A seat 1, worst gets the tail.
+        Object.keys(d2Waves).forEach(function (w) {
+          d2Waves[w].sort(function (a, b) { return a.gross - b.gross; });
+        });
         var assignments = [];
         WAVES.forEach(function (w) {
           var slotCfg = loadSlotCfg(w.k);
           var slots = activeSlots(slotCfg);
           if (!slots.length) return;
-          var teams = raw.filter(function (r) { return ((r.fields || {}).Start || "") === w.k; });
-          if (!teams.length) return;
-          teams.sort(function (a, b) {
-            var ga = d1Gross(a), gb = d1Gross(b);
-            if (ga == null && gb == null) return byCreated(a, b);
-            if (ga == null) return 1;
-            if (gb == null) return -1;
-            return ga - gb;
-          });
-          // Fill Hole 1 A seat 1, seat 2, then Hole 1 B seat 1, seat 2,
-          // then Hole 2 A ... — following the operator's own slot layout
-          // rather than a hardcoded hole sequence.
+          var teams = d2Waves[w.k] || [];
           var idx = 0;
           slots.forEach(function (s) {
             for (var seat = 1; seat <= TEAMS_PER_TEE && idx < teams.length; seat++) {
               var t = teams[idx++];
-              assignments.push({ id: t.id, d2Hole: s.hole, d2Slot: s.slot, d2Seat: seat, start: w.k });
+              assignments.push({ id: t.rec.id, d2Hole: s.hole, d2Slot: s.slot, d2Seat: seat, d2Start: w.k });
             }
           });
-          // Anyone left over (more teams than seats) goes to "unplaced" on
-          // Day 2 so the operator sees them and can decide by hand.
+          // Overflow (more teams than seats) goes to unplaced on Day 2.
           for (; idx < teams.length; idx++) {
-            var over = teams[idx];
-            assignments.push({ id: over.id, d2Hole: "", d2Slot: "", d2Seat: "", start: w.k });
+            assignments.push({ id: teams[idx].rec.id, d2Hole: "", d2Slot: "", d2Seat: "", d2Start: w.k });
           }
+        });
+        // Teams without a Day 1 gross — clear their Day 2 placements so
+        // they sit in Unplaced until the operator decides.
+        unplaced.forEach(function (r) {
+          assignments.push({ id: r.id, d2Hole: "", d2Slot: "", d2Seat: "", d2Start: "" });
         });
         if (!assignments.length) { if (btn) btn.disabled = false; if (msg) msg.textContent = "No tee slots configured — turn on holes first."; return; }
         if (msg) msg.textContent = "Autofilling Day 2 (" + assignments.length + " teams)…";
