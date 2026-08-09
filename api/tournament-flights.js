@@ -155,6 +155,10 @@ module.exports = async (req, res) => {
           const s2 = Number(a.d2Seat);
           fields["Day 2 Seat"] = (a.d2Seat === "" || a.d2Seat == null || !isFinite(s2)) ? null : Math.max(1, Math.min(2, s2));
         }
+        // Day 2 wave — separate from Start so a team can be Day 1 AM but
+        // Day 2 PM (typical: Champ + 1st flight move to the afternoon,
+        // 2nd + 3rd stay in the morning).
+        if (typeof a.d2Start === "string") fields["Day 2 Start"] = a.d2Start ? a.d2Start.slice(0, 20) : null;
         return { id: a.id, fields };
       })
       .filter((r) => Object.keys(r.fields).length);
