@@ -2624,9 +2624,21 @@
           var slots = activeSlots(slotCfg);
           if (!slots.length) return;
           var teams = d2Waves[w.k] || [];
+          var N = teams.length;
+          if (!N) return;
+          // Trio placement: if the wave has an odd count, the FIRST slot
+          // (Hole 1 Tee A — the top of the ranked list) becomes a trio so
+          // the best golfers ride together. This matches the pro-shop
+          // convention that faster/better players fit a threesome without
+          // dragging the field. Extends to multiple trios if the count
+          // overflows even 2-per-slot capacity (rare, only if slots.length
+          // is undersized for the field).
+          var numTrios = (N % 2 === 1) ? 1 : 0;
+          if (N > slots.length * 2) numTrios = Math.min(N - slots.length * 2, slots.length);
           var idx = 0;
-          slots.forEach(function (s) {
-            for (var seat = 1; seat <= TEAMS_PER_TEE && idx < teams.length; seat++) {
+          slots.forEach(function (s, slotIdx) {
+            var cap = (slotIdx < numTrios) ? 3 : TEAMS_PER_TEE;
+            for (var seat = 1; seat <= cap && idx < teams.length; seat++) {
               var t = teams[idx++];
               assignments.push({ id: t.rec.id, d2Hole: s.hole, d2Slot: s.slot, d2Seat: seat, d2Start: w.k });
             }
@@ -2712,14 +2724,15 @@
       // or bottom slot (Team 2). Value format: "<hole><slot><seat>", e.g.
       // "3A1", "3A2", "3B1", "3B2". "" = Unplaced.
       function moveOptions(slots, curH, curS, curSeat) {
-        var curV = (curH && (curS === "A" || curS === "B") && (curSeat === 1 || curSeat === 2))
+        var curV = (curH && (curS === "A" || curS === "B") && (curSeat === 1 || curSeat === 2 || curSeat === 3))
           ? (curH + curS + curSeat) : "";
         var out = ['<option value=""' + (curV === "" ? " selected" : "") + ">— unplaced —</option>"];
         slots.forEach(function (s) {
-          for (var seat = 1; seat <= 2; seat++) {
+          for (var seat = 1; seat <= 3; seat++) {
             var v = s.hole + s.slot + seat;
+            var label = seat === 3 ? " · Team 3 (trio)" : (" · Team " + seat);
             out.push('<option value="' + v + '"' + (v === curV ? " selected" : "")
-              + ">Hole " + s.hole + " · Tee " + s.slot + " · Team " + seat + "</option>");
+              + ">Hole " + s.hole + " · Tee " + s.slot + label + "</option>");
           }
         });
         return out.join("");
@@ -2728,7 +2741,7 @@
       function prTeamCard(r, slots, wave, teamNum, curSeat) {
         var f = r.fields || {};
         var curH = Number(f.Hole), curS = String(f.Slot || "").toUpperCase();
-        var seat = Number(curSeat) === 1 || Number(curSeat) === 2 ? Number(curSeat) : null;
+        var seat = (Number(curSeat) >= 1 && Number(curSeat) <= 3) ? Number(curSeat) : null;
         var opts = moveOptions(slots || [], curH, curS, seat);
         var players = fullPlayerNames(f).map(function (n) { return '<div class="pr-team__player">' + esc(n) + '</div>'; }).join("");
         var badge = teamNum ? '<span class="pr-team__num">Team ' + String(teamNum).padStart(2, "0") + '</span>' : '';
@@ -2742,14 +2755,11 @@
       function renderWaveBlock(w, teams) {
         var cfg = loadSlotCfg(w.k);
         var slots = activeSlots(cfg);
-        // placed[k] is a 2-slot array indexed by Seat (0 = seat 1, 1 = seat 2).
-        // Slots are hole+letter strings ("3A", "3B" …). Teams with an explicit
-        // Seat field land in that seat directly; teams without seat data
-        // (older records or newly-imported field) fall into whichever seat is
-        // still empty, seat 1 first — a one-time backfill so nobody drops off
-        // the board while an operator hasn't yet clicked through each card.
+        // placed[k] is a 3-slot array indexed by Seat - 1. Third seat is the
+        // TRIO slot — usually empty, but used when the wave has an odd count
+        // (typical Day 2 reflighting) so the best golfers ride together.
         var placed = {};
-        slots.forEach(function (s) { placed[s.hole + s.slot] = [null, null]; });
+        slots.forEach(function (s) { placed[s.hole + s.slot] = [null, null, null]; });
         var pool = [];
         var pendingBackfill = []; // teams needing implicit seat resolution
         teams.forEach(function (t) {
@@ -2759,7 +2769,7 @@
           var k = h + sl;
           if (!(h && (sl === "A" || sl === "B") && placed[k])) { pool.push(t); return; }
           var seat = Number(f.Seat);
-          if (seat === 1 || seat === 2) {
+          if (seat === 1 || seat === 2 || seat === 3) {
             if (!placed[k][seat - 1]) placed[k][seat - 1] = t;
             else pendingBackfill.push({ t: t, k: k });
           } else {
@@ -2769,6 +2779,7 @@
         pendingBackfill.forEach(function (b) {
           if (!placed[b.k][0]) placed[b.k][0] = b.t;
           else if (!placed[b.k][1]) placed[b.k][1] = b.t;
+          else if (!placed[b.k][2]) placed[b.k][2] = b.t;
           else pool.push(b.t);
         });
 
@@ -2800,7 +2811,11 @@
           var arr = placed[s.hole + s.slot];
           var thru = thruHole(s.hole);
           var seatEls = [];
-          for (var i = 0; i < TEAMS_PER_TEE; i++) {
+          // Show 3 seat boxes only if a team is already placed at seat 3
+          // (trio). Otherwise the standard 2 seats. Keeps unused slots from
+          // rendering an always-empty 3rd row.
+          var visibleSeats = arr[2] != null ? 3 : TEAMS_PER_TEE;
+          for (var i = 0; i < visibleSeats; i++) {
             var t = arr[i], seatNum = i + 1;
             if (t) {
               seatEls.push(prTeamCard(t, slots, w.k, teamNumbers[t.id], seatNum));
