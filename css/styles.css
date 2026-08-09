@@ -1005,6 +1005,31 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .pl__row--projected strong { color: #8a5a00; }
 .pl__row--projected span::after { content: " · projected"; color: #8a5a00; font-style: italic; font-size: 0.85em; }
 
+/* Check-to-course + tournament-ledger blocks. Two clean vertically-stacked
+   line-item ledgers with a big total at the bottom so the account can cut
+   ONE check to the course and verify the tournament balance nets to $0.00. */
+.pl__section--course { border-left-color: #2b6fb2; background: #f2f7fc; }
+.pl__section--course .pl__hdr { color: #1e4a7a; }
+.pl__section--tour { border-left-color: #6a4ab5; background: #f7f4fc; }
+.pl__section--tour .pl__hdr { color: #4a3181; }
+.pl__note { font-size: 0.86rem; color: var(--muted); font-style: italic; margin: 0.3rem 0 0.7rem; }
+.pl__check { display: flex; flex-direction: column; gap: 0.05rem; margin-top: 0.4rem; font-variant-numeric: tabular-nums; }
+.pl__check-line { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; padding: 0.45rem 0.6rem; border-bottom: 1px dotted var(--line); }
+.pl__check-line span { color: var(--ink); }
+.pl__check-line b { font-family: var(--font-display); font-size: 1.05rem; color: var(--ink); font-weight: 700; min-width: 7rem; text-align: right; }
+.pl__check-line--in b { color: var(--primary-green); }
+.pl__check-line--out b { color: var(--red-deep); }
+.pl__check-line--sub { border-top: 2px solid var(--line); border-bottom: none; margin-top: 0.35rem; padding-top: 0.6rem; background: rgba(0,0,0,0.03); font-weight: 700; }
+.pl__check-line--sub span { text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.9rem; }
+.pl__check-line--sub b { color: var(--ink); }
+.pl__check-total { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; margin-top: 0.6rem; padding: 0.9rem 1rem; border: 2.5px solid currentColor; border-radius: 10px; background: #fff; }
+.pl__check-total span { color: var(--ink); font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.pl__check-total strong { font-family: var(--font-display); font-size: 1.75rem; color: var(--ink); }
+.pl__check-total strong.is-pos { color: var(--primary-green); }
+.pl__check-total strong.is-neg { color: var(--red-deep); }
+.pl__check-total strong.is-zero { color: var(--primary-green); }
+.pl__proj { color: #8a5a00; font-style: italic; font-size: 0.85em; font-weight: 500; }
+
 /* Payout-tab paid gate — same info as the P&L banner. */
 .po-gate { border-radius: 10px; padding: 0.85rem 1.05rem; margin-bottom: 0.85rem; font-size: 0.95rem; line-height: 1.4; }
 .po-gate--wait { background: #fff6d9; border: 1.5px solid #d19a00; color: #6b4d00; }

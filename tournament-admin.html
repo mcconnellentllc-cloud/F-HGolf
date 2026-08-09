@@ -816,9 +816,16 @@
         var greenFees = m.greenFees, meals = m.meals, otherPerPlayer = m.otherRevenue;
         var calcuttaCommission = m.calcuttaCommission, courseRevenue = m.courseRevenue;
         var entryPP = m.entryPP, greenPP = m.greenPP, mealPP = m.mealPP, otherPP = m.otherPP, comm = m.calcuttaCommissionPct / 100;
+        var addFlight = m.addFlight || 0, customIncome = m.customIncome || 0, customExpense = m.customExpense || 0;
+        // Every dollar on the $ Summary is shown to the cent so line items
+        // sum visibly and the tournament account ties out to $0.00.
+        function money2(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        // Round to whole cents so any floating-point drift on additions and
+        // subtractions doesn't produce a "balance: $0.0000001" surprise.
+        function cents(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 
-        function row(label, amt, cls) { return '<div class="pl__row' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><strong>' + money(amt) + '</strong></div>'; }
-        function subtotal(label, amt) { return '<div class="pl__row pl__row--sub"><span>' + label + '</span><strong>' + money(amt) + '</strong></div>'; }
+        function row(label, amt, cls) { return '<div class="pl__row' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><strong>' + money2(amt) + '</strong></div>'; }
+        function subtotal(label, amt) { return '<div class="pl__row pl__row--sub"><span>' + label + '</span><strong>' + money2(amt) + '</strong></div>'; }
 
         // Course-perspective ledger, laid out top-to-bottom as the user asked:
         //   Income → Expenses → Net P&L summary.
@@ -834,7 +841,7 @@
         // banner until then and label the number "projected".
         var paidBanner = m.fullyPaid
           ? '<div class="pl__paid pl__paid--go"><b>All players paid.</b> Flight prize money is fully funded and ready to pay out.</div>'
-          : '<div class="pl__paid pl__paid--wait"><b>' + m.paidPlayers + ' of ' + players + ' players paid</b> · ' + money(m.entryCollected) + ' collected of ' + money(entryIncome) + ' expected. Flight prize money can only be paid out after every check-in is marked paid.</div>';
+          : '<div class="pl__paid pl__paid--wait"><b>' + m.paidPlayers + ' of ' + players + ' players paid</b> · ' + money2(m.entryCollected) + ' collected of ' + money2(entryIncome) + ' expected. Flight prize money can only be paid out after every check-in is marked paid.</div>';
         var prizeLabel = m.fullyPaid ? "Flight prize payouts (to players)" : "Flight prize payouts (projected — awaiting paid check-ins)";
 
         el.innerHTML =
@@ -859,18 +866,92 @@
           + subtotal("Total expenses", totalOut)
           + '</div>'
 
+          // ---- Check to the course --------------------------------------
+          // One clean line-by-line the tournament account uses to write ONE
+          // check to the course. Everything the course is owed for hosting.
+          // Cents are computed once and re-summed so the visible total is
+          // exactly the sum of the visible line items.
+          + (function () {
+              var greenC = cents(greenFees);
+              var mealC = cents(meals);
+              var xMealC = cents(m.extraMealsRevenue);
+              var cartC = cents(m.cartRentalRevenue);
+              var otherC = cents(otherPerPlayer);
+              var commC = cents(calcuttaCommission);
+              var courseC = cents(greenC + mealC + xMealC + cartC + otherC + commC);
+              return '<div class="pl__section pl__section--course">'
+                + '<h4 class="pl__hdr">Check to write to the course</h4>'
+                + '<p class="pl__note">Everything the course is owed for hosting -- green fees, meals, extra meals, cart rentals, and the calcutta commission the course keeps. Tournament money (entries, prize pool, calcutta buys) is separate and stays in the tournament account below.</p>'
+                + '<div class="pl__check">'
+                +   '<div class="pl__check-line"><span>Green fees (' + m.paidPlayers + ' paid × ' + money2(greenPP) + ')</span><b>' + money2(greenC) + '</b></div>'
+                +   '<div class="pl__check-line"><span>Meals (' + m.paidPlayers + ' paid × ' + money2(mealPP) + ')</span><b>' + money2(mealC) + '</b></div>'
+                +   '<div class="pl__check-line"><span>Extra meals (' + m.extraMealsCount + ' × ' + money2(m.extraMealFee) + ')</span><b>' + money2(xMealC) + '</b></div>'
+                +   '<div class="pl__check-line"><span>Cart rentals (' + m.cartRentalsCount + ' × ' + money2(m.cartFee) + ')</span><b>' + money2(cartC) + '</b></div>'
+                +   (otherPerPlayer ? '<div class="pl__check-line"><span>Other (' + m.paidPlayers + ' × ' + money2(otherPP) + ')</span><b>' + money2(otherC) + '</b></div>' : "")
+                +   '<div class="pl__check-line"><span>Calcutta commission (' + m.calcuttaCommissionPct + '% of ' + money2(calcuttaPool) + ')</span><b>' + money2(commC) + '</b></div>'
+                +   '<div class="pl__check-total"><span>Check to course' + (m.fullyPaid ? '' : ' <em class="pl__proj">(projected — awaiting all paid)</em>') + '</span><strong>' + money2(courseC) + '</strong></div>'
+                + '</div>'
+                + '</div>';
+            })()
+
+          // ---- Tournament account ledger --------------------------------
+          // Money the tournament account touches -- everything in, everything
+          // out. Balances to $0.00 when the ledger ties: what came in is what
+          // went out (course + expenses + prizes + calcutta). All line items
+          // rounded to whole cents so the visible total is the exact sum of
+          // the visible rows -- no floating-point drift.
+          + (function () {
+              var entryC = cents(m.entryCollected);
+              var calPoolC = cents(calcuttaPool);
+              var xMealC = cents(m.extraMealsRevenue);
+              var cartC = cents(m.cartRentalRevenue);
+              var addC = cents(addFlight);
+              var customInC = cents(customIncome);
+              var totalInC = cents(entryC + calPoolC + xMealC + cartC + addC + customInC);
+              var courseC = cents(greenFees + meals + m.extraMealsRevenue + m.cartRentalRevenue + otherPerPlayer + calcuttaCommission);
+              var manualExpC = cents(manualExp);
+              var customExpC = cents(customExpense);
+              var prizeC = cents(flightPrizePool);
+              var calPayC = cents(calcuttaPayout);
+              var totalOutC = cents(courseC + manualExpC + customExpC + prizeC + calPayC);
+              var balC = cents(totalInC - totalOutC);
+              var balCls = Math.abs(balC) < 0.005 ? "is-zero" : (balC < 0 ? "is-neg" : "is-pos");
+              return '<div class="pl__section pl__section--tour">'
+                + '<h4 class="pl__hdr">Tournament account ledger (should balance to $0.00)</h4>'
+                + '<p class="pl__note">All money the tournament account handled -- what came in, what went out. When every player is paid and every payout is issued, this balances to $0.00 to the penny. Any nonzero balance = uncollected income, unpaid payout, or an expense line still missing.</p>'
+                + '<div class="pl__check">'
+                +   '<div class="pl__check-line pl__check-line--in"><span>+ Entry fees collected (' + m.paidPlayers + ' paid × ' + money2(entryPP) + ')</span><b>+ ' + money2(entryC) + '</b></div>'
+                +   '<div class="pl__check-line pl__check-line--in"><span>+ Calcutta pool (buyer amounts)</span><b>+ ' + money2(calPoolC) + '</b></div>'
+                +   (xMealC > 0 ? '<div class="pl__check-line pl__check-line--in"><span>+ Extra meals collected (passes through to course)</span><b>+ ' + money2(xMealC) + '</b></div>' : "")
+                +   (cartC > 0 ? '<div class="pl__check-line pl__check-line--in"><span>+ Cart rentals collected (passes through to course)</span><b>+ ' + money2(cartC) + '</b></div>' : "")
+                +   (addC > 0 ? '<div class="pl__check-line pl__check-line--in"><span>+ Additional flight $ (added by operator)</span><b>+ ' + money2(addC) + '</b></div>' : "")
+                +   (customInC > 0 ? '<div class="pl__check-line pl__check-line--in"><span>+ Custom income (Calc tab lines)</span><b>+ ' + money2(customInC) + '</b></div>' : "")
+                +   '<div class="pl__check-line pl__check-line--sub"><span>Total money IN</span><b>' + money2(totalInC) + '</b></div>'
+
+                +   '<div class="pl__check-line pl__check-line--out"><span>− Check to course (above)</span><b>− ' + money2(courseC) + '</b></div>'
+                +   (manualExpC > 0 ? '<div class="pl__check-line pl__check-line--out"><span>− Manual expenses (steaks / trophies / supplies)</span><b>− ' + money2(manualExpC) + '</b></div>' : "")
+                +   (customExpC > 0 ? '<div class="pl__check-line pl__check-line--out"><span>− Custom expenses (Calc tab lines)</span><b>− ' + money2(customExpC) + '</b></div>' : "")
+                +   '<div class="pl__check-line pl__check-line--out"><span>− Flight prize payouts</span><b>− ' + money2(prizeC) + '</b></div>'
+                +   '<div class="pl__check-line pl__check-line--out"><span>− Calcutta payouts</span><b>− ' + money2(calPayC) + '</b></div>'
+                +   '<div class="pl__check-line pl__check-line--sub"><span>Total money OUT</span><b>' + money2(totalOutC) + '</b></div>'
+
+                +   '<div class="pl__check-total"><span>Tournament account balance (in − out)</span><strong class="' + balCls + '">' + money2(balC) + '</strong></div>'
+                + '</div>'
+                + '</div>';
+            })()
+
           + '<div class="pl__section pl__section--sum">'
-          + '<h4 class="pl__hdr">Profit &amp; Loss</h4>'
+          + '<h4 class="pl__hdr">Profit &amp; Loss (course perspective)</h4>'
           + '<div class="pl__pl-grid">'
-          + '<div class="pl__pl-line"><span>Green fees kept (' + players + ' × ' + money(greenPP) + ')</span><b>' + money(greenFees) + '</b></div>'
-          + '<div class="pl__pl-line"><span>Meals kept (' + players + ' × ' + money(mealPP) + ')</span><b>' + money(meals) + '</b></div>'
-          + '<div class="pl__pl-line"><span>Extra meals kept (' + m.extraMealsCount + ' × ' + money(m.extraMealFee) + ')</span><b>' + money(m.extraMealsRevenue) + '</b></div>'
-          + '<div class="pl__pl-line"><span>Cart rentals kept (' + m.cartRentalsCount + ' × ' + money(m.cartFee) + ')</span><b>' + money(m.cartRentalRevenue) + '</b></div>'
-          + (otherPerPlayer ? '<div class="pl__pl-line"><span>Other (' + players + ' × ' + money(otherPP) + ')</span><b>' + money(otherPerPlayer) + '</b></div>' : "")
-          + '<div class="pl__pl-line"><span>Calcutta commission</span><b>' + money(calcuttaCommission) + '</b></div>'
-          + '<div class="pl__pl-line pl__pl-line--neg"><span>Less: expenses paid out</span><b>&minus; ' + money(manualExp) + '</b></div>'
+          + '<div class="pl__pl-line"><span>Green fees kept (' + m.paidPlayers + ' paid × ' + money2(greenPP) + ')</span><b>' + money2(greenFees) + '</b></div>'
+          + '<div class="pl__pl-line"><span>Meals kept (' + m.paidPlayers + ' paid × ' + money2(mealPP) + ')</span><b>' + money2(meals) + '</b></div>'
+          + '<div class="pl__pl-line"><span>Extra meals kept (' + m.extraMealsCount + ' × ' + money2(m.extraMealFee) + ')</span><b>' + money2(m.extraMealsRevenue) + '</b></div>'
+          + '<div class="pl__pl-line"><span>Cart rentals kept (' + m.cartRentalsCount + ' × ' + money2(m.cartFee) + ')</span><b>' + money2(m.cartRentalRevenue) + '</b></div>'
+          + (otherPerPlayer ? '<div class="pl__pl-line"><span>Other (' + m.paidPlayers + ' × ' + money2(otherPP) + ')</span><b>' + money2(otherPerPlayer) + '</b></div>' : "")
+          + '<div class="pl__pl-line"><span>Calcutta commission</span><b>' + money2(calcuttaCommission) + '</b></div>'
+          + '<div class="pl__pl-line pl__pl-line--neg"><span>Less: expenses paid out</span><b>&minus; ' + money2(manualExp) + '</b></div>'
           + '</div>'
-          + '<div class="pl__row pl__row--net"><span>Net P&amp;L (course keeps)</span><strong class="' + (net < 0 ? "is-neg" : "is-pos") + '">' + money(net) + "</strong></div>"
+          + '<div class="pl__row pl__row--net"><span>Net P&amp;L (course keeps)</span><strong class="' + (net < 0 ? "is-neg" : "is-pos") + '">' + money2(net) + "</strong></div>"
           + '</div>';
       }
 
