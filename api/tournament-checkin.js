@@ -104,21 +104,44 @@ module.exports = async (req, res) => {
 
   try {
     const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}/${id}`;
-    const r = await fetch(url, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ fields, typecast: true }),
-    });
-    if (!r.ok) {
-      const detail = await r.text();
-      console.error("checkin patch error", r.status, detail);
-      const msg = r.status === 422
-        ? "Airtable rejected the update — confirm the Checked In / Amount Paid / Pay Method / Paid At fields exist on the Tournament Signups table."
-        : "Could not save the check-in.";
-      return res.status(502).json({ ok: false, error: msg });
+    // Auto-strip missing Airtable fields and retry — same mechanism the
+    // tournament-flights endpoint uses. Newer fields (Player 1 Paid,
+    // Player 2 Paid, Extra Meals, Calcutta Paid, etc.) may not exist on
+    // every base — without this a single missing field would 422 the
+    // whole PATCH and the operator would see the paid checkbox flip
+    // back on the next reload because nothing actually saved.
+    const stripped = new Set();
+    let working = { ...fields };
+    let lastDetail = "";
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const r = await fetch(url, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: working, typecast: true }),
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const payload = { ok: true, id: data.id, fields: data.fields || {} };
+        if (stripped.size) payload.warning = "Saved without " + [...stripped].join(", ") + " (add those fields on the Tournament Signups table to store them).";
+        return res.status(200).json(payload);
+      }
+      lastDetail = await r.text();
+      let missing = null;
+      try {
+        const parsed = JSON.parse(lastDetail);
+        const emsg = parsed && parsed.error && parsed.error.message;
+        const m = /Unknown field name[s]?:\s*"([^"]+)"/i.exec(emsg || "");
+        if (m) missing = m[1];
+      } catch (e) {}
+      if (!missing) break;
+      stripped.add(missing);
+      delete working[missing];
+      if (!Object.keys(working).length) {
+        return res.status(200).json({ ok: true, id, fields: {}, warning: "Nothing saved — every field in the update was missing on Airtable (" + [...stripped].join(", ") + "). Add them to the Tournament Signups table." });
+      }
     }
-    const data = await r.json();
-    return res.status(200).json({ ok: true, id: data.id, fields: data.fields || {} });
+    console.error("checkin patch error", lastDetail);
+    return res.status(502).json({ ok: false, error: "Could not save the check-in." });
   } catch (e) {
     console.error("tournament-checkin error", e);
     return res.status(500).json({ ok: false, error: "Something went wrong saving the check-in." });

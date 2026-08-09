@@ -91,6 +91,7 @@
         <section class="noms wb-sheet" data-sheet="check" aria-label="Check-in and payment">
           <div class="noms__bar">
             <h3 class="noms__title">Check-in &amp; Money <span class="noms__count" id="twCount"></span></h3>
+            <span class="ci-load-status" id="twLoadStatus" hidden aria-live="polite"></span>
             <button class="btn btn--solid" type="button" id="twRefresh">Refresh</button>
           </div>
 
@@ -116,6 +117,22 @@
             <div id="golferList"></div>
           </details>
 
+          <div class="ci-filters" id="ciFilters" role="group" aria-label="Filter teams">
+            <div class="ci-filter-group">
+              <span class="ci-filter-label">Wave</span>
+              <button class="sc-tab ci-fchip is-active" type="button" data-fwave="all">All</button>
+              <button class="sc-tab ci-fchip" type="button" data-fwave="am">8 AM</button>
+              <button class="sc-tab ci-fchip" type="button" data-fwave="pm">1 PM</button>
+              <button class="sc-tab ci-fchip" type="button" data-fwave="none" title="No wave assigned yet">Unset</button>
+            </div>
+            <div class="ci-filter-group">
+              <span class="ci-filter-label">Payment</span>
+              <button class="sc-tab ci-fchip is-active" type="button" data-fpaid="all">All</button>
+              <button class="sc-tab ci-fchip" type="button" data-fpaid="unpaid">Unpaid</button>
+              <button class="sc-tab ci-fchip" type="button" data-fpaid="paid">Paid</button>
+            </div>
+          </div>
+
           <div class="noms__list" id="twRoster"><p class="noms__msg">Loading roster…</p></div>
         </section>
 
@@ -130,6 +147,7 @@
                 <option value="pm">Print P.M. only</option>
               </select>
               <button class="btn btn--solid" type="button" id="prImport" title="Paste the AM/PM pairings list — matches teams by last-name tokens and seats everybody in one shot">Import pairings</button>
+              <button class="btn btn--primary" type="button" id="prSavePairings" title="Force-save every team's current Hole/Slot/Seat/Wave to Airtable — use this if pairings seem to revert on reload.">Save pairings</button>
               <button class="btn btn--solid" type="button" id="prPrint">Print tee sheet</button>
               <button class="btn btn--solid" type="button" id="prPrintAnnounce">Announcement page</button>
               <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards (Day 1 tee-sheet order)">Print scorecards</button>
@@ -137,6 +155,7 @@
               <select id="prPaperSize" class="pr-print-which" aria-label="Paper size for scorecard prints" title="Match what your printer can actually feed">
                 <option value="12in 5.875in" selected>Paper: F&amp;H card landscape (12 × 5.875)</option>
                 <option value="5.875in 12in">Paper: F&amp;H card portrait (5.875 × 12)</option>
+                <option value="8.5in 11in">Paper: Letter portrait (8.5 × 11) — driver test</option>
                 <option value="11in 8.5in">Paper: Letter landscape (11 × 8.5)</option>
                 <option value="14in 8.5in">Paper: Legal landscape (14 × 8.5)</option>
               </select>
@@ -1066,16 +1085,38 @@
                 scAllCache[i].fields = Object.assign({}, scAllCache[i].fields || {}, returned);
                 break;
               }
-              // Reload only if the row would jump between paid ↔ unpaid or
-              // field ↔ alternate. Otherwise leave the DOM alone.
-              var isNowFullyPaid = null;
-              for (var j2 = 0; j2 < scAllCache.length; j2++) if (scAllCache[j2].id === id) { isNowFullyPaid = fullyPaid(scAllCache[j2]); break; }
-              if (forcesReload || wasFullyPaid !== isNowFullyPaid) {
+              // ONLY reload for row-moving events that alter identity
+              // (alternate/name changes). A paid-state flip used to trigger
+              // a full loadRoster so the team could hop between the "Unpaid"
+              // and "Paid & done" sections — but a full 64-card re-render
+              // on every checkbox tap made the page feel refresh-crazy. We
+              // now leave the card exactly where it is; the operator can
+              // click Refresh (or hit a Payment filter chip) if they want
+              // the roster re-sorted. Downstream $ Summary + P&L still get
+              // updated live.
+              if (forcesReload) {
                 loadRoster();
               } else {
                 if (statusEl) { statusEl.textContent = "Saved ✓"; statusEl.className = "ci__status is-ok"; setTimeout(function () { statusEl.textContent = ""; }, 1200); }
-                // Refresh downstream reads without re-rendering the roster.
                 try { summarize(scAllCache.filter(function (r) { return (r.fields || {}).Tournament === KEY && !isAltRec(r); })); } catch (e) {}
+                try { renderPL(); } catch (e) {}
+                // If the paid state flipped, schedule a lightweight roster
+                // re-render (from cache, no network) so paid rows migrate to
+                // the "Paid & done" fold and disappear from the "Unpaid"
+                // filter view. Debounced so a burst of paid clicks coalesces
+                // into ONE re-render at the end instead of one per click.
+                var isNowFullyPaid = null;
+                for (var _k = 0; _k < scAllCache.length; _k++) if (scAllCache[_k].id === id) { isNowFullyPaid = fullyPaid(scAllCache[_k]); break; }
+                if (wasFullyPaid !== isNowFullyPaid) scheduleRosterResort();
+              }
+              // Surface any silently-stripped fields (Player 1 Paid,
+              // Player 2 Paid, Extra Meals, Calcutta Paid) so an operator
+              // sees when the endpoint auto-stripped a field that Airtable
+              // was missing — the click "saved" but nothing actually
+              // persisted for that field.
+              if (res.j.warning && statusEl) {
+                statusEl.textContent = res.j.warning;
+                statusEl.className = "ci__status is-error";
               }
             } else if (statusEl) {
               statusEl.textContent = (res.j && res.j.error) || "Couldn't save.";
@@ -1145,12 +1186,16 @@
       }
       // Name cell: clickable link opens the Player Card modal; ✎ starts inline rename.
       function nameCell(role, name) {
+        return '<span class="ci-name-wrap">' + nameCellInner(role, name) + "</span>";
+      }
+      // Inner content only — used by startInlineRename to swap the <input>
+      // back to a link + pencil without wiping the outer wrap or forcing a
+      // full renderRoster / loadRoster cycle.
+      function nameCellInner(role, name) {
         var display = name || (role === "p2" ? "—" : "(no name)");
         var disabled = (role === "p2" && !name) ? ' style="visibility:hidden"' : "";
-        return '<span class="ci-name-wrap">'
-          + '<a href="#" class="ci-name" data-role="' + role + '">' + esc(display) + "</a>"
-          + '<button type="button" class="ci-rename" data-role="' + role + '" title="Rename inline"' + disabled + ">&#9998;</button>"
-          + "</span>";
+        return '<a href="#" class="ci-name" data-role="' + role + '">' + esc(display) + "</a>"
+          + '<button type="button" class="ci-rename" data-role="' + role + '" title="Rename inline"' + disabled + ">&#9998;</button>";
       }
       function ciCard(rec, teamNum) {
         var f = rec.fields || {}, pp = teamPlayers(f, rec), isAlt = !!f["Alternate"];
@@ -1249,6 +1294,31 @@
       }
 
       var rosterRecs = [];
+      // Persistent Check-In filters (wave + payment). Restored from
+      // localStorage so a busy operator's chip choices survive across
+      // reloads and Ctrl+Shift+R.
+      var CI_FILTERS = { wave: "all", paid: "all" };
+      try {
+        var _cif = localStorage.getItem("fh:ciFilters:" + KEY);
+        if (_cif) { var _p = JSON.parse(_cif); if (_p && typeof _p === "object") CI_FILTERS = { wave: _p.wave || "all", paid: _p.paid || "all" }; }
+      } catch (e) {}
+      function saveCiFilters() { try { localStorage.setItem("fh:ciFilters:" + KEY, JSON.stringify(CI_FILTERS)); } catch (e) {} }
+      function applyCiFilterChip(chipWave, chipPaid) {
+        Array.prototype.forEach.call(document.querySelectorAll('#ciFilters [data-fwave]'), function (b) { b.classList.toggle("is-active", b.getAttribute("data-fwave") === chipWave); });
+        Array.prototype.forEach.call(document.querySelectorAll('#ciFilters [data-fpaid]'), function (b) { b.classList.toggle("is-active", b.getAttribute("data-fpaid") === chipPaid); });
+      }
+      function ciFilterField(field) {
+        return field.filter(function (r) {
+          var f = r.fields || {};
+          if (CI_FILTERS.wave === "am"   && f.Start !== "8 AM") return false;
+          if (CI_FILTERS.wave === "pm"   && f.Start !== "1 PM") return false;
+          if (CI_FILTERS.wave === "none" && (f.Start === "8 AM" || f.Start === "1 PM")) return false;
+          if (CI_FILTERS.paid === "paid"   && !fullyPaid(r)) return false;
+          if (CI_FILTERS.paid === "unpaid" && fullyPaid(r))  return false;
+          return true;
+        });
+      }
+
       function renderRoster(all) {
         var list = document.getElementById("twRoster"), count = document.getElementById("twCount");
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY; });
@@ -1258,14 +1328,32 @@
         actions(field);
         summarize(field);
         renderGolfers(field);
+        applyCiFilterChip(CI_FILTERS.wave, CI_FILTERS.paid);
         if (!recs.length) { list.innerHTML = '<p class="noms__msg">No sign-ups yet. Add a walk-up team above.</p>'; count.textContent = ""; return; }
 
+        var filtersActive = CI_FILTERS.wave !== "all" || CI_FILTERS.paid !== "all";
         var unpaid = field.filter(function (r) { return !fullyPaid(r); });
         var paid = field.filter(fullyPaid);
         count.textContent = "(" + field.length + " · " + paid.length + " paid" + (alts.length ? " · " + alts.length + " alt" : "") + ")";
 
-        var html = unpaid.length ? ciTable(unpaid) : '<p class="noms__msg">Everyone checked in has paid. 🎉</p>';
-        if (paid.length) html += '<details class="ci-fold" open><summary>Paid &amp; done <span>(' + paid.length + ")</span></summary>" + ciTable(paid) + "</details>";
+        var html;
+        if (filtersActive) {
+          // When any filter chip is on, flatten to a single filtered list
+          // sorted with unpaid first (still what the operator most cares
+          // about) then paid. Alternates fold stays at the bottom.
+          var visible = ciFilterField(field);
+          var vUnpaid = visible.filter(function (r) { return !fullyPaid(r); });
+          var vPaid = visible.filter(fullyPaid);
+          var ordered = vUnpaid.concat(vPaid);
+          if (!ordered.length) {
+            html = '<p class="noms__msg">No teams match the current filters.</p>';
+          } else {
+            html = ciTable(ordered);
+          }
+        } else {
+          html = unpaid.length ? ciTable(unpaid) : '<p class="noms__msg">Everyone checked in has paid. 🎉</p>';
+          if (paid.length) html += '<details class="ci-fold" open><summary>Paid &amp; done <span>(' + paid.length + ")</span></summary>" + ciTable(paid) + "</details>";
+        }
         if (alts.length) html += '<details class="ci-fold ci-fold--alt"><summary>Alternates — standby <span>(' + alts.length + ")</span></summary>" + ciTable(alts) + "</details>";
         list.innerHTML = html;
         attachRowFilter(list, { rowSelector: ".ci-card" });
@@ -1482,11 +1570,39 @@
         wrap.appendChild(input);
         input.focus(); input.select();
         var done = false;
+        // Restore the link + pencil in place without re-fetching or
+        // re-rendering the roster. Rebuilding the wrap's inner HTML is
+        // O(1); loadRoster used to trigger a fetch + 64-card re-render.
+        function restoreLink(displayText) {
+          wrap.innerHTML = nameCellInner(role, displayText);
+          var newLink = wrap.querySelector(".ci-name");
+          if (newLink) newLink.addEventListener("click", function (e) {
+            e.preventDefault();
+            var name = newLink.textContent.trim();
+            if (name === "—" || name === "(no name)") name = "";
+            openPlayerCard(signupId, role, name);
+          });
+          var newBtn = wrap.querySelector(".ci-rename");
+          if (newBtn) newBtn.addEventListener("click", function () {
+            startInlineRename(wrap, wrap.querySelector(".ci-name"), newBtn, role, signupId, statusEl);
+          });
+        }
         function commit(save) {
           if (done) return; done = true;
           var next = input.value.trim();
-          if (!save || next === current) { loadRoster(); return; }
+          if (!save || next === current) { restoreLink(current); return; }
           if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "ci__status"; }
+          // Optimistic: swap link back with the new value immediately so the
+          // operator's next action isn't blocked on the network.
+          restoreLink(next);
+          // Reflect the change in the in-memory cache so any subsequent
+          // renders (tab switch, refresh) see the new name without a fetch.
+          for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === signupId) {
+            scAllCache[i].fields = scAllCache[i].fields || {};
+            if (role === "p1") scAllCache[i].fields["Player Name"] = next;
+            else scAllCache[i].fields["Team / Partners"] = next;
+            break;
+          }
           var payload = { id: signupId };
           if (role === "p1") payload.playerName = next;
           else payload.teamPartners = next;
@@ -1497,21 +1613,26 @@
           })
             .then(function (r) { return r.json().catch(function () { return {}; }); })
             .then(function (j) {
-              if (!j || !j.ok) { if (statusEl) { statusEl.textContent = (j && j.error) || "Rename failed."; statusEl.className = "ci__status is-error"; } return; }
+              if (!j || !j.ok) {
+                // Roll back optimistic display.
+                restoreLink(current);
+                if (statusEl) { statusEl.textContent = (j && j.error) || "Rename failed."; statusEl.className = "ci__status is-error"; }
+                return;
+              }
+              if (statusEl) { statusEl.textContent = "Saved ✓"; statusEl.className = "ci__status is-ok"; setTimeout(function () { statusEl.textContent = ""; }, 1200); }
               // For P1 renames on a signup that's linked to a Player Card,
-              // push the new name to the canonical Player + every other signup
-              // linked to that same player. The Player Card is gospel.
+              // propagate the new name to the canonical Player + every other
+              // signup that shares it. The other cards on-screen still show
+              // the old name until the next refresh — a tradeoff for keeping
+              // this rename fast. Operator can hit Refresh to pull the
+              // cascade or the tab-switch lazy render will pick it up.
               if (role === "p1") {
                 var signup = (rosterRecs || []).find(function (r) { return r.id === signupId; });
                 var linked = signup && signup.fields && Array.isArray(signup.fields.Player) ? signup.fields.Player[0] : "";
-                if (linked) {
-                  propagatePlayerName(linked, next).then(function () { loadRoster(); });
-                  return;
-                }
+                if (linked) { propagatePlayerName(linked, next).catch(function () {}); }
               }
-              loadRoster();
             })
-            .catch(function () { if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
+            .catch(function () { restoreLink(current); if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
         }
         input.addEventListener("blur", function () { commit(true); });
         input.addEventListener("keydown", function (e) {
@@ -1656,24 +1777,48 @@
             pmSetVal("pmNotes", savedF.Notes || "");
             var memEl = document.getElementById("pmMember"); if (memEl) memEl.checked = !!savedF.Member;
             if (status) { status.textContent = "Saved ✓"; status.className = "pm-status is-ok"; }
-            // Link the signup to this Player + reflect renamed name back on the roster.
+            // Link the signup to this Player + reflect renamed name back on
+            // the roster. Update just the affected card's name node in place
+            // — no loadRoster, no 64-card re-render. The cascade to other
+            // signups (propagatePlayerName) runs in the background; other
+            // cards on-screen still show the old name until the next
+            // manual refresh, a tradeoff for keeping this save fast.
             var link = { id: pmCurrent.signupId, playerId: j.id };
-            if (pmCurrent.role === "p1") link.playerName = name;
-            else if (pmCurrent.role === "p2") link.teamPartners = name;
+            var linkRole = pmCurrent.role;
+            var linkSignupId = pmCurrent.signupId;
+            if (linkRole === "p1") link.playerName = name;
+            else if (linkRole === "p2") link.teamPartners = name;
             fetch(FH_API.url("/api/tournament-checkin"), {
               method: "POST",
               headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
               body: JSON.stringify(link)
             })
               .then(function () {
-                // Player Card is gospel — push this saved name to every other signup
-                // linked to the same Player. Only applies to P1 (Player link field).
-                if (pmCurrent && pmCurrent.role === "p1") {
-                  return propagatePlayerName(j.id, name);
+                // Update in-memory cache so subsequent tab-switch renders
+                // see the new name.
+                for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === linkSignupId) {
+                  scAllCache[i].fields = scAllCache[i].fields || {};
+                  if (linkRole === "p1") scAllCache[i].fields["Player Name"] = name;
+                  else if (linkRole === "p2") scAllCache[i].fields["Team / Partners"] = name;
+                  scAllCache[i].fields["Player"] = [j.id];
+                  break;
                 }
+                // Update the card's name node in place. Split-name fields
+                // like "Team / Partners" only show the first token on the
+                // roster, but a full update is close enough — a next
+                // refresh will finalize the layout.
+                var card = document.querySelector('.ci-card[data-id="' + linkSignupId + '"]');
+                if (card) {
+                  var nameEl = card.querySelector('.ci-name[data-role="' + linkRole + '"]');
+                  if (nameEl) nameEl.textContent = name;
+                }
+                // Cascade to other signups sharing this Player row, but
+                // don't wait on it and don't reload — the tab-switch lazy
+                // render will pull in the cascade when the operator moves
+                // on.
+                if (linkRole === "p1") { propagatePlayerName(j.id, name).catch(function () {}); }
               })
-              .then(function () { loadRoster(); })
-              .catch(function () { loadRoster(); })
+              .catch(function () {})
               .finally(function () { setTimeout(closePlayerCard, 500); });
           })
           .catch(function () { if (status) { status.textContent = "Network error."; status.className = "pm-status is-error"; } });
@@ -1821,7 +1966,26 @@
         for (var h = 1; h <= 9; h++) head += '<th class="sc-tbl__h">' + h + '<br><small>p' + PAR9[h - 1] + '</small></th>';
         head += '<th class="sc-tbl__loop">Out</th>';
         for (var h2 = 1; h2 <= 9; h2++) head += '<th class="sc-tbl__h">' + h2 + '<br><small>p' + PAR9[h2 - 1] + '</small></th>';
-        head += '<th class="sc-tbl__loop">In</th><th class="sc-tbl__total">Total</th><th class="sc-tbl__x" aria-label="Clear row"></th></tr></thead>';
+        head += '<th class="sc-tbl__loop">In</th><th class="sc-tbl__total">Total</th></tr></thead>';
+
+        // Sort by that day's total ascending — lowest score at the top,
+        // highest at the bottom. Teams that haven't finished the round
+        // (any hole blank → total is null) fall to the bottom so they
+        // don't interleave with real results.
+        function _dayTotal(rec) {
+          var f = rec.fields || {};
+          var scores = parseScores(f["Day" + day + " Scores"]);
+          var s = 0;
+          for (var i = 0; i < 18; i++) { if (scores[i] == null) return null; s += scores[i]; }
+          return s;
+        }
+        scRecs = scRecs.slice().sort(function (a, b) {
+          var ta = _dayTotal(a), tb = _dayTotal(b);
+          if (ta == null && tb == null) return 0;
+          if (ta == null) return 1;
+          if (tb == null) return -1;
+          return ta - tb;
+        });
 
         var body = scRecs.map(function (rec) {
           var f = rec.fields || {};
@@ -1835,13 +1999,12 @@
           }
           cells += '<td class="sc-tbl__loop" data-loop="in">&mdash;</td>';
           cells += '<td class="sc-tbl__total"><span class="sc-tbl__totVal">&mdash;</span><span class="sc-tbl__save" title="Save state"></span></td>';
-          cells += '<td class="sc-tbl__x"><button type="button" class="sc-clear" data-id="' + esc(rec.id) + '" title="Clear this row">&times;</button></td>';
           return '<tr data-id="' + esc(rec.id) + '"><td class="sc-tbl__team">' + esc(scTeamLabel(rec)) + '</td>' + cells + '</tr>';
         }).join("");
 
-        host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /><button type="button" class="btn btn--solid sc-toolbar__dangerBtn" id="scClearAll">Delete all Day ' + day + ' scores</button></div>'
+        host.innerHTML = '<div class="sc-toolbar"><input type="search" id="scFilter" class="sc-filter" placeholder="Filter teams by name… (e.g. McConnell)" autocomplete="off" /></div>'
           + '<div class="sc-tbl-wrap"><table class="sc-tbl">' + head + '<tbody>' + body + '</tbody></table></div>'
-          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right. Click × on any row to clear that team.</p>';
+          + '<p class="sc-tbl__note">Blank cells stay blank until scored. Green ✓ = saved, spinner = saving, red = error. Arrow keys move between cells; Enter jumps right.</p>';
 
         wireScoresGrid(host, day);
         Array.prototype.forEach.call(host.querySelectorAll("tr[data-id]"), function (row) {
@@ -1900,36 +2063,6 @@
           });
         });
 
-        // Per-row clear: reset cells + save an all-null scores array.
-        Array.prototype.forEach.call(host.querySelectorAll(".sc-clear"), function (btn) {
-          btn.addEventListener("click", function () {
-            var row = btn.closest("tr");
-            Array.prototype.forEach.call(row.querySelectorAll(".sc-cell"), function (i) { i.value = ""; });
-            recomputeRow(row);
-            row.classList.remove("is-saved", "is-error");
-            row.classList.add("is-dirty");
-            saveScoreRow(row, day);
-          });
-        });
-
-        // Delete all Day N — confirmed by the shared modal.
-        var clearAllBtn = host.querySelector("#scClearAll");
-        if (clearAllBtn) clearAllBtn.addEventListener("click", function () {
-          confirmDestructive({
-            title: "Delete all Day " + day + " scores?",
-            body: "This clears every team's Day " + day + " scores across the whole tournament. This can't be undone.",
-            confirmLabel: "Delete all Day " + day,
-            onConfirm: function () {
-              var rows = Array.prototype.slice.call(host.querySelectorAll("tbody tr[data-id]"));
-              rows.forEach(function (row) {
-                Array.prototype.forEach.call(row.querySelectorAll(".sc-cell"), function (i) { i.value = ""; });
-                recomputeRow(row);
-                row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
-                saveScoreRow(row, day);
-              });
-            }
-          });
-        });
       }
 
       function recomputeRow(row) {
@@ -2116,22 +2249,81 @@
         });
       }
 
+      // Debounced roster RE-SORT — re-runs renderRoster from the in-memory
+      // scAllCache after a paid-state flip so rows migrate between the
+      // Unpaid / Paid folds (and the Payment filter chip visibility). No
+      // network fetch. 350ms debounce so a burst of Entry clicks lands
+      // together — otherwise every click would rebuild 64 cards.
+      // Only fires when the Check-In tab is actually visible.
+      var _rosterResortT = null;
+      function scheduleRosterResort() {
+        if (window.__fhActive && window.__fhActive !== "check") return;
+        clearTimeout(_rosterResortT);
+        _rosterResortT = setTimeout(function () { try { renderRoster(scAllCache); } catch (e) {} }, 350);
+      }
+      // Debounced roster reload — coalesces rapid-fire saves during check-in
+      // (each paid-status flip normally schedules a reload, so a burst of
+      // staff activity used to fire many overlapping fetches). 200ms is
+      // short enough to feel instant to the operator, long enough to fold
+      // 3–4 near-simultaneous saves into one Airtable read.
       function loadRoster() {
+        clearTimeout(loadRoster._t);
+        loadRoster._t = setTimeout(_doLoadRoster, 200);
+      }
+      function _doLoadRoster() {
         var list = document.getElementById("twRoster");
-        // Only show the "Loading roster…" placeholder on the very first
-        // fetch. Every subsequent refresh (after a save, a rename, a
-        // payment change) leaves the current grid on-screen so the tab
-        // doesn't blink to blank while the network round-trips.
         var isEmpty = !list || !list.querySelector(".ci-grid, .noms__row");
         if (isEmpty && list) list.innerHTML = '<p class="noms__msg">Loading roster…</p>';
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { renderRoster(res.j.records); renderScores(res.j.records); renderBoard(res.j.records); renderLeaderboard(res.j.records); renderCalcutta(res.j.records); renderCalcuttaSummary(res.j.records); renderPayout(res.j.records); renderPairings(res.j.records); }
+            if (res.j && res.j.ok) {
+              // Keep the shared record cache fresh so lazy renders on tab
+              // switch have current data.
+              scAllCache = res.j.records || [];
+              renderSheetsForActive(scAllCache);
+              flashLoadStatus("");
+            }
             else if (res.status === 401 && list) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
-            else if (list) { list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>"; }
+            else {
+              // Transient error (429, 5xx, network hiccup). Keep the current
+              // roster DOM intact — blanking to "Couldn't load" is worse than
+              // showing slightly stale rows during a rate-limit blip. Only
+              // replace innerHTML if the roster hasn't been rendered yet.
+              if (isEmpty && list) list.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load the roster.") + "</p>";
+              else flashLoadStatus("Sync paused — retrying…");
+            }
           })
-          .catch(function () { if (list && isEmpty) list.innerHTML = '<p class="noms__msg">Network error loading roster.</p>'; });
+          .catch(function () {
+            if (isEmpty && list) list.innerHTML = '<p class="noms__msg">Network error loading roster.</p>';
+            else flashLoadStatus("Sync paused — retrying…");
+          });
+      }
+      // Small transient indicator in the summary bar so a rate-limit blip
+      // doesn't blank the whole screen. Auto-clears on the next successful
+      // load. Message is empty-string to hide the pill.
+      function flashLoadStatus(msg) {
+        var el = document.getElementById("twLoadStatus");
+        if (!el) return;
+        el.textContent = msg || "";
+        el.hidden = !msg;
+      }
+      // Render only the currently-visible tab. All other tabs lazy-render
+      // on tab open (see showSheet). Check-In is the working tab during the
+      // tournament so it always renders — that keeps paid-status flips and
+      // walk-up adds instantly visible.
+      function renderSheetsForActive(all) {
+        var s = window.__fhActive || "check";
+        try { renderRoster(all); } catch (e) {}
+        try {
+          if (s === "scores") renderScores(all);
+          else if (s === "pairings") renderPairings(all);
+          else if (s === "leaderboard") renderLeaderboard(all);
+          else if (s === "calcutta") renderCalcutta(all);
+          else if (s === "calcuttaSummary") renderCalcuttaSummary(all);
+          else if (s === "payout") renderPayout(all);
+          else if (s === "flights") renderBoard(all);
+        } catch (e) {}
       }
 
       function removeTeam(id, statusEl, btn) {
@@ -2265,8 +2457,53 @@
         var msg = document.getElementById("prMsg"); if (msg) msg.textContent = "Saving " + assignments.length + " move" + (assignments.length === 1 ? "" : "s") + "…";
         fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: assignments }) })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
-          .then(function (j) { if (j && j.ok) { if (msg) msg.textContent = "Saved " + j.updated + " ✓"; loadRoster(); } else if (msg) { msg.textContent = (j && j.error) || "Save failed."; } })
+          .then(function (j) {
+            if (j && j.ok) {
+              var text = "Saved " + j.updated + " ✓";
+              // Surface any silently-stripped fields (Seat, Slot, Hole, etc.)
+              // so an operator sees when a save "succeeded" but didn't
+              // actually persist the field they cared about.
+              if (j.warning) text += " — " + j.warning;
+              if (msg) msg.textContent = text;
+              loadRoster();
+            } else if (msg) { msg.textContent = (j && j.error) || "Save failed."; }
+          })
           .catch(function () { if (msg) msg.textContent = "Network error saving."; });
+      }
+      // Force-commit every team's current Hole/Slot/Seat/Start to Airtable.
+      // The escape hatch when pairings look right in the UI but revert on
+      // reload (often a symptom of Airtable silently dropping a missing
+      // field — the endpoint's warning surfaces which one).
+      function saveAllPairings() {
+        var msg = document.getElementById("prMsg");
+        var btn = document.getElementById("prSavePairings");
+        if (!prRecs || !prRecs.length) { if (msg) msg.textContent = "No teams to save."; return; }
+        var assignments = prRecs.map(function (r) {
+          var f = r.fields || {};
+          var hole = (f.Hole != null && f.Hole !== "") ? Number(f.Hole) : "";
+          var slot = typeof f.Slot === "string" ? f.Slot : "";
+          var seat = (f.Seat != null && f.Seat !== "") ? Number(f.Seat) : "";
+          var start = typeof f.Start === "string" ? f.Start : "";
+          return { id: r.id, hole: hole, slot: slot, seat: seat, start: start };
+        });
+        if (btn) btn.disabled = true;
+        if (msg) msg.textContent = "Saving all pairings (" + assignments.length + " teams)…";
+        fetch(FH_API.url("/api/tournament-flights"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ assignments: assignments }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (btn) btn.disabled = false;
+            if (j && j.ok) {
+              var text = "Saved all pairings — " + j.updated + " team" + (j.updated === 1 ? "" : "s") + " ✓";
+              if (j.warning) text += " — " + j.warning;
+              if (msg) msg.textContent = text;
+              loadRoster();
+            } else if (msg) { msg.textContent = (j && j.error) || "Save failed."; }
+          })
+          .catch(function () { if (btn) btn.disabled = false; if (msg) msg.textContent = "Network error saving."; });
       }
 
       // Auto-assign a stable Team number per wave, sorted by created time (so a
@@ -2977,6 +3214,15 @@
           return { id: id, hole: r.hole, slot: r.slot, seat: r.seat, start: r.wave };
         });
         var msg = document.getElementById("prMsg"); if (msg) msg.textContent = "Applying " + assignments.length + " placements…";
+        // Close the modal IMMEDIATELY so the operator can see the tee sheet
+        // update live behind it. Previously we only closed on success — if
+        // the response was ambiguous the modal stuck open, the operator hit
+        // Cancel, and it looked like the pairings had reverted (the reload
+        // just hadn't arrived yet). Also disable the Apply button until the
+        // save completes to prevent accidental double-clicks re-firing.
+        var applyBtn = document.getElementById("piApply");
+        if (applyBtn) applyBtn.disabled = true;
+        closePairingsImport();
         fetch(FH_API.url("/api/tournament-flights"), {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
@@ -2984,16 +3230,19 @@
         })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
+            if (applyBtn) applyBtn.disabled = false;
             if (j && j.ok) {
               var note = j.warning ? " ⚠ " + j.warning : "";
               if (msg) msg.textContent = "Applied " + (j.updated || assignments.length) + " placements ✓" + note;
-              closePairingsImport();
               loadRoster();
             } else if (msg) {
-              msg.textContent = (j && j.error) || "Bulk save failed.";
+              msg.textContent = (j && j.error) || "Bulk save failed. Re-open Import pairings to try again.";
             }
           })
-          .catch(function () { if (msg) msg.textContent = "Network error during bulk apply."; });
+          .catch(function () {
+            if (applyBtn) applyBtn.disabled = false;
+            if (msg) msg.textContent = "Network error during bulk apply. Re-open Import pairings to try again.";
+          });
       }
 
       // ---- Pairings: announcement page (starter's read-aloud sheet) ----
@@ -3104,23 +3353,63 @@
         // then update ONE number here and reprint — the whole batch shifts.
         headerTop: "0.10in",   // small verification tag at top-left corner
         headerLeft: "0.35in",
-        team1Top: "1.20in",    // Team 1 player 1 (full name) — top of upper score block
-        team2Top: "3.15in",    // Team 2 player 1 (full name) — top of lower score block
-        teamLeft: "0.55in",    // right of the row-label column
+        team1Top: "1.20in",    // Team 1 player 1 cell — top of upper score block
+        team2Top: "3.15in",    // Team 2 player 1 cell — top of lower score block
+        teamLeft: "0.30in",    // right of the row-label column — hugs the outer margin
         rowStep:  "0.40in",    // one full 3/8"+ row between player 1 and player 2 lines
-        nameSize: "11pt",
-        teeMarkTop: "3.05in",  // ring row in HOLE — nudged down
+        cellW:    "0.75in",    // width of the name cell (first-top-left / last-bottom-right)
+        cellH:    "0.38in",    // height of a single player row on the card
+        nameSize: "9pt",       // smaller so two lines (first + last) fit in one cell
+        teeMarkTop: "3.05in",  // ring row in HOLE
         teeMarkStep: "0.44in", // per-hole horizontal step in the HOLE row
-        teeMarkFirst: "1.28in" // x for hole 1 (adjust once against the card)
+        teeMarkFirst: "0.98in",// ring CENTER for hole 1 — sits over the preprinted "1" digit
+        teeMarkDia: "0.36in"   // ring diameter — tight around the "1"
       };
+      // Split "First M. Last" style names — first token is the first name,
+      // everything after joins as the last name. Preserves "Van Dyke",
+      // "St. John", "Smith Jr." etc. A single-word name goes on the last
+      // line so the top row can stay blank rather than mis-labeling it.
+      function splitFirstLast(fullName) {
+        var s = String(fullName || "").trim().replace(/\s+/g, " ");
+        if (!s) return { first: "", last: "" };
+        var parts = s.split(" ");
+        if (parts.length === 1) return { first: "", last: parts[0] };
+        return { first: parts[0], last: parts.slice(1).join(" ") };
+      }
       // Paper size actually used per print — reads the Pairings-tab picker so
       // staff can match whichever custom size the printer driver knows about,
       // falling back to CARD_OFFSETS.paperSize when the picker isn't mounted.
+      // The picker choice is persisted to localStorage so once the operator
+      // lands on the paper size their driver actually accepts, it sticks
+      // across reloads and Ctrl+Shift+R.
       function currentPaperSize() {
         var sel = document.getElementById("prPaperSize");
         var v = sel && sel.value ? sel.value.trim() : "";
         return v || CARD_OFFSETS.paperSize;
       }
+      (function restorePaperSize() {
+        try {
+          var saved = localStorage.getItem("fh:prPaperSize");
+          if (!saved) return;
+          function apply() {
+            var sel = document.getElementById("prPaperSize");
+            if (!sel) return;
+            var ok = false;
+            for (var i = 0; i < sel.options.length; i++) {
+              if (sel.options[i].value === saved) { ok = true; break; }
+            }
+            if (ok) sel.value = saved;
+            sel.addEventListener("change", function () {
+              try { localStorage.setItem("fh:prPaperSize", sel.value); } catch (e) {}
+            });
+          }
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", apply);
+          } else {
+            apply();
+          }
+        } catch (e) {}
+      })();
       function printScorecards() {
         if (!prRecs || !prRecs.length) { alert("No teams yet — import the field or add teams on Check-In first."); return; }
         var waveSel = document.getElementById("prPrintWhich");
@@ -3175,9 +3464,17 @@
         function teamNameBlock(rec, blockClass) {
           if (!rec) return "";
           var names = fullPlayerNames(rec.fields || {});
+          var s0 = splitFirstLast(names[0] || "");
+          var s1 = splitFirstLast(names[1] || "");
           return '<div class="sc-block ' + blockClass + '">'
-            + '<div class="sc-nm sc-nm--p1">' + esc(names[0] || "") + '</div>'
-            + '<div class="sc-nm sc-nm--p2">' + esc(names[1] || "") + '</div>'
+            + '<div class="sc-nm sc-nm--p1">'
+            +   '<span class="sc-nm__first">' + esc(s0.first) + '</span>'
+            +   '<span class="sc-nm__last">' + esc(s0.last) + '</span>'
+            + '</div>'
+            + '<div class="sc-nm sc-nm--p2">'
+            +   '<span class="sc-nm__first">' + esc(s1.first) + '</span>'
+            +   '<span class="sc-nm__last">' + esc(s1.last) + '</span>'
+            + '</div>'
             + '</div>';
         }
 
@@ -3190,7 +3487,7 @@
             + '<div class="sc-hdr">' + esc(slotTag) + '</div>'
             + teamNameBlock(g.teams[0], "sc-block--team1")
             + teamNameBlock(g.teams[1] || null, "sc-block--team2")
-            + '<div class="sc-teemark" style="left: ' + teeLeftPx + '">' + g.slot + '</div>'
+            + '<div class="sc-teemark" style="left: ' + teeLeftPx + '"><span class="sc-teemark__slot">' + esc(g.slot) + '</span></div>'
             + '</div>';
         }).join("");
 
@@ -3232,16 +3529,22 @@
       // handwritten example.
       function scorecardPrintCss(paper, pw, ph) {
         var step = CARD_OFFSETS.rowStep || "0.42in";
+        var cellW = CARD_OFFSETS.cellW || "0.75in";
+        var cellH = CARD_OFFSETS.cellH || "0.38in";
+        var dia = CARD_OFFSETS.teeMarkDia || "0.44in";
         return "@page { size: " + paper + "; margin: 0; }"
           + " body.is-print-cards .sc-page { width: " + pw + "; height: " + ph + "; transform: rotate(180deg); transform-origin: center center; }"
           + " body.is-print-cards .sc-hdr { top: " + CARD_OFFSETS.headerTop + "; left: " + CARD_OFFSETS.headerLeft + "; }"
           + " body.is-print-cards .sc-block { position: absolute; left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-weight: 700; color: #000; line-height: 1; }"
           + " body.is-print-cards .sc-block--team1 { top: " + CARD_OFFSETS.team1Top + "; }"
           + " body.is-print-cards .sc-block--team2 { top: " + CARD_OFFSETS.team2Top + "; }"
-          + " body.is-print-cards .sc-nm { position: absolute; left: 0; white-space: nowrap; }"
+          + " body.is-print-cards .sc-nm { position: absolute; left: 0; width: " + cellW + "; height: " + cellH + "; }"
           + " body.is-print-cards .sc-nm--p1 { top: 0; }"
           + " body.is-print-cards .sc-nm--p2 { top: " + step + "; }"
-          + " body.is-print-cards .sc-teemark { position: absolute; top: " + CARD_OFFSETS.teeMarkTop + "; width: 0.32in; height: 0.32in; margin-left: -0.16in; margin-top: -0.16in; border: 1.4pt solid #b11e2d; border-radius: 999px; display: flex; align-items: center; justify-content: flex-end; padding-right: 3pt; color: #b11e2d; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-size: 12pt; font-weight: 800; line-height: 1; -webkit-print-color-adjust: exact; print-color-adjust: exact; }";
+          + " body.is-print-cards .sc-nm__first { position: absolute; top: 0; left: 0; white-space: nowrap; }"
+          + " body.is-print-cards .sc-nm__last  { position: absolute; bottom: 0; right: 0; white-space: nowrap; }"
+          + " body.is-print-cards .sc-teemark { position: absolute; top: " + CARD_OFFSETS.teeMarkTop + "; width: " + dia + "; height: " + dia + "; margin-left: calc(" + dia + " / -2); margin-top: calc(" + dia + " / -2); border: 1.4pt solid #b11e2d; border-radius: 999px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }"
+          + " body.is-print-cards .sc-teemark__slot { position: absolute; top: 50%; left: calc(100% + 2pt); transform: translateY(-50%); color: #b11e2d; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-size: 10pt; font-weight: 800; line-height: 1; }";
       }
 
       // Day 2 scorecards. Teams are re-paired for Day 2 by Day 1 gross —
@@ -3307,11 +3610,19 @@
             if (!entry) return "";
             var f = entry.rec.fields || {};
             var names = fullPlayerNames(f);
+            var s0 = splitFirstLast(names[0] || "");
+            var s1 = splitFirstLast(names[1] || "");
             var gross = d1g(entry.rec);
             var seed = gross ? ' <span class="d1-circle">' + gross + '</span>' : '';
             return '<div class="sc-block ' + blockClass + '">'
-              + '<div class="sc-nm sc-nm--p1">' + esc(names[0] || "") + '</div>'
-              + '<div class="sc-nm sc-nm--p2">' + esc(names[1] || "") + seed + '</div>'
+              + '<div class="sc-nm sc-nm--p1">'
+              +   '<span class="sc-nm__first">' + esc(s0.first) + '</span>'
+              +   '<span class="sc-nm__last">' + esc(s0.last) + '</span>'
+              + '</div>'
+              + '<div class="sc-nm sc-nm--p2">'
+              +   '<span class="sc-nm__first">' + esc(s1.first) + '</span>'
+              +   '<span class="sc-nm__last">' + esc(s1.last) + seed + '</span>'
+              + '</div>'
               + '</div>';
           }
           var teeHtml = "";
@@ -3319,7 +3630,7 @@
           var aSlot = a && String((a.rec.fields || {}).Slot || "").toUpperCase();
           if (aHole && (aSlot === "A" || aSlot === "B")) {
             var teeLeftPx = "calc(" + CARD_OFFSETS.teeMarkFirst + " + " + CARD_OFFSETS.teeMarkStep + " * " + (aHole - 1) + ")";
-            teeHtml = '<div class="sc-teemark" style="left: ' + teeLeftPx + '">' + aSlot + '</div>';
+            teeHtml = '<div class="sc-teemark" style="left: ' + teeLeftPx + '"><span class="sc-teemark__slot">' + aSlot + '</span></div>';
           }
           var hdr = "DAY 2 · " + flTag + " · Pair " + pairNum;
           pages.push('<div class="sc-page">'
@@ -3378,14 +3689,14 @@
         host.innerHTML =
           '<div class="sc-page">'
           + '<div class="sc-block sc-block--team1">'
-          +   '<div class="sc-nm sc-nm--p1">Tom Bornhoft</div>'
-          +   '<div class="sc-nm sc-nm--p2">Kyle McConnell</div>'
+          +   '<div class="sc-nm sc-nm--p1"><span class="sc-nm__first">Tom</span><span class="sc-nm__last">Bornhoft</span></div>'
+          +   '<div class="sc-nm sc-nm--p2"><span class="sc-nm__first">Kyle</span><span class="sc-nm__last">McConnell</span></div>'
           + '</div>'
           + '<div class="sc-block sc-block--team2">'
-          +   '<div class="sc-nm sc-nm--p1">Ryan Davis</div>'
-          +   '<div class="sc-nm sc-nm--p2">Kris Wilson</div>'
+          +   '<div class="sc-nm sc-nm--p1"><span class="sc-nm__first">Ryan</span><span class="sc-nm__last">Davis</span></div>'
+          +   '<div class="sc-nm sc-nm--p2"><span class="sc-nm__first">Kris</span><span class="sc-nm__last">Wilson</span></div>'
           + '</div>'
-          + '<div class="sc-teemark" style="left: ' + teeLeftPx + '">A</div>'
+          + '<div class="sc-teemark" style="left: ' + teeLeftPx + '"><span class="sc-teemark__slot">A</span></div>'
           + '</div>';
 
         document.body.appendChild(host);
@@ -3746,7 +4057,6 @@
               + '<td class="ca-tbl__amt"><input type="number" inputmode="decimal" min="0" step="1" class="ca-amt" data-id="' + esc(x.id) + '" value="' + (x.amount == null ? "" : x.amount) + '" placeholder="$0" /></td>'
               + '<td class="ca-tbl__buyer"><input type="text" class="ca-buyer" data-id="' + esc(x.id) + '" value="' + esc(x.buyer) + '" placeholder="Buyer name" autocomplete="off" list="caBuyerList" /></td>'
               + '<td class="ca-tbl__save"><span class="sc-tbl__save" title="Save state"></span></td>'
-              + '<td class="ca-tbl__x"><button type="button" class="ca-clear" data-id="' + esc(x.id) + '" title="Clear buyer + amount">&times;</button></td>'
               + '</tr>';
           }).join("");
           var holeHead = "";
@@ -3755,7 +4065,7 @@
           for (var _hh2 = 10; _hh2 <= 18; _hh2++) holeHead += '<th class="ca-hole">' + _hh2 + '</th>';
           holeHead += '<th class="ca-loop">In</th>';
           return '<div class="lb-flight ca-flight">' + header
-            + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th class="ca-num">#</th><th>Team</th>' + holeHead + '<th class="ca-d1">D1</th><th class="ca-tbl__amt">$ Buy</th><th class="ca-tbl__buyer">Buyer</th><th></th><th></th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table ca-tbl"><thead><tr><th class="ca-num">#</th><th>Team</th>' + holeHead + '<th class="ca-d1">D1</th><th class="ca-tbl__amt">$ Buy</th><th class="ca-tbl__buyer">Buyer</th><th class="ca-tbl__save"></th></tr></thead><tbody>'
             + tbody + '</tbody></table></div></div>';
         }).join("");
         // Grand sum of every $ Buy field on the page — a double-check that
@@ -3793,7 +4103,7 @@
           + strip
           + (out || '<p class="noms__msg">Flights aren\'t assigned yet — set the cuts on the Flights tab first.</p>')
           + '<div class="ca-sumcheck">=SUM of $ Buy · <b id="caSumCheck">' + money(grandBuy) + '</b></div>'
-          + '<div class="ca-footer"><button type="button" class="btn btn--solid ca-clear-all" id="caClearAll">Delete all Calcutta data</button></div>';
+          + '';
         // Mark every 2nd flight as a print page break so 2 flights land per landscape page.
         Array.prototype.forEach.call(body.querySelectorAll(".ca-flight"), function (el, idx) {
           if ((idx + 1) % 2 === 0) el.classList.add("ca-flight--pagebreak");
@@ -3818,42 +4128,6 @@
           }, 700);
         }
         Array.prototype.forEach.call(host.querySelectorAll(".ca-buyer"), function (inp) { inp.addEventListener("input", function () { onEdit(inp, "buyer"); }); });
-        Array.prototype.forEach.call(host.querySelectorAll(".ca-clear"), function (btn) {
-          btn.addEventListener("click", function () {
-            var row = btn.closest("tr");
-            var buyer = row.querySelector(".ca-buyer"), amt = row.querySelector(".ca-amt");
-            if (buyer) buyer.value = "";
-            if (amt) amt.value = "";
-            row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
-            recomputeCalcuttaTotals(host);
-            var id = row.getAttribute("data-id");
-            updateCacheBuys(id, row);
-            saveCalcuttaRow(id, row);
-            try { renderCalcuttaSummary(scAllCache); renderPL(); } catch (e) {}
-          });
-        });
-        var caAll = host.querySelector("#caClearAll");
-        if (caAll) caAll.addEventListener("click", function () {
-          confirmDestructive({
-            title: "Delete all Calcutta data?",
-            body: "This clears every team's Buyer + Buy Amount across the whole tournament. This can't be undone.",
-            confirmLabel: "Delete all Calcutta",
-            onConfirm: function () {
-              var rows = Array.prototype.slice.call(host.querySelectorAll("tr[data-id]"));
-              rows.forEach(function (row) {
-                var buyer = row.querySelector(".ca-buyer"), amt = row.querySelector(".ca-amt");
-                if (buyer) buyer.value = "";
-                if (amt) amt.value = "";
-                row.classList.remove("is-saved", "is-error"); row.classList.add("is-dirty");
-                var id = row.getAttribute("data-id");
-                updateCacheBuys(id, row);
-                saveCalcuttaRow(id, row);
-              });
-              recomputeCalcuttaTotals(host);
-              try { renderCalcuttaSummary(scAllCache); renderPL(); } catch (e) {}
-            }
-          });
-        });
         Array.prototype.forEach.call(host.querySelectorAll(".ca-amt"), function (inp) {
           inp.addEventListener("input", function () {
             onEdit(inp, "amount");
@@ -4710,16 +4984,25 @@
           Array.prototype.forEach.call(document.querySelectorAll(".wb-sheet"), function (el) { el.hidden = (el.getAttribute("data-sheet") !== s); });
           Array.prototype.forEach.call(document.querySelectorAll(".wb-tab"), function (b) { b.classList.toggle("is-active", b.getAttribute("data-sheet") === s); });
           try { localStorage.setItem("fh_wb_tab_" + KEY, s); } catch (e) {}
+          // Track active tab so loadRoster can skip DOM writes for hidden
+          // sheets — the biggest perf win during a busy check-in period.
+          window.__fhActive = s;
           // Load the public-display iframes lazily — only when their tab opens.
           if (s === "dispCalcutta" || s === "dispLeaderboard") mountDisplayTab(s);
           if (s === "history") loadHistory();
-          // Force a fresh Summary render on tab open. Flush any pending
-          // Calcutta saves first so buyers just typed on the Calcutta tab
-          // show up immediately here — no 700ms debounce wait.
-          if (s === "calcuttaSummary") {
-            try { flushCalcuttaPending(); } catch (e) {}
-            try { renderCalcuttaSummary(scAllCache); } catch (e) {}
-          }
+          // Lazy-render the freshly-opened tab from the shared cache so
+          // switching tabs shows current data without a network round-trip.
+          // (Check-In already renders on every roster load — it's the
+          // working tab during the tournament.)
+          try {
+            if (s === "scores") renderScores(scAllCache);
+            else if (s === "pairings") renderPairings(scAllCache);
+            else if (s === "leaderboard") renderLeaderboard(scAllCache);
+            else if (s === "calcutta") renderCalcutta(scAllCache);
+            else if (s === "calcuttaSummary") { try { flushCalcuttaPending(); } catch (e) {} renderCalcuttaSummary(scAllCache); }
+            else if (s === "payout") renderPayout(scAllCache);
+            else if (s === "flights") renderBoard(scAllCache);
+          } catch (e) {}
         }
         Array.prototype.forEach.call(document.querySelectorAll(".wb-tab"), function (b) {
           b.addEventListener("click", function () { showSheet(b.getAttribute("data-sheet")); });
@@ -4815,6 +5098,23 @@
 
         var tr = document.getElementById("twRefresh");
         if (tr) tr.addEventListener("click", loadRoster);
+
+        // Check-in filter chips (Wave + Payment). Re-render from cache on
+        // click — no network — so the operator sees an immediate response.
+        Array.prototype.forEach.call(document.querySelectorAll('#ciFilters [data-fwave]'), function (b) {
+          b.addEventListener("click", function () {
+            CI_FILTERS.wave = b.getAttribute("data-fwave") || "all";
+            saveCiFilters();
+            try { renderRoster(scAllCache); } catch (e) {}
+          });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('#ciFilters [data-fpaid]'), function (b) {
+          b.addEventListener("click", function () {
+            CI_FILTERS.paid = b.getAttribute("data-fpaid") || "all";
+            saveCiFilters();
+            try { renderRoster(scAllCache); } catch (e) {}
+          });
+        });
         // Scores tab switcher (Day 1 / Day 2 / Import CSV).
         Array.prototype.forEach.call(document.querySelectorAll("#scTabs .sc-tab"), function (b) {
           b.addEventListener("click", function () {
@@ -5023,6 +5323,8 @@
         if (prTestCard) prTestCard.addEventListener("click", printTestCard);
         var prImp = document.getElementById("prImport");
         if (prImp) prImp.addEventListener("click", openPairingsImport);
+        var prSave = document.getElementById("prSavePairings");
+        if (prSave) prSave.addEventListener("click", saveAllPairings);
         var piModal = document.getElementById("pairImportModal");
         if (piModal) {
           Array.prototype.forEach.call(piModal.querySelectorAll("[data-close], #piClose, #piCancel"), function (el) {
