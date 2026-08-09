@@ -1389,6 +1389,8 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 
 /* Toolbar for the Pairings header (Print controls + Refresh) */
 .noms__bar-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.pr-day-tabs { display: flex; gap: 0.3rem; margin: 0.2rem 0.5rem 0.2rem 0; }
+.pr-day-tab { padding: 0.4rem 0.9rem; font-size: 0.9rem; }
 .pr-print-which { padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.88rem; background: #fff; }
 
 /* Print styles — triggered by JS toggling body.is-print-both / am / pm.

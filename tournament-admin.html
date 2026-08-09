@@ -140,6 +140,10 @@
         <section class="noms wb-sheet" data-sheet="pairings" id="twPairings" aria-label="Pairings" hidden>
           <div class="noms__bar">
             <h3 class="noms__title">Pairings — tee sheet</h3>
+            <div class="pr-day-tabs" role="tablist" aria-label="Which day">
+              <button class="sc-tab pr-day-tab is-active" type="button" data-prday="d1" role="tab">Day 1</button>
+              <button class="sc-tab pr-day-tab" type="button" data-prday="d2" role="tab">Day 2</button>
+            </div>
             <div class="noms__bar-actions">
               <select id="prPrintWhich" class="pr-print-which" aria-label="What to print">
                 <option value="both" selected>Print both waves (front &amp; back)</option>
@@ -148,6 +152,7 @@
               </select>
               <button class="btn btn--solid" type="button" id="prImport" title="Paste the AM/PM pairings list — matches teams by last-name tokens and seats everybody in one shot">Import pairings</button>
               <button class="btn btn--primary" type="button" id="prSavePairings" title="Force-save every team's current Hole/Slot/Seat/Wave to Airtable — use this if pairings seem to revert on reload.">Save pairings</button>
+              <button class="btn btn--primary" type="button" id="prAutofillD2" hidden title="Populate Day 2 pairings from Day 1 gross scores — lowest score to Hole 1 A, highest to Hole 9 B, within each wave.">Autofill Day 2 from Day 1 scores</button>
               <button class="btn btn--solid" type="button" id="prPrint">Print tee sheet</button>
               <button class="btn btn--solid" type="button" id="prPrintAnnounce">Announcement page</button>
               <button class="btn btn--solid" type="button" id="prPrintCards" title="Overlay team names onto pre-printed F&amp;H scorecards (Day 1 tee-sheet order)">Print scorecards</button>
@@ -2317,7 +2322,7 @@
         try { renderRoster(all); } catch (e) {}
         try {
           if (s === "scores") renderScores(all);
-          else if (s === "pairings") renderPairings(all);
+          else if (s === "pairings") { try { _wirePrDayControls(); } catch (e) {} renderPairings(all); }
           else if (s === "leaderboard") renderLeaderboard(all);
           else if (s === "calcutta") renderCalcutta(all);
           else if (s === "calcuttaSummary") renderCalcuttaSummary(all);
@@ -2365,6 +2370,50 @@
       var TEAMS_PER_TEE = 2;
       var prRecs = [];
       var prDrag = null; // { id, srcHole, srcSlot, srcWave }
+      // Which day of the tournament the Pairings tab is currently editing.
+      // 'd1' -> Hole / Slot / Seat (default). 'd2' -> Day 2 Hole / Day 2 Slot /
+      // Day 2 Seat. Persisted per-tournament so the operator's choice
+      // survives reloads.
+      var PR_DAY = "d1";
+      try { PR_DAY = localStorage.getItem("fh:prDay:" + KEY) || "d1"; if (PR_DAY !== "d2") PR_DAY = "d1"; } catch (e) {}
+      // Return the placement fields (hole/slot/seat) for the currently-active
+      // day. Renderers + drag/drop only ever read/write via these getters
+      // instead of poking f.Hole directly, so switching days flips the whole
+      // board without hand-editing every reference.
+      function _dHole(f) { return PR_DAY === "d2" ? f["Day 2 Hole"] : f["Hole"]; }
+      function _dSlot(f) { return PR_DAY === "d2" ? f["Day 2 Slot"] : f["Slot"]; }
+      function _dSeat(f) { return PR_DAY === "d2" ? f["Day 2 Seat"] : f["Seat"]; }
+      // Payload keys sent to the endpoint depend on the active day too.
+      function _dPayloadHoleKey() { return PR_DAY === "d2" ? "d2Hole" : "hole"; }
+      function _dPayloadSlotKey() { return PR_DAY === "d2" ? "d2Slot" : "slot"; }
+      function _dPayloadSeatKey() { return PR_DAY === "d2" ? "d2Seat" : "seat"; }
+      function _dAssign(base) {
+        // Translate {hole,slot,seat} -> {d2Hole,d2Slot,d2Seat} when needed so
+        // one caller can build the assignment naturally and this rewrites
+        // the keys at the boundary.
+        if (PR_DAY !== "d2") return base;
+        var out = { id: base.id };
+        if (base.start !== undefined) out.start = base.start;
+        if (base.hole !== undefined) out.d2Hole = base.hole;
+        if (base.slot !== undefined) out.d2Slot = base.slot;
+        if (base.seat !== undefined) out.d2Seat = base.seat;
+        return out;
+      }
+      // Rewrite each record's fields so Hole/Slot/Seat reflect the currently-
+      // active day's stored values. Every existing renderer + drag/drop
+      // helper continues to reference f.Hole / f.Slot / f.Seat unchanged.
+      function _aliasForDay(recs) {
+        if (PR_DAY !== "d2") return recs;
+        return recs.map(function (r) {
+          var f = r.fields || {};
+          var newF = {};
+          for (var k in f) newF[k] = f[k];
+          newF.Hole = f["Day 2 Hole"];
+          newF.Slot = f["Day 2 Slot"];
+          newF.Seat = f["Day 2 Seat"];
+          return { id: r.id, created: r.created, fields: newF, __src: r };
+        });
+      }
 
       function byCreated(a, b) { return String(a.created || "").localeCompare(String(b.created || "")); }
       function shortName(n) {
@@ -2448,6 +2497,7 @@
       function positionSave(id, payload, statusEl) {
         if (statusEl) statusEl.textContent = "Saving…";
         payload.id = id;
+        payload = _dAssign(payload);
         fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: [payload] }) })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) { if (res.j && res.j.ok) { loadRoster(); } else if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't save."; } })
@@ -2455,6 +2505,7 @@
       }
       function positionSaveMany(assignments) {
         var msg = document.getElementById("prMsg"); if (msg) msg.textContent = "Saving " + assignments.length + " move" + (assignments.length === 1 ? "" : "s") + "…";
+        assignments = assignments.map(_dAssign);
         fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: assignments }) })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
@@ -2484,7 +2535,7 @@
           var slot = typeof f.Slot === "string" ? f.Slot : "";
           var seat = (f.Seat != null && f.Seat !== "") ? Number(f.Seat) : "";
           var start = typeof f.Start === "string" ? f.Start : "";
-          return { id: r.id, hole: hole, slot: slot, seat: seat, start: start };
+          return _dAssign({ id: r.id, hole: hole, slot: slot, seat: seat, start: start });
         });
         if (btn) btn.disabled = true;
         if (msg) msg.textContent = "Saving all pairings (" + assignments.length + " teams)…";
@@ -2504,6 +2555,96 @@
             } else if (msg) { msg.textContent = (j && j.error) || "Save failed."; }
           })
           .catch(function () { if (btn) btn.disabled = false; if (msg) msg.textContent = "Network error saving."; });
+      }
+      // Autofill Day 2 pairings from Day 1 gross. Within each wave, lowest
+      // Day 1 gross lands at Hole 1 Tee A Seat 1, then A Seat 2, then B
+      // Seat 1, then B Seat 2, marching across holes 1 → 9 (or however
+      // many active holes the wave's slot config has). Writes to Day 2
+      // Hole / Slot / Seat via the d2* payload keys. Teams without a Day 1
+      // gross fall to the tail of the wave (sorted last) so they don't
+      // steal top slots from teams that actually scored.
+      function autofillDay2() {
+        var btn = document.getElementById("prAutofillD2");
+        var msg = document.getElementById("prMsg");
+        // Read the raw records straight from scAllCache — we don't want the
+        // Day 2 aliasing to leak into a sort by Day 1 gross.
+        var raw = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        if (!raw.length) { if (msg) msg.textContent = "No teams to pair."; return; }
+        if (!confirm("Autofill Day 2 pairings from Day 1 gross scores? This overwrites any Day 2 placements you've made.")) return;
+        if (btn) btn.disabled = true;
+        function d1Gross(rec) {
+          var scores = parseScores((rec.fields || {})["Day1 Scores"]);
+          var s = 0; for (var i = 0; i < 18; i++) { if (scores[i] == null) return null; s += scores[i]; }
+          return s;
+        }
+        var assignments = [];
+        WAVES.forEach(function (w) {
+          var slotCfg = loadSlotCfg(w.k);
+          var slots = activeSlots(slotCfg);
+          if (!slots.length) return;
+          var teams = raw.filter(function (r) { return ((r.fields || {}).Start || "") === w.k; });
+          if (!teams.length) return;
+          teams.sort(function (a, b) {
+            var ga = d1Gross(a), gb = d1Gross(b);
+            if (ga == null && gb == null) return byCreated(a, b);
+            if (ga == null) return 1;
+            if (gb == null) return -1;
+            return ga - gb;
+          });
+          // Fill Hole 1 A seat 1, seat 2, then Hole 1 B seat 1, seat 2,
+          // then Hole 2 A ... — following the operator's own slot layout
+          // rather than a hardcoded hole sequence.
+          var idx = 0;
+          slots.forEach(function (s) {
+            for (var seat = 1; seat <= TEAMS_PER_TEE && idx < teams.length; seat++) {
+              var t = teams[idx++];
+              assignments.push({ id: t.id, d2Hole: s.hole, d2Slot: s.slot, d2Seat: seat, start: w.k });
+            }
+          });
+          // Anyone left over (more teams than seats) goes to "unplaced" on
+          // Day 2 so the operator sees them and can decide by hand.
+          for (; idx < teams.length; idx++) {
+            var over = teams[idx];
+            assignments.push({ id: over.id, d2Hole: "", d2Slot: "", d2Seat: "", start: w.k });
+          }
+        });
+        if (!assignments.length) { if (btn) btn.disabled = false; if (msg) msg.textContent = "No tee slots configured — turn on holes first."; return; }
+        if (msg) msg.textContent = "Autofilling Day 2 (" + assignments.length + " teams)…";
+        fetch(FH_API.url("/api/tournament-flights"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ assignments: assignments }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (btn) btn.disabled = false;
+            if (j && j.ok) {
+              var text = "Day 2 pairings set — " + j.updated + " team" + (j.updated === 1 ? "" : "s") + " ✓";
+              if (j.warning) text += " — " + j.warning;
+              if (msg) msg.textContent = text;
+              loadRoster();
+            } else if (msg) { msg.textContent = (j && j.error) || "Save failed."; }
+          })
+          .catch(function () { if (btn) btn.disabled = false; if (msg) msg.textContent = "Network error autofilling."; });
+      }
+      // Wire the day-tab toggle + Autofill Day 2 button. Runs after the tab
+      // DOM is inserted, defensively re-runs on tab open. Persists the
+      // choice per-tournament so a refresh keeps the operator on Day 2.
+      function _wirePrDayControls() {
+        Array.prototype.forEach.call(document.querySelectorAll(".pr-day-tab"), function (btn) {
+          if (btn.__wired) return; btn.__wired = true;
+          btn.addEventListener("click", function () {
+            var d = btn.getAttribute("data-prday") || "d1";
+            if (d === PR_DAY) return;
+            PR_DAY = d;
+            try { localStorage.setItem("fh:prDay:" + KEY, PR_DAY); } catch (e) {}
+            Array.prototype.forEach.call(document.querySelectorAll(".pr-day-tab"), function (b) { b.classList.toggle("is-active", b.getAttribute("data-prday") === PR_DAY); });
+            renderPairings(scAllCache);
+          });
+          btn.classList.toggle("is-active", btn.getAttribute("data-prday") === PR_DAY);
+        });
+        var af = document.getElementById("prAutofillD2");
+        if (af && !af.__wired) { af.__wired = true; af.addEventListener("click", autofillDay2); af.hidden = PR_DAY !== "d2"; }
       }
 
       // Auto-assign a stable Team number per wave, sorted by created time (so a
@@ -2667,7 +2808,13 @@
       function renderPairings(all) {
         var board = document.getElementById("prBoard"); if (!board) return;
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        // On Day 2, swap Day 2 Hole/Slot/Seat into Hole/Slot/Seat so the
+        // existing render pipeline works unchanged.
+        recs = _aliasForDay(recs);
         prRecs = recs;
+        // Show/hide the Day 2 autofill button based on current day.
+        var autoBtn = document.getElementById("prAutofillD2");
+        if (autoBtn) autoBtn.hidden = PR_DAY !== "d2";
         if (!recs.length) { board.innerHTML = '<p class="noms__msg">No teams yet. Import the 2026 field above, or add teams on the Check-In sheet.</p>'; return; }
         window.__prTeamNumbers = computeTeamNumbers(recs);
         board.innerHTML = WAVES.map(function (w) {
@@ -4996,7 +5143,7 @@
           // working tab during the tournament.)
           try {
             if (s === "scores") renderScores(scAllCache);
-            else if (s === "pairings") renderPairings(scAllCache);
+            else if (s === "pairings") { try { _wirePrDayControls(); } catch (e) {} renderPairings(scAllCache); }
             else if (s === "leaderboard") renderLeaderboard(scAllCache);
             else if (s === "calcutta") renderCalcutta(scAllCache);
             else if (s === "calcuttaSummary") { try { flushCalcuttaPending(); } catch (e) {} renderCalcuttaSummary(scAllCache); }

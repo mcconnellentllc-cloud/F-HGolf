@@ -146,6 +146,15 @@ module.exports = async (req, res) => {
           const s = Number(a.seat);
           fields.Seat = (a.seat === "" || a.seat == null || !isFinite(s)) ? null : Math.max(1, Math.min(2, s));
         }
+        // Day 2 pairings — separate fields so Day 1 layout stays intact
+        // as the operator arranges tomorrow's shotgun. Same shape as Day 1.
+        // Missing fields on the Signups table get auto-stripped (see below).
+        if (a.d2Hole !== undefined) { const h2 = Number(a.d2Hole); fields["Day 2 Hole"] = (a.d2Hole === "" || a.d2Hole == null || !isFinite(h2)) ? null : h2; }
+        if (typeof a.d2Slot === "string") fields["Day 2 Slot"] = a.d2Slot ? a.d2Slot.slice(0, 10) : null;
+        if (a.d2Seat !== undefined) {
+          const s2 = Number(a.d2Seat);
+          fields["Day 2 Seat"] = (a.d2Seat === "" || a.d2Seat == null || !isFinite(s2)) ? null : Math.max(1, Math.min(2, s2));
+        }
         return { id: a.id, fields };
       })
       .filter((r) => Object.keys(r.fields).length);
