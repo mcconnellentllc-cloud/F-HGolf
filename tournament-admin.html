@@ -92,6 +92,7 @@
           <div class="noms__bar">
             <h3 class="noms__title">Check-in &amp; Money <span class="noms__count" id="twCount"></span></h3>
             <span class="ci-load-status" id="twLoadStatus" hidden aria-live="polite"></span>
+            <button class="btn btn--solid" type="button" id="ciBulkPay" title="Mark every unpaid player paid with a chosen method">Mark all paid</button>
             <button class="btn btn--solid" type="button" id="twRefresh">Refresh</button>
           </div>
 
@@ -452,6 +453,40 @@
         <button type="button" class="btn btn--solid" id="piCancel">Cancel</button>
         <button type="button" class="btn btn--solid" id="piMatch">Match &amp; preview</button>
         <button type="button" class="btn btn--primary" id="piApply" disabled>Apply pairings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CHECK-IN BULK PAID MODAL ==================== -->
+  <div class="pm-modal cd-modal" id="ciBulkPayModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cbpTitle">
+    <div class="pm-modal__backdrop" data-close="1"></div>
+    <div class="pm-modal__panel cd-panel">
+      <div class="pm-modal__head">
+        <h3 id="cbpTitle">Mark all paid</h3>
+        <button type="button" class="pm-modal__close" id="cbpClose" aria-label="Cancel">&times;</button>
+      </div>
+      <div class="pm-modal__body">
+        <p class="cd-body">Set every player's payment method in one shot. Pick a method, choose whether to overwrite existing methods or only fill blanks, then <b>Apply</b>. This writes directly to Airtable, one player at a time.</p>
+        <div class="cbp-row">
+          <label class="cbp-lbl">Payment method
+            <select id="cbpMethod" class="cbp-in">
+              <option value="Cash">Cash</option>
+              <option value="Check">Check</option>
+              <option value="Card">Card</option>
+              <option value="Online">Online</option>
+            </select>
+          </label>
+          <label class="cbp-check">
+            <input type="checkbox" id="cbpBlanksOnly" checked />
+            <span>Only fill blank / unpaid players (skip anyone already marked paid)</span>
+          </label>
+        </div>
+        <p class="cd-body" id="cbpPreview" style="margin-top:0.6rem"></p>
+        <p class="cd-body" id="cbpStatus" style="margin-top:0.3rem;color:var(--muted)"></p>
+      </div>
+      <div class="pm-modal__foot">
+        <button type="button" class="btn btn--solid" id="cbpCancel">Cancel</button>
+        <button type="button" class="btn cd-confirm" id="cbpApply">Apply</button>
       </div>
     </div>
   </div>
@@ -5798,6 +5833,94 @@
               })
               .catch(function () { if (caFlightStatus) caFlightStatus.textContent = "Network error."; });
           });
+        }
+
+        // ---- Check-In: Mark all paid (bulk recovery) ---------------------
+        // One-click restore of paid state after an Airtable data loss --
+        // pick a payment method, choose fill-blanks-only or overwrite, then
+        // apply. Fires one PATCH per player through /api/tournament-checkin
+        // with an 80ms spacer to stay under Airtable's rate limit.
+        var ciBulkModal = document.getElementById("ciBulkPayModal");
+        function refreshCbpPreview() {
+          var pv = document.getElementById("cbpPreview"); if (!pv) return;
+          var blanksOnly = !!document.getElementById("cbpBlanksOnly").checked;
+          var teams = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+          var count = 0;
+          teams.forEach(function (r) {
+            var f = r.fields || {}, pp = teamPlayers(f, r);
+            [["Player 1 Paid", true], ["Player 2 Paid", pp.hasP2]].forEach(function (s) {
+              if (!s[1]) return;
+              if (blanksOnly && String(f[s[0]] || "").trim().length > 0) return;
+              count++;
+            });
+          });
+          pv.innerHTML = 'Will update <b>' + count + '</b> player payment' + (count === 1 ? '' : 's') + ' across <b>' + teams.length + '</b> team' + (teams.length === 1 ? '' : 's') + '.';
+        }
+        function openCiBulkPay() {
+          if (!ciBulkModal) return;
+          var st = document.getElementById("cbpStatus"); if (st) st.textContent = "";
+          var apply = document.getElementById("cbpApply"); if (apply) apply.disabled = false;
+          refreshCbpPreview();
+          ciBulkModal.hidden = false; ciBulkModal.setAttribute("aria-hidden", "false");
+        }
+        function closeCiBulkPay() {
+          if (!ciBulkModal) return;
+          ciBulkModal.hidden = true; ciBulkModal.setAttribute("aria-hidden", "true");
+        }
+        async function applyCiBulkPay() {
+          var method = document.getElementById("cbpMethod").value || "Cash";
+          var blanksOnly = !!document.getElementById("cbpBlanksOnly").checked;
+          var apply = document.getElementById("cbpApply");
+          var st = document.getElementById("cbpStatus");
+          if (apply) apply.disabled = true;
+          var teams = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+          var jobs = [];
+          teams.forEach(function (r) {
+            var f = r.fields || {}, pp = teamPlayers(f, r);
+            var payload = { id: r.id };
+            var touched = false;
+            if (!blanksOnly || !String(f["Player 1 Paid"] || "").trim()) { payload.player1Paid = method; touched = true; }
+            if (pp.hasP2 && (!blanksOnly || !String(f["Player 2 Paid"] || "").trim())) { payload.player2Paid = method; touched = true; }
+            if (touched) jobs.push({ rec: r, payload: payload });
+          });
+          var done = 0, failed = 0;
+          for (var i = 0; i < jobs.length; i++) {
+            if (st) st.textContent = "Applying " + (i + 1) + " / " + jobs.length + "…";
+            try {
+              var resp = await fetch(FH_API.url("/api/tournament-checkin"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+                body: JSON.stringify(jobs[i].payload)
+              });
+              var j = await resp.json().catch(function () { return {}; });
+              if (j && j.ok) {
+                var rec = jobs[i].rec;
+                for (var k = 0; k < scAllCache.length; k++) if (scAllCache[k].id === rec.id) {
+                  scAllCache[k].fields = scAllCache[k].fields || {};
+                  if (jobs[i].payload.player1Paid !== undefined) scAllCache[k].fields["Player 1 Paid"] = jobs[i].payload.player1Paid;
+                  if (jobs[i].payload.player2Paid !== undefined) scAllCache[k].fields["Player 2 Paid"] = jobs[i].payload.player2Paid;
+                  break;
+                }
+                done++;
+              } else { failed++; }
+            } catch (e) { failed++; }
+            await new Promise(function (res) { setTimeout(res, 80); });
+          }
+          if (st) st.textContent = done + " updated" + (failed ? ", " + failed + " failed" : "") + ".";
+          try { renderRoster(scAllCache); renderPL(); } catch (e) {}
+          if (apply) apply.disabled = false;
+          if (!failed) setTimeout(closeCiBulkPay, 900);
+        }
+        var ciBulkPayBtn = document.getElementById("ciBulkPay");
+        if (ciBulkPayBtn) ciBulkPayBtn.addEventListener("click", openCiBulkPay);
+        if (ciBulkModal) {
+          Array.prototype.forEach.call(ciBulkModal.querySelectorAll("[data-close], #cbpClose, #cbpCancel"), function (el) {
+            el.addEventListener("click", closeCiBulkPay);
+          });
+          var cbpBlanksOnly = document.getElementById("cbpBlanksOnly");
+          if (cbpBlanksOnly) cbpBlanksOnly.addEventListener("change", refreshCbpPreview);
+          var cbpA = document.getElementById("cbpApply");
+          if (cbpA) cbpA.addEventListener("click", applyCiBulkPay);
         }
 
         // ---- Calcutta bulk import (paste team,buyer,amount) --------------
