@@ -745,14 +745,24 @@
         var calcuttaCommission = calcuttaPool * comm;
         var courseRevenue = greenFees + meals + extraMealsRevenue + cartRentalRevenue + otherRevenue + calcuttaCommission;
 
-        // Flight prize pool is sized by the number of ENTRIES ACTUALLY
-        // COLLECTED — each paid player's contribution (entry − green − meal −
-        // other) goes into the prize pool. Unpaid players don't inflate it.
-        var flightPrizePool = Math.max(0, (entryPP - greenPP - mealPP - otherPP) * paidPlayers);
+        // Flight prize pool:
+        //   base = (entry - green - meal - other) × paid players
+        //   pool = base + additional flight money - manual expenses
+        // Then split equally across N flights, and inside each flight the
+        // usual 1st/2nd/3rd percentages (default 50/30/20).
+        //
+        // - "Paid players" (not just registered) so unpaid entries can't
+        //   inflate a payout that hasn't actually been collected.
+        // - Manual expenses (Expenses & P&L tab line items -- trophies,
+        //   food, extra supplies) come OUT of the pool BEFORE payout, per
+        //   pro-shop convention.
+        // - Additional flight money (Calc tab) is added to the pool so it
+        //   follows the same 1st/2nd/3rd split as the entry-driven pool.
+        var basePool = (entryPP - greenPP - mealPP - otherPP) * paidPlayers;
+        var flightPrizePool = Math.max(0, basePool + addFlight - expensesTotal);
         var perFlightBudget = nFlights > 0 ? (flightPrizePool / nFlights) : 0;
-        var addPerFlight = nFlights > 0 ? (addFlight / nFlights) : 0;
         var flightPrizes = flightSplit.map(function (pct) {
-          return (perFlightBudget * (pct / 100)) + (addPerFlight / Math.max(1, flightSplit.length));
+          return perFlightBudget * (pct / 100);
         });
         var calcuttaPayout = Math.max(0, calcuttaPool - calcuttaCommission);
 
