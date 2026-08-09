@@ -1160,6 +1160,39 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .po-tbl__total td:last-child { text-align: right; color: var(--primary-green); font-size: 1.1rem; }
 .po-grand { background: var(--primary-green); color: #fff; border-radius: 10px; padding: 0.8rem 1rem; margin-top: 1rem; font-size: 1.05rem; text-align: right; }
 .po-grand b { font-size: 1.4rem; font-family: var(--font-display); }
+
+/* Payout summary cards -- one per pay category. Sits at the bottom of the
+   Payout tab so the operator can see per-place amounts at a glance. */
+.po-cards { display: grid; grid-template-columns: 1fr; gap: 1.2rem; margin-top: 1.4rem; }
+@media (min-width: 900px) { .po-cards { grid-template-columns: 1fr 1fr; } }
+.po-card { background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--primary-green); border-radius: 12px; padding: 1rem 1.2rem; box-shadow: var(--shadow-sm); font-variant-numeric: tabular-nums; }
+.po-card--cal { border-left-color: #6a4ab5; }
+.po-card__hdr { color: var(--primary-green); font-family: var(--font-display); font-size: 1.15rem; margin: 0 0 0.35rem; }
+.po-card--cal .po-card__hdr { color: #4a3181; }
+.po-card__sub { font-size: 0.86rem; color: var(--muted); margin: 0 0 0.7rem; }
+.po-card__grid { display: grid; grid-template-columns: auto auto 1fr 1fr; gap: 0.35rem 0.9rem; align-items: baseline; }
+.po-card__hd { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding-bottom: 0.3rem; border-bottom: 1px solid var(--line); }
+.po-card__hd--num { text-align: right; }
+.po-card__hd small { display: block; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+.po-card__lbl { font-weight: 700; color: var(--ink); }
+.po-card__pct { color: var(--muted); font-size: 0.9rem; }
+.po-card__amt { text-align: right; font-family: var(--font-display); font-size: 1.05rem; color: var(--ink); font-weight: 600; }
+.po-card__amt--tot { color: var(--primary-green); font-weight: 800; font-size: 1.1rem; }
+.po-card__total { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; margin-top: 0.9rem; padding: 0.7rem 0.9rem; border: 2px solid var(--primary-green); border-radius: 10px; background: rgba(30, 80, 40, 0.05); }
+.po-card__total span { text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; color: var(--ink); }
+.po-card__total b { font-family: var(--font-display); font-size: 1.4rem; color: var(--primary-green); }
+
+/* Calcutta payout table -- one row per flight with pool / commission /
+   per-place cut. Horizontally scrollable on narrow screens. */
+.po-cal-tbl-wrap { overflow-x: auto; }
+.po-cal-tbl { width: 100%; border-collapse: collapse; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+.po-cal-tbl th, .po-cal-tbl td { padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.po-cal-tbl th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #4a3181; text-align: left; }
+.po-cal-tbl th small { display: block; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+.po-cal-tbl__num { text-align: right; white-space: nowrap; }
+.po-cal-tbl__neg { color: var(--red-deep); }
+.po-cal-tbl tbody tr:nth-child(odd) { background: rgba(106, 74, 181, 0.05); }
+.po-cal-tbl__total td { border-top: 2px solid #6a4ab5; background: rgba(106, 74, 181, 0.12) !important; }
 .po-warn { color: var(--red-deep); font-size: 0.72rem; font-weight: 700; margin-left: 0.3rem; }
 .po-tbl__chkH { width: 7rem; text-align: right; }
 .po-tbl__chk { text-align: right; }

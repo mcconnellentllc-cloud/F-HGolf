@@ -5192,10 +5192,94 @@
         summary = paidGate + summary;
 
         var grand = flightPayouts.reduce(function (s, p) { return s + p.amount; }, 0) + calPayouts.reduce(function (s, p) { return s + p.amount; }, 0);
+
+        // ---- Summary cards at the bottom -------------------------------
+        // (1) Flight money payout card -- the same 1st/2nd/3rd dollar
+        // amount is paid in every flight. Show the amount per place, the
+        // per-flight total, and the grand total across N flights.
+        // (2) Calcutta payout card -- one row per flight with the pool,
+        // commission, net-to-buyers, and per-place cut so buyers know
+        // exactly what they'll collect.
+        function _m(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+        var placeLabels = ["1st", "2nd", "3rd", "4th", "5th"];
+        var flightBudget = m.perFlightBudget;
+        var flightMoneyCard = ''
+          + '<section class="po-card po-card--flight">'
+          + '<h4 class="po-card__hdr">Flight money payout</h4>'
+          + '<p class="po-card__sub">Every flight pays the same 1st / 2nd / 3rd amounts. Flight budget: <b>' + _m(flightBudget) + '</b> per flight &middot; ' + m.nFlights + ' flights.</p>'
+          + '<div class="po-card__grid">'
+          +   '<div class="po-card__hd"><b>Place</b></div>'
+          +   '<div class="po-card__hd"><b>Split</b></div>'
+          +   '<div class="po-card__hd"><b>Per flight</b></div>'
+          +   '<div class="po-card__hd"><b>&times; ' + m.nFlights + ' flights</b></div>'
+          +   flightPrizes.map(function (amt, i) {
+              return ''
+                + '<div class="po-card__lbl">' + placeLabels[i] + '</div>'
+                + '<div class="po-card__pct">' + (flightSplit[i] || 0) + '%</div>'
+                + '<div class="po-card__amt">' + _m(amt) + '</div>'
+                + '<div class="po-card__amt po-card__amt--tot">' + _m(amt * m.nFlights) + '</div>';
+            }).join("")
+          + '</div>'
+          + '<div class="po-card__total"><span>Total flight money to pay</span><b>' + _m(m.flightPrizePool) + '</b></div>'
+          + '</section>';
+
+        // Build the Calcutta card per flight in the same order as the
+        // leaderboard flights so payouts line up with the standings.
+        var calRows = data.flights.map(function (fl) {
+          var pool = fl.rows.reduce(function (s, r) {
+            var v = r.rec && r.rec.fields && r.rec.fields["Buy Amount"];
+            return s + (typeof v === "number" ? v : 0);
+          }, 0);
+          var commAmt = pool * comm;
+          var payout = Math.max(0, pool - commAmt);
+          var prizes = calSplit.map(function (pct) { return payout * (pct / 100); });
+          return { name: fl.name, pool: pool, comm: commAmt, payout: payout, prizes: prizes };
+        });
+        var totalCalPool = calRows.reduce(function (s, r) { return s + r.pool; }, 0);
+        var totalCalComm = calRows.reduce(function (s, r) { return s + r.comm; }, 0);
+        var totalCalPayout = calRows.reduce(function (s, r) { return s + r.payout; }, 0);
+        var placeHead = calSplit.map(function (pct, i) {
+          return '<div class="po-card__hd po-card__hd--num"><b>' + placeLabels[i] + '</b><small>' + pct + '%</small></div>';
+        }).join("");
+        var calcuttaCard = ''
+          + '<section class="po-card po-card--cal">'
+          + '<h4 class="po-card__hdr">Calcutta payout</h4>'
+          + '<p class="po-card__sub">Course keeps <b>' + m.calcuttaCommissionPct + '%</b> of each flight&rsquo;s pool. The remainder splits by these percentages to the top ' + calSplit.length + ' net finishers per flight.</p>'
+          + '<div class="po-cal-tbl-wrap"><table class="po-cal-tbl">'
+          +   '<thead><tr>'
+          +     '<th>Flight</th><th class="po-cal-tbl__num">Pool</th><th class="po-cal-tbl__num">Commission</th><th class="po-cal-tbl__num">Payout</th>'
+          +     calSplit.map(function (pct, i) { return '<th class="po-cal-tbl__num">' + placeLabels[i] + '<br><small>' + pct + '%</small></th>'; }).join("")
+          +   '</tr></thead>'
+          +   '<tbody>'
+          +   calRows.map(function (r) {
+              return '<tr>'
+                + '<td><b>' + esc(r.name) + '</b></td>'
+                + '<td class="po-cal-tbl__num">' + _m(r.pool) + '</td>'
+                + '<td class="po-cal-tbl__num po-cal-tbl__neg">&minus; ' + _m(r.comm) + '</td>'
+                + '<td class="po-cal-tbl__num"><b>' + _m(r.payout) + '</b></td>'
+                + r.prizes.map(function (p) { return '<td class="po-cal-tbl__num">' + _m(p) + '</td>'; }).join("")
+                + '</tr>';
+            }).join("")
+          +   '<tr class="po-cal-tbl__total">'
+          +     '<td><b>Total</b></td>'
+          +     '<td class="po-cal-tbl__num"><b>' + _m(totalCalPool) + '</b></td>'
+          +     '<td class="po-cal-tbl__num po-cal-tbl__neg"><b>&minus; ' + _m(totalCalComm) + '</b></td>'
+          +     '<td class="po-cal-tbl__num"><b>' + _m(totalCalPayout) + '</b></td>'
+          +     calSplit.map(function (pct) {
+                var t = calRows.reduce(function (s, r) { return s + r.payout * (pct / 100); }, 0);
+                return '<td class="po-cal-tbl__num"><b>' + _m(t) + '</b></td>';
+              }).join("")
+          +   '</tr>'
+          +   '</tbody>'
+          + '</table></div>'
+          + '</section>';
+
         body.innerHTML = summary
           + '<h4 class="po-hdr">Flight winnings (by 2-day gross)</h4>' + renderPayoutTable(flightPayouts, "Flight winnings", "flight")
           + '<h4 class="po-hdr">Calcutta payouts (by net, top-' + calSplit.length + ')</h4>' + renderPayoutTable(calPayouts, "Calcutta", "calcutta")
-          + '<div class="po-grand">Grand total to pay out: <b>' + money(grand) + '</b></div>';
+          + '<div class="po-grand">Grand total to pay out: <b>' + _m(grand) + '</b></div>'
+          + '<div class="po-cards">' + flightMoneyCard + calcuttaCard + '</div>';
 
         // Wire the Check # inputs — debounced PATCH via tournament-checkin.
         // Flight Check # / Calcutta Check # both live on the signup record.
