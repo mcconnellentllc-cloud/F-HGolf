@@ -1205,6 +1205,12 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .pi__prevright { color: var(--ink); text-align: right; }
 .pi__err { color: var(--red-deep); font-weight: 600; }
 .pi__status { font-size: 0.85rem; color: var(--muted); margin-left: 0.6rem; align-self: center; }
+
+/* Check-In bulk "Mark all paid" modal. */
+.cbp-row { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.6rem; }
+.cbp-lbl { display: flex; align-items: center; gap: 0.6rem; font-weight: 600; }
+.cbp-in { padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; min-width: 8rem; }
+.cbp-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--ink); }
 .pi__summary { display: flex; gap: 0.4rem; }
 .pi__preview-scroll { flex: 1; overflow: auto; }
 .pi__table { width: 100%; border-collapse: collapse; font-size: 0.87rem; background: #fff; }
