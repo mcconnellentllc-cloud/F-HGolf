@@ -23,3 +23,5 @@ the highlights JSON's `publish` flag to `true`.
 13. Confirm Justin Stone and Jeff Harms are both 2026 board members, since
     the copy states this. Ties to open item 11 (whether to list the board
     by name).
+14. Confirm spelling: Scott Kirkwood, Larry McConnell. Thanked for helping
+    sign up teams (Scott) and for setting the pins both days (Scott + Larry).

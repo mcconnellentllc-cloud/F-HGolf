@@ -147,17 +147,80 @@
         host.innerHTML =
           '<div class="recap__empty">'
           + '<h1 style="color:var(--gold);margin-bottom:0.5em;">Recap coming soon.</h1>'
-          + '<p>The 2026 Founder\'s Tournament recap is being written up. Check back shortly, or head to the <a href="founders-leaderboard-display.html">live leaderboard</a> for final placings.</p>'
+          + '<p>The Founder\'s Tournament recap is being written up. Check back shortly, or head to the <a href="founders-leaderboard-display.html">live leaderboard</a> for final placings.</p>'
           + '</div>';
       }
 
-      fetch(FH_API.url("/api/tournament-signups"), { cache: "no-store" })
-        .then(function (r) { return r.json(); })
-        .then(function (j) {
-          if (!j || !j.ok) { empty(); return; }
-          var text = (j.recaps && j.recaps[KEY]) || "";
-          if (!text.trim()) { empty(); return; }
-          host.innerHTML = renderMarkdown(text);
+      // Render the structured 2026 highlights JSON as the same
+      // markdown-ish shape our renderMarkdown() eats. Champions is called
+      // out first (like an editor's headline), then the intro, then each
+      // themed section as its own `## heading` block.
+      function renderHighlightsJson(hl) {
+        if (!hl) return false;
+        if (hl.publish !== true) return false;
+        var lines = [];
+        // Champions headline -- gold treatment via **bold** on the names
+        // + score sentence if a numeric score is populated.
+        var champs = hl.champions;
+        if (champs && Array.isArray(champs.players) && champs.players.length) {
+          var champTxt = champs.players.length === 2
+            ? "**" + champs.players[0] + "** & **" + champs.players[1] + "**"
+            : champs.players.map(function (n) { return "**" + n + "**"; }).join(" · ");
+          lines.push("## Champions");
+          var champLine = champTxt;
+          if (champs.score != null && isFinite(Number(champs.score))) {
+            var s = Number(champs.score);
+            var label = champs.scoreType === "net" ? ("net " + s) : String(s);
+            champLine += " — " + label + " over two days.";
+          }
+          lines.push(champLine);
+          if (champs.note) { lines.push(""); lines.push(String(champs.note)); }
+          lines.push("");
+        }
+        if (hl.intro) { lines.push(String(hl.intro)); lines.push(""); }
+        (hl.sections || []).forEach(function (sec) {
+          if (!sec || (!sec.heading && !sec.body)) return;
+          if (sec.heading) { lines.push("## " + sec.heading); }
+          if (sec.body) { lines.push(String(sec.body)); }
+          lines.push("");
+        });
+        var board = hl.board;
+        if (board && Array.isArray(board.members) && board.members.length) {
+          var names = board.members.map(function (m) {
+            if (!m || !m.name) return "";
+            var nm = String(m.name).trim();
+            if (!nm) return "";
+            if (board.showTitles && m.title) return nm + " (" + String(m.title).trim() + ")";
+            return nm;
+          }).filter(Boolean);
+          if (names.length) {
+            lines.push("### 2026 Board");
+            lines.push(names.join(" · "));
+          }
+        }
+        var text = lines.join("\n").trim();
+        if (!text) return false;
+        host.innerHTML = renderMarkdown(text);
+        return true;
+      }
+
+      // Try the year-specific highlights JSON first (this is what the
+      // "space to type in" on the admin Recap tab feeds into for next
+      // year). Fall back to the Airtable-hosted Recap field so operators
+      // still have a canvas for future years without touching code.
+      fetch("data/founders-2026-highlights.json", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (hl) {
+          if (renderHighlightsJson(hl)) return;
+          // Fall through to Airtable recap.
+          return fetch(FH_API.url("/api/tournament-signups"), { cache: "no-store" })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+              if (!j || !j.ok) { empty(); return; }
+              var text = (j.recaps && j.recaps[KEY]) || "";
+              if (!text.trim()) { empty(); return; }
+              host.innerHTML = renderMarkdown(text);
+            });
         })
         .catch(function () { empty(); });
     })();
