@@ -270,8 +270,7 @@
           var teamCards = recs.map(function (r) {
             var f = r.fields || {};
             var tn = teamNumbers[r.id];
-            var badge = tn ? '<span class="lbd__tnum">T-' + String(tn).padStart(2, "0") + '</span>' : '';
-            return '<tr><td class="lbd__team">' + badge + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+            return '<tr><td class="lbd__team">' + esc(teamShortNames(f)) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
           }).join("");
           body.innerHTML = '<div class="lbd">'
             + '<div class="lbd__hdr"><h2 class="lbd__name">Field</h2><span class="lbd__meta">' + recs.length + ' teams · tournament begins Day 1</span></div>'
@@ -330,12 +329,12 @@
               var netTies = fl.rows.filter(function (r) { return r.netPlace === row.netPlace; }).length;
               flags.push('<span class="lbd__flag lbd__flag--calc"><span class="lbd__flag-emoji" aria-hidden="true">💰</span>' + (netTies > 1 ? "T" : "") + ordinal(row.netPlace) + ' Calcutta</span>');
             }
-            var badge = row.tnum ? '<span class="lbd__tnum">T-' + String(row.tnum).padStart(2, "0") + '</span>' : '';
             var flagsHtml = flags.length ? '<span class="lbd__flags">' + flags.join("") + '</span>' : '';
-            // Public display shows only the team number badge -- player
-            // names are intentionally hidden here to keep the board clean.
+            // Public display: player names lead, trophy / calcutta pills
+            // trail on the same line. The internal T-XX badge stays off the
+            // public board.
             return '<tr>'
-              + '<td class="lbd__team">' + badge + flagsHtml + '</td>'
+              + '<td class="lbd__team">' + esc(row.name) + flagsHtml + '</td>'
               + '<td>' + (row.d1 == null ? '&mdash;' : row.d1) + '</td>'
               + '<td>' + (row.d2 == null ? '&mdash;' : row.d2) + '</td>'
               + '<td><b>' + (row.gross == null ? '&mdash;' : row.gross) + '</b></td>'
@@ -358,8 +357,7 @@
           var utrs = una.map(function (r) {
             var f = r.fields || {};
             var tn = teamNumbers[r.id];
-            var badge = tn ? '<span class="lbd__tnum">T-' + String(tn).padStart(2, "0") + '</span>' : '';
-            return '<tr><td class="lbd__team">' + badge + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+            return '<tr><td class="lbd__team">' + esc(teamShortNames(f)) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
           }).join("");
           html += '<div class="lbd"><div class="lbd__hdr"><h2 class="lbd__name">Unassigned</h2><span class="lbd__meta">' + una.length + ' teams · flights not cut yet</span></div>'
             + '<table><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
