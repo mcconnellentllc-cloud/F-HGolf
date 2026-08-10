@@ -69,8 +69,10 @@ Concrete checks to run against the registrar dashboard:
 
 - **Inferred:** GitHub Pages CNAME points at
   `<org>.github.io`. `www.fandhgolf.com`, apex A records, and any
-  external mail records (present or future Exchange/M365) all live at
-  whichever DNS provider is authoritative for `fandhgolf.com`. Often
+  external mail records (SPF/DKIM/DMARC for the Resend sender, plus any
+  future MX records if the district ever stands up real mailboxes) all
+  live at whichever DNS provider is authoritative for `fandhgolf.com`.
+  Often
   this is the same account as the registrar (Namecheap / GoDaddy), but
   not always — some setups use Cloudflare in front.
 - **What the repo cannot tell us:** which provider, and who owns that
@@ -111,7 +113,7 @@ grouped by criticality.
 | ------- | ------- | -------------------- | ----- |
 | **Vercel** | Hosts every API in `api/` and stores every server-side secret. Public origin is `f-h-golf.vercel.app`. Referenced at [`admin.html`](../admin.html) line 188. | `mcconnellentllc-clouds-projects` team | **Highest priority to transfer.** All admin writes route through here. |
 | **Airtable** | System of record for signups, scores, Calcutta, expenses, archives, tournament config, players, nominations, reviews. | Unknown from repo; `AIRTABLE_BASE_ID` env var in Vercel. | The base itself is on some Airtable workspace. Ownership of that workspace matters as much as ownership of the token. |
-| **Resend** | Sends signup confirmation emails via `api/tournament-signup.js` line 63. | Unknown from repo; `RESEND_API_KEY` env var in Vercel. | Currently the only transactional email path in production. Will be re-evaluated in Step 4 under the Exchange assumption. |
+| **Resend** | Sends signup confirmation emails via `api/tournament-signup.js` line 63. | Unknown from repo; `RESEND_API_KEY` env var in Vercel. | The transactional email path in production and — per Step 4 — the path Calcutta receipts will use. |
 | **DNS provider** | Points `fandhgolf.com` at Pages + issues CAA if any. | Inferred, see (c). | |
 | **Domain registrar** | Owns the domain lease. | Inferred, see (b). | |
 
@@ -126,11 +128,11 @@ grouped by criticality.
 | **Facebook Page `fandhgolf`** | Course's public Facebook presence. | — | Owned by whichever admin(s) run the Facebook Page today. Verify separately. |
 | **Deposyt** | Hosted card-payment form for green fees + tournament entries. Referenced in [`js/api.js`](../js/api.js) line 20 as a hardcoded URL. | Cash / check payment. | The Deposyt merchant account is a separate business relationship — the URL just points at whichever merchant configured that hosted form. |
 
-**Not in play today but likely soon:**
+**Not in play today, may become relevant later:**
 
 | Service | Purpose |
 | ------- | ------- |
-| **Exchange / M365** | The district's mail. Feeds Step 4 and Step 5 credential storage. |
+| **District mailbox provider** (whatever the district already uses, or a small paid Google Workspace / Fastmail tenant) | Real inboxes behind the `admin@`, `data@`, `calcutta@` role addresses used across this doc. Not a Step-4 dependency — Calcutta receipts send via Resend regardless (see Step 4). This only matters for the mailboxes that *receive* replies. |
 
 ### f. Secrets
 
@@ -251,10 +253,12 @@ NOT to a personal Gmail:
 | Facebook Page admin | tie to a second board member, not the builder |
 | Deposyt merchant | already the course's business relationship; verify contact email is a course address, not personal |
 
-Under the Exchange/M365 assumption in Step 4, `admin@fandhgolf.com`,
-`data@fandhgolf.com`, and `calcutta@fandhgolf.com` become distribution
-lists routed to the appropriate board members, not real inboxes anyone
-has to check every day.
+These role addresses only need to *receive* — sending is handled by
+Resend under Step 4. The simplest realization is aliases /
+distribution lists on whichever mail provider the district already
+uses (or a small Google Workspace / Fastmail tenant if it doesn't),
+routed to the appropriate board members so no one has to check a new
+inbox every day.
 
 ### Credential storage and passing on
 
@@ -321,9 +325,12 @@ Node.js install, or an SSH session for a full calendar year.
     the primary first and falls back. That's a small technical addition
     up front for a lot of continuity headroom later.
 - **Resend account.** Same failure modes as Airtable — token
-  rotation or account suspension = confirmation emails stop.
-  - **Mitigation:** under Step 4 this whole dependency is scoped for
-    removal in favor of Exchange/M365.
+  rotation or account suspension stops confirmation *and* (post-Step-4)
+  Calcutta-receipt emails.
+  - **Mitigation:** transfer the Resend account into district ownership
+    as part of Step 1 (see the sequence in Step 6). No key rotation is
+    required on transfer. Under Path A this is a stable dependency:
+    non-expiring API key, one vendor, one bill.
 - **The Tournament Workspace admin (`tournament-admin.html`).** The
   most complex artifact in the repo, ~6,000 lines of JS. Under Path A
   this is basically a black box the successor uses but can't repair.
@@ -381,107 +388,66 @@ successor is boxed out of extending it.
 
 ---
 
-## Step 4 — Email under the Exchange assumption
+## Step 4 — Email: Resend (settled)
 
-Given Exchange/M365 will be available, the goal is to remove Resend
-entirely — one fewer third-party account, one fewer bill, one fewer
-secret to rotate.
+**Decision: send Calcutta receipts through Resend, via a new
+server-side endpoint. This resolves the contradiction between this doc
+and `docs/email-scoping.md`; both now agree.**
 
-### Can serverless send via Exchange?
+### Reasoning
 
-Two paths, both viable:
+- **No new vendor.** Resend is already in production. Signup
+  confirmations already send through it via
+  [`api/tournament-signup.js`](../api/tournament-signup.js) line 63
+  using `RESEND_API_KEY` in Vercel env vars. A Calcutta receipt
+  endpoint reuses the same account, the same key, the same From address,
+  the same DKIM records.
+- **No expiring credential.** Resend API keys are non-expiring; they
+  don't rotate on their own timer. That's a real advantage for a
+  Path-A successor who won't be logging into a vendor dashboard on a
+  6–12 month cycle to rotate a secret.
+- **No new account for the district to inherit.** Whichever account
+  currently holds `RESEND_API_KEY` is already part of the ownership
+  transfer (see Step 1e and the sequence in Step 6). Adding one
+  endpoint doesn't add one account.
+- **Existing DKIM / SPF setup carries over.** If signup confirmations
+  are landing in inboxes today (verify), receipts will too. If they
+  aren't, the fix is the same one either way.
 
-1. **Microsoft Graph API `POST /users/{id}/sendMail`** — recommended
-   for automated / programmatic sending.
-2. **SMTP submission on `smtp.office365.com:587`** with STARTTLS +
-   basic auth or OAuth2 — legacy path, still supported but Microsoft
-   has been actively deprecating basic auth.
+### Implementation summary
 
-Recommended: **Microsoft Graph with an app-only (client credentials)
-authentication flow**, restricted by app permission scope
-`Mail.Send` and by an Exchange Application Access Policy to
-`no-reply@fandhgolf.com` (or whichever mailbox the app is allowed to
-send as). This is Microsoft's supported pattern for exactly this
-scenario.
-
-### Credentials — what, where, expiry
-
-App-only Graph needs:
-
-| Credential | What it is | Storage | Expiry |
-| ---------- | ---------- | ------- | ------ |
-| **Tenant ID** | The district's M365 tenant GUID | Vercel env var | Never |
-| **Client ID** | The Entra ID App Registration ID | Vercel env var | Never |
-| **Client secret** OR **certificate** | The app's proof of identity | Vercel env var (secret) or KeyVault (cert) | **YES.** Client secrets in Entra ID default to 6 or 12 months. Certificates can be issued with up to a 2-year lifetime. |
-
-**The client secret expiry is the biggest single risk this path
-introduces under Path A (non-technical successor).** If the secret
-expires and no one rotates it, receipt sending silently 401s.
-
-Two mitigations, in order of preference:
-
-1. **Use a certificate, not a secret**, with a 24-month lifetime. Set
-   a calendar reminder 3 months before expiry. Rotating a certificate
-   is still a technical task, but a rare one.
-2. **If a secret is used, set two secrets simultaneously** in Entra ID
-   (Microsoft supports this) with staggered expiry. The endpoint tries
-   the primary first, falls back to the backup. Same idea as the
-   AIRTABLE_TOKEN_BACKUP suggestion in Step 3.
-
-### Lowest-tech comparison: operator sends from their own Outlook
-
-The alternative to server-side automation is to build the receipt in
-the admin and hand it off to the operator's own Outlook — no
-credentials, no code path to break.
-
-Two shapes for this:
-
-- **`mailto:` link.** The admin builds a `mailto:` URL with `subject`,
-  `body`, and `to` prefilled and opens the operator's default mail
-  client. The operator reviews and hits Send. Works for one buyer at a
-  time. Encoding limits on `mailto:` bodies get hit at ~2 KB which is
-  fine for a Calcutta receipt.
-- **Copy-to-clipboard.** The admin renders the receipt HTML in a modal
-  with a "Copy" button. Operator opens Outlook, pastes, sends.
-
-**Recommendation: build the `mailto:` path first,
-add Graph-based automation later only if the operator asks for it.**
-Reasoning:
-
-- Under Path A (non-technical successor) the entire Graph flow is a
-  6-month-timer waiting to fire, and troubleshooting a
-  `401 InvalidAuthenticationToken` is not a job for the clubhouse
-  manager.
-- Volume is small — a few tournaments a year, ≤ 50 receipts each.
-  Per-receipt Outlook clicks are annoying but not the bottleneck.
-- The receipt content is the interesting engineering problem. Whether
-  the SMTP call happens client-side (via `mailto:`) or server-side (via
-  Graph) is a plumbing question that can be swapped later without
-  redesigning the receipt itself.
-- The `mailto:` path has **zero credentials to store or rotate.** That
-  is worth a lot under Path A.
-
-Formalize the tradeoff:
-
-|                            | `mailto:` handoff | Graph automation |
-| -------------------------- | ----------------- | ---------------- |
-| One-buyer send | Native | Native |
-| Bulk send (~50 at once) | 50 clicks | 1 click |
-| Credential expiry risk | None | Client-secret / cert expiry every 6–24 months |
-| Vendor account to maintain | None | Entra ID app registration |
-| Server-side compute cost | None | Vercel function invocations (free tier fits) |
-| Deliverability | Sent from operator's real inbox → excellent | App-only sent from `no-reply@` → decent, needs SPF/DKIM/DMARC same as Resend |
+Details live in [`docs/email-scoping.md`](./email-scoping.md). Short
+form: new endpoint `POST /api/calcutta-receipt` on Vercel, gated by
+the same `x-admin-key` check as every other admin write. Modes:
+one-buyer send, all-buyers send. Content is per-recipient HTML rendered
+server-side and posted to `https://api.resend.com/emails` — the same
+call `sendConfirmationEmail` already makes.
 
 ### No option puts a credential in client-side JS
 
-Confirmed:
+Confirmed. `RESEND_API_KEY` stays in Vercel env vars; the browser
+never sees it. The Calcutta admin sends a `POST` request with the
+admin's session `x-admin-key` header, and the Vercel function
+translates that into the Resend call server-side.
 
-- The `mailto:` path uses no credential of any kind — the operator's
-  own mail client is doing the authentication.
-- The Graph automation path stores the client secret / cert in Vercel
-  env vars; the browser never sees it.
-- No option scopes the district's Exchange credentials into
-  `tournament-admin.html`. Not on the table.
+### Precondition list
+
+Before any code lands (repeated from `docs/email-scoping.md` for
+completeness):
+
+1. Confirm `fandhgolf.com` is verified in the Resend dashboard — SPF,
+   DKIM, DMARC all green.
+2. Confirm the send-from address. Default is
+   `F&H Golf <noreply@fandhgolf.com>`. Reserve `calcutta@fandhgolf.com`
+   as an alternative if the board prefers a purpose-specific sender.
+3. Confirm the reply-to address routes to a monitored inbox. Current
+   default in the site copy: `fandhgolfcourse@gmail.com`.
+4. Add `Buyer Email` field on the Airtable `Tournament Signups` table.
+5. Decide the no-email-on-file behavior: silent skip with a summary
+   count, or prompt-to-enter-at-send-time. Silent skip is recommended.
+
+Item 4 is the real blocker — buyers currently have no email field at
+all.
 
 ---
 
@@ -525,9 +491,10 @@ docs/
 - **`runbook/recap-flow.md`** — The `data/founders-YYYY-highlights.json`
   pattern. `publish: true` → live. What each field does. How to add
   next year's file.
-- **`runbook/calcutta-receipts.md`** — Whichever flow from Step 4 gets
-  built. If it's `mailto:`, this doc is 3 paragraphs: click Send →
-  Outlook opens → review → send.
+- **`runbook/calcutta-receipts.md`** — The Step 4 Resend flow: Calcutta
+  admin → Send Receipts → per-buyer via Resend. Covers the "no email on
+  file" behavior, how to spot-check delivery in the Resend dashboard,
+  and how to resend a single buyer if a bounce comes back.
 - **`runbook/json-flags.md`** — Every gated flag in `data/*.json` and
   what happens when it flips. Currently:
   `data/founders-2026-highlights.json` → `publish`, `champions.score`,
@@ -541,8 +508,9 @@ docs/
   rotation steps. **Never the value itself.**
 - **`renewal-calendar.md`** — A table with next 24 months of expiries:
   domain renewal, Let's Encrypt (auto, but noted), Airtable token
-  (no auto-expiry), Resend / Graph secret rotation, Vercel Node
-  runtime deprecations. One row per event with date + owner + action.
+  (no auto-expiry, but rotate on personnel change), Resend API key
+  (no auto-expiry, same), Vercel Node runtime deprecations. One row
+  per event with date + owner + action.
 - **`known-issues.md`** — At time of handover: the 14 open items in
   `data/founders-2026-am-REVIEW.md`, plus every "we deferred X"
   scattered through commits.
@@ -576,12 +544,15 @@ Nothing here changes ownership. It's fact-finding.
 
 ### Phase 1 — Provision district-owned identity (before transfers)
 
-7. **Set up the district's M365 tenant** (if not already) and provision
-   role-based mailboxes: `admin@fandhgolf.com`,
-   `treasurer@fandhgolf.com`, `calcutta@fandhgolf.com`, whatever the
-   board decides. **This is a prerequisite for every subsequent
-   ownership transfer** because every account below wants a real
-   contact email.
+7. **Stand up role-based mailboxes on `fandhgolf.com`** —
+   `admin@fandhgolf.com`, `treasurer@fandhgolf.com`,
+   `calcutta@fandhgolf.com`, whatever the board decides. Use whichever
+   mailbox provider the district already runs, or a small paid
+   Google Workspace / Fastmail tenant if it doesn't. Aliases or
+   distribution lists are fine — these only need to *receive*, since
+   Calcutta receipts and signup confirmations both send via Resend
+   (Step 4). **This is a prerequisite for every subsequent ownership
+   transfer** because every account below wants a real contact email.
 8. **Provision a district-owned password vault** (1Password Teams /
    Bitwarden Business), invite two board members as admins.
 9. **Create a district-owned GitHub org.** Recommend the name
