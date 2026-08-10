@@ -762,6 +762,36 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .founders__scan figcaption { margin-top: 0.5rem; font-size: 0.85rem; font-style: italic; color: var(--muted); }
 .hero__year { font-size: 1rem; margin-top: 0.3rem; opacity: 0.92; }
 
+/* ---------- Founders 2026 Highlights / Recap ---------------------------
+   Editorial recap that sits above the pairings on tournament.html. Kept in
+   a single block with a champions modifier (--champs) instead of a
+   parallel template so the recap reads as one story, not a stack of tiles.
+   Fraunces headings, Source Sans 3 body -- inherits the site's type via
+   var(--font-display) / var(--font-body). No new fonts. */
+#fHighlights { max-width: 780px; margin: 0 auto; font-family: var(--font-body); color: var(--ink); }
+.founders-hl__head { text-align: center; margin-bottom: 1.5rem; }
+.founders-hl__eyebrow { margin-bottom: 0.35rem; }
+.founders-hl__title { margin: 0; }
+.founders-hl__intro { font-size: 1.1rem; line-height: 1.65; color: var(--ink); margin: 0.4rem auto 1.4rem; max-width: 62ch; text-align: center; }
+
+.founders-hl__block { margin: 1.6rem 0; padding-top: 1.3rem; border-top: 1px solid var(--line); }
+.founders-hl__block:first-of-type { border-top: none; padding-top: 0; }
+.founders-hl__heading { font-family: var(--font-display); font-weight: 600; color: var(--primary-green); font-size: clamp(1.3rem, 2.6vw, 1.7rem); margin: 0 0 0.55rem; letter-spacing: 0.005em; }
+.founders-hl__body p { font-size: 1.03rem; line-height: 1.7; color: var(--ink); margin: 0 0 0.9rem; }
+.founders-hl__body p:last-child { margin-bottom: 0; }
+
+/* Champions modifier -- distinct visual weight without a separate template.
+   Cream background + gold rule + display serif on names so the winners
+   read like the headline of the recap, which is exactly what they are. */
+.founders-hl__block--champs { border-top: none; padding-top: 0; margin: 0 0 2.2rem; background: linear-gradient(180deg, #fbf6e6 0%, #f5eccf 100%); border: 1px solid var(--brass, #c9a24d); border-radius: 14px; padding: 1.4rem 1.6rem; text-align: center; box-shadow: 0 6px 20px rgba(31, 21, 5, 0.06); }
+.founders-hl__champs-lbl { font-family: var(--font-body); text-transform: uppercase; letter-spacing: 0.28em; font-size: 0.78rem; font-weight: 700; color: var(--primary-green); margin: 0 0 0.5rem; }
+.founders-hl__champs-names { font-family: var(--font-display); font-weight: 600; font-style: italic; font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.15; color: #3a2a05; margin: 0; }
+.founders-hl__champs-note { font-family: var(--font-body); color: var(--muted); font-size: 0.95rem; margin: 0.65rem 0 0; font-style: italic; }
+
+/* Recap section container -- gives the block room from the pairings below
+   without any extra chrome (the section itself already has paper stock). */
+.founders-hl-sect { padding-top: 2.5rem; padding-bottom: 2.5rem; }
+
 /* ===================== Staff: Tournament Manager cards ===================== */
 .tm__intro { color: var(--muted); font-size: 0.92rem; margin-bottom: 1.1rem; max-width: 70ch; }
 .tm-year { margin-bottom: 1.6rem; }
