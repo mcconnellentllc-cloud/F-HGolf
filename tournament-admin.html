@@ -192,8 +192,9 @@
           <span class="checkin-add__msg" id="expMsg" role="status" aria-live="polite"></span>
           <div class="noms__list" id="expList"><p class="noms__msg">Loading expenses…</p></div>
           <div class="pl-commit">
-            <button class="btn btn--danger" type="button" id="plCommit">Commit to History &rarr;</button>
-            <p class="pl-commit__hint">Snapshots this year's leaderboard, Calcutta, payouts, and P&amp;L to the History tab, then clears operational data (scores + Calcutta buyers + flights + paid marks) so the card is ready for next year. Team roster stays.</p>
+            <button class="btn btn--primary" type="button" id="plCommit">Commit snapshot to History &rarr;</button>
+            <p class="pl-commit__hint">Snapshots this year&rsquo;s leaderboard, Calcutta, payouts, and P&amp;L to the History tab. <b>Non-destructive</b> &mdash; all scores, buyers, and paid marks stay on the Signups records. Safe to run any time.</p>
+            <p class="pl-commit__hint pl-commit__hint--muted"><small>Need to clear operational data for next year? Open the browser console (F12) and run <code>window.__fhResetTournament()</code>. That flow requires typing the year and CLEAR to confirm.</small></p>
           </div>
         </section>
 
@@ -1308,10 +1309,15 @@
         var year = String(new Date().getFullYear());
         var name = KEY.replace(/\s*\([^)]*\)\s*$/, "").trim();
         var dates = (KEY.match(/\(([^)]*)\)/) || [])[1] || "";
+        // NON-DESTRUCTIVE: snapshot only. The historical clear-on-commit path
+        // was too easy to trip on a live tournament (one click after a
+        // "Yes" wiped every buyer + paid mark + score). Roster + scores +
+        // Calcutta buyers all STAY in Airtable. A separate "Reset for next
+        // year" action lives in a locked-away confirmation flow below.
         openConfirmModal({
           title: "Commit " + year + " " + name + " to History?",
-          body: "This snapshots the current leaderboard, Calcutta, payouts, and P&L to the History tab, then clears operational data (scores, Calcutta buyers, flights, paid marks) on all " + m.teamCount + " signups so the card is ready for next year. Team roster stays. This can't be undone.",
-          confirmLabel: "Yes, commit + clear",
+          body: "Snapshots the current leaderboard, Calcutta, payouts, and P&L to the History tab. Nothing is cleared -- all scores, buyers, paid marks, and flights stay on the Signups records. Safe to run any time.",
+          confirmLabel: "Yes, snapshot",
           onConfirm: function () { doCommit(name, year, dates); }
         });
       }
@@ -1325,15 +1331,48 @@
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
             if (!j || !j.ok) throw new Error(j && j.error || "archive failed");
-            return clearOperationalData(snapshot);
           })
           .then(function () {
-            alert("Committed to history. Roster kept, operational data cleared. Switch to the History tab to see the archive.");
+            alert("Snapshot committed to History. Nothing was cleared -- all scores, buyers, paid marks stay on the Signups records. Switch to the History tab to see the archive.");
             loadRoster();
           })
           .catch(function (e) {
             alert("Could not commit to history: " + (e && e.message ? e.message : e));
           });
+      }
+      // Locked-away "reset for next year" flow. Requires the operator to
+      // type the year exactly ("2026", "2027", ...) before clearing runs,
+      // so a stray click can't wipe an in-flight tournament. This is the
+      // only remaining path that calls clearOperationalData.
+      function resetTournamentForNextYear() {
+        var m = computeMoney(scAllCache);
+        if (!m.teamCount) { alert("No teams -- nothing to reset."); return; }
+        var year = String(new Date().getFullYear());
+        var typed = window.prompt(
+          "RESET WARNING\n\n"
+          + "This clears every buyer, every paid mark, every score, every flight, and every check number on all " + m.teamCount + " team records. Team + partner names STAY.\n\n"
+          + "Only do this after the tournament is done AND you have a snapshot in the History tab.\n\n"
+          + "To proceed, type the year (" + year + ") exactly:"
+        );
+        if (typed == null) return;
+        if (String(typed).trim() !== year) {
+          alert("Reset cancelled -- year didn't match. Nothing was cleared.");
+          return;
+        }
+        var typed2 = window.prompt(
+          "FINAL CONFIRMATION\n\n"
+          + "Last chance. Type CLEAR (all caps) to wipe operational data on all " + m.teamCount + " teams."
+        );
+        if (typed2 == null || String(typed2).trim() !== "CLEAR") {
+          alert("Reset cancelled. Nothing was cleared.");
+          return;
+        }
+        clearOperationalData().then(function () {
+          alert("Operational data cleared. Team roster kept. Ready for next year.");
+          loadRoster();
+        }).catch(function (e) {
+          alert("Reset failed: " + (e && e.message ? e.message : e));
+        });
       }
       // Clear per-team: scores, calcutta, flight, paid, check numbers, extra
       // meals. Team + partner names stay. Runs serially with a small delay
@@ -6038,6 +6077,9 @@
         });
         var pc = document.getElementById("plCommit");
         if (pc) pc.addEventListener("click", commitToHistory);
+        // Locked reset hatch -- only reachable from the browser console
+        // (window.__fhResetTournament()). There is no button.
+        try { window.__fhResetTournament = resetTournamentForNextYear; } catch (e) {}
         var csPl = document.getElementById("csPrintList");
         if (csPl) csPl.addEventListener("click", printBuyersList);
         var lbs = document.getElementById("lbSaveFlights");
