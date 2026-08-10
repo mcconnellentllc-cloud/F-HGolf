@@ -568,6 +568,25 @@
     </div>
   </div>
 
+  <!-- ==================== RECAP SAVED (info) MODAL ==================== -->
+  <div class="pm-modal cd-modal" id="recapSavedModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="rsmTitle">
+    <div class="pm-modal__backdrop" data-close="1"></div>
+    <div class="pm-modal__panel cd-panel rs-panel">
+      <div class="pm-modal__head">
+        <h3 id="rsmTitle">Recap saved &nbsp;&check;</h3>
+        <button type="button" class="pm-modal__close" id="rsmClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="pm-modal__body">
+        <p class="cd-body"><b>Your recap will be live momentarily.</b></p>
+        <p class="cd-body rs-note">The public recap page (<a href="founders-recap.html" target="_blank" rel="noopener"><code>founders-recap.html</code></a>) usually updates within a few seconds. Anyone already on that page may need to refresh once. If a viewer&rsquo;s device is caching the older service worker, they may see the old copy for up to a minute until the new cache activates.</p>
+        <p class="cd-body rs-warn" id="rsmWarn" hidden></p>
+      </div>
+      <div class="pm-modal__foot">
+        <button type="button" class="btn btn--primary" id="rsmOk">Got it</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== PLAYER CARD MODAL ==================== -->
   <div class="pm-modal" id="playerModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="pmTitle">
     <div class="pm-modal__backdrop" data-close="1"></div>
@@ -1090,6 +1109,32 @@
         if (cn) cn.textContent = n.toLocaleString();
         if (badge) badge.textContent = n ? "(" + Math.min(20000, n).toLocaleString() + " chars)" : "";
       }
+      function openRecapSavedModal(warning) {
+        var modal = document.getElementById("recapSavedModal"); if (!modal) return;
+        var w = document.getElementById("rsmWarn");
+        if (w) {
+          if (warning) { w.textContent = "Note: " + warning; w.hidden = false; }
+          else { w.textContent = ""; w.hidden = true; }
+        }
+        modal.hidden = false; modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("modal-open");
+        var ok = document.getElementById("rsmOk"); if (ok) setTimeout(function () { try { ok.focus(); } catch (e) {} }, 30);
+      }
+      function closeRecapSavedModal() {
+        var modal = document.getElementById("recapSavedModal");
+        if (modal) { modal.hidden = true; modal.setAttribute("aria-hidden", "true"); }
+        document.body.classList.remove("modal-open");
+      }
+      (function wireRecapSavedModal() {
+        var modal = document.getElementById("recapSavedModal"); if (!modal) return;
+        var close = document.getElementById("rsmClose");
+        var ok = document.getElementById("rsmOk");
+        if (close) close.addEventListener("click", closeRecapSavedModal);
+        if (ok) ok.addEventListener("click", closeRecapSavedModal);
+        modal.addEventListener("click", function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute("data-close") === "1") closeRecapSavedModal(); });
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal && !modal.hidden) closeRecapSavedModal(); });
+      })();
+
       function saveRecap() {
         var ta = document.getElementById("recapText"); if (!ta) return;
         var st = document.getElementById("recapStatus");
@@ -1106,7 +1151,11 @@
           .then(function (j) {
             if (btn) btn.disabled = false;
             if (j && j.ok) {
-              if (st) { st.textContent = "Saved" + (j.warning ? " — " + j.warning : " ✓"); setTimeout(function () { if (st.textContent.indexOf("Saved") === 0) st.textContent = ""; }, 4000); }
+              if (st) { st.textContent = "Saved ✓"; setTimeout(function () { if (st.textContent.indexOf("Saved") === 0) st.textContent = ""; }, 4000); }
+              // Pop the friendly "your recap will be live momentarily" modal
+              // so the operator gets an unambiguous confirmation the save
+              // succeeded -- the tiny inline "Saved ✓" was easy to miss.
+              openRecapSavedModal(j.warning || "");
             } else {
               if (st) st.textContent = (j && j.error) || "Save failed.";
             }
