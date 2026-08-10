@@ -186,15 +186,19 @@
         });
         var board = hl.board;
         if (board && Array.isArray(board.members) && board.members.length) {
+          // Titles render as prefixes ("President Jeff Harms") rather than
+          // parenthetical suffixes so the roster reads like a board
+          // announcement, not a directory listing. **Bold** on titled
+          // members so the president reads as the leader.
           var names = board.members.map(function (m) {
             if (!m || !m.name) return "";
             var nm = String(m.name).trim();
             if (!nm) return "";
-            if (board.showTitles && m.title) return nm + " (" + String(m.title).trim() + ")";
-            return nm;
+            var title = board.showTitles && m.title ? String(m.title).trim() : "";
+            return title ? ("**" + title + " " + nm + "**") : nm;
           }).filter(Boolean);
           if (names.length) {
-            lines.push("### 2026 Board");
+            lines.push("### " + ((board.year || "") + "").trim() + " Board");
             lines.push(names.join(" · "));
           }
         }

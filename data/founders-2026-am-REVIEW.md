@@ -15,7 +15,10 @@ the highlights JSON's `publish` flag to `true`.
 10. Which hole carried the golf cart hole-in-one prize? Ron Chino aced
     hole 2 (par 3). Copy must be explicit about whether the cart was won,
     or readers will assume it was.
-11. List 2026 board members by name, or keep the collective thank-you?
+11. ~~List 2026 board members by name, or keep the collective thank-you?~~
+    **Resolved** — board roster now renders inline below the board
+    paragraph: President Jeff Harms, Brian Landy, Bo Vandenbark,
+    Leighton Fetzer, Justin Stone.
 12. Confirm "Jeff Harms" spelling. The scorecard photographed for card 1
     shows a player row transcribed as "Ham" paired with Wilson, likely a
     truncated read of "Harms." Justin Stone signed that same card.

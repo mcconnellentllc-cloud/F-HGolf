@@ -29,7 +29,13 @@
   },
   "board": {
     "year": 2026,
-    "showTitles": false,
-    "members": []
+    "showTitles": true,
+    "members": [
+      { "name": "Jeff Harms", "title": "President" },
+      { "name": "Brian Landy", "title": null },
+      { "name": "Bo Vandenbark", "title": null },
+      { "name": "Leighton Fetzer", "title": null },
+      { "name": "Justin Stone", "title": null }
+    ]
   }
 }
