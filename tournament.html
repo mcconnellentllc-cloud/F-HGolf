@@ -287,17 +287,70 @@
       // spellings are confirmed. Rendering it before the leaderboard/pairings
       // section is intentional: this is the story of the tournament, and
       // the numbered field below is the receipt.
-      function renderHighlightBody(body) {
+      function renderHighlightBody(body, section, data) {
         // Blank line = paragraph break. Names + emphasis stay verbatim; we
         // don't do inline markdown here because the source copy is prose,
         // not markdown, and the copy owner does the emphasis edits.
         var wrap = document.createElement("div");
         wrap.className = "founders-hl__body";
-        String(body || "").split(/\n\s*\n/).forEach(function (para) {
+        var paragraphs = String(body || "").split(/\n\s*\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+
+        // Champion score is appended to the Fetzer/Dennis paragraph only
+        // when a numeric score is set on champions in the JSON. Null score
+        // renders the paragraph exactly as it reads today. No placeholder,
+        // no dash, no "TBD". scoreType "net" prefixes the number with
+        // "net "; anything else (including "gross") renders the bare
+        // number. Anchored on the "Tournament Highlights" heading so an
+        // unrelated section can't pick up the score sentence.
+        var champs = data && data.champions;
+        var isHighlights = section && /^tournament\s+highlights\b/i.test(section.heading || "");
+        if (isHighlights && champs && champs.score != null && isFinite(Number(champs.score)) && paragraphs.length) {
+          var scoreLabel = champs.scoreType === "net"
+            ? "net " + Number(champs.score)
+            : String(Number(champs.score));
+          paragraphs[0] = paragraphs[0] + " They posted a " + scoreLabel + " over two days.";
+        }
+
+        var pNodes = paragraphs.map(function (para) {
           var p = document.createElement("p");
-          p.textContent = para.trim();
-          if (p.textContent) wrap.appendChild(p);
+          p.textContent = para;
+          return p;
         });
+        pNodes.forEach(function (n) { wrap.appendChild(n); });
+
+        // Board roster inline list. Rendered ONLY when board.members is a
+        // non-empty array -- an empty array (or missing board object)
+        // leaves the collective thank-you copy as-is with no dash and no
+        // empty element. Anchored on "The People Who Made It Run" heading
+        // and inserted immediately after the paragraph that mentions the
+        // board so it sits under the thank-you line, not at the section's
+        // end.
+        var board = data && data.board;
+        var isPeople = section && /^the\s+people\s+who\s+made\s+it\s+run\b/i.test(section.heading || "");
+        if (isPeople && board && Array.isArray(board.members) && board.members.length) {
+          var names = board.members.map(function (m) {
+            if (!m || !m.name) return "";
+            var nm = String(m.name).trim();
+            if (!nm) return "";
+            if (board.showTitles && m.title) return nm + " (" + String(m.title).trim() + ")";
+            return nm;
+          }).filter(Boolean);
+          if (names.length) {
+            var list = document.createElement("p");
+            list.className = "founders-hl__board-list";
+            list.textContent = names.join(" · ");
+            var anchor = -1;
+            for (var i = 0; i < paragraphs.length; i++) {
+              if (/\bboard\b/i.test(paragraphs[i])) { anchor = i; break; }
+            }
+            if (anchor >= 0 && pNodes[anchor] && pNodes[anchor].parentNode) {
+              pNodes[anchor].parentNode.insertBefore(list, pNodes[anchor].nextSibling);
+            } else {
+              wrap.appendChild(list);
+            }
+          }
+        }
+
         return wrap;
       }
       function renderHighlights(data) {
@@ -372,7 +425,7 @@
             h.textContent = s.heading;
             block.appendChild(h);
           }
-          if (s.body) block.appendChild(renderHighlightBody(s.body));
+          if (s.body) block.appendChild(renderHighlightBody(s.body, s, data));
           host.appendChild(block);
         });
 

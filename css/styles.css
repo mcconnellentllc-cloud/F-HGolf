@@ -779,6 +779,11 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .founders-hl__heading { font-family: var(--font-display); font-weight: 600; color: var(--primary-green); font-size: clamp(1.3rem, 2.6vw, 1.7rem); margin: 0 0 0.55rem; letter-spacing: 0.005em; }
 .founders-hl__body p { font-size: 1.03rem; line-height: 1.7; color: var(--ink); margin: 0 0 0.9rem; }
 .founders-hl__body p:last-child { margin-bottom: 0; }
+/* Inline board roster -- names on one flowing line separated by middots.
+   Rendered ONLY when board.members is populated (see tournament.html
+   renderer); an empty roster leaves the collective thank-you paragraph
+   alone with no placeholder. */
+.founders-hl__board-list { font-family: var(--font-body); font-size: 0.98rem; line-height: 1.55; color: var(--primary-green); font-weight: 600; margin: 0 0 0.9rem; padding: 0.55rem 0 0.75rem; border-top: 1px solid var(--line); }
 
 /* Champions modifier -- distinct visual weight without a separate template.
    Cream background + gold rule + display serif on names so the winners

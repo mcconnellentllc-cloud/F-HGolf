@@ -23,6 +23,13 @@
   ],
   "champions": {
     "players": ["Jack Dennis", "Leighton Fetzer"],
+    "score": null,
+    "scoreType": null,
     "note": ""
+  },
+  "board": {
+    "year": 2026,
+    "showTitles": false,
+    "members": []
   }
 }
