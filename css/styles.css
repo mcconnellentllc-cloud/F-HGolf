@@ -757,6 +757,9 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .margin__note { font-style: italic; color: var(--muted); font-size: 0.9rem; }
 .founders__notes { margin-top: 2.25rem; font-size: 0.85rem; color: var(--muted); line-height: 1.65; }
 .founders__notes p { margin: 0.15rem 0; }
+.founders__past { margin: 2.5rem 0 0; text-align: center; font-weight: 700; }
+.founders__past a { color: var(--primary-green); text-decoration: none; padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid rgba(30,80,40,0.2); background: rgba(30,80,40,0.06); display: inline-block; }
+.founders__past a:hover, .founders__past a:focus-visible { background: var(--primary-green); color: #fff; outline: none; }
 .founders__scan { margin-top: 2.5rem; }
 .founders__scan img { width: 100%; max-width: 640px; border: 1px solid var(--line); border-radius: var(--radius); }
 .founders__scan figcaption { margin-top: 0.5rem; font-size: 0.85rem; font-style: italic; color: var(--muted); }
@@ -1213,6 +1216,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
    can jump straight to Rules / Flights / Calcutta / Results / Recap. */
 .schedule__links { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
 .schedule__link { display: inline-flex; align-items: center; padding: 0.35rem 0.75rem; border-radius: 999px; background: rgba(30,80,40,0.08); color: var(--primary-green); font-size: 0.8rem; font-weight: 700; text-decoration: none; border: 1px solid rgba(30,80,40,0.2); }
+.schedule__card { margin-top: 0.6rem; align-self: flex-start; }
 .schedule__link:hover, .schedule__link:focus-visible { background: var(--primary-green); color: #fff; outline: none; }
 .schedule li.is-past .schedule__link { background: rgba(30,80,40,0.05); }
 
