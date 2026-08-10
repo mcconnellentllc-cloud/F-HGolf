@@ -69,6 +69,16 @@
     </div>
   </section>
 
+  <!-- ============================ HIGHLIGHTS / RECAP ============================ -->
+  <!-- Recap section for the 2026 Founders. Empty by default; populated when
+       data/founders-2026-highlights.json has publish=true. Sits above the
+       pairings/leaderboard section per the copy owner's request. -->
+  <section class="section section--paper founders-hl-sect" id="fHighlightsSect" hidden aria-labelledby="fHlTitle">
+    <div class="container">
+      <div id="fHighlights"></div>
+    </div>
+  </section>
+
   <!-- ============================ PAIRINGS ============================ -->
   <main class="section section--alt">
     <div class="container founders">
@@ -270,6 +280,105 @@
         if (status) { status.textContent = "Pairings unavailable."; status.hidden = false; }
       }
 
+      // ---- 2026 Highlights recap -------------------------------------------
+      // Renders the "Highlights / Recap" block above the pairings. Gated on
+      // the top-level `publish` flag in the JSON -- copy is written and
+      // proofed with publish=false, then flipped to true after name
+      // spellings are confirmed. Rendering it before the leaderboard/pairings
+      // section is intentional: this is the story of the tournament, and
+      // the numbered field below is the receipt.
+      function renderHighlightBody(body) {
+        // Blank line = paragraph break. Names + emphasis stay verbatim; we
+        // don't do inline markdown here because the source copy is prose,
+        // not markdown, and the copy owner does the emphasis edits.
+        var wrap = document.createElement("div");
+        wrap.className = "founders-hl__body";
+        String(body || "").split(/\n\s*\n/).forEach(function (para) {
+          var p = document.createElement("p");
+          p.textContent = para.trim();
+          if (p.textContent) wrap.appendChild(p);
+        });
+        return wrap;
+      }
+      function renderHighlights(data) {
+        if (!data || data.publish !== true) return; // gated: nothing renders until flipped
+        var sect = document.getElementById("fHighlightsSect");
+        var host = document.getElementById("fHighlights");
+        if (!sect || !host) return;
+
+        // Header: eyebrow (tournament + dates) + section title.
+        var head = document.createElement("header");
+        head.className = "founders-hl__head";
+        if (data.tournament) {
+          var eyebrow = document.createElement("p");
+          eyebrow.className = "eyebrow founders-hl__eyebrow";
+          eyebrow.textContent = data.tournament + (data.dates ? " · " + data.dates : "");
+          head.appendChild(eyebrow);
+        }
+        var title = document.createElement("h2");
+        title.id = "fHlTitle";
+        title.className = "section__title founders-hl__title";
+        title.textContent = "Tournament Recap";
+        head.appendChild(title);
+        var rule = document.createElement("hr");
+        rule.className = "rule-brass";
+        head.appendChild(rule);
+        host.appendChild(head);
+
+        // Intro paragraph -- lede for the whole recap.
+        if (data.intro) {
+          var intro = document.createElement("p");
+          intro.className = "founders-hl__intro";
+          intro.textContent = String(data.intro).trim();
+          host.appendChild(intro);
+        }
+
+        // Champions block -- visually distinct treatment (modifier class,
+        // NOT a separate template) so this is unmistakably THE headline.
+        var champs = data.champions;
+        if (champs && Array.isArray(champs.players) && champs.players.length) {
+          var champSec = document.createElement("section");
+          champSec.className = "founders-hl__block founders-hl__block--champs";
+          var champLbl = document.createElement("p");
+          champLbl.className = "founders-hl__champs-lbl";
+          champLbl.textContent = "Champions";
+          champSec.appendChild(champLbl);
+          var champNames = document.createElement("p");
+          champNames.className = "founders-hl__champs-names";
+          // "A & B" for two players; join with " · " for more.
+          if (champs.players.length === 2) {
+            champNames.textContent = champs.players[0] + " & " + champs.players[1];
+          } else {
+            champNames.textContent = champs.players.join(" · ");
+          }
+          champSec.appendChild(champNames);
+          if (champs.note) {
+            var champNote = document.createElement("p");
+            champNote.className = "founders-hl__champs-note";
+            champNote.textContent = String(champs.note).trim();
+            champSec.appendChild(champNote);
+          }
+          host.appendChild(champSec);
+        }
+
+        // Themed sections (People / Highlights / Calcutta / etc.).
+        (data.sections || []).forEach(function (s) {
+          if (!s || (!s.heading && !s.body)) return;
+          var block = document.createElement("section");
+          block.className = "founders-hl__block";
+          if (s.heading) {
+            var h = document.createElement("h3");
+            h.className = "founders-hl__heading";
+            h.textContent = s.heading;
+            block.appendChild(h);
+          }
+          if (s.body) block.appendChild(renderHighlightBody(s.body));
+          host.appendChild(block);
+        });
+
+        sect.hidden = false;
+      }
+
       document.addEventListener("DOMContentLoaded", function () {
         // Archive scan: hide the whole figure if the image is missing (404).
         var scan = document.getElementById("fScan"), scanImg = document.getElementById("fScanImg");
@@ -278,6 +387,13 @@
           scanImg.addEventListener("error", hideScan);
           if (scanImg.complete && scanImg.naturalWidth === 0) hideScan();
         }
+
+        // Load the highlights independently -- pairings failing shouldn't
+        // hide the recap and vice versa.
+        fetch("data/founders-2026-highlights.json", { cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) { if (j) renderHighlights(j); })
+          .catch(function () { /* silent -- pairings still render */ });
 
         fetch("data/founders-tournament.json")
           .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
