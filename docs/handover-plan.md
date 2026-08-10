@@ -430,6 +430,26 @@ never sees it. The Calcutta admin sends a `POST` request with the
 admin's session `x-admin-key` header, and the Vercel function
 translates that into the Resend call server-side.
 
+### Considered and rejected (settled — do not reopen)
+
+Recorded here so future readers see the reasoning and do not re-propose
+these. The recommendation stays Resend.
+
+- **Microsoft Graph via an M365 app registration.** Rejected. Client
+  secrets expire on a 6–12 month timer by default; certificate auth
+  extends the timer but doesn't remove it. Under Path A (non-technical
+  successor) this is a silent-outage risk — receipts stop sending on
+  the expiry date and nobody notices until a buyer complains.
+- **Exchange SMTP (`smtp.office365.com:587`).** Rejected. OAuth2
+  refresh tokens carry the same expiry risk, and Microsoft has been
+  deprecating the basic-auth path for years. Same silent-outage class
+  of failure.
+- **`mailto:` handoff from the admin's browser.** Rejected as the
+  primary path. Zero server-side credential is a real virtue, but 50
+  clicks per bulk send and no send history make it operationally poor
+  for the "all buyers at once" mode. Reasonable emergency fallback if
+  Resend is ever removed from the stack.
+
 ### Precondition list
 
 Before any code lands (repeated from `docs/email-scoping.md` for
