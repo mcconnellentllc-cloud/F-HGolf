@@ -20,11 +20,10 @@
       end: "2026-08-09", cap: 64, unit: "teams", team: 2,
       format: "2-day 2-man scramble", note: "2-day tournament · 2 shotgun starts · Calcutta",
       ctaLabel: "Enter the Founders",
-      // Single entry point: the tournament card page (tournament.html)
-      // carries the recap + a nav strip that fans out to Rules / Flights /
-      // Calcutta / Recap / Leaderboard, so the schedule row only needs one
-      // "Open tournament" button.
-      card: { label: "Open Founders card", href: "tournament.html" }
+      // Single entry point: the Founders recap page is the hub. Its own
+      // nav strip fans out to Flights / Calcutta / Leaderboard / Past,
+      // so the schedule row only needs one "Open Founders card" button.
+      card: { label: "Open Founders card", href: "founders-recap.html" }
     },
     "Couple's Tournament (Aug 22)": { end: "2026-08-22", cap: 24, unit: "teams", team: 2, roles: ["Your name", "Partner's name"], format: "2-player couples (one entry = a team)" },
     "Haxtun Fire (Sept 19)": { end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble" },
