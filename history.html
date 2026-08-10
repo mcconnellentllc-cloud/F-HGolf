@@ -17,17 +17,27 @@
 </head>
 <body>
 
-  <header class="nav" role="banner">
+  <header class="nav" id="top">
     <div class="nav__inner">
-      <a class="nav__brand" href="index.html">
-        <img class="nav__logo" src="images/logo.png" alt="F&H Golf Course logo" />
-        <div class="nav__brand-txt"><span class="nav__title">F&amp;H Golf Course</span><span class="nav__tag">Fleming, CO</span></div>
+      <a href="index.html" class="nav__brand" aria-label="F&H Golf Course home">
+        <img class="nav__mark" src="images/logo.png" alt="" aria-hidden="true" />
+        <span class="nav__wordmark">
+          <span class="nav__name">F&amp;H Golf Course</span>
+          <span class="nav__tagline">Est. 1972 · Fleming, CO</span>
+        </span>
       </a>
-      <nav class="nav__links" aria-label="Site">
-        <a href="index.html">Home</a>
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav__links" id="navLinks" aria-label="Site">
+        <a href="index.html#course">Course</a>
+        <a href="index.html#story">Our Story</a>
+        <a href="hall-of-fame.html">Hall of Fame</a>
+        <a href="reviews.html">Reviews</a>
         <a href="tournaments.html">Tournaments</a>
         <a class="is-active" href="history.html">Past Tournaments</a>
-        <a href="hall-of-fame.html">Hall of Fame</a>
+        <a href="index.html#rates">Rates</a>
+        <a href="index.html#contact">Contact</a>
       </nav>
     </div>
   </header>
@@ -41,6 +51,11 @@
         <p class="section__subtitle" id="histLead">Flight winners, Calcutta results, and champions from previous years at F&amp;H Golf Course.</p>
       </div>
 
+      <!-- Current-year Founders card. Shows only when the ?name=Founder
+           filter is active so the archive page doubles as the Founders'
+           card until a proper snapshot is committed for 2026. -->
+      <div id="currentCard" hidden></div>
+
       <div class="hist" id="pubHist"><p class="noms__msg">Loading past tournaments&hellip;</p></div>
     </div>
   </section>
@@ -52,6 +67,7 @@
   </footer>
 
   <script>document.getElementById("footYr").textContent = new Date().getFullYear();</script>
+  <script src="js/main.js"></script>
   <script src="js/api.js"></script>
   <script>
     (function () {
@@ -62,12 +78,40 @@
       // param so users see only Founders history when they arrived from that card.
       var params = new URLSearchParams(location.search);
       var filterName = (params.get("name") || "").trim();
+      var isFounders = /^founder/i.test(filterName);
       if (filterName) {
         var pretty = filterName.charAt(0).toUpperCase() + filterName.slice(1);
         var title = document.getElementById("histTitle");
         if (title) title.textContent = pretty + " — Past Years";
         var lead = document.getElementById("histLead");
         if (lead) lead.textContent = "Every past running of the " + pretty + " tournament at F&H Golf Course.";
+      }
+
+      // When landing on the Founders filter, render a card for THIS year's
+      // Founders at the top -- links to the recap hub, leaderboard, calcutta,
+      // and flights. Keeps the page useful before a snapshot is committed.
+      if (isFounders) {
+        var cur = document.getElementById("currentCard");
+        if (cur) {
+          cur.hidden = false;
+          cur.innerHTML = ''
+            + '<article class="hist__current">'
+            +   '<div class="hist__current-hd">'
+            +     '<span class="hist__year">2026</span>'
+            +     '<div>'
+            +       '<h2 class="hist__current-name">Founder&rsquo;s Tournament</h2>'
+            +       '<p class="hist__current-meta">Aug 8&ndash;9 &middot; 2-day 2-man scramble</p>'
+            +     '</div>'
+            +   '</div>'
+            +   '<p class="hist__current-lede">This year&rsquo;s Founders is in the books. The full recap, leaderboard, Calcutta, and flights are still live below.</p>'
+            +   '<nav class="hist__current-nav" aria-label="2026 Founders links">'
+            +     '<a class="hist__current-link hist__current-link--primary" href="founders-recap.html">Recap &rarr;</a>'
+            +     '<a class="hist__current-link" href="founders-leaderboard-display.html">Results &rarr;</a>'
+            +     '<a class="hist__current-link" href="founders-calcutta-display.html">Calcutta &rarr;</a>'
+            +     '<a class="hist__current-link" href="founders-flights.html">Flights &rarr;</a>'
+            +   '</nav>'
+            + '</article>';
+        }
       }
 
       fetch(FH_API.url("/api/tournament-signups?archives=1"), { cache: "no-store" })
@@ -81,9 +125,11 @@
             recs = recs.filter(function (r) { return String((r.fields || {}).Name || "").toLowerCase().indexOf(needle) !== -1; });
           }
           if (!recs.length) {
-            var emptyMsg = filterName
-              ? 'No past runnings of the ' + esc(filterName) + ' tournament are on record yet. Check back after this year is finished.'
-              : 'The archive is empty. Once a tournament is committed by staff, it will show up here.';
+            var emptyMsg = isFounders
+              ? 'No prior years archived yet. The 2026 card is above, and older years will appear here once they&rsquo;re committed.'
+              : (filterName
+                  ? 'No past runnings of the ' + esc(filterName) + ' tournament are on record yet. Check back after this year is finished.'
+                  : 'The archive is empty. Once a tournament is committed by staff, it will show up here.');
             host.innerHTML = '<p class="noms__msg" style="text-align:center;padding:2rem 1rem;">' + emptyMsg + '</p>'; return;
           }
           host.innerHTML = recs.map(function (r) {

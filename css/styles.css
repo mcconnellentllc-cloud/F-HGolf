@@ -1386,6 +1386,20 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
   .hist__meta, .hist__champ { grid-column: 1 / -1; }
 }
 
+/* Current-year Founders card on history.html?name=Founder. Shown above the
+   archive so the page doubles as the Founders' entry point until the 2026
+   snapshot is committed. */
+.hist__current { background: linear-gradient(180deg, #fbf6e6 0%, #f5eccf 100%); border: 1px solid var(--brass, #c9a24d); border-left: 5px solid var(--primary-green); border-radius: 12px; padding: 1.1rem 1.3rem; margin-bottom: 1.4rem; box-shadow: 0 6px 20px rgba(31, 21, 5, 0.06); }
+.hist__current-hd { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.4rem; }
+.hist__current-name { font-family: var(--font-display); font-weight: 700; color: var(--primary-green); font-size: clamp(1.3rem, 3vw, 1.75rem); margin: 0; }
+.hist__current-meta { color: var(--muted); font-size: 0.92rem; margin: 0.15rem 0 0; }
+.hist__current-lede { color: var(--ink); font-size: 1rem; line-height: 1.55; margin: 0.4rem 0 0.85rem; }
+.hist__current-nav { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.hist__current-link { display: inline-flex; align-items: center; padding: 0.45rem 0.9rem; border-radius: 999px; background: rgba(30,80,40,0.08); color: var(--primary-green); font-weight: 700; text-decoration: none; font-size: 0.9rem; border: 1px solid rgba(30,80,40,0.2); }
+.hist__current-link:hover, .hist__current-link:focus-visible { background: var(--primary-green); color: #fff; outline: none; }
+.hist__current-link--primary { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
+.hist__current-link--primary:hover, .hist__current-link--primary:focus-visible { background: #0e4517; }
+
 /* Public-display tab body (Calcutta Disp / Leaderboard Disp workbooks). */
 .disp-tab { display: flex; flex-direction: column; gap: 0.75rem; }
 .disp-tab__row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
