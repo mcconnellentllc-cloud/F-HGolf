@@ -297,7 +297,7 @@
           rows.forEach(function (r) { if (r.d1 != null && (leader == null || r.d1 < leader)) leader = r.d1; });
           rows.forEach(function (r) {
             if (r.d1 != null && leader != null) {
-              r.hcp = Math.floor((r.d1 - leader) * HCP_MULT);
+              r.hcp = Math.round((r.d1 - leader) * HCP_MULT);
               if (r.gross != null) r.net = r.gross - r.hcp;
             }
           });

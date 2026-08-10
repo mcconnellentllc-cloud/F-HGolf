@@ -176,7 +176,7 @@
             var f = r.fields || {};
             var d1 = d1g(r);
             var fb = frontBack(r);
-            var hcp = (d1 != null && leader != null) ? Math.floor((d1 - leader) * HCP_MULT) : null;
+            var hcp = (d1 != null && leader != null) ? Math.round((d1 - leader) * HCP_MULT) : null;
             return { id: r.id, name: teamShortNames(f), tnum: teamNumbers[r.id] || null, front: fb.front, back: fb.back, d1: d1, hcp: hcp };
           });
           rows.sort(function (a, b) { if (a.d1 == null && b.d1 == null) return 0; if (a.d1 == null) return 1; if (b.d1 == null) return -1; return a.d1 - b.d1; });

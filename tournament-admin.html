@@ -4447,7 +4447,7 @@
           var lbTeamNumbers = computeTeamNumbers(recs);
           var rows = arr.map(function (r) {
             var a = d1g(r), b = d2g(r);
-            var hcp = (a != null && leader != null) ? Math.floor((a - leader) * mult) : null;
+            var hcp = (a != null && leader != null) ? Math.round((a - leader) * mult) : null;
             var scores = parseScores((r.fields || {})["Day1 Scores"]);
             function loop(from, to) {
               if (!scores || scores.length < to) return null;
@@ -4580,7 +4580,7 @@
           var rows = arr.map(function (r) {
             var f = r.fields || {};
             var a = d1g(r), b = d2g(r);
-            var hcp = (a != null && leader != null) ? Math.floor((a - leader) * mult) : null;
+            var hcp = (a != null && leader != null) ? Math.round((a - leader) * mult) : null;
             var gross = (a != null || b != null) ? ((a == null ? 0 : a) + (b == null ? 0 : b)) : null;
             var net = (gross != null && hcp != null) ? (gross - hcp) : null;
             var buyer = String(f.Buyer || "");
@@ -4824,7 +4824,7 @@
           fl.leader = leader;
           fl.rows.forEach(function (row) {
             if (row.d1 != null && leader != null) {
-              row.hcp = Math.floor((row.d1 - leader) * mult);
+              row.hcp = Math.round((row.d1 - leader) * mult);
               // Net = 2-day gross − HCP (not just Day 2 − HCP).
               if (row.gross != null) row.net = row.gross - row.hcp;
             }
