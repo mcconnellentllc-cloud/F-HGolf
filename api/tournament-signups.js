@@ -243,13 +243,21 @@ module.exports = async (req, res) => {
         if (cr.ok) {
           const cdata = await cr.json();
           const auctionStates = {};
+          const recaps = {};
           (cdata.records || []).forEach((rec) => {
             const f = rec.fields || {};
             const name = String(f["Tournament"] || "").trim();
-            if (!name || typeof f["Auction State"] !== "string") return;
-            try { auctionStates[name] = JSON.parse(f["Auction State"]) || {}; } catch (e) {}
+            if (!name) return;
+            if (typeof f["Auction State"] === "string") {
+              try { auctionStates[name] = JSON.parse(f["Auction State"]) || {}; } catch (e) {}
+            }
+            // Public recap text -- the operator publishes it from the admin
+            // Recap tab and any page (e.g. founders-recap.html) can render
+            // it without needing admin auth.
+            if (typeof f["Recap"] === "string" && f["Recap"].trim()) recaps[name] = f["Recap"];
           });
           payload.auctionStates = auctionStates;
+          payload.recaps = recaps;
         }
       } catch (e) { /* auction-state read is best-effort */ }
     }

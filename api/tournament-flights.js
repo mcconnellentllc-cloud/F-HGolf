@@ -61,7 +61,7 @@ module.exports = async (req, res) => {
       }
       const data = await r.json();
       const rec = (data.records || [])[0];
-      let cfg = {}, aState = {};
+      let cfg = {}, aState = {}, recap = "";
       if (rec && rec.fields) {
         if (typeof rec.fields["Slot Config"] === "string") {
           try { cfg = JSON.parse(rec.fields["Slot Config"]) || {}; } catch (e) { cfg = {}; }
@@ -69,37 +69,66 @@ module.exports = async (req, res) => {
         if (typeof rec.fields["Auction State"] === "string") {
           try { aState = JSON.parse(rec.fields["Auction State"]) || {}; } catch (e) { aState = {}; }
         }
+        // Recap is a plain long-text field so the operator can dump notes
+        // straight from talk-to-text; public pages render lightweight
+        // markdown-ish formatting from it.
+        if (typeof rec.fields["Recap"] === "string") recap = rec.fields["Recap"];
       }
-      return res.status(200).json({ ok: true, config: cfg, auctionState: aState, id: rec ? rec.id : null });
+      return res.status(200).json({ ok: true, config: cfg, auctionState: aState, recap: recap, id: rec ? rec.id : null });
     }
     if (body.action === "saveConfig") {
       const t = clean(body.tournament, 200);
       if (!t) return res.status(400).json({ ok: false, error: "tournament required." });
-      // Accept slot config, auction state, or both. Missing keys leave the
-      // stored value unchanged so a partial write from one screen doesn't
-      // wipe out settings owned by another.
+      // Accept slot config, auction state, recap, or any combo. Missing keys
+      // leave the stored value unchanged so a partial write from one screen
+      // doesn't wipe out settings owned by another.
       const cfg = (body.config && typeof body.config === "object") ? body.config : null;
       const aState = (body.auctionState && typeof body.auctionState === "object") ? body.auctionState : null;
-      if (!cfg && !aState) return res.status(400).json({ ok: false, error: "config or auctionState required." });
+      const recap = (typeof body.recap === "string") ? body.recap : null;
+      if (!cfg && !aState && recap === null) return res.status(400).json({ ok: false, error: "config, auctionState, or recap required." });
       const q = `?filterByFormula=${encodeURIComponent(`{Tournament}='${t.replace(/'/g, "\\'")}'`)}&maxRecords=1`;
       const findR = await fetch(cfgUrl + q, { headers: { Authorization: auth.Authorization } });
       if (!findR.ok) {
         const d = await findR.text(); console.error("saveConfig find", findR.status, d);
-        return res.status(200).json({ ok: false, error: "Config table missing — add a Tournament Config table (fields: Tournament, Slot Config, Auction State) in Airtable." });
+        return res.status(200).json({ ok: false, error: "Config table missing — add a Tournament Config table (fields: Tournament, Slot Config, Auction State, Recap) in Airtable." });
       }
       const findData = await findR.json();
       const existing = (findData.records || [])[0];
       const fields = { Tournament: t };
       if (cfg) fields["Slot Config"] = JSON.stringify(cfg).slice(0, 20000);
       if (aState) fields["Auction State"] = JSON.stringify(aState).slice(0, 4000);
-      if (existing && existing.id) {
-        const upR = await fetch(cfgUrl, { method: "PATCH", headers: auth, body: JSON.stringify({ records: [{ id: existing.id, fields }] }) });
-        if (!upR.ok) { const d = await upR.text(); console.error("saveConfig patch", upR.status, d); return res.status(502).json({ ok: false, error: "Couldn't update tournament config." }); }
-      } else {
-        const upR = await fetch(cfgUrl, { method: "POST", headers: auth, body: JSON.stringify({ records: [{ fields }] }) });
-        if (!upR.ok) { const d = await upR.text(); console.error("saveConfig create", upR.status, d); return res.status(502).json({ ok: false, error: "Couldn't save tournament config." }); }
+      if (recap !== null) fields["Recap"] = recap.slice(0, 20000);
+      // Auto-strip missing Airtable fields and retry -- Recap may not exist
+      // on every base yet. Same pattern the flights write path uses.
+      async function upsert(f) {
+        if (existing && existing.id) {
+          return fetch(cfgUrl, { method: "PATCH", headers: auth, body: JSON.stringify({ records: [{ id: existing.id, fields: f }] }) });
+        }
+        return fetch(cfgUrl, { method: "POST", headers: auth, body: JSON.stringify({ records: [{ fields: f }] }) });
       }
-      return res.status(200).json({ ok: true });
+      const stripped = new Set();
+      let working = { ...fields };
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const upR = await upsert(working);
+        if (upR.ok) {
+          const payload = { ok: true };
+          if (stripped.size) payload.warning = "Saved without " + [...stripped].join(", ") + " (add those fields on the Tournament Config table to store them).";
+          return res.status(200).json(payload);
+        }
+        const detail = await upR.text();
+        let missing = null;
+        try {
+          const parsed = JSON.parse(detail);
+          const emsg = parsed && parsed.error && parsed.error.message;
+          const m = /Unknown field name[s]?:\s*"([^"]+)"/i.exec(emsg || "");
+          if (m) missing = m[1];
+        } catch (e) {}
+        if (!missing) { console.error("saveConfig upsert", upR.status, detail); return res.status(502).json({ ok: false, error: "Couldn't save tournament config." }); }
+        stripped.add(missing);
+        delete working[missing];
+        if (Object.keys(working).length <= 1) return res.status(200).json({ ok: false, error: "Nothing saved — every field was missing on Airtable (" + [...stripped].join(", ") + ")." });
+      }
+      return res.status(502).json({ ok: false, error: "Couldn't save tournament config after retries." });
     }
 
     if (body.action === "import") {

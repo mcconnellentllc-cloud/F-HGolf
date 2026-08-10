@@ -80,7 +80,25 @@
     return act;
   }
 
-  function render(counts) {
+  // Build a chip-nav row from m.links (Rules / Flights / Calcutta / Results
+   // / Past). Same visual language as the Next-Up card so past + current
+   // tournaments both get one-click access to their public pages. `past`
+   // relabels the primary "Results" chip if we want to hint that these
+   // links now show the FINAL state (not a live scoreboard).
+   function linksNav(m, past) {
+     if (!m || !m.links || !m.links.length) return null;
+     var nav = document.createElement("nav");
+     nav.className = "schedule__links";
+     nav.setAttribute("aria-label", "Tournament links");
+     nav.innerHTML = m.links.map(function (l) {
+       var label = l.label;
+       if (past && /^(results|leader)/i.test(label)) label = "Final results";
+       return '<a class="schedule__link" href="' + l.href + '"' + (l.newTab === true ? ' target="_blank" rel="noopener"' : '') + '>' + label + ' &rarr;</a>';
+     }).join("");
+     return nav;
+   }
+
+   function render(counts) {
     counts = counts || {};
     var items = document.querySelectorAll(".schedule li[data-key]");
     Array.prototype.forEach.call(items, function (li) {
@@ -97,6 +115,10 @@
         done.className = "schedule__done";
         done.textContent = "Completed";
         li.appendChild(done);
+        // Completed tournaments still get their link row so folks can look
+        // back at flights / calcutta / final results / past years.
+        var pastNav = linksNav(m, true);
+        if (pastNav) li.appendChild(pastNav);
         return; // no "% full" bar for events that are over
       }
       if (m.cap) {
@@ -113,6 +135,11 @@
       if (m.format !== "invitational") {
         li.appendChild(signupControl(li.getAttribute("data-key")));
       }
+      // Live tournaments with public pages (Founders: Rules / Flights /
+      // Calcutta / Results) get their links right on the schedule row too
+      // so signed-up players can jump straight to them without hunting.
+      var liveNav = linksNav(m, false);
+      if (liveNav) li.appendChild(liveNav);
     });
   }
 
