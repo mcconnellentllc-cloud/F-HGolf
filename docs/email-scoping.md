@@ -4,6 +4,11 @@ Research-only recommendation for adding admin-triggered Calcutta receipt
 emails. No code has been changed as part of this report. Outbound only —
 inbound email is out of scope.
 
+> **Cross-doc status:** the Resend recommendation below is now the
+> settled path. `docs/handover-plan.md` Step 4 was updated to match:
+> Exchange / Microsoft Graph / SMTP / `mailto:` are dropped as options.
+> Both documents now agree.
+
 Use case: after a Calcutta closes, the admin sends each buyer a personal
 receipt listing every team that buyer bought and the amount. Two trigger
 modes: **one buyer on demand**, and **all buyers at once, one personalized
