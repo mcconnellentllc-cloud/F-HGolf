@@ -32,10 +32,12 @@
     "showTitles": true,
     "members": [
       { "name": "Jeff Harms", "title": "President" },
-      { "name": "Brian Landy", "title": null },
-      { "name": "Bo Vandenbark", "title": null },
-      { "name": "Leighton Fetzer", "title": null },
-      { "name": "Justin Stone", "title": null }
+      { "name": "Brian Landry", "title": "Vice President" },
+      { "name": "Bo Vandenbark", "title": "Secretary" },
+      { "name": "Andy Wernsman", "title": "Treasurer" },
+      { "name": "Leighton Fetzer", "title": "Director" },
+      { "name": "Justin Stone", "title": "Director" },
+      { "name": "Dana Harris", "title": "Director" }
     ]
   }
 }
