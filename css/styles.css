@@ -1332,6 +1332,14 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .pi-badge--weak { background: #b48000; color: #fff; }
 .pi-badge--miss { background: #b11e2d; color: #fff; }
 .cd-body { font-size: 0.98rem; color: var(--ink); margin: 0; }
+.cd-body + .cd-body { margin-top: 0.7rem; }
+/* Recap-saved info modal -- reuses the cd-panel styling with an
+   informational tone. Slightly wider so the "live momentarily" note
+   fits without breaking oddly. */
+.rs-panel { max-width: 520px; }
+.rs-note { font-size: 0.9rem; color: var(--muted); line-height: 1.55; }
+.rs-note code { background: var(--paper-2); padding: 0.05em 0.35em; border-radius: 4px; font-size: 0.9em; }
+.rs-warn { font-size: 0.9rem; color: #8a5a00; background: rgba(180, 128, 0, 0.08); border: 1px solid rgba(180, 128, 0, 0.35); border-radius: 8px; padding: 0.55rem 0.75rem; }
 .cd-confirm { background: var(--red); color: #fff; border: 1px solid var(--red); }
 .cd-confirm:hover { background: var(--red-deep); border-color: var(--red-deep); }
 
