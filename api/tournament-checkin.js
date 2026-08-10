@@ -89,6 +89,12 @@ module.exports = async (req, res) => {
   // Calcutta Paid — track that the buyer settled up (Cash / Check / Card /
   // Online). Empty string clears it.
   if (typeof body.calcuttaPaid === "string") fields["Calcutta Paid"] = body.calcuttaPaid ? body.calcuttaPaid.slice(0, 20) : null;
+  // Buyer email — captured once on the Calcutta Buyers card so we can
+  // send a receipt. Denormalized: every signup this buyer bought gets
+  // the same email. Empty string clears it. Field is dropped by the
+  // auto-strip retry below if "Buyer Email" doesn't exist on the base
+  // yet, so this is safe to send before the field is added.
+  if (typeof body.buyerEmail === "string") fields["Buyer Email"] = body.buyerEmail ? body.buyerEmail.slice(0, 200) : null;
   if (body.buyAmount !== undefined) {
     if (body.buyAmount === null || body.buyAmount === "") fields["Buy Amount"] = null;
     else { var amt = Number(body.buyAmount); if (isFinite(amt) && amt >= 0) fields["Buy Amount"] = amt; }

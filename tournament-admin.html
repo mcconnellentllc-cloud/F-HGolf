@@ -283,10 +283,12 @@
           <div class="noms__bar">
             <h3 class="noms__title">Calcutta Buyers</h3>
             <div class="noms__bar-actions">
+              <button class="btn btn--solid" type="button" id="csEmailAll" title="Email a receipt to every buyer who has an email on file">Email all</button>
+              <button class="btn btn--solid" type="button" id="csPrintAll" title="Print one receipt per buyer, one per page">Print all</button>
               <button class="btn btn--primary" type="button" id="csPrintList">Print list</button>
             </div>
           </div>
-          <p class="scaffold__desc">One card per buyer. Shows every team they bought, the running total they owe, and a paid check + method dropdown so you can track cash coming in the same way you check in entry fees.</p>
+          <p class="scaffold__desc">One card per buyer. Shows every team they bought, the running total they owe, a paid check + method dropdown, and an email field so you can send them a receipt. Email all / Print all send a receipt to every buyer with one click.</p>
           <div id="caSumBody"><p class="noms__msg">Loading…</p></div>
         </section>
 
@@ -4986,12 +4988,23 @@
           var f = r.fields || {};
           var raw = String(f["Buyer"] || "").trim();
           var key = raw.toLowerCase();
-          if (!buckets[key]) { buckets[key] = { display: raw, items: [], total: 0, paidMethod: "" }; order.push(key); }
+          if (!buckets[key]) { buckets[key] = { display: raw, items: [], total: 0, paidMethod: "", email: "" }; order.push(key); }
           buckets[key].items.push(r);
           buckets[key].total += Number(f["Buy Amount"]) || 0;
           // Any paid method on any of the buyer's items counts them paid.
           var pm = String(f["Calcutta Paid"] || "").trim();
           if (pm && !buckets[key].paidMethod) buckets[key].paidMethod = pm;
+          // First non-empty Buyer Email on any of the buyer's items wins;
+          // fall back to localStorage cache (belt + suspenders in case
+          // the Airtable field hasn't been added yet).
+          var em = String(f["Buyer Email"] || "").trim();
+          if (em && !buckets[key].email) buckets[key].email = em;
+        });
+        // localStorage fallback: read cached emails and fill anywhere the
+        // Airtable copy came back empty. Never overwrite an Airtable value.
+        var emailCache = readBuyerEmailCache();
+        order.forEach(function (k) {
+          if (!buckets[k].email && emailCache[k]) buckets[k].email = emailCache[k];
         });
         // Alphabetize by display name.
         order.sort(function (a, b) { return buckets[a].display.toLowerCase().localeCompare(buckets[b].display.toLowerCase()); });
@@ -5015,17 +5028,22 @@
               + '<span class="cs-item__amt">' + money(Number(f["Buy Amount"]) || 0) + '</span></div>';
           }).join("");
           var isPaid = !!b.paidMethod;
-          return '<article class="cs-card' + (isPaid ? " is-paid" : "") + '" data-buyer="' + esc(b.display) + '">'
+          var emAttr = esc(b.email || "");
+          return '<article class="cs-card' + (isPaid ? " is-paid" : "") + '" data-buyer="' + esc(b.display) + '" data-email="' + emAttr + '">'
             + '<header class="cs-card__hd">'
             + '<h4 class="cs-card__buyer">' + esc(b.display) + '</h4>'
             + '<span class="cs-card__count">' + b.items.length + (b.items.length === 1 ? " team" : " teams") + '</span>'
             + '<span class="ci__status cs-card__status"></span>'
             + '</header>'
             + '<div class="cs-card__items">' + itemsHtml + '</div>'
+            + '<div class="cs-card__email">'
+            + '<label class="cs-email-lbl">Email <input type="email" class="cs-email" inputmode="email" autocomplete="email" spellcheck="false" placeholder="buyer@example.com" value="' + emAttr + '" /></label>'
+            + '</div>'
             + '<footer class="cs-card__ft">'
             + '<div class="cs-tot"><small>Total owed</small><b>' + money(b.total) + '</b></div>'
             + '<label class="ci-check cs-paid" title="Mark buyer paid"><input type="checkbox" class="cs-paid-box"' + (isPaid ? " checked" : "") + ' /><span>Paid</span></label>'
             + '<select class="cs-method">' + methodOpts(b.paidMethod) + '</select>'
+            + '<button type="button" class="cs-email-btn" title="Email this buyer their receipt">Email</button>'
             + '<button type="button" class="cs-print" title="Print this buyer\'s receipt">Print</button>'
             + '</footer>'
             + '</article>';
@@ -5130,7 +5148,127 @@
             setTimeout(function () { window.print(); }, 60);
             setTimeout(cleanup, 3000);
           });
+
+          // Email field — saves on blur (or Enter). Persists via the
+          // existing tournament-checkin endpoint against every signup
+          // this buyer bought, and mirrors into localStorage so we
+          // never lose an already-entered address if the Airtable
+          // field isn't provisioned yet.
+          var emIn = card.querySelector(".cs-email");
+          if (emIn) {
+            emIn.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); emIn.blur(); } });
+            emIn.addEventListener("blur", function () {
+              var raw = String(emIn.value || "").trim();
+              var prev = String(card.getAttribute("data-email") || "").trim();
+              if (raw === prev) return;
+              if (raw && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw)) {
+                if (statusEl) { statusEl.textContent = "Bad email"; statusEl.className = "ci__status is-error"; setTimeout(function () { statusEl.textContent = ""; }, 1800); }
+                emIn.value = prev;
+                return;
+              }
+              card.setAttribute("data-email", raw);
+              writeBuyerEmailCache(buyer, raw);
+              scAllCache.forEach(function (r) {
+                var f = r.fields || {};
+                if (String(f["Buyer"] || "").trim().toLowerCase() === buyer.trim().toLowerCase()) {
+                  f["Buyer Email"] = raw || null;
+                }
+              });
+              if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "ci__status"; }
+              var ids = scAllCache.filter(function (r) {
+                return String((r.fields || {})["Buyer"] || "").trim().toLowerCase() === buyer.trim().toLowerCase();
+              }).map(function (r) { return r.id; });
+              ids.reduce(function (chain, id) {
+                return chain.then(function () {
+                  return fetch(FH_API.url("/api/tournament-checkin"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+                    body: JSON.stringify({ id: id, buyerEmail: raw || "" })
+                  }).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function () { return new Promise(function (r) { setTimeout(r, 80); }); });
+                });
+              }, Promise.resolve()).then(function () {
+                if (statusEl) { statusEl.textContent = "Saved ✓"; statusEl.className = "ci__status is-ok"; setTimeout(function () { statusEl.textContent = ""; }, 1500); }
+              }).catch(function () {
+                if (statusEl) { statusEl.textContent = "Save error"; statusEl.className = "ci__status is-error"; }
+              });
+            });
+          }
+
+          // Email button — opens the operator's email client (mailto:)
+          // with the buyer's receipt pre-filled. If no email is on file
+          // we still open a compose window so the operator can type
+          // one in.
+          var ebtn = card.querySelector(".cs-email-btn");
+          if (ebtn) ebtn.addEventListener("click", function () {
+            var data = computeBuyerBuckets();
+            var b = data.buckets[buyer.toLowerCase()];
+            if (!b) { alert("Couldn't find that buyer in the current buys."); return; }
+            var to = String(card.getAttribute("data-email") || b.email || "").trim();
+            var subject = buildReceiptSubject(b);
+            var bodyText = buildReceiptBody(b, data.teamNumbers);
+            var href = "mailto:" + encodeURIComponent(to)
+              + "?subject=" + encodeURIComponent(subject)
+              + "&body=" + encodeURIComponent(bodyText);
+            var w = window.open(href, "_blank");
+            if (!w) window.location.href = href;
+          });
         });
+      }
+
+      // localStorage cache for buyer emails — namespaced by tournament KEY
+      // so entries don't cross tournaments. Belt-and-suspenders: if the
+      // Airtable "Buyer Email" field isn't provisioned yet, this keeps
+      // typed addresses available across sessions on the same browser.
+      function buyerEmailCacheKey() { return "fh:buyerEmails:" + (KEY || ""); }
+      function readBuyerEmailCache() {
+        try {
+          var raw = localStorage.getItem(buyerEmailCacheKey());
+          if (!raw) return {};
+          var obj = JSON.parse(raw);
+          return (obj && typeof obj === "object") ? obj : {};
+        } catch (e) { return {}; }
+      }
+      function writeBuyerEmailCache(buyerName, email) {
+        try {
+          var map = readBuyerEmailCache();
+          var k = String(buyerName || "").trim().toLowerCase();
+          if (!k) return;
+          if (email) map[k] = email;
+          else delete map[k];
+          localStorage.setItem(buyerEmailCacheKey(), JSON.stringify(map));
+        } catch (e) {}
+      }
+
+      // Build a Calcutta receipt as plain text for mailto: bodies.
+      function buildReceiptBody(b, teamNumbers) {
+        var lines = [];
+        lines.push("Hi " + (b.display || "there") + ",");
+        lines.push("");
+        lines.push("Thanks for buying in on the 2026 F&H Founders Calcutta. Your receipt is below.");
+        lines.push("");
+        lines.push("Teams you bought:");
+        var items = b.items.slice().sort(function (x, y) { return (teamNumbers[x.id] || 0) - (teamNumbers[y.id] || 0); });
+        items.forEach(function (r) {
+          var f = r.fields || {};
+          var tn = teamNumbers[r.id];
+          var tag = tn ? "T-" + String(tn).padStart(2, "0") : "—";
+          var team = teamShortNames(f);
+          var amt = money(Number(f["Buy Amount"]) || 0);
+          lines.push("  " + tag + "  " + team + "  " + amt);
+        });
+        lines.push("");
+        lines.push("Total: " + money(b.total));
+        if (b.paidMethod) lines.push("Paid: " + b.paidMethod);
+        else lines.push("Balance due: " + money(b.total));
+        lines.push("");
+        lines.push("Please make checks payable to F&H Golf Course.");
+        lines.push("");
+        lines.push("F&H Golf Course · (970) 774-6362 · fandhgolf.com");
+        return lines.join("\n");
+      }
+
+      function buildReceiptSubject(b) {
+        return "F&H Founders 2026 — Calcutta receipt (" + money(b.total) + ")";
       }
 
       // Print a hand-checkable list of every buyer + total. Builds the table
@@ -5209,6 +5347,133 @@
         window.addEventListener("afterprint", cleanup);
         setTimeout(function () { window.print(); }, 60);
         setTimeout(cleanup, 3000);
+      }
+
+      // Bucket the current tournament's Calcutta buys the same way
+      // renderCalcuttaSummary does. Kept separate so Email All / Print
+      // All read directly from scAllCache instead of scraping DOM.
+      function computeBuyerBuckets() {
+        var recs = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        var caTeamNumbers = computeTeamNumbers(recs);
+        var sold = recs.filter(function (r) {
+          var f = r.fields || {};
+          return String(f["Buyer"] || "").trim() !== "" && typeof f["Buy Amount"] === "number";
+        });
+        var buckets = {}, order = [];
+        sold.forEach(function (r) {
+          var f = r.fields || {};
+          var raw = String(f["Buyer"] || "").trim();
+          var key = raw.toLowerCase();
+          if (!buckets[key]) { buckets[key] = { display: raw, items: [], total: 0, paidMethod: "", email: "" }; order.push(key); }
+          buckets[key].items.push(r);
+          buckets[key].total += Number(f["Buy Amount"]) || 0;
+          var pm = String(f["Calcutta Paid"] || "").trim();
+          if (pm && !buckets[key].paidMethod) buckets[key].paidMethod = pm;
+          var em = String(f["Buyer Email"] || "").trim();
+          if (em && !buckets[key].email) buckets[key].email = em;
+        });
+        var cache = readBuyerEmailCache();
+        order.forEach(function (k) { if (!buckets[k].email && cache[k]) buckets[k].email = cache[k]; });
+        order.sort(function (a, b) { return buckets[a].display.toLowerCase().localeCompare(buckets[b].display.toLowerCase()); });
+        return { order: order, buckets: buckets, teamNumbers: caTeamNumbers };
+      }
+
+      // Email All — open one mailto: draft per buyer who has an email
+      // on file. Skips buyers without an email and reports a count.
+      // Browsers cap how many draft windows you can spawn from one
+      // click, so we space the opens ~300ms apart.
+      function emailAllBuyers() {
+        var data = computeBuyerBuckets();
+        var withEmail = [], withoutEmail = [];
+        data.order.forEach(function (k) {
+          var b = data.buckets[k];
+          if (b.email) withEmail.push(b); else withoutEmail.push(b);
+        });
+        if (!withEmail.length) {
+          alert("No buyers have an email on file yet. Add addresses on each card, then try again."
+            + (withoutEmail.length ? "\n\nBuyers missing an email: " + withoutEmail.length : ""));
+          return;
+        }
+        var msg = "Send a receipt to " + withEmail.length + " buyer" + (withEmail.length === 1 ? "" : "s") + "?";
+        if (withoutEmail.length) msg += "\n\n" + withoutEmail.length + " buyer" + (withoutEmail.length === 1 ? " has" : "s have") + " no email on file and will be skipped:\n  " + withoutEmail.map(function (b) { return b.display; }).join(", ");
+        if (!confirm(msg)) return;
+
+        // Open mailto: drafts sequentially. Each open spawns the user's
+        // default mail app / a new compose tab.
+        withEmail.forEach(function (b, i) {
+          setTimeout(function () {
+            var href = "mailto:" + encodeURIComponent(b.email)
+              + "?subject=" + encodeURIComponent(buildReceiptSubject(b))
+              + "&body=" + encodeURIComponent(buildReceiptBody(b, data.teamNumbers));
+            var w = window.open(href, "_blank");
+            if (!w) window.location.href = href;
+          }, i * 350);
+        });
+      }
+
+      // Print All — build a multi-page print sheet, one buyer receipt
+      // per page. Uses the same letterhead + signature layout as the
+      // per-card Print button.
+      function printAllBuyerReceipts() {
+        var data = computeBuyerBuckets();
+        if (!data.order.length) { alert("No Calcutta buyers to print yet."); return; }
+
+        var pages = data.order.map(function (k) {
+          var b = data.buckets[k];
+          var items = b.items.slice().sort(function (x, y) { return (data.teamNumbers[x.id] || 0) - (data.teamNumbers[y.id] || 0); }).map(function (r) {
+            var f = r.fields || {};
+            var tn = data.teamNumbers[r.id];
+            var tag = tn ? "T-" + String(tn).padStart(2, "0") : "—";
+            return '<div class="cs-item"><span class="cs-item__tn">' + esc(tag) + '</span>'
+              + '<span class="cs-item__team">' + esc(teamShortNames(f)) + '</span>'
+              + '<span class="cs-item__amt">' + money(Number(f["Buy Amount"]) || 0) + '</span></div>';
+          }).join("");
+          var isPaid = !!b.paidMethod;
+          return '<article class="cs-card cs-card--print-page' + (isPaid ? " is-paid" : "") + '">'
+            + '<div class="cs-print-head">'
+            + '<img class="cs-print-head__logo" src="images/logo.png" alt="F&H Golf Course" />'
+            + '<div class="cs-print-head__title">'
+            + '<span class="cs-print-head__eyebrow">2026 Founders Tournament</span>'
+            + '<h1>Calcutta Buyer Receipt</h1>'
+            + '<span class="cs-print-head__sub">F&amp;H Golf Course &middot; Fleming, Colorado &middot; Aug 8&ndash;9</span>'
+            + '</div>'
+            + '<img class="cs-print-head__logo" src="images/logo.png" alt="" aria-hidden="true" />'
+            + '</div>'
+            + '<header class="cs-card__hd"><h4 class="cs-card__buyer">' + esc(b.display) + '</h4>'
+            + '<span class="cs-card__count">' + b.items.length + (b.items.length === 1 ? " team" : " teams") + '</span></header>'
+            + '<div class="cs-card__items">' + items + '</div>'
+            + '<footer class="cs-card__ft">'
+            + '<div class="cs-tot"><small>Total owed</small><b>' + money(b.total) + '</b></div>'
+            + '<div class="cs-tot"><small>Status</small><b>' + (isPaid ? esc("Paid · " + b.paidMethod) : "Balance due") + '</b></div>'
+            + '</footer>'
+            + '<div class="cs-print-foot">'
+            + '<div class="cs-print-sig"><div><span class="cs-print-sig__line"></span><small>Buyer signature</small></div>'
+            + '<div><span class="cs-print-sig__line"></span><small>Date</small></div>'
+            + '<div><span class="cs-print-sig__line"></span><small>Received by (F&amp;H staff)</small></div></div>'
+            + '<p class="cs-print-foot__contact">F&amp;H Golf Course &middot; (970) 774-6362 &middot; fandhgolf.com</p>'
+            + '</div>'
+            + '</article>';
+        }).join("");
+
+        var host = document.createElement("div");
+        host.id = "csAllPrint";
+        host.className = "cs-all-print";
+        host.innerHTML = pages;
+        document.body.appendChild(host);
+        document.body.classList.add("is-print-cs-all");
+        var pageStyle = document.createElement("style");
+        pageStyle.id = "cs-all-print-page";
+        pageStyle.textContent = "@page { size: letter portrait; margin: 0.55in; }";
+        document.head.appendChild(pageStyle);
+        function cleanup() {
+          document.body.classList.remove("is-print-cs-all");
+          if (host && host.parentNode) host.parentNode.removeChild(host);
+          var ps = document.getElementById("cs-all-print-page"); if (ps) ps.remove();
+          window.removeEventListener("afterprint", cleanup);
+        }
+        window.addEventListener("afterprint", cleanup);
+        setTimeout(function () { window.print(); }, 80);
+        setTimeout(cleanup, 4000);
       }
 
       // ---- Leaderboard tab (full standings + winner flags) ----
@@ -6082,6 +6347,10 @@
         try { window.__fhResetTournament = resetTournamentForNextYear; } catch (e) {}
         var csPl = document.getElementById("csPrintList");
         if (csPl) csPl.addEventListener("click", printBuyersList);
+        var csEa = document.getElementById("csEmailAll");
+        if (csEa) csEa.addEventListener("click", emailAllBuyers);
+        var csPa = document.getElementById("csPrintAll");
+        if (csPa) csPa.addEventListener("click", printAllBuyerReceipts);
         var lbs = document.getElementById("lbSaveFlights");
         if (lbs) lbs.addEventListener("click", saveFlights);
         var lbInc = document.getElementById("lbFlInc");
