@@ -7,12 +7,13 @@ the highlights JSON's `publish` flag to `true`.
 
 ## Highlights copy
 
-7. Confirm spelling: Ron Chino
+7. ~~Confirm spelling: Ron Chino~~ **Resolved** — corrected to
+   **Ron Shino** in the recap copy.
 8. Confirm Don Nolan vs "Nolin" from the handwritten scorecard sheet -
    same person or different families?
 9. Confirm spelling: Sheri Bornhoft, Devin Johnson, Jack Dennis,
    Leighton Fetzer, Katlin Fetzer
-10. Which hole carried the golf cart hole-in-one prize? Ron Chino aced
+10. Which hole carried the golf cart hole-in-one prize? Ron Shino aced
     hole 2 (par 3). Copy must be explicit about whether the cart was won,
     or readers will assume it was.
 11. ~~List 2026 board members by name, or keep the collective thank-you?~~
