@@ -1161,6 +1161,31 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .po-grand { background: var(--primary-green); color: #fff; border-radius: 10px; padding: 0.8rem 1rem; margin-top: 1rem; font-size: 1.05rem; text-align: right; }
 .po-grand b { font-size: 1.4rem; font-family: var(--font-display); }
 
+/* Recap admin tab -- textarea for freeform notes + side brief that tells
+   the operator what shape to paste in from projects/talk-to-text. */
+.recap-wrap { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-top: 0.5rem; }
+@media (min-width: 960px) { .recap-wrap { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } }
+.recap__col { display: flex; flex-direction: column; gap: 0.35rem; }
+.recap__lbl { font-size: 0.78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+#recapText { width: 100%; min-height: 22rem; padding: 0.85rem 1rem; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-family: "Source Code Pro", ui-monospace, monospace; font-size: 0.95rem; line-height: 1.55; background: #fff; resize: vertical; }
+#recapText:focus { outline: none; border-color: var(--primary-green); box-shadow: 0 0 0 3px rgba(30,80,40,0.15); }
+.recap__foot { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: var(--muted); }
+.recap__status { color: var(--primary-green); font-weight: 600; }
+.recap__chars b { color: var(--ink); font-weight: 700; }
+.recap__brief { background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem; font-size: 0.85rem; }
+.recap__brief h4 { margin: 0 0 0.4rem; color: var(--primary-green); font-family: var(--font-display); }
+.recap__brief p { margin: 0 0 0.6rem; color: var(--muted); }
+.recap__brief-code { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 0.6rem 0.75rem; font-family: "Source Code Pro", ui-monospace, monospace; font-size: 0.78rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; overflow: auto; max-height: 22rem; margin: 0 0 0.5rem; }
+.recap__copybrief { width: 100%; }
+
+/* Schedule row links -- chip row that pops up under the "Completed" tag on
+   past tournaments (and above the sign-up button on live ones) so folks
+   can jump straight to Rules / Flights / Calcutta / Results / Recap. */
+.schedule__links { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.schedule__link { display: inline-flex; align-items: center; padding: 0.35rem 0.75rem; border-radius: 999px; background: rgba(30,80,40,0.08); color: var(--primary-green); font-size: 0.8rem; font-weight: 700; text-decoration: none; border: 1px solid rgba(30,80,40,0.2); }
+.schedule__link:hover, .schedule__link:focus-visible { background: var(--primary-green); color: #fff; outline: none; }
+.schedule li.is-past .schedule__link { background: rgba(30,80,40,0.05); }
+
 /* Payout summary cards -- one per pay category. Sits at the bottom of the
    Payout tab so the operator can see per-place amounts at a glance. */
 .po-cards { display: grid; grid-template-columns: 1fr; gap: 1.2rem; margin-top: 1.4rem; }

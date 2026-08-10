@@ -72,6 +72,7 @@
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
           <button type="button" class="wb-tab" data-sheet="calc" role="tab">Calc</button>
           <button type="button" class="wb-tab" data-sheet="rules" role="tab">Rules</button>
+          <button type="button" class="wb-tab" data-sheet="recap" role="tab">Recap</button>
           <button type="button" class="wb-tab wb-tab--history" data-sheet="history" role="tab">History</button>
           <span class="wb-tabs__spacer" aria-hidden="true"></span>
           <button type="button" class="wb-tab wb-tab--disp" data-sheet="dispCalcutta" role="tab">Calcutta Disp</button>
@@ -310,6 +311,34 @@
           </div>
           <p class="scaffold__desc">Every check to write, computed from Flights + Calcutta. Prize totals come from the Calc tab. Ties get split evenly. Total at the bottom.</p>
           <div id="poBody"><p class="noms__msg">Loading…</p></div>
+        </section>
+
+        <!-- Recap — freeform notes for the public recap page. Talk-to-text
+             friendly: the operator can paste raw notes, then style-passes
+             happen on the public page (founders-recap.html). -->
+        <section class="noms wb-sheet" data-sheet="recap" id="twRecap" aria-label="Recap" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Tournament Recap <span class="noms__count" id="recapCount"></span></h3>
+            <a class="btn btn--solid" href="founders-recap.html" target="_blank" rel="noopener">Open public recap page &rarr;</a>
+            <button class="btn btn--primary" type="button" id="recapSave">Save recap</button>
+          </div>
+          <p class="scaffold__desc">Freeform notes for the 2026 Founders recap page. Uses light markdown &mdash; <code>#</code> Heading, <code>##</code> Section, <code>###</code> Sub, <code>-</code> bullet, blank line = new paragraph, <code>**bold**</code>. Publishing is automatic: as soon as you save, the public <code>founders-recap.html</code> page shows the new text. See the &ldquo;How the recap comes back&rdquo; block on the right for the format to paste in.</p>
+          <div class="recap-wrap">
+            <div class="recap__col">
+              <label class="recap__lbl" for="recapText">Recap notes</label>
+              <textarea id="recapText" spellcheck="true" rows="24" placeholder="Paste the recap here…"></textarea>
+              <div class="recap__foot">
+                <span class="recap__status" id="recapStatus" aria-live="polite"></span>
+                <span class="recap__chars"><b id="recapChars">0</b> / 20,000 characters</span>
+              </div>
+            </div>
+            <aside class="recap__brief">
+              <h4>How the recap comes back</h4>
+              <p>Paste this into ChatGPT Projects (or wherever the talk-to-text lands) so the writeup comes back in the exact shape this tab renders best:</p>
+              <pre class="recap__brief-code" id="recapBriefCode"></pre>
+              <button type="button" class="btn btn--solid recap__copybrief" id="recapCopyBrief">Copy prompt</button>
+            </aside>
+          </div>
         </section>
 
         <!-- History — archived past tournaments -->
@@ -1022,6 +1051,102 @@
       }
 
       // ---- Tournament History (archived years) ----
+      // ---- Recap (freeform notes for the public recap page) --------------
+      // Text lives in Tournament Config (field: Recap). Save button pushes
+      // it through /api/tournament-flights?action=saveConfig which handles
+      // the auto-strip if the Recap field is missing on Airtable.
+      var _recapLoaded = false;
+      function loadRecap() {
+        var ta = document.getElementById("recapText"); if (!ta) return;
+        var brief = document.getElementById("recapBriefCode");
+        if (brief) brief.textContent = recapProjectsPrompt();
+        if (_recapLoaded) { recapUpdateCounts(); return; }
+        var st = document.getElementById("recapStatus");
+        if (st) st.textContent = "Loading…";
+        fetch(FH_API.url("/api/tournament-flights"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "getConfig", tournament: KEY })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.ok) {
+              ta.value = String(j.recap || "");
+              _recapLoaded = true;
+              if (st) st.textContent = "";
+            } else {
+              if (st) st.textContent = (j && j.error) || "Couldn't load the recap.";
+            }
+            recapUpdateCounts();
+          })
+          .catch(function () { if (st) st.textContent = "Network error loading the recap."; });
+      }
+      function recapUpdateCounts() {
+        var ta = document.getElementById("recapText");
+        var cn = document.getElementById("recapChars");
+        var badge = document.getElementById("recapCount");
+        if (!ta) return;
+        var n = ta.value.length;
+        if (cn) cn.textContent = n.toLocaleString();
+        if (badge) badge.textContent = n ? "(" + Math.min(20000, n).toLocaleString() + " chars)" : "";
+      }
+      function saveRecap() {
+        var ta = document.getElementById("recapText"); if (!ta) return;
+        var st = document.getElementById("recapStatus");
+        var btn = document.getElementById("recapSave");
+        if (btn) btn.disabled = true;
+        if (st) st.textContent = "Saving…";
+        var body = String(ta.value || "").slice(0, 20000);
+        fetch(FH_API.url("/api/tournament-flights"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "saveConfig", tournament: KEY, recap: body })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (btn) btn.disabled = false;
+            if (j && j.ok) {
+              if (st) { st.textContent = "Saved" + (j.warning ? " — " + j.warning : " ✓"); setTimeout(function () { if (st.textContent.indexOf("Saved") === 0) st.textContent = ""; }, 4000); }
+            } else {
+              if (st) st.textContent = (j && j.error) || "Save failed.";
+            }
+          })
+          .catch(function () { if (btn) btn.disabled = false; if (st) st.textContent = "Network error saving the recap."; });
+      }
+      // Copy-paste prompt for the operator to feed into a talk-to-text or
+      // GPT project. Keeping it as a function so the shape is edit-in-place
+      // if we tweak the recap section structure later.
+      function recapProjectsPrompt() {
+        return ""
+          + "Please return the 2026 Founders Tournament recap as plain text\n"
+          + "in the exact structure below. No preamble, no closing note --\n"
+          + "just the sections. Blank line between paragraphs. Use `**bold**`\n"
+          + "for names and dollar figures.\n"
+          + "\n"
+          + "# 2026 Founder's Tournament Recap\n"
+          + "\n"
+          + "A 2-3 sentence overview of the weekend -- vibe, weather, turnout.\n"
+          + "\n"
+          + "## Champion\n"
+          + "Team + their 2-day gross.\n"
+          + "\n"
+          + "## Flight winners\n"
+          + "- **Champ Flight** -- 1st: Team A (gross), 2nd: Team B, 3rd: Team C\n"
+          + "- **1st Flight**  -- 1st: ..., 2nd: ..., 3rd: ...\n"
+          + "- **2nd Flight**  -- 1st: ..., 2nd: ..., 3rd: ...\n"
+          + "- **3rd Flight**  -- 1st: ..., 2nd: ..., 3rd: ...\n"
+          + "\n"
+          + "## Calcutta highlights\n"
+          + "Total pool, biggest buy, notable finishes -- who bought a champion.\n"
+          + "\n"
+          + "## Highlights of the weekend\n"
+          + "- Standout shots, long drives, closest-to-pin, dramatic comebacks.\n"
+          + "- Include names in **bold**. One bullet per moment.\n"
+          + "\n"
+          + "## Thanks\n"
+          + "Sponsors, volunteers, the pro shop, the kitchen -- one paragraph.\n";
+      }
+
       function loadHistory() {
         var body = document.getElementById("histBody"); if (!body) return;
         body.innerHTML = '<p class="noms__msg">Loading archived tournaments…</p>';
@@ -5695,6 +5820,7 @@
           // Load the public-display iframes lazily — only when their tab opens.
           if (s === "dispCalcutta" || s === "dispLeaderboard") mountDisplayTab(s);
           if (s === "history") loadHistory();
+          if (s === "recap") loadRecap();
           // Lazy-render the freshly-opened tab from the shared cache so
           // switching tabs shows current data without a network round-trip.
           // (Check-In already renders on every roster load — it's the
@@ -5846,6 +5972,21 @@
         if (ea) ea.addEventListener("click", addExpense);
         var hr = document.getElementById("histRefresh");
         if (hr) hr.addEventListener("click", loadHistory);
+        var rSave = document.getElementById("recapSave");
+        if (rSave) rSave.addEventListener("click", saveRecap);
+        var rTa = document.getElementById("recapText");
+        if (rTa) rTa.addEventListener("input", recapUpdateCounts);
+        var rCopy = document.getElementById("recapCopyBrief");
+        if (rCopy) rCopy.addEventListener("click", function () {
+          var code = document.getElementById("recapBriefCode");
+          var txt = code ? code.textContent : recapProjectsPrompt();
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(txt).then(function () {
+              rCopy.textContent = "Copied ✓";
+              setTimeout(function () { rCopy.textContent = "Copy prompt"; }, 1600);
+            }).catch(function () { window.prompt("Copy this prompt:", txt); });
+          } else { window.prompt("Copy this prompt:", txt); }
+        });
         var pc = document.getElementById("plCommit");
         if (pc) pc.addEventListener("click", commitToHistory);
         var csPl = document.getElementById("csPrintList");
