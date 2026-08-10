@@ -20,13 +20,11 @@
       end: "2026-08-09", cap: 64, unit: "teams", team: 2,
       format: "2-day 2-man scramble", note: "2-day tournament · 2 shotgun starts · Calcutta",
       ctaLabel: "Enter the Founders",
-      links: [
-        { label: "Rules", href: "founders-rules.html" },
-        { label: "Flights", href: "founders-flights.html" },
-        { label: "Calcutta", href: "founders-calcutta-display.html" },
-        { label: "Results", href: "founders-leaderboard-display.html" },
-        { label: "Past", href: "history.html?name=Founder" }
-      ]
+      // Single entry point: the tournament card page (tournament.html)
+      // carries the recap + a nav strip that fans out to Rules / Flights /
+      // Calcutta / Recap / Leaderboard, so the schedule row only needs one
+      // "Open tournament" button.
+      card: { label: "Open Founders card", href: "tournament.html" }
     },
     "Couple's Tournament (Aug 22)": { end: "2026-08-22", cap: 24, unit: "teams", team: 2, roles: ["Your name", "Partner's name"], format: "2-player couples (one entry = a team)" },
     "Haxtun Fire (Sept 19)": { end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble" },
@@ -80,11 +78,20 @@
     return act;
   }
 
-  // Build a chip-nav row from m.links (Rules / Flights / Calcutta / Results
-   // / Past). Same visual language as the Next-Up card so past + current
-   // tournaments both get one-click access to their public pages. `past`
-   // relabels the primary "Results" chip if we want to hint that these
-   // links now show the FINAL state (not a live scoreboard).
+  // Single "Open card" primary button. Tournaments that carry their own
+   // dedicated page (currently just the Founders -> tournament.html) hand
+   // out one link on the schedule row; the destination page itself carries
+   // the fan-out nav to Rules / Flights / Calcutta / Recap / Leaderboard.
+   // Falls back to the older chip row when a tournament has only `links`.
+   function cardButton(m) {
+     if (!m || !m.card || !m.card.href) return null;
+     var a = document.createElement("a");
+     a.className = "btn btn--primary schedule__card";
+     a.href = m.card.href;
+     if (m.card.newTab === true) { a.target = "_blank"; a.rel = "noopener"; }
+     a.innerHTML = (m.card.label || "Open tournament") + ' &rarr;';
+     return a;
+   }
    function linksNav(m, past) {
      if (!m || !m.links || !m.links.length) return null;
      var nav = document.createElement("nav");
@@ -115,10 +122,15 @@
         done.className = "schedule__done";
         done.textContent = "Completed";
         li.appendChild(done);
-        // Completed tournaments still get their link row so folks can look
-        // back at flights / calcutta / final results / past years.
-        var pastNav = linksNav(m, true);
-        if (pastNav) li.appendChild(pastNav);
+        // Prefer a single "Open card" button when the tournament has its
+        // own page; that page carries the recap + everything else. Fall
+        // back to the older chip row when only `links` are configured.
+        var pastCard = cardButton(m);
+        if (pastCard) { li.appendChild(pastCard); }
+        else {
+          var pastNav = linksNav(m, true);
+          if (pastNav) li.appendChild(pastNav);
+        }
         return; // no "% full" bar for events that are over
       }
       if (m.cap) {
@@ -135,11 +147,14 @@
       if (m.format !== "invitational") {
         li.appendChild(signupControl(li.getAttribute("data-key")));
       }
-      // Live tournaments with public pages (Founders: Rules / Flights /
-      // Calcutta / Results) get their links right on the schedule row too
-      // so signed-up players can jump straight to them without hunting.
-      var liveNav = linksNav(m, false);
-      if (liveNav) li.appendChild(liveNav);
+      // Prefer a single "Open card" button when the tournament has its own
+      // dedicated page; fall back to the older chip row otherwise.
+      var liveCard = cardButton(m);
+      if (liveCard) { li.appendChild(liveCard); }
+      else {
+        var liveNav = linksNav(m, false);
+        if (liveNav) li.appendChild(liveNav);
+      }
     });
   }
 
