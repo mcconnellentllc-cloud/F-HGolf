@@ -56,14 +56,20 @@
     .lbd td b { color: var(--gold); font-size: 1.05em; }
 
     .lbd__team { font-weight: 700; }
-    .lbd__tnum { display: inline-block; background: rgba(255,255,255,0.9); color: #0b1a10; font-weight: 800; padding: 0.05rem 0.35rem; border-radius: 4px; font-size: 0.75em; letter-spacing: 0.04em; margin-right: 0.4rem; vertical-align: middle; }
+    .lbd__tnum { display: inline-block; background: rgba(255,255,255,0.92); color: #0b1a10; font-weight: 800; padding: 0.15rem 0.55rem; border-radius: 6px; font-size: 0.95em; letter-spacing: 0.04em; margin-right: 0.5rem; vertical-align: middle; font-family: var(--font-display, "Fraunces", serif); }
 
-    .lbd__flags { display: inline-flex; gap: 0.35rem; margin-left: 0.4rem; vertical-align: middle; }
-    .lbd__flag { display: inline-block; padding: 0.08rem 0.45rem; border-radius: 999px; font-size: 0.7em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #2a1e00; }
-    .lbd__flag--p1 { background: linear-gradient(135deg, #f7d448 0%, #cf9a10 100%); }
-    .lbd__flag--p2 { background: linear-gradient(135deg, #dfe1e5 0%, #a2a6ab 100%); color: #2a2a2a; }
-    .lbd__flag--p3 { background: linear-gradient(135deg, #d78a4b 0%, #8a4f1e 100%); color: #fff; }
-    .lbd__flag--calc { background: #b11e2d; color: #fff; }
+    .lbd__flags { display: inline-flex; flex-wrap: wrap; gap: 0.4rem; margin-left: 0.5rem; vertical-align: middle; }
+    /* Trophy pills: gold / silver / bronze gradient with the appropriate
+       medal emoji + the place spelled out. Emoji sizing matches the label
+       so nothing looks pasted on. */
+    .lbd__flag { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.18rem 0.65rem 0.18rem 0.5rem; border-radius: 999px; font-size: 0.72em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 0 1px 2px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.25); }
+    .lbd__flag-emoji { font-size: 1.15em; line-height: 1; filter: drop-shadow(0 1px 0 rgba(0,0,0,0.35)); }
+    .lbd__flag--p1 { background: linear-gradient(135deg, #ffe680 0%, #e5b32f 55%, #b47b0a 100%); color: #3a2a00; }
+    .lbd__flag--p2 { background: linear-gradient(135deg, #f2f4f7 0%, #c6cad0 55%, #8b9096 100%); color: #262b32; }
+    .lbd__flag--p3 { background: linear-gradient(135deg, #f5c58a 0%, #c47a3a 55%, #7a4413 100%); color: #2a1300; }
+    /* Calcutta pill -- muted forest-green so it complements the leaderboard
+       instead of clashing like the old red bubble did. Emoji: 💰 */
+    .lbd__flag--calc { background: linear-gradient(135deg, #2f6a3e 0%, #1e4c2b 100%); color: #f2efd8; border-color: rgba(255,255,255,0.18); }
 
     .disp__empty-msg { text-align: center; color: var(--muted); padding: 3rem 1rem; font-style: italic; grid-column: 1 / -1; }
 
@@ -248,7 +254,7 @@
             var f = r.fields || {};
             var tn = teamNumbers[r.id];
             var badge = tn ? '<span class="lbd__tnum">T-' + String(tn).padStart(2, "0") + '</span>' : '';
-            return '<tr><td class="lbd__team">' + badge + esc(teamShortNames(f)) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+            return '<tr><td class="lbd__team">' + badge + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
           }).join("");
           body.innerHTML = '<div class="lbd">'
             + '<div class="lbd__hdr"><h2 class="lbd__name">Field</h2><span class="lbd__meta">' + recs.length + ' teams · tournament begins Day 1</span></div>'
@@ -294,18 +300,25 @@
           }
           var trs = fl.rows.map(function (row) {
             var flags = [];
+            // Trophy pills for the top-3 gross places. Gold / silver /
+            // bronze medal emoji + spelled-out ordinal on the pill.
+            var medalEmoji = ["", "🥇", "🥈", "🥉"];
             if (row.grossPlace && row.grossPlace <= FLIGHT_PRIZES) {
               var ties = fl.rows.filter(function (r) { return r.grossPlace === row.grossPlace; }).length;
-              flags.push('<span class="lbd__flag lbd__flag--p' + row.grossPlace + '">' + (ties > 1 ? "T" : "") + ordinal(row.grossPlace) + ' Place</span>');
+              var em = medalEmoji[row.grossPlace] || "🏆";
+              flags.push('<span class="lbd__flag lbd__flag--p' + row.grossPlace + '"><span class="lbd__flag-emoji" aria-hidden="true">' + em + '</span>' + (ties > 1 ? "T" : "") + ordinal(row.grossPlace) + '</span>');
             }
+            // Calcutta pill -- moneybag emoji + ordinal (T if tied).
             if (row.netPlace && row.netPlace <= CALCUTTA_PRIZES) {
               var netTies = fl.rows.filter(function (r) { return r.netPlace === row.netPlace; }).length;
-              flags.push('<span class="lbd__flag lbd__flag--calc">' + (netTies > 1 ? "T" : "") + ordinal(row.netPlace) + ' Calcutta</span>');
+              flags.push('<span class="lbd__flag lbd__flag--calc"><span class="lbd__flag-emoji" aria-hidden="true">💰</span>' + (netTies > 1 ? "T" : "") + ordinal(row.netPlace) + ' Calcutta</span>');
             }
             var badge = row.tnum ? '<span class="lbd__tnum">T-' + String(row.tnum).padStart(2, "0") + '</span>' : '';
             var flagsHtml = flags.length ? '<span class="lbd__flags">' + flags.join("") + '</span>' : '';
+            // Public display shows only the team number badge -- player
+            // names are intentionally hidden here to keep the board clean.
             return '<tr>'
-              + '<td class="lbd__team">' + badge + esc(row.name) + flagsHtml + '</td>'
+              + '<td class="lbd__team">' + badge + flagsHtml + '</td>'
               + '<td>' + (row.d1 == null ? '&mdash;' : row.d1) + '</td>'
               + '<td>' + (row.d2 == null ? '&mdash;' : row.d2) + '</td>'
               + '<td><b>' + (row.gross == null ? '&mdash;' : row.gross) + '</b></td>'
@@ -329,7 +342,7 @@
             var f = r.fields || {};
             var tn = teamNumbers[r.id];
             var badge = tn ? '<span class="lbd__tnum">T-' + String(tn).padStart(2, "0") + '</span>' : '';
-            return '<tr><td class="lbd__team">' + badge + esc(teamShortNames(f)) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+            return '<tr><td class="lbd__team">' + badge + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
           }).join("");
           html += '<div class="lbd"><div class="lbd__hdr"><h2 class="lbd__name">Unassigned</h2><span class="lbd__meta">' + una.length + ' teams · flights not cut yet</span></div>'
             + '<table><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
