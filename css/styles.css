@@ -1856,6 +1856,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .cs-strip b { font-family: var(--font-display); font-size: 1.3rem; }
 .cs-strip__paid { color: #d7f5c8; }
 .cs-strip__owe { color: #ffe08a; }
+.cs-strip__won { color: #ffd76a; }
 
 .cs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr)); gap: 0.9rem; align-items: start; }
 .cs-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-sm); overflow: hidden; }
@@ -1865,12 +1866,32 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .cs-card__count { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
 .cs-card__status { margin-left: auto; font-size: 0.78rem; }
 .cs-card__items { padding: 0.35rem 0.85rem; display: flex; flex-direction: column; }
-.cs-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-bottom: 1px dotted var(--line); font-size: 0.9rem; }
+.cs-item { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-bottom: 1px dotted var(--line); font-size: 0.9rem; }
 .cs-item:last-child { border-bottom: none; }
 .cs-item__tn { display: inline-block; background: #1e2530; color: #fff; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; min-width: 2.6rem; text-align: center; }
 .cs-item__team { font-weight: 600; }
 .cs-item__amt { font-family: var(--font-display); font-weight: 700; color: var(--primary-green); }
-.cs-card__ft { display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem 0.65rem; align-items: center; padding: 0.55rem 0.85rem; background: var(--paper-2); border-top: 1px solid var(--line); }
+.cs-item__win { font-family: var(--font-display); font-weight: 800; color: #a67c00; font-size: 0.88rem; min-width: 3.4rem; text-align: right; }
+.cs-item__win--zero { color: transparent; }
+
+/* Two-side money summary — Spent (left), Won (right), Net (right-most). */
+.cs-money { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.75rem; align-items: end; padding: 0.55rem 0.85rem; background: #fbfaf3; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.cs-money__side { display: flex; flex-direction: column; gap: 0.1rem; }
+.cs-money__won { text-align: left; }
+.cs-money__side small, .cs-money__net small { color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem; font-weight: 700; }
+.cs-money__spent b { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; color: var(--ink); }
+.cs-money__won b { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; color: #a67c00; }
+.cs-money__net { display: flex; flex-direction: column; align-items: flex-end; gap: 0.1rem; padding-left: 0.6rem; border-left: 1px solid var(--line); }
+.cs-money__net b { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; color: var(--ink); }
+.cs-money__net.is-net-pos b { color: var(--primary-green); }
+.cs-money__net.is-net-neg b { color: #8a1c25; }
+.cs-card__ft { display: flex; flex-wrap: wrap; gap: 0.5rem 0.55rem; align-items: center; justify-content: flex-end; padding: 0.55rem 0.85rem; background: var(--paper-2); border-top: 1px solid var(--line); }
+.cs-card__ft .cs-paid { margin-right: auto; }
+@media (max-width: 520px) { .cs-card__ft .cs-email-btn, .cs-card__ft .cs-print { flex: 1 1 40%; text-align: center; } }
+.cs-card__email { display: flex; align-items: center; padding: 0.4rem 0.85rem; background: #fbfaf3; border-top: 1px dashed var(--line); }
+.cs-email-lbl { display: flex; align-items: center; gap: 0.5rem; width: 100%; font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+.cs-email { flex: 1; padding: 0.32rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.85rem; color: var(--ink); text-transform: none; letter-spacing: normal; font-weight: 500; background: #fff; }
+.cs-email:focus { outline: none; border-color: var(--primary-green); box-shadow: 0 0 0 2px rgba(27,94,32,0.12); }
 .cs-tot { display: flex; flex-direction: column; }
 .cs-tot small { color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem; font-weight: 700; }
 .cs-tot b { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; color: var(--ink); }
@@ -1879,6 +1900,8 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .cs-paid { padding: 0.3rem 0.6rem; }
 .cs-print { padding: 0.32rem 0.75rem; border: 1px solid var(--primary-green); border-radius: 999px; background: #fff; color: var(--primary-green); font: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer; letter-spacing: 0.02em; }
 .cs-print:hover { background: var(--primary-green); color: #fff; }
+.cs-email-btn { padding: 0.32rem 0.75rem; border: 1px solid #1e64b8; border-radius: 999px; background: #fff; color: #1e64b8; font: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer; letter-spacing: 0.02em; }
+.cs-email-btn:hover { background: #1e64b8; color: #fff; }
 
 /* Print — isolate the flagged card, add letterhead + signature footer. */
 .cs-print-head, .cs-print-foot { display: none; }
@@ -1908,8 +1931,20 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
   body.is-print-cs .cs-item__tn { background: #1B5E20 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body.is-print-cs .cs-item__team { color: #000; }
   body.is-print-cs .cs-item__amt { color: #1B5E20 !important; font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 12pt; }
+  body.is-print-cs .cs-item__win { color: #8a6d00 !important; font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 11pt; min-width: 42pt; text-align: right; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs .cs-item__win--zero { color: transparent !important; }
+  body.is-print-cs .cs-money { display: grid !important; grid-template-columns: 1fr 1fr auto !important; gap: 12pt !important; padding: 8pt 12pt !important; background: #fbfaf3 !important; border-top: 1pt solid #ccc !important; border-bottom: 1pt solid #ccc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs .cs-money__side, body.is-print-cs .cs-money__net { display: flex; flex-direction: column; gap: 2pt; }
+  body.is-print-cs .cs-money__side small, body.is-print-cs .cs-money__net small { color: #444; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.08em; }
+  body.is-print-cs .cs-money__spent b { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 14pt; color: #1B5E20 !important; }
+  body.is-print-cs .cs-money__won b { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 14pt; color: #8a6d00 !important; }
+  body.is-print-cs .cs-money__net { align-items: flex-end; padding-left: 8pt; border-left: 0.5pt solid #999; }
+  body.is-print-cs .cs-money__net b { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 14pt; color: #000 !important; }
+  body.is-print-cs .cs-money__net.is-net-pos b { color: #1B5E20 !important; }
+  body.is-print-cs .cs-money__net.is-net-neg b { color: #8a1c25 !important; }
   body.is-print-cs .cs-card__ft { background: #f6f4ed !important; border-top: 1.5pt solid #1B5E20; padding: 8pt 12pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-cs .cs-card__ft .ci-check, body.is-print-cs .cs-card__ft select, body.is-print-cs .cs-card__ft .cs-print { display: none !important; }
+  body.is-print-cs .cs-card__ft .ci-check, body.is-print-cs .cs-card__ft select, body.is-print-cs .cs-card__ft .cs-print, body.is-print-cs .cs-card__ft .cs-email-btn { display: none !important; }
+  body.is-print-cs .cs-card__email { display: none !important; }
   body.is-print-cs .cs-tot { flex-direction: row; align-items: baseline; gap: 6pt; }
   body.is-print-cs .cs-tot small { color: #333; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.1em; }
   body.is-print-cs .cs-tot b { font-family: "Fraunces", Georgia, serif; color: #1B5E20 !important; font-size: 18pt; }
@@ -1942,6 +1977,48 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
   body.is-print-cs-list .cs-list__paid { color: #1B5E20; font-weight: 700; font-size: 9pt; }
   body.is-print-cs-list .cs-list__grand td { border-top: 2pt solid #1B5E20; border-bottom: none; padding-top: 8pt; color: #1B5E20; font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 12pt; }
   body.is-print-cs-list .cs-print-foot__contact { text-align: center; margin-top: 16pt; color: #333; font-size: 9pt; letter-spacing: 0.08em; border-top: 0.5pt solid #999; padding-top: 6pt; }
+
+  /* Print all — one buyer receipt per page, same look as single Print. */
+  body.is-print-cs-all > *:not(.cs-all-print) { display: none !important; }
+  body.is-print-cs-all .cs-all-print { display: block; padding: 0; margin: 0; color: #000; background: #fff; }
+  body.is-print-cs-all .cs-card--print-page { display: block; page-break-after: always; background: #fff !important; border: 2pt solid #1B5E20; border-radius: 6pt; margin: 0 0 12pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs-all .cs-card--print-page:last-child { page-break-after: auto; }
+  body.is-print-cs-all .cs-print-head { display: flex; align-items: center; justify-content: space-between; gap: 12pt; padding: 10pt 12pt; margin: 0; border-bottom: 3pt double #1B5E20; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs-all .cs-print-head__logo { width: 62pt; height: 62pt; object-fit: contain; }
+  body.is-print-cs-all .cs-print-head__title { text-align: center; flex: 1; }
+  body.is-print-cs-all .cs-print-head__eyebrow { display: block; text-transform: uppercase; letter-spacing: 0.25em; color: #8a1c25; font-weight: 700; font-size: 9pt; margin-bottom: 3pt; }
+  body.is-print-cs-all .cs-print-head__title h1 { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: #1B5E20; margin: 0; font-size: 22pt; letter-spacing: 0.01em; }
+  body.is-print-cs-all .cs-print-head__sub { display: block; color: #333; font-size: 10pt; margin-top: 3pt; font-style: italic; }
+  body.is-print-cs-all .cs-card__hd { background: transparent !important; border-bottom: 1.5pt solid #1B5E20 !important; padding: 6pt 12pt !important; display: flex; align-items: baseline; }
+  body.is-print-cs-all .cs-card__buyer { font-family: "Fraunces", Georgia, serif; color: #1B5E20 !important; font-size: 18pt; margin: 0; }
+  body.is-print-cs-all .cs-card__count { color: #444; font-size: 9pt; margin-left: 8pt; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+  body.is-print-cs-all .cs-card__items { padding: 10pt 12pt; }
+  body.is-print-cs-all .cs-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8pt; padding: 4pt 0; border-bottom: 0.5pt solid #ccc; font-size: 11pt; }
+  body.is-print-cs-all .cs-item:last-child { border-bottom: none; }
+  body.is-print-cs-all .cs-item__tn { display: inline-block; background: #1B5E20 !important; color: #fff !important; padding: 1pt 5pt; border-radius: 3pt; font-size: 8pt; font-weight: 800; letter-spacing: 0.04em; min-width: 32pt; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs-all .cs-item__team { color: #000; font-weight: 600; }
+  body.is-print-cs-all .cs-item__amt { color: #1B5E20 !important; font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 12pt; }
+  body.is-print-cs-all .cs-item { grid-template-columns: auto 1fr auto auto !important; }
+  body.is-print-cs-all .cs-item__win { color: #8a6d00 !important; font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 11pt; min-width: 42pt; text-align: right; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs-all .cs-item__win--zero { color: transparent !important; }
+  body.is-print-cs-all .cs-money { display: grid !important; grid-template-columns: 1fr 1fr auto !important; gap: 12pt !important; padding: 8pt 12pt !important; background: #fbfaf3 !important; border-top: 1pt solid #ccc !important; border-bottom: 1pt solid #ccc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs-all .cs-money__side, body.is-print-cs-all .cs-money__net { display: flex; flex-direction: column; gap: 2pt; }
+  body.is-print-cs-all .cs-money__side small, body.is-print-cs-all .cs-money__net small { color: #444; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.08em; }
+  body.is-print-cs-all .cs-money__spent b { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 14pt; color: #1B5E20 !important; }
+  body.is-print-cs-all .cs-money__won b { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 14pt; color: #8a6d00 !important; }
+  body.is-print-cs-all .cs-money__net { align-items: flex-end; padding-left: 8pt; border-left: 0.5pt solid #999; }
+  body.is-print-cs-all .cs-money__net b { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 14pt; color: #000 !important; }
+  body.is-print-cs-all .cs-money__net.is-net-pos b { color: #1B5E20 !important; }
+  body.is-print-cs-all .cs-money__net.is-net-neg b { color: #8a1c25 !important; }
+  body.is-print-cs-all .cs-card__ft { display: grid; grid-template-columns: 1fr 1fr; gap: 6pt 12pt; background: #f6f4ed !important; border-top: 1.5pt solid #1B5E20; padding: 8pt 12pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.is-print-cs-all .cs-tot { display: flex; flex-direction: row; align-items: baseline; gap: 6pt; }
+  body.is-print-cs-all .cs-tot small { color: #333; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.1em; }
+  body.is-print-cs-all .cs-tot b { font-family: "Fraunces", Georgia, serif; color: #1B5E20 !important; font-size: 16pt; }
+  body.is-print-cs-all .cs-print-foot { display: block; padding: 0 12pt 12pt; }
+  body.is-print-cs-all .cs-print-sig { display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 18pt; margin: 20pt 0 10pt; }
+  body.is-print-cs-all .cs-print-sig__line { display: block; border-bottom: 1pt solid #000; height: 22pt; }
+  body.is-print-cs-all .cs-print-sig small { display: block; color: #333; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 3pt; }
+  body.is-print-cs-all .cs-print-foot__contact { text-align: center; margin-top: 12pt; color: #333; font-size: 9pt; letter-spacing: 0.08em; border-top: 0.5pt solid #999; padding-top: 6pt; }
 }
 
 /* ---- Check-In team cards (Bulldog-style) ---- */
