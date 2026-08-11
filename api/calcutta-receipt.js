@@ -35,15 +35,18 @@ module.exports = async (req, res) => {
   if (!ADMIN_KEY || (req.headers["x-admin-key"] || "") !== ADMIN_KEY) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
-  if (!RESEND_API_KEY) {
-    return res.status(500).json({ ok: false, error: "Email sending is not configured (RESEND_API_KEY missing)." });
-  }
 
   let body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { body = {}; } }
   body = body || {};
 
   const preview = !!body.preview;
+  // Only enforce RESEND_API_KEY when we're actually about to send.
+  // Preview mode returns the rendered HTML without hitting Resend, so
+  // the operator can still see the email even before the key is set.
+  if (!preview && !RESEND_API_KEY) {
+    return res.status(500).json({ ok: false, error: "Email sending is not configured (RESEND_API_KEY missing). Add it in Vercel → Settings → Environment Variables (Production) and redeploy." });
+  }
   const template = String(body.template || "calcuttaReceipt");
 
   // ---- thankYou template: post-tournament thank-you + next-year signup ----

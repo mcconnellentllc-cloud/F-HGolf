@@ -689,6 +689,37 @@
     </div>
   </div>
 
+  <!-- ==================== EMAIL PREVIEW MODAL ==================== -->
+  <!-- Shows the rendered HTML (in a sandboxed iframe so the email's
+       inline styles can't leak into the workbook) before the operator
+       confirms a send. Buyer-card Email button opens this. -->
+  <div class="pv-modal" id="pvModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="pvTitle">
+    <div class="pv-modal__backdrop" data-close="1"></div>
+    <div class="pv-modal__panel">
+      <div class="pv-modal__head">
+        <div>
+          <div class="pv-modal__eyebrow">Preview before sending</div>
+          <h3 class="pv-modal__title" id="pvTitle">Email preview</h3>
+          <div class="pv-modal__meta">
+            <span class="pv-modal__lbl">From:</span> <span>F&amp;H Golf Course &lt;clubhouse@fandhgolf.com&gt;</span><br>
+            <span class="pv-modal__lbl">To:</span> <span id="pvTo">—</span><br>
+            <span class="pv-modal__lbl">Subject:</span> <span id="pvSubject">—</span>
+          </div>
+        </div>
+        <button type="button" class="pv-modal__close" id="pvClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="pv-modal__body">
+        <p class="pv-modal__loading" id="pvLoading">Loading preview…</p>
+        <iframe class="pv-modal__frame" id="pvFrame" title="Email preview" sandbox="allow-same-origin" hidden></iframe>
+      </div>
+      <div class="pv-modal__foot">
+        <span class="pv-modal__status" id="pvStatus"></span>
+        <button type="button" class="btn btn--solid" id="pvCancel">Cancel</button>
+        <button type="button" class="btn btn--primary" id="pvSend" disabled>Send email &rarr;</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="site-footer">
     <div class="site-footer__inner">
       <div class="site-footer__brand">
@@ -5741,36 +5772,128 @@
       // Fire the send. Updates the button's visual state so the operator
       // sees Sending → Sent (or the specific error). Returns a Promise
       // that resolves to true/false so Email All can count outcomes.
+      // Opens the preview modal, requests the rendered HTML from the
+      // endpoint in preview mode, and only fires the real send when the
+      // operator clicks Send. Any failure at either step falls back to
+      // the button's inline error state.
       function sendReceipt(b, toEmail, teamNumbers, winnings, btnEl) {
         var payload = buildReceiptPayload(b, teamNumbers, winnings, toEmail);
         var originalText = btnEl ? btnEl.textContent : "";
-        if (btnEl) { btnEl.disabled = true; btnEl.textContent = "Sending…"; }
+        if (btnEl) { btnEl.disabled = true; btnEl.textContent = "Loading preview…"; }
+        // Ask the endpoint for the rendered HTML without sending.
         return fetch(FH_API.url("/api/calcutta-receipt"), {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(Object.assign({}, payload, { preview: true }))
         }).then(function (r) {
           return r.json().catch(function () { return { ok: false, error: "Bad response" }; });
         }).then(function (j) {
-          if (j && j.ok) {
-            if (btnEl) {
-              btnEl.textContent = "Sent ✓";
-              setTimeout(function () { btnEl.disabled = false; btnEl.textContent = originalText || "Email"; }, 1800);
-            }
-            return true;
+          if (btnEl) { btnEl.disabled = false; btnEl.textContent = originalText || "Email"; }
+          if (!j || !j.ok) {
+            var msg = (j && j.error) || "Preview failed.";
+            alert("Couldn't build preview for " + (b.display || "buyer") + ": " + msg);
+            return false;
           }
-          var msg = (j && j.error) || "Send failed.";
-          if (btnEl) {
-            btnEl.textContent = "Retry send";
-            btnEl.disabled = false;
-          }
-          alert("Couldn't send to " + (b.display || "buyer") + ": " + msg);
-          return false;
+          openEmailPreview({
+            to: toEmail,
+            subject: j.subject,
+            html: j.html,
+            buyerName: b.display || "buyer",
+            payload: payload,
+            btnEl: btnEl,
+            originalText: originalText
+          });
+          return true;
         }).catch(function (e) {
-          if (btnEl) { btnEl.textContent = "Retry send"; btnEl.disabled = false; }
-          alert("Couldn't send to " + (b.display || "buyer") + ": " + (e && e.message ? e.message : "network error"));
+          if (btnEl) { btnEl.disabled = false; btnEl.textContent = originalText || "Email"; }
+          alert("Couldn't build preview for " + (b.display || "buyer") + ": " + (e && e.message ? e.message : "network error"));
           return false;
         });
+      }
+
+      // Show the preview modal. On Send, POST again without `preview` so
+      // Resend actually mails it, then restore the button and close the
+      // modal. On Cancel or X, just close.
+      function openEmailPreview(opts) {
+        var modal = document.getElementById("pvModal");
+        var frame = document.getElementById("pvFrame");
+        var loading = document.getElementById("pvLoading");
+        var toEl = document.getElementById("pvTo");
+        var subjEl = document.getElementById("pvSubject");
+        var titleEl = document.getElementById("pvTitle");
+        var sendBtn = document.getElementById("pvSend");
+        var cancelBtn = document.getElementById("pvCancel");
+        var closeBtn = document.getElementById("pvClose");
+        var statusEl = document.getElementById("pvStatus");
+        var backdrop = modal ? modal.querySelector(".pv-modal__backdrop") : null;
+        if (!modal || !frame) return;
+        toEl.textContent = opts.to;
+        subjEl.textContent = opts.subject || "(no subject)";
+        titleEl.textContent = "Preview → " + opts.buyerName;
+        statusEl.textContent = "";
+        statusEl.className = "pv-modal__status";
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Send email →";
+        // Write the rendered HTML into the sandboxed iframe.
+        loading.hidden = false;
+        frame.hidden = true;
+        frame.srcdoc = opts.html;
+        frame.addEventListener("load", function onLoad() {
+          loading.hidden = true;
+          frame.hidden = false;
+          frame.removeEventListener("load", onLoad);
+        });
+        modal.hidden = false;
+        modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("modal-open");
+
+        function close() {
+          modal.hidden = true;
+          modal.setAttribute("aria-hidden", "true");
+          document.body.classList.remove("modal-open");
+          frame.srcdoc = "about:blank";
+          sendBtn.onclick = null;
+          cancelBtn.onclick = null;
+          closeBtn.onclick = null;
+          if (backdrop) backdrop.onclick = null;
+        }
+        cancelBtn.onclick = close;
+        closeBtn.onclick = close;
+        if (backdrop) backdrop.onclick = close;
+        sendBtn.onclick = function () {
+          sendBtn.disabled = true;
+          sendBtn.textContent = "Sending…";
+          statusEl.textContent = "";
+          statusEl.className = "pv-modal__status";
+          fetch(FH_API.url("/api/calcutta-receipt"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify(opts.payload)
+          }).then(function (r) { return r.json().catch(function () { return { ok: false, error: "Bad response" }; }); })
+            .then(function (j) {
+              if (j && j.ok) {
+                statusEl.textContent = "Sent ✓";
+                statusEl.className = "pv-modal__status is-ok";
+                if (opts.btnEl) {
+                  opts.btnEl.textContent = "Sent ✓";
+                  setTimeout(function () { opts.btnEl.textContent = opts.originalText || "Email"; }, 1800);
+                }
+                setTimeout(close, 800);
+              } else {
+                var msg = (j && j.error) || "Send failed.";
+                statusEl.textContent = msg;
+                statusEl.className = "pv-modal__status is-error";
+                sendBtn.disabled = false;
+                sendBtn.textContent = "Retry send →";
+              }
+            })
+            .catch(function (e) {
+              statusEl.textContent = (e && e.message) || "Network error.";
+              statusEl.className = "pv-modal__status is-error";
+              sendBtn.disabled = false;
+              sendBtn.textContent = "Retry send →";
+            });
+        };
       }
 
       // Print a hand-checkable list of every buyer + total. Builds the table

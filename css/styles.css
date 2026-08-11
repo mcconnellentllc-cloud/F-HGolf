@@ -2139,6 +2139,28 @@ body.modal-open { overflow: hidden; }
 .pm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .pm-row--csz { grid-template-columns: 2fr 1fr 1fr; }
 .pm-check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; color: var(--ink); cursor: pointer; }
+/* Email preview modal — shows the rendered HTML in a sandboxed iframe
+   before confirming a send. Larger than the Player Card modal so the
+   full 620px-wide email design fits comfortably. */
+.pv-modal { position: fixed; inset: 0; z-index: 220; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.pv-modal[hidden] { display: none; }
+.pv-modal__backdrop { position: absolute; inset: 0; background: rgba(15, 40, 25, 0.55); backdrop-filter: blur(2px); }
+.pv-modal__panel { position: relative; background: var(--paper, #fff); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); width: 100%; max-width: 44rem; max-height: calc(100vh - 2rem); display: flex; flex-direction: column; overflow: hidden; }
+.pv-modal__head { padding: 1.05rem 1.25rem 0.85rem; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; }
+.pv-modal__head > div:first-child { min-width: 0; }
+.pv-modal__eyebrow { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.pv-modal__title { margin: 0.2rem 0 0.6rem; font-size: 1.15rem; color: var(--primary-green); font-weight: 800; }
+.pv-modal__meta { font-size: 0.82rem; color: var(--ink); line-height: 1.6; }
+.pv-modal__lbl { display: inline-block; color: var(--muted); font-weight: 600; min-width: 3rem; }
+.pv-modal__close { background: transparent; border: none; font-size: 1.6rem; cursor: pointer; color: var(--muted); padding: 0; line-height: 1; align-self: flex-start; }
+.pv-modal__close:hover { color: var(--ink); }
+.pv-modal__body { flex: 1; overflow: auto; background: #f4f4f2; padding: 0.75rem; min-height: 20rem; }
+.pv-modal__loading { text-align: center; color: var(--muted); font-style: italic; padding: 3rem 1rem; margin: 0; }
+.pv-modal__frame { width: 100%; height: 100%; min-height: 32rem; border: 0; background: #fff; border-radius: 8px; }
+.pv-modal__foot { padding: 0.85rem 1.25rem; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 0.6rem; align-items: center; }
+.pv-modal__status { flex: 1; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+.pv-modal__status.is-error { color: var(--red-deep); }
+.pv-modal__status.is-ok { color: var(--primary-green); }
 .pm-history { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--line); }
 .pm-history__hd { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.5rem; }
 .pm-history__title { margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--primary-green); }
