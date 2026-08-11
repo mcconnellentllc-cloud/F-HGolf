@@ -424,6 +424,13 @@
             <h3 class="noms__title">Calcutta Display</h3>
           </div>
           <p class="scaffold__desc">Full-screen broadcast view — hero banner, per-flight pool totals, and every team still up for sale. Public link, safe to share (no phone / email / payment info). Auto-refreshes.</p>
+          <div class="disp-warn" role="alert">
+            <div class="disp-warn__title">⚠︎ TV setup — turn on auto-refresh before the tournament</div>
+            <p class="disp-warn__lede">The page updates in the background every 15 seconds. As a belt-and-suspenders measure so the display never goes stale if the browser tab is throttled, <b>configure a browser-level refresh on the TV every 15 seconds</b>.</p>
+            <p class="disp-warn__how"><b>Chrome / Edge:</b> install the free <a href="https://chrome.google.com/webstore/detail/auto-refresh-plus-page-mo/oilipfekkmncanaajkapbpancpelijih" target="_blank" rel="noopener">Auto Refresh Plus</a> extension → open the display page → click the extension icon → set <b>Interval: 15 seconds</b> → hit <b>Start</b>. The icon shows a timer counting down.</p>
+            <p class="disp-warn__how"><b>Firefox:</b> install <a href="https://addons.mozilla.org/en-US/firefox/addon/tab-auto-refresh/" target="_blank" rel="noopener">Tab Auto Refresh</a> → open the display page → click the add-on icon → set to 15s → enable.</p>
+            <p class="disp-warn__how"><b>Fallback (no extension):</b> press <kbd>F11</kbd> for full-screen. If the display ever looks frozen, press <kbd>F5</kbd> or <kbd>Ctrl+R</kbd> to reload by hand.</p>
+          </div>
           <div class="disp-tab">
             <div class="disp-tab__row">
               <a class="btn btn--primary disp-tab__open" href="founders-calcutta-display.html" target="_blank" rel="noopener">Open display in new tab &rarr;</a>
@@ -449,6 +456,13 @@
             <h3 class="noms__title">Leaderboard Display</h3>
           </div>
           <p class="scaffold__desc">Full-screen live leaderboard — Day 1, Day 2, gross, HCP, net, flight + Calcutta winner flags. Public link, safe to share. Auto-refreshes.</p>
+          <div class="disp-warn" role="alert">
+            <div class="disp-warn__title">⚠︎ TV setup — turn on auto-refresh before the tournament</div>
+            <p class="disp-warn__lede">The page updates in the background every 15 seconds. As a belt-and-suspenders measure so the display never goes stale if the browser tab is throttled, <b>configure a browser-level refresh on the TV every 15 seconds</b>.</p>
+            <p class="disp-warn__how"><b>Chrome / Edge:</b> install the free <a href="https://chrome.google.com/webstore/detail/auto-refresh-plus-page-mo/oilipfekkmncanaajkapbpancpelijih" target="_blank" rel="noopener">Auto Refresh Plus</a> extension → open the display page → click the extension icon → set <b>Interval: 15 seconds</b> → hit <b>Start</b>. The icon shows a timer counting down.</p>
+            <p class="disp-warn__how"><b>Firefox:</b> install <a href="https://addons.mozilla.org/en-US/firefox/addon/tab-auto-refresh/" target="_blank" rel="noopener">Tab Auto Refresh</a> → open the display page → click the add-on icon → set to 15s → enable.</p>
+            <p class="disp-warn__how"><b>Fallback (no extension):</b> press <kbd>F11</kbd> for full-screen. If the display ever looks frozen, press <kbd>F5</kbd> or <kbd>Ctrl+R</kbd> to reload by hand.</p>
+          </div>
           <div class="disp-tab">
             <div class="disp-tab__row">
               <a class="btn btn--primary disp-tab__open" href="founders-leaderboard-display.html" target="_blank" rel="noopener">Open display in new tab &rarr;</a>
@@ -3372,19 +3386,21 @@
           if (!slots.length) return;
           var teams = d2Waves[w.k] || [];
           if (!teams.length) return;
-          // Pairs-only autofill. If a wave has an odd count, the last used
-          // slot ends up with one team + one open seat; the operator picks
-          // where the trio goes via drag / the Team 3 (trio) dropdown.
-          // This keeps autofill predictable — operator decides which pair
-          // absorbs the extra team.
+          // Trio-aware autofill: if there are more teams than pair-slot
+          // capacity, promote the last N slots to trios so nobody is left
+          // Unplaced. Symmetric with the per-wave autofill below.
+          var pairCap = slots.length * 2;
+          var overflow = Math.max(0, teams.length - pairCap);
+          var trioCount = Math.min(overflow, slots.length);
           var idx = 0;
-          slots.forEach(function (s) {
-            for (var seat = 1; seat <= TEAMS_PER_TEE && idx < teams.length; seat++) {
+          slots.forEach(function (s, si) {
+            var capacity = (si >= slots.length - trioCount) ? 3 : 2;
+            for (var seat = 1; seat <= capacity && idx < teams.length; seat++) {
               var t = teams[idx++];
               assignments.push({ id: t.rec.id, d2Hole: s.hole, d2Slot: s.slot, d2Seat: seat, d2Start: w.k });
             }
           });
-          // Overflow (more teams than pair slots) goes to unplaced on Day 2.
+          // Anyone left over (more teams than 3× slots) → Unplaced.
           for (; idx < teams.length; idx++) {
             assignments.push({ id: teams[idx].rec.id, d2Hole: "", d2Slot: "", d2Seat: "", d2Start: w.k });
           }
@@ -3571,7 +3587,7 @@
             + '<span class="pr-tee__side-slot">Tee ' + s.slot + '</span>'
             + '<span class="pr-tee__side-thru">Thru ' + thru + '</span>'
             + '</div>'
-            + '<div class="pr-tee__cards">' + seatEls[0] + seatEls[1] + '</div>'
+            + '<div class="pr-tee__cards' + (visibleSeats === 3 ? ' pr-tee__cards--trio' : '') + '">' + seatEls.join('') + '</div>'
             + '</div>';
         }).join("");
 
@@ -3759,7 +3775,7 @@
               positionSaveMany([{ id: id, hole: "", slot: "", seat: "", start: wave }]);
               return;
             }
-            var m = /^(\d+)([AB])([12])$/.exec(val);
+            var m = /^(\d+)([AB])([123])$/.exec(val);
             if (!m) return;
             var tgtHole = Number(m[1]), tgtSlot = m[2], tgtSeat = Number(m[3]);
             if (tgtHole === srcHole && tgtSlot === srcSlot && tgtSeat === srcSeat) return;
@@ -3797,14 +3813,23 @@
         var tgtSlot = zone.getAttribute("data-slot");
         var tgtWave = zone.getAttribute("data-wave") || drag.srcWave;
         if (drag.srcHole === tgtHole && drag.srcSlot === tgtSlot && drag.srcWave === tgtWave) return;
-        // Prefer the first empty seat; fall back to seat 1 for a swap.
+        // Seat selection priority:
+        //   1. Empty seat 1 or 2 → drop there
+        //   2. Both 1 and 2 taken, seat 3 empty → drop into seat 3 (creates
+        //      a trio — this is the "hooked onto a group" flow)
+        //   3. All three taken → swap with seat 1 (moves seat-1 team back
+        //      to the drag's source position, or Unplaced if the source
+        //      was the pool)
         var seat1El = zone.querySelector('[data-seat="1"]');
         var seat2El = zone.querySelector('[data-seat="2"]');
+        var seat3El = zone.querySelector('[data-seat="3"]');
         var seat1Occupant = seat1El && seat1El.getAttribute("data-id") && seat1El.getAttribute("data-id") !== drag.id ? seat1El.getAttribute("data-id") : null;
         var seat2Occupant = seat2El && seat2El.getAttribute("data-id") && seat2El.getAttribute("data-id") !== drag.id ? seat2El.getAttribute("data-id") : null;
+        var seat3Occupant = seat3El && seat3El.getAttribute("data-id") && seat3El.getAttribute("data-id") !== drag.id ? seat3El.getAttribute("data-id") : null;
         var tgtSeat, displacedId = null;
         if (!seat1Occupant) { tgtSeat = 1; }
         else if (!seat2Occupant) { tgtSeat = 2; }
+        else if (!seat3Occupant) { tgtSeat = 3; }
         else { tgtSeat = 1; displacedId = seat1Occupant; }
         var assignments = [{ id: drag.id, hole: tgtHole, slot: tgtSlot, seat: tgtSeat, start: tgtWave }];
         if (displacedId) {
@@ -3825,33 +3850,43 @@
         if (!slots.length) { setMsg("Turn on some A/B slots at the top of this wave first."); return; }
         var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === wave; }).sort(byCreated);
         if (!teams.length) { setMsg("No teams in this wave (check the Check-In sheet)."); return; }
-        var totalSeats = slots.length * TEAMS_PER_TEE;
-        if (totalSeats < teams.length) {
-          // Not enough seats to fit everyone — but in "silent" mode (post-cycle
-          // auto-fill), still fill whatever seats we CAN. Leaves the rest in
-          // the Unplaced pool for the user to place manually or add slots for.
-          if (!silent) { setMsg("Need " + (teams.length - totalSeats) + " more seat(s) — add more A/B slots first."); return; }
+        // Capacity math with trio support:
+        //   pairCap  = slots × 2 (baseline, everyone in pairs)
+        //   trioCap  = slots × 3 (upper bound if every slot were a trio)
+        //   overflow = teams - pairCap (how many teams exceed pair capacity)
+        //   trioCount = min(overflow, slots) — promote that many slots
+        //     from pairs to trios so nobody is left Unplaced.
+        var pairCap = slots.length * 2;
+        var overflow = Math.max(0, teams.length - pairCap);
+        var trioCount = Math.min(overflow, slots.length);
+        var trioCap = pairCap + trioCount; // effective capacity after promotions
+        if (trioCap < teams.length) {
+          if (!silent) { setMsg("Need " + (teams.length - trioCap) + " more seat(s) — add more A/B slots first."); return; }
         }
         // Preserve teams already seated at active slots; fill remaining seats
-        // from the unplaced pool in order. Each slot has two explicit seats
-        // (1 and 2). If a placed team is missing a Seat value, it gets seat
-        // 1 by default and the next placement lands in seat 2.
+        // from the unplaced pool in order. Each slot has 2 or 3 seats
+        // depending on trio status (below).
         var placed = {}, seated = {};
-        slots.forEach(function (s) { placed[s.hole + s.slot] = [null, null]; });
+        slots.forEach(function (s) { placed[s.hole + s.slot] = [null, null, null]; });
         teams.forEach(function (t) {
           var f = t.fields || {}, h = Number(f.Hole), sl = String(f.Slot || "").toUpperCase(), k = h + sl;
           if (!(h && (sl === "A" || sl === "B") && placed[k])) return;
           var seatVal = Number(f.Seat);
-          if (seatVal === 1 || seatVal === 2) {
+          if (seatVal === 1 || seatVal === 2 || seatVal === 3) {
             if (!placed[k][seatVal - 1]) { placed[k][seatVal - 1] = t; seated[t.id] = true; }
           } else if (!placed[k][0]) { placed[k][0] = t; seated[t.id] = true; }
           else if (!placed[k][1]) { placed[k][1] = t; seated[t.id] = true; }
         });
         var unplaced = teams.filter(function (t) { return !seated[t.id]; });
+        // Promote the last `trioCount` slots to trios so extras land in
+        // seat 3 instead of the Unplaced pool.
+        var trioSet = {};
+        slots.slice(-trioCount).forEach(function (s) { trioSet[s.hole + s.slot] = true; });
         var assignments = [];
         slots.forEach(function (s) {
           var k = s.hole + s.slot;
-          for (var i = 0; i < TEAMS_PER_TEE && unplaced.length; i++) {
+          var capacity = trioSet[k] ? 3 : 2;
+          for (var i = 0; i < capacity && unplaced.length; i++) {
             if (placed[k][i]) continue;
             var t = unplaced.shift();
             placed[k][i] = t;
