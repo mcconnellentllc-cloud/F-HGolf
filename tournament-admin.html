@@ -5999,21 +5999,62 @@
           var data = computeLeaderboardData(recs, cfg);
           var calSplit = m.calSplit || [40, 30, 20, 10];
           var comm = (m.calcuttaCommissionPct || 0) / 100;
-          data.flights.forEach(function (fl) {
-            var caPool = fl.rows.reduce(function (s, r) {
-              var v = r.rec && r.rec.fields && r.rec.fields["Buy Amount"];
+          // computeLeaderboardData buckets teams into flights by live cut
+          // slider position. For Calcutta payouts we need the SAVED Flight
+          // field on each record — same source of truth the aggregate
+          // Payout summary table uses (renderPayout line 6702). Otherwise
+          // if the operator saved flights and the cuts drifted after, per-
+          // team payouts get computed against the wrong flight's pool.
+          //
+          // Rebuild flight buckets from the saved Flight field, keeping
+          // each row's netPlace (which is still correctly ranked WITHIN
+          // its saved flight because computeLeaderboardData placed it in
+          // the same bucket for teams whose saved flight equals live
+          // flight — for teams that disagree, we re-rank below).
+          var byRecId = {};
+          data.flights.forEach(function (fl) { fl.rows.forEach(function (row) { byRecId[row.id] = row; }); });
+          data.unassigned.forEach(function (row) { byRecId[row.id] = row; });
+          var savedFlights = {}; // { fnum: [row, ...] }
+          recs.forEach(function (r) {
+            var f = r.fields || {};
+            var savedFl = (f["Flight"] != null && f["Flight"] !== "") ? Number(f["Flight"]) : 0;
+            if (!savedFl) return;
+            var row = byRecId[r.id];
+            if (!row) return;
+            (savedFlights[savedFl] = savedFlights[savedFl] || []).push(row);
+          });
+          Object.keys(savedFlights).forEach(function (fnum) {
+            var rows = savedFlights[fnum];
+            var caPool = rows.reduce(function (s, row) {
+              var v = row.rec && row.rec.fields && row.rec.fields["Buy Amount"];
               return s + (typeof v === "number" ? v : 0);
             }, 0);
             var caPayout = Math.max(0, caPool * (1 - comm));
             var caPrizes = calSplit.map(function (pct) { return caPayout * (pct / 100); });
+            // Rank BY NET within this saved flight (fresh ranking so a
+            // team moved between flights gets the right place against its
+            // actual competition). Ties → same rank, next rank skips —
+            // same rule as rankPlaces.
+            var scored = rows.slice().filter(function (r) { return r.net != null; }).sort(function (a, b) { return a.net - b.net; });
+            var rank = 1, i = 0;
+            var placeMap = {}; // rowId → netPlace within saved flight
+            while (i < scored.length) {
+              var val = scored[i].net, tied = [];
+              while (i < scored.length && scored[i].net === val) { tied.push(scored[i]); i++; }
+              tied.forEach(function (t) { placeMap[t.id] = rank; });
+              rank += tied.length;
+            }
             var byNet = {};
-            fl.rows.forEach(function (r) { if (r.netPlace && r.netPlace <= calSplit.length) (byNet[r.netPlace] = byNet[r.netPlace] || []).push(r); });
+            rows.forEach(function (row) {
+              var p = placeMap[row.id];
+              if (p && p <= calSplit.length) (byNet[p] = byNet[p] || []).push(row);
+            });
             Object.keys(byNet).forEach(function (p) {
               var place = Number(p), teams = byNet[p];
               var combined = 0;
-              for (var i = 0; i < teams.length; i++) {
-                var rank = place - 1 + i;
-                if (rank < caPrizes.length) combined += caPrizes[rank];
+              for (var i2 = 0; i2 < teams.length; i2++) {
+                var rankIdx = place - 1 + i2;
+                if (rankIdx < caPrizes.length) combined += caPrizes[rankIdx];
               }
               var each = combined / teams.length;
               teams.forEach(function (t) { out[t.id] = (out[t.id] || 0) + each; });
@@ -6489,16 +6530,52 @@
               });
             });
           });
-          // Calcutta payouts (paid to the buyer, tied to team wave)
-          var caPool = fl.rows.reduce(function (s, r) { var v = r.rec && r.rec.fields && r.rec.fields["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
+          // Calcutta payouts moved to the saved-flight block below.
+        });
+        // ---- Calcutta payouts (bucketed by SAVED Flight) ----
+        // Same fix as renderPayout / computeCalcuttaWinningsBySignup: the
+        // aggregate summary buckets by saved f["Flight"], but data.flights
+        // buckets by live cut sliders. Use saved so pool math matches.
+        var _byRecCk = {};
+        data.flights.forEach(function (fl) { fl.rows.forEach(function (row) { _byRecCk[row.id] = row; }); });
+        data.unassigned.forEach(function (row) { _byRecCk[row.id] = row; });
+        var _savedFlBucketsCk = {};
+        recs.forEach(function (r) {
+          var f = r.fields || {};
+          var savedFl = (f["Flight"] != null && f["Flight"] !== "") ? Number(f["Flight"]) : 0;
+          if (!savedFl) return;
+          var row = _byRecCk[r.id];
+          if (!row) return;
+          (_savedFlBucketsCk[savedFl] = _savedFlBucketsCk[savedFl] || []).push(row);
+        });
+        Object.keys(_savedFlBucketsCk).forEach(function (fnumStr) {
+          var fnum = Number(fnumStr);
+          var flName = flightName(fnum);
+          var rows = _savedFlBucketsCk[fnum];
+          var caPool = rows.reduce(function (s, row) {
+            var v = row.rec && row.rec.fields && row.rec.fields["Buy Amount"];
+            return s + (typeof v === "number" ? v : 0);
+          }, 0);
           var caPayout = Math.max(0, caPool * (1 - m.calcuttaCommissionPct / 100));
           var caPrizes = m.calSplit.map(function (pct) { return caPayout * (pct / 100); });
+          var scored = rows.slice().filter(function (r) { return r.net != null; }).sort(function (a, b) { return a.net - b.net; });
+          var rank = 1, si = 0;
+          var placeMap = {};
+          while (si < scored.length) {
+            var val = scored[si].net, tied = [];
+            while (si < scored.length && scored[si].net === val) { tied.push(scored[si]); si++; }
+            tied.forEach(function (t) { placeMap[t.id] = rank; });
+            rank += tied.length;
+          }
           var byNet = {};
-          fl.rows.forEach(function (r) { if (r.netPlace && r.netPlace <= m.calSplit.length) (byNet[r.netPlace] = byNet[r.netPlace] || []).push(r); });
+          rows.forEach(function (row) {
+            var p = placeMap[row.id];
+            if (p && p <= m.calSplit.length) (byNet[p] = byNet[p] || []).push(row);
+          });
           Object.keys(byNet).forEach(function (p) {
             var place = Number(p), teams = byNet[p];
             var combined = 0;
-            for (var i = 0; i < teams.length; i++) { var rank = place - 1 + i; if (rank < caPrizes.length) combined += caPrizes[rank]; }
+            for (var i = 0; i < teams.length; i++) { var rankIdx = place - 1 + i; if (rankIdx < caPrizes.length) combined += caPrizes[rankIdx]; }
             var each = combined / teams.length;
             teams.forEach(function (t) {
               if (_teamWave(t.rec) !== wave) return;
@@ -6506,10 +6583,10 @@
               checks.push({
                 payee: buyer,
                 amount: each,
-                memo: fl.name + " Flight Calcutta " + ordinal(place) + " (team " + t.name + ")",
+                memo: flName + " Flight Calcutta " + ordinal(place) + " (team " + t.name + ")",
                 tournament: KEY,
                 teamName: t.name,
-                note: fl.name + " Flight Calcutta — " + ordinal(place) + " net" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
+                note: flName + " Flight Calcutta — " + ordinal(place) + " net" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
               });
             });
           });
@@ -6586,23 +6663,60 @@
             });
           });
 
-          // ---- Calcutta payouts (by net, top-4) ----
-          // Per-flight pool; commission rate comes from the shared ledger so
-          // there's no drift with the P&L / Calcutta display.
-          var caPool = fl.rows.reduce(function (s, r) {
-            var v = r.rec && r.rec.fields && r.rec.fields["Buy Amount"];
+        });
+
+        // ---- Calcutta payouts (by net, top-4) ----
+        // Bucket by the SAVED Flight field on each record — same source
+        // the aggregate Calcutta payout summary uses. computeLeaderboard-
+        // Data buckets by live cut-slider position; if the operator saved
+        // flights and the cuts drifted after, the two disagree and per-
+        // team payouts get the wrong pool. See the matching fix in
+        // computeCalcuttaWinningsBySignup for the buyer-card view.
+        var _byRecForCal = {};
+        data.flights.forEach(function (fl) { fl.rows.forEach(function (row) { _byRecForCal[row.id] = row; }); });
+        data.unassigned.forEach(function (row) { _byRecForCal[row.id] = row; });
+        var _savedFlightBuckets = {};
+        recs.forEach(function (r) {
+          var f = r.fields || {};
+          var savedFl = (f["Flight"] != null && f["Flight"] !== "") ? Number(f["Flight"]) : 0;
+          if (!savedFl) return;
+          var row = _byRecForCal[r.id];
+          if (!row) return;
+          (_savedFlightBuckets[savedFl] = _savedFlightBuckets[savedFl] || []).push(row);
+        });
+        Object.keys(_savedFlightBuckets).forEach(function (fnumStr) {
+          var fnum = Number(fnumStr);
+          var flName = flightName(fnum);
+          var rows = _savedFlightBuckets[fnum];
+          var caPool = rows.reduce(function (s, row) {
+            var v = row.rec && row.rec.fields && row.rec.fields["Buy Amount"];
             return s + (typeof v === "number" ? v : 0);
           }, 0);
           var caPayout = Math.max(0, caPool * (1 - m.calcuttaCommissionPct / 100));
           var caPrizes = calSplit.map(function (pct) { return caPayout * (pct / 100); });
+          // Rank net WITHIN the saved-flight bucket (fresh ranking so a
+          // team moved across flights competes against the right field).
+          // Ties keep same rank, next rank skips — same rule as rankPlaces.
+          var scored = rows.slice().filter(function (r) { return r.net != null; }).sort(function (a, b) { return a.net - b.net; });
+          var rank = 1, si = 0;
+          var placeMap = {};
+          while (si < scored.length) {
+            var val = scored[si].net, tied = [];
+            while (si < scored.length && scored[si].net === val) { tied.push(scored[si]); si++; }
+            tied.forEach(function (t) { placeMap[t.id] = rank; });
+            rank += tied.length;
+          }
           var byNet = {};
-          fl.rows.forEach(function (r) { if (r.netPlace && r.netPlace <= calSplit.length) (byNet[r.netPlace] = byNet[r.netPlace] || []).push(r); });
+          rows.forEach(function (row) {
+            var p = placeMap[row.id];
+            if (p && p <= calSplit.length) (byNet[p] = byNet[p] || []).push(row);
+          });
           Object.keys(byNet).forEach(function (p) {
             var place = Number(p), teams = byNet[p];
             var combined = 0;
             for (var i = 0; i < teams.length; i++) {
-              var rank = place - 1 + i;
-              if (rank < caPrizes.length) combined += caPrizes[rank];
+              var rankIdx = place - 1 + i;
+              if (rankIdx < caPrizes.length) combined += caPrizes[rankIdx];
             }
             var each = combined / teams.length;
             teams.forEach(function (t) {
@@ -6611,8 +6725,8 @@
                 savedCheck: (t.rec && t.rec.fields && t.rec.fields["Calcutta Check #"]) || "",
                 recipient: (t.buyer && t.buyer.trim()) || "(no buyer)",
                 teamName: t.name, amount: each,
-                flight: fl.name, place: place, tied: teams.length > 1,
-                note: fl.name + " Flight Calcutta — " + ordinal(place) + " net (team " + t.name + ")" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
+                flight: flName, place: place, tied: teams.length > 1,
+                note: flName + " Flight Calcutta — " + ordinal(place) + " net (team " + t.name + ")" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
               });
             });
           });
