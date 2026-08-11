@@ -5283,23 +5283,22 @@
             });
           }
 
-          // Email button — opens the operator's email client (mailto:)
-          // with the buyer's receipt pre-filled. If no email is on file
-          // we still open a compose window so the operator can type
-          // one in.
+          // Email button — POSTs the receipt payload to /api/calcutta-receipt
+          // which renders the HTML template server-side and sends via Resend
+          // from clubhouse@fandhgolf.com. No more mailto: draft; every send
+          // goes out under the site's own From address regardless of which
+          // operator's laptop the workbook is open on.
           var ebtn = card.querySelector(".cs-email-btn");
           if (ebtn) ebtn.addEventListener("click", function () {
             var data = computeBuyerBuckets();
             var b = data.buckets[buyer.toLowerCase()];
             if (!b) { alert("Couldn't find that buyer in the current buys."); return; }
             var to = String(card.getAttribute("data-email") || b.email || "").trim();
-            var subject = buildReceiptSubject(b);
-            var bodyText = buildReceiptBody(b, data.teamNumbers, data.winnings);
-            var href = "mailto:" + encodeURIComponent(to)
-              + "?subject=" + encodeURIComponent(subject)
-              + "&body=" + encodeURIComponent(bodyText);
-            var w = window.open(href, "_blank");
-            if (!w) window.location.href = href;
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+              alert("Add an email address for " + b.display + " before sending.");
+              return;
+            }
+            sendReceipt(b, to, data.teamNumbers, data.winnings, ebtn);
           });
         });
 
@@ -5416,51 +5415,66 @@
         });
       }
 
-      // Build a Calcutta receipt as plain text for mailto: bodies.
-      function buildReceiptBody(b, teamNumbers, winnings) {
+      // Build the structured receipt payload the /api/calcutta-receipt
+      // endpoint expects. Same shape used for the single-buyer send and
+      // for Email All, so the server owns the template in one place.
+      function buildReceiptPayload(b, teamNumbers, winnings, toEmail) {
         winnings = winnings || {};
-        var lines = [];
-        lines.push("Hi " + (b.display || "there") + ",");
-        lines.push("");
-        lines.push("Thanks for buying in on the 2026 F&H Founders Calcutta. Your receipt is below.");
-        lines.push("");
-        lines.push("Teams you bought:");
         var items = b.items.slice().sort(function (x, y) { return (teamNumbers[x.id] || 0) - (teamNumbers[y.id] || 0); });
-        items.forEach(function (r) {
-          var f = r.fields || {};
-          var tn = teamNumbers[r.id];
-          var tag = tn ? "T-" + String(tn).padStart(2, "0") : "—";
-          var team = teamShortNames(f);
-          var amt = money(Number(f["Buy Amount"]) || 0);
-          var w = Number(winnings[r.id] || 0);
-          var winTxt = w > 0 ? "  won " + money(w) : "";
-          lines.push("  " + tag + "  " + team + "  " + amt + winTxt);
-        });
-        lines.push("");
-        var won = Number(b.won || 0);
-        var net = won - b.total;
-        lines.push("Total spent: " + money(b.total));
-        lines.push("Total won:   " + money(won));
-        if (net > 0) lines.push("Net:         +" + money(net) + " (payable to you)");
-        else if (net < 0) lines.push("Net:         −" + money(-net) + " (balance to F&H)");
-        else lines.push("Net:         even");
-        if (b.paidMethod) { lines.push(""); lines.push("Calcutta buy-in paid: " + b.paidMethod); }
-        else if (b.total > 0) { lines.push(""); lines.push("Calcutta buy-in due: " + money(b.total)); }
-        lines.push("");
-        lines.push("Please make checks payable to F&H Golf Course.");
-        lines.push("");
-        lines.push("F&H Golf Course · (970) 774-6362 · fandhgolf.com");
-        return lines.join("\n");
+        return {
+          to: toEmail,
+          buyerName: b.display || "there",
+          tournamentName: "2026 F&H Founders Tournament",
+          teams: items.map(function (r) {
+            var f = r.fields || {};
+            var tn = teamNumbers[r.id];
+            return {
+              tag: tn ? "T-" + String(tn).padStart(2, "0") : "—",
+              team: teamShortNames(f),
+              amount: Number(f["Buy Amount"]) || 0,
+              won: Number(winnings[r.id] || 0)
+            };
+          }),
+          totalSpent: Number(b.total) || 0,
+          totalWon: Number(b.won) || 0,
+          paidMethod: b.paidMethod || "",
+          buyInDue: b.paidMethod ? 0 : (Number(b.total) || 0)
+        };
       }
 
-      function buildReceiptSubject(b) {
-        var won = Number(b.won || 0);
-        var net = won - b.total;
-        var tag;
-        if (net > 0) tag = "won " + money(net);
-        else if (net < 0) tag = "owes " + money(-net);
-        else tag = money(b.total);
-        return "F&H Founders 2026 — Calcutta receipt (" + tag + ")";
+      // Fire the send. Updates the button's visual state so the operator
+      // sees Sending → Sent (or the specific error). Returns a Promise
+      // that resolves to true/false so Email All can count outcomes.
+      function sendReceipt(b, toEmail, teamNumbers, winnings, btnEl) {
+        var payload = buildReceiptPayload(b, teamNumbers, winnings, toEmail);
+        var originalText = btnEl ? btnEl.textContent : "";
+        if (btnEl) { btnEl.disabled = true; btnEl.textContent = "Sending…"; }
+        return fetch(FH_API.url("/api/calcutta-receipt"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify(payload)
+        }).then(function (r) {
+          return r.json().catch(function () { return { ok: false, error: "Bad response" }; });
+        }).then(function (j) {
+          if (j && j.ok) {
+            if (btnEl) {
+              btnEl.textContent = "Sent ✓";
+              setTimeout(function () { btnEl.disabled = false; btnEl.textContent = originalText || "Email"; }, 1800);
+            }
+            return true;
+          }
+          var msg = (j && j.error) || "Send failed.";
+          if (btnEl) {
+            btnEl.textContent = "Retry send";
+            btnEl.disabled = false;
+          }
+          alert("Couldn't send to " + (b.display || "buyer") + ": " + msg);
+          return false;
+        }).catch(function (e) {
+          if (btnEl) { btnEl.textContent = "Retry send"; btnEl.disabled = false; }
+          alert("Couldn't send to " + (b.display || "buyer") + ": " + (e && e.message ? e.message : "network error"));
+          return false;
+        });
       }
 
       // Print a hand-checkable list of every buyer + total. Builds the table
@@ -5617,10 +5631,10 @@
         return { order: order, buckets: buckets, teamNumbers: caTeamNumbers, winnings: winnings };
       }
 
-      // Email All — open one mailto: draft per buyer who has an email
-      // on file. Skips buyers without an email and reports a count.
-      // Browsers cap how many draft windows you can spawn from one
-      // click, so we space the opens ~300ms apart.
+      // Email All — sends one receipt per buyer via /api/calcutta-receipt.
+      // Each send goes out from clubhouse@fandhgolf.com. Runs sequentially
+      // with a short gap so the Resend rate limit stays happy; reports
+      // successes and failures in a summary alert at the end.
       function emailAllBuyers() {
         var data = computeBuyerBuckets();
         var withEmail = [], withoutEmail = [];
@@ -5633,21 +5647,36 @@
             + (withoutEmail.length ? "\n\nBuyers missing an email: " + withoutEmail.length : ""));
           return;
         }
-        var msg = "Send a receipt to " + withEmail.length + " buyer" + (withEmail.length === 1 ? "" : "s") + "?";
+        var msg = "Send a receipt to " + withEmail.length + " buyer" + (withEmail.length === 1 ? "" : "s") + " from clubhouse@fandhgolf.com?";
         if (withoutEmail.length) msg += "\n\n" + withoutEmail.length + " buyer" + (withoutEmail.length === 1 ? " has" : "s have") + " no email on file and will be skipped:\n  " + withoutEmail.map(function (b) { return b.display; }).join(", ");
         if (!confirm(msg)) return;
 
-        // Open mailto: drafts sequentially. Each open spawns the user's
-        // default mail app / a new compose tab.
-        withEmail.forEach(function (b, i) {
-          setTimeout(function () {
-            var href = "mailto:" + encodeURIComponent(b.email)
-              + "?subject=" + encodeURIComponent(buildReceiptSubject(b))
-              + "&body=" + encodeURIComponent(buildReceiptBody(b, data.teamNumbers, data.winnings));
-            var w = window.open(href, "_blank");
-            if (!w) window.location.href = href;
-          }, i * 350);
-        });
+        // Status pill above the buyer list so the operator sees progress.
+        var caEmailAllBtn = document.getElementById("csEmailAll");
+        var origLabel = caEmailAllBtn ? caEmailAllBtn.textContent : "";
+        var sent = 0, failed = [];
+
+        function step(i) {
+          if (i >= withEmail.length) {
+            if (caEmailAllBtn) { caEmailAllBtn.disabled = false; caEmailAllBtn.textContent = origLabel || "Email all"; }
+            var summary = "Sent " + sent + " of " + withEmail.length + " receipt" + (withEmail.length === 1 ? "" : "s") + ".";
+            if (failed.length) summary += "\n\nFailed: " + failed.join(", ");
+            alert(summary);
+            return;
+          }
+          var b = withEmail[i];
+          if (caEmailAllBtn) { caEmailAllBtn.disabled = true; caEmailAllBtn.textContent = "Sending " + (i + 1) + " / " + withEmail.length + "…"; }
+          var payload = buildReceiptPayload(b, data.teamNumbers, data.winnings, b.email);
+          fetch(FH_API.url("/api/calcutta-receipt"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify(payload)
+          }).then(function (r) { return r.json().catch(function () { return { ok: false }; }); })
+            .then(function (j) { if (j && j.ok) sent++; else failed.push(b.display); })
+            .catch(function () { failed.push(b.display); })
+            .then(function () { setTimeout(function () { step(i + 1); }, 300); });
+        }
+        step(0);
       }
 
       // Print All — build a multi-page print sheet, one buyer receipt
