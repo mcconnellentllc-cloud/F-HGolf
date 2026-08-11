@@ -1181,18 +1181,18 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .lb-inline-cut__arrow:hover { background: var(--primary-green); color: #fff; }
 .lb-inline-cut__arrow:active { transform: translateY(1px); }
 
-/* Leaderboard tab — winner flags next to team names */
-.lbd-flag { display: inline-block; font-size: 0.7rem; font-weight: 800; padding: 0.12rem 0.5rem; border-radius: 999px; margin-left: 0.35rem; letter-spacing: 0.02em; text-transform: uppercase; }
-.lbd-flag--gross { background: #f6c945; color: #6b4d00; }
-/* Podium colors: gold (1st), silver (2nd), bronze (3rd). Override the default
-   gold pill so all three place flags read as distinct medal tiers. */
-.lbd-flag--p1 { background: linear-gradient(135deg, #f7d448 0%, #cf9a10 100%); color: #4a3400; box-shadow: 0 0 0 1px #b78100 inset; }
-.lbd-flag--p2 { background: linear-gradient(135deg, #dfe1e5 0%, #a2a6ab 100%); color: #3a3a3a; box-shadow: 0 0 0 1px #808286 inset; }
-.lbd-flag--p3 { background: linear-gradient(135deg, #d78a4b 0%, #8a4f1e 100%); color: #fff; box-shadow: 0 0 0 1px #5c3512 inset; }
-.lbd-flag--calc { background: var(--red); color: #fff; }
-.lbd-flag--playoff { background: #1B5E20; color: #fff; }
+/* Leaderboard tab — placement chips live in their own left column so
+   team names stay aligned. Flat colors, no gradients, no decorative
+   glyphs. One chip stacked per line. */
+.lbd-place { width: 7.5rem; min-width: 7.5rem; vertical-align: middle; padding-right: 0.35rem; white-space: nowrap; }
+.lbd-flags { display: inline-flex; flex-direction: column; gap: 0.25rem; align-items: flex-start; }
+.lbd-flag { display: inline-flex; align-items: center; justify-content: center; min-width: 5.4rem; font-size: 0.7rem; font-weight: 800; padding: 0.16rem 0.55rem; border-radius: 6px; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.15; border: 1px solid transparent; }
+.lbd-flag--p1 { background: #e5b32f; color: #3a2a00; border-color: #b78100; }
+.lbd-flag--p2 { background: #c6cad0; color: #262b32; border-color: #808286; }
+.lbd-flag--p3 { background: #c47a3a; color: #2a1300; border-color: #7a4413; }
+.lbd-flag--calc { background: #1e4c2b; color: #f2efd8; border-color: #143620; }
+.lbd-flag--playoff { background: #1a3a55; color: #fff; border-color: #10263a; }
 .lbd-name { min-width: 12rem; }
-.lbd-flags { display: inline-block; }
 
 /* Payout tab */
 .po-summary { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; background: var(--paper-2); border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 1rem; }
@@ -1785,7 +1785,9 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
   body.is-print-lbd .lb-table th { padding: 3pt 5pt; font-size: 10pt; }
   body.is-print-lbd .lb-table td { padding: 3pt 5pt; }
   body.is-print-lbd .lb-table tbody tr:nth-child(odd) { background: #f5f5f5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body.is-print-lbd .lbd-flag { border: 1pt solid #000; background: transparent !important; color: #000 !important; padding: 1pt 4pt; }
+  body.is-print-lbd .lbd-place { width: 68pt; min-width: 68pt; }
+  body.is-print-lbd .lbd-flags { display: flex; flex-direction: column; gap: 2pt; }
+  body.is-print-lbd .lbd-flag { display: inline-flex; align-items: center; justify-content: center; min-width: 54pt; border: 1pt solid #000; background: transparent !important; color: #000 !important; padding: 1pt 4pt; font-size: 8.5pt; border-radius: 4pt; }
 
   /* Payout print — one page (or few) with all checks */
   body.is-print-po .wb-sheet:not([data-sheet="payout"]) { display: none !important; }

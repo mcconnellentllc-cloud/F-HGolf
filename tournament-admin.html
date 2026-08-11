@@ -5652,20 +5652,21 @@
             return a.gross - b.gross;
           });
           var trs = fl.rows.map(function (row) {
-            var flags = [];
+            var chips = [];
             if (row.grossPlace && row.grossPlace <= nFlightPrizes) {
-              // Detect tie by counting rows at same gross place.
               var ties = fl.rows.filter(function (r) { return r.grossPlace === row.grossPlace; }).length;
-              flags.push('<span class="lbd-flag lbd-flag--gross lbd-flag--p' + row.grossPlace + '" title="Flight winner (gross)">' + (ties > 1 ? "T" : "") + ordinal(row.grossPlace) + " Place</span>");
-              if (row._playoff === "won") flags.push('<span class="lbd-flag lbd-flag--playoff" title="Won a scorecard playoff on Men’s Hdcp order">Playoff</span>');
-              else if (row._playoff === "unresolved" && row.grossPlace === 1) flags.push('<span class="lbd-flag lbd-flag--playoff" title="Playoff walked all 18 holes without a decision — committee chip-off">Chip-off</span>');
+              chips.push('<span class="lbd-flag lbd-flag--p' + row.grossPlace + '" title="Flight winner (gross)">' + (ties > 1 ? "T" : "") + ordinal(row.grossPlace) + " Gross</span>");
+              if (row._playoff === "won") chips.push('<span class="lbd-flag lbd-flag--playoff" title="Won a scorecard playoff on Men’s Hdcp order">Playoff</span>');
+              else if (row._playoff === "unresolved" && row.grossPlace === 1) chips.push('<span class="lbd-flag lbd-flag--playoff" title="Playoff walked all 18 holes without a decision — committee chip-off">Chip-off</span>');
             }
             if (row.netPlace && row.netPlace <= nCalcuttaPrizes) {
               var netTies = fl.rows.filter(function (r) { return r.netPlace === row.netPlace; }).length;
-              flags.push('<span class="lbd-flag lbd-flag--calc" title="Calcutta winner (net)">' + (netTies > 1 ? "T" : "") + ordinal(row.netPlace) + " Calcutta</span>");
+              chips.push('<span class="lbd-flag lbd-flag--calc" title="Calcutta winner (net)">' + (netTies > 1 ? "T" : "") + ordinal(row.netPlace) + " Calcutta</span>");
             }
+            var placeCell = chips.length ? '<span class="lbd-flags">' + chips.join("") + '</span>' : "";
             return "<tr>"
-              + '<td class="lbd-name">' + (row.teamNumber ? '<span class="lb-tnum">T-' + String(row.teamNumber).padStart(2, "0") + '</span> ' : '') + esc(row.name) + (flags.length ? ' <span class="lbd-flags">' + flags.join(" ") + '</span>' : '') + "</td>"
+              + '<td class="lbd-place">' + placeCell + "</td>"
+              + '<td class="lbd-name">' + (row.teamNumber ? '<span class="lb-tnum">T-' + String(row.teamNumber).padStart(2, "0") + '</span> ' : '') + esc(row.name) + "</td>"
               + "<td>" + (row.d1 == null ? "—" : row.d1) + "</td>"
               + "<td>" + (row.d2 == null ? "—" : row.d2) + "</td>"
               + "<td><b>" + (row.gross == null ? "—" : row.gross) + "</b></td>"
@@ -5675,16 +5676,16 @@
           }).join("");
           return '<div class="lb-flight lbd-flight">'
             + '<h4 class="lb-flight__title">' + esc(fl.name) + ' Flight <span class="lb-flight__count">' + fl.rows.length + ' teams' + (fl.leader != null ? ', leader ' + fl.leader : '') + '</span></h4>'
-            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th class="lbd-place">Place</th><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
             + trs + '</tbody></table></div></div>';
         }).join("");
         var unHtml = "";
         if (data.unassigned.length) {
           var unTrs = data.unassigned.map(function (row) {
-            return "<tr><td>" + esc(row.name) + "</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";
+            return '<tr><td class="lbd-place"></td><td>' + esc(row.name) + "</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";
           }).join("");
           unHtml = '<div class="lb-flight"><h4 class="lb-flight__title">Unassigned <span class="lb-flight__count">' + data.unassigned.length + ' teams (no Day-1 score yet)</span></h4>'
-            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th class="lbd-place">Place</th><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
             + unTrs + '</tbody></table></div></div>';
         }
         body.innerHTML = stripHtml + (out || '<p class="noms__msg">No Day-1 scores yet — enter scores on the Scores tab.</p>') + unHtml;
