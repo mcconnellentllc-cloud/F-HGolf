@@ -73,6 +73,54 @@ async function sendConfirmationEmail({ email, name, tournament, alternate }) {
   }
 }
 
+// Upsert the Players record so contact info persists across years.
+// Match by case-insensitive Name (the Players table's primary field).
+// PATCH if there's an existing card whose email or phone actually
+// differs; create a new card if no name match. Silent on failure —
+// the signup already succeeded and we do NOT want a Players-table
+// hiccup to affect the signup flow's public 200 response.
+async function upsertPlayerCard({ name, email, phone }, env) {
+  const n = String(name || "").trim();
+  if (!n) return;
+  const table = process.env.PLAYERS_TABLE || "Players";
+  const base = `https://api.airtable.com/v0/${env.AIRTABLE_BASE_ID}/${encodeURIComponent(table)}`;
+  const authRead = { Authorization: `Bearer ${env.AIRTABLE_TOKEN}` };
+  const authWrite = { Authorization: `Bearer ${env.AIRTABLE_TOKEN}`, "Content-Type": "application/json" };
+  try {
+    const safe = n.replace(/"/g, '\\"');
+    const filter = `LOWER({Name})=LOWER("${safe}")`;
+    const listUrl = `${base}?filterByFormula=${encodeURIComponent(filter)}&pageSize=1`;
+    const lr = await fetch(listUrl, { headers: authRead });
+    if (!lr.ok) return; // silent — signup already saved
+    const ld = await lr.json();
+    const existing = (ld.records || [])[0];
+    if (existing) {
+      const cur = existing.fields || {};
+      const patch = {};
+      if (email && String(cur.Email || "").toLowerCase() !== String(email).toLowerCase()) patch.Email = email;
+      if (phone && String(cur.Phone || "") !== String(phone)) patch.Phone = phone;
+      if (!Object.keys(patch).length) return; // nothing changed
+      await fetch(`${base}/${existing.id}`, {
+        method: "PATCH", headers: authWrite,
+        body: JSON.stringify({ fields: patch, typecast: true }),
+      }).catch(() => {});
+      return;
+    }
+    // No existing card — create a fresh one. Only fields we know from
+    // the signup form; the rest can be filled in later on the Player
+    // Card modal.
+    const fields = { Name: n };
+    if (email) fields.Email = email;
+    if (phone) fields.Phone = phone;
+    await fetch(base, {
+      method: "POST", headers: authWrite,
+      body: JSON.stringify({ records: [{ fields }], typecast: true }),
+    }).catch(() => {});
+  } catch (e) {
+    console.error("upsertPlayerCard error", e);
+  }
+}
+
 function escapeHtml(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -145,8 +193,14 @@ module.exports = async (req, res) => {
     for (let attempt = 0; attempt < 8; attempt++) {
       const r = await post(working);
       if (r.ok) {
-        // Fire-and-forget confirmation email — don't block the response on it.
+        // Fire-and-forget: confirmation email + Player card upsert.
+        // Neither blocks the signup response. The Player card upsert
+        // is what makes contact info carry over from year to year —
+        // whatever the player typed on the form becomes the canonical
+        // Players table record, and next year the workbook already
+        // knows their address / phone / email.
         sendConfirmationEmail({ email, name, tournament, alternate }).catch(() => {});
+        upsertPlayerCard({ name, email, phone }, { AIRTABLE_TOKEN, AIRTABLE_BASE_ID }).catch(() => {});
         return res.status(200).json({ ok: true, alternate });
       }
       const detail = await r.text();
