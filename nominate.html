@@ -203,7 +203,7 @@
         });
         var orig = btn.textContent;
         btn.disabled = true; btn.textContent = "Submitting…";
-        fetch(FH_API.url("/api/nominate"), {
+        fetch(FH_API.url("/api/nominations"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
