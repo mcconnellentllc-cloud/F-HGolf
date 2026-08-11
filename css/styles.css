@@ -1349,6 +1349,12 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .tab-filter:focus { border-color: var(--primary-green); outline: none; }
 .tab-toolbar__count { color: var(--muted); font-size: 0.85rem; font-weight: 600; }
 .tab-toolbar--cs { margin-top: 0.4rem; }
+/* Segmented toggle — All / Unpaid / Paid on the Calcutta Buyers tab. */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; background: #fff; padding: 2px; gap: 2px; }
+.seg__btn { appearance: none; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 0.85rem; font-weight: 600; padding: 0.35rem 0.9rem; border-radius: 999px; cursor: pointer; letter-spacing: 0.01em; }
+.seg__btn:hover { color: var(--ink); }
+.seg__btn[aria-selected="true"] { background: var(--primary-green); color: #fff; }
+.seg__btn:focus-visible { outline: 2px solid var(--primary-green); outline-offset: 2px; }
 .lb-sizes { margin-top: 0.5rem; color: var(--muted); font-size: 0.9rem; }
 .lb-flight { margin-bottom: 1.6rem; }
 .lb-flight__title { color: var(--primary-green); font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.5rem; }
