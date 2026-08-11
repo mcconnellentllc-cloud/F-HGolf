@@ -179,7 +179,7 @@ function buildText({ firstName, tournamentName, teams, totalSpent, totalWon, net
   lines.push("It wouldn't be the same weekend without you.");
   lines.push("");
   lines.push("— The F&H Golf Course crew");
-  lines.push("F&H Golf Course · Fleming, Colorado");
+  lines.push("F&H Golf Course");
   lines.push("(970) 774-6362 · fandhgolf.com");
   return lines.join("\n");
 }
@@ -248,7 +248,7 @@ function buildHtml({ firstName, buyerName, tournamentName, teams, totalSpent, to
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
       <tr>
         <td style="background:${brand};padding:28px 28px 22px 28px;">
-          <div style="font:600 13px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#c7dbcf;text-transform:uppercase;letter-spacing:0.14em;">F&amp;H Golf Course · Fleming, CO</div>
+          <div style="font:600 13px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#c7dbcf;text-transform:uppercase;letter-spacing:0.14em;">F&amp;H Golf Course</div>
           <div style="font:700 22px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#ffffff;margin-top:4px;">${esc(tournamentName)}</div>
           <div style="font:15px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#c7dbcf;margin-top:2px;">Calcutta receipt</div>
         </td>
@@ -312,7 +312,7 @@ function buildHtml({ firstName, buyerName, tournamentName, teams, totalSpent, to
       <tr>
         <td style="padding:22px 28px 26px 28px;border-top:1px solid ${border};margin-top:12px;">
           <div style="font:13px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${muted};line-height:1.55;">
-            <strong style="color:${ink};">F&amp;H Golf Course</strong> · Fleming, Colorado<br>
+            <strong style="color:${ink};">F&amp;H Golf Course</strong><br>
             <a href="tel:+19707746362" style="color:${brand};text-decoration:none;">(970) 774-6362</a> ·
             <a href="https://fandhgolf.com" style="color:${brand};text-decoration:none;">fandhgolf.com</a><br>
             Reply to this email to reach the clubhouse — <a href="mailto:clubhouse@fandhgolf.com" style="color:${brand};text-decoration:none;">clubhouse@fandhgolf.com</a>.
@@ -367,7 +367,7 @@ function buildThankYouText({ firstName, tournamentName, tournamentYear, nextYear
   L.push("Thanks again for being part of it. See you next year.");
   L.push("");
   L.push("— The F&H Golf Course crew");
-  L.push("F&H Golf Course · Fleming, Colorado");
+  L.push("F&H Golf Course");
   L.push("(970) 774-6362 · fandhgolf.com");
   return L.join("\n");
 }
@@ -402,7 +402,7 @@ function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYe
       <tr>
         <td style="background:${brand};background:linear-gradient(180deg,${brand} 0%,${brandDeep} 100%);padding:28px 32px 26px 32px;">
           <div style="font:600 12px ${sans};color:${gold};text-transform:uppercase;letter-spacing:0.22em;">F&amp;H Golf Course</div>
-          <div style="font:italic 400 13px ${serif};color:#e8dfc6;margin-top:2px;letter-spacing:0.02em;">Fleming, Colorado · Est. 1961</div>
+          <div style="font:italic 400 13px ${serif};color:#e8dfc6;margin-top:2px;letter-spacing:0.02em;">Est. 1961</div>
           <div style="font:400 22px ${serif};color:#ffffff;margin-top:14px;">${esc(String(tournamentYear))} ${esc(tournamentName)}</div>
           <div style="font:600 12px ${sans};color:${gold};margin-top:8px;text-transform:uppercase;letter-spacing:0.18em;">That&rsquo;s a wrap</div>
         </td>
@@ -463,7 +463,7 @@ function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYe
 
       <tr><td style="padding:22px 32px 30px 32px;border-top:1px solid ${line};">
         <div style="font:13px/1.6 ${sans};color:${muted};">
-          <strong style="color:${ink};font:600 13px ${sans};">F&amp;H Golf Course</strong> · Fleming, Colorado<br>
+          <strong style="color:${ink};font:600 13px ${sans};">F&amp;H Golf Course</strong><br>
           <a href="tel:+19707746362" style="color:${brand};text-decoration:none;">(970) 774-6362</a> · <a href="https://fandhgolf.com" style="color:${brand};text-decoration:none;">fandhgolf.com</a><br>
           Reply to this email to reach the clubhouse — <a href="mailto:clubhouse@fandhgolf.com" style="color:${brand};text-decoration:none;">clubhouse@fandhgolf.com</a>.
         </div>
