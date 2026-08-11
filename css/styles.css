@@ -1437,6 +1437,14 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 
 /* Public-display tab body (Calcutta Disp / Leaderboard Disp workbooks). */
 .disp-tab { display: flex; flex-direction: column; gap: 0.75rem; }
+.disp-warn { background: #fff8e5; border: 2px solid #d9a422; border-radius: 10px; padding: 1rem 1.15rem; margin: 0.75rem 0 1rem; }
+.disp-warn__title { font-size: 1.05rem; font-weight: 800; color: #7a5a06; letter-spacing: 0.02em; margin-bottom: 0.5rem; }
+.disp-warn p { margin: 0.35rem 0; font-size: 0.92rem; line-height: 1.5; color: #4a3806; }
+.disp-warn__lede { font-weight: 600; }
+.disp-warn__how b { color: #1a1a1a; }
+.disp-warn a { color: #6a4a06; font-weight: 700; text-decoration: underline; }
+.disp-warn a:hover { color: #000; }
+.disp-warn kbd { display: inline-block; padding: 0.05rem 0.4rem; border: 1px solid #d9a422; border-radius: 4px; background: #fff; color: #1a1a1a; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 0.82rem; font-weight: 700; line-height: 1.2; box-shadow: 0 1px 0 rgba(0,0,0,0.08); }
 .disp-tab__row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .disp-tab__url { flex: 1; min-width: 14rem; padding: 0.55rem 0.7rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: var(--paper-2); color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
 .disp-tab__hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
@@ -1503,6 +1511,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .pr-tee__side-slot { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
 .pr-tee__side-thru { font-size: 0.65rem; margin-top: 0.35rem; opacity: 0.65; letter-spacing: 0.05em; text-transform: uppercase; }
 .pr-tee__cards { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0.55rem 0.7rem; align-items: stretch; }
+.pr-tee__cards--trio { grid-template-columns: 1fr 1fr 1fr; }
 
 /* Team card — Bulldog-style (Team # header + player list). Draggable. */
 .pr-team { display: flex; flex-direction: column; padding: 0.5rem 0.6rem; border-radius: 8px; background: #fff; border: 1px solid var(--line); cursor: grab; user-select: none; text-align: left; }
