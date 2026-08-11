@@ -5965,16 +5965,20 @@
       // inches so the browser's print engine lays them out to physical
       // scale on the check stock.
       function _checkPageHtml(o) {
-        // o: { payee, amount, memo, tournament, note, teamName, category }
+        // o: { payee, amount, memo, tournament, note, teamName, category, checkNumber }
         var amt = Number(o.amount) || 0;
         var amtStr = "$" + amt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         var words = _numToWords(amt);
         var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); };
         var stubLines = [];
+        if (o.checkNumber) stubLines.push('<div class="stub__line"><span>Check #</span><b>' + esc(o.checkNumber) + '</b></div>');
         if (o.tournament) stubLines.push('<div class="stub__line"><span>Tournament</span><b>' + esc(o.tournament) + '</b></div>');
         if (o.teamName)   stubLines.push('<div class="stub__line"><span>Team</span><b>' + esc(o.teamName) + '</b></div>');
         if (o.note)       stubLines.push('<div class="stub__line"><span>For</span><b>' + esc(o.note) + '</b></div>');
         stubLines.push('<div class="stub__line stub__line--tot"><span>Amount</span><b>' + esc(amtStr) + '</b></div>');
+        // Check # in the stub H3 so it's the first thing the operator's
+        // eye lands on when filing the voucher.
+        var h3 = (o.checkNumber ? '#' + esc(o.checkNumber) + ' &middot; ' : '') + esc(o.payee) + ' &middot; ' + esc(amtStr);
         return ''
           + '<div class="check-page">'
           +   '<div class="field field-date">' + esc(_todayMDY()) + '</div>'
@@ -5983,10 +5987,32 @@
           +   '<div class="field field-amount-words">' + esc(words) + '</div>'
           +   '<div class="field field-memo">' + esc(o.memo || "") + '</div>'
           +   '<div class="stub">'
-          +     '<h3>' + esc(o.payee) + ' &middot; ' + esc(amtStr) + '</h3>'
+          +     '<h3>' + h3 + '</h3>'
           +     stubLines.join("")
           +   '</div>'
           + '</div>';
+      }
+      // Ask the operator for the starting check number for this batch of
+      // N checks. Default = last-used stored in localStorage + 1, so a
+      // second batch that day picks up right where the first left off.
+      // Blank input = print with no numbers on the stub (operator will
+      // fill them in by hand). Cancel = abort the whole print.
+      // Returns { start: number|null, cancelled: bool }.
+      function _promptStartingCheckNumber(count) {
+        var last = 0;
+        try { last = parseInt(localStorage.getItem("fh:lastCheckNumber"), 10) || 0; } catch (e) {}
+        var suggested = last > 0 ? String(last + 1) : "";
+        var msg = "Starting check number for this batch of " + count + " check" + (count === 1 ? "" : "s") + "?\n\n"
+                + "Checks will number sequentially — for example, 1015, 1016, 1017…\n\n"
+                + "Leave blank to print without numbers (write them in by hand).\n"
+                + "Click Cancel to abort the print.";
+        var raw = window.prompt(msg, suggested);
+        if (raw === null) return { start: null, cancelled: true };
+        var s = String(raw).trim();
+        if (!s) return { start: null, cancelled: false };
+        var n = parseInt(s.replace(/[^0-9]/g, ""), 10);
+        if (isNaN(n) || n <= 0) return { start: null, cancelled: false };
+        return { start: n, cancelled: false };
       }
       // Open a print window populated with one page per check. Positions
       // target QuickBooks-standard business voucher check stock. Popup
@@ -5995,6 +6021,18 @@
         if (!checks || !checks.length) {
           alert("No checks to print in this batch.");
           return;
+        }
+        // Ask for the starting number, then assign sequentially in order.
+        // Blank input → no numbers on the stubs; operator writes them by
+        // hand. Cancel → don't print at all. Persist the last-used number
+        // so the next batch's default picks up right where this one ends.
+        var prompt = _promptStartingCheckNumber(checks.length);
+        if (prompt.cancelled) return;
+        if (prompt.start != null) {
+          for (var i = 0; i < checks.length; i++) {
+            checks[i].checkNumber = String(prompt.start + i);
+          }
+          try { localStorage.setItem("fh:lastCheckNumber", String(prompt.start + checks.length - 1)); } catch (e) {}
         }
         var pages = checks.map(_checkPageHtml).join("");
         var css = ''
