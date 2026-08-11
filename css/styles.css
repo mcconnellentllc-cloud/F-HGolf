@@ -1347,6 +1347,8 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .tab-toolbar { display: flex; gap: 0.5rem; align-items: center; margin: 0 0 0.7rem 0; }
 .tab-filter { flex: 1; max-width: 24rem; padding: 0.55rem 0.8rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.92rem; background: #fff; }
 .tab-filter:focus { border-color: var(--primary-green); outline: none; }
+.tab-toolbar__count { color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+.tab-toolbar--cs { margin-top: 0.4rem; }
 .lb-sizes { margin-top: 0.5rem; color: var(--muted); font-size: 0.9rem; }
 .lb-flight { margin-bottom: 1.6rem; }
 .lb-flight__title { color: var(--primary-green); font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.5rem; }
@@ -1917,7 +1919,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 @media print {
   body.is-print-cs > *:not(.wb-sheet[data-sheet="calcuttaSummary"]) { display: none !important; }
   body.is-print-cs .wb-sheet[data-sheet="calcuttaSummary"] { display: block !important; padding: 0; margin: 0; }
-  body.is-print-cs .noms__bar, body.is-print-cs .scaffold__desc, body.is-print-cs .cs-strip { display: none !important; }
+  body.is-print-cs .noms__bar, body.is-print-cs .scaffold__desc, body.is-print-cs .cs-strip, body.is-print-cs .tab-toolbar { display: none !important; }
   body.is-print-cs .cs-grid { display: block; }
   body.is-print-cs .cs-card { display: none; }
   body.is-print-cs .cs-card--printing { display: block; page-break-inside: avoid; background: #fff !important; border: 2pt solid #1B5E20; border-radius: 6pt; box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
