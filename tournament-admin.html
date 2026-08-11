@@ -4724,7 +4724,8 @@
             var a = d1g(r), b = d2g(r);
             var hcp = (a != null && leader != null) ? Math.round((a - leader) * mult) : null;
             var gross = (a != null || b != null) ? ((a == null ? 0 : a) + (b == null ? 0 : b)) : null;
-            var net = (gross != null && hcp != null) ? (gross - hcp) : null;
+            // Calcutta net = Day 2 gross − HCP only (Day 1 sets flight/hcp).
+            var net = (b != null && hcp != null) ? (b - hcp) : null;
             var buyer = String(f.Buyer || "");
             var amt = (typeof f["Buy Amount"] === "number") ? f["Buy Amount"] : null;
             return { id: r.id, rec: r, name: teamShortNames(f), buyer: buyer, amount: amt, a: a, b: b, hcp: hcp, net: net };
@@ -4967,8 +4968,13 @@
           fl.rows.forEach(function (row) {
             if (row.d1 != null && leader != null) {
               row.hcp = Math.round((row.d1 - leader) * mult);
-              // Net = 2-day gross − HCP (not just Day 2 − HCP).
-              if (row.gross != null) row.net = row.gross - row.hcp;
+              // Calcutta / leaderboard net = Day 2 gross − HCP only.
+              // Handicaps are set from Day 1 flight standing, so Day 1
+              // is treated as "gross-only" and doesn't count against
+              // the handicap on the net side. Net stays null until
+              // Day 2 has data — Calcutta places don't get assigned
+              // to teams that haven't played Day 2 yet.
+              if (row.d2 != null) row.net = row.d2 - row.hcp;
             }
           });
           // Place by 2-day gross (ascending), ties get same place, next place skips.
@@ -6027,7 +6033,7 @@
 
           + '<div class="calc__grp"><h4>Handicap</h4>'
           + '<label class="calc__row">Multiplier (× stroke difference) ' + numIn("cMult", c.handicapMultiplier) + "</label>"
-          + '<p class="calc__note">HCP = (team Day-1 gross − flight-leader Day-1 gross) × multiplier. Net = 2-day gross − HCP.</p></div>'
+          + '<p class="calc__note">HCP = (team Day-1 gross − flight-leader Day-1 gross) × multiplier. Net = Day 2 gross − HCP. Calcutta places are decided on Day 2 net only; Day 1 sets the flight + handicap.</p></div>'
 
           + '<div class="calc__grp"><h4>Flight prizes</h4>'
           + '<div class="calc__totals" id="calcFlightTotals"></div>'
