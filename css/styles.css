@@ -1519,6 +1519,12 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .pr-team.is-drag { opacity: 0.35; cursor: grabbing; }
 .pr-team__hd { border-bottom: 1px solid var(--line); margin-bottom: 0.3rem; padding-bottom: 0.25rem; display: flex; align-items: baseline; gap: 0.5rem; }
 .pr-team__num { font-family: var(--font-display); font-weight: 800; font-size: 0.95rem; color: var(--ink); }
+/* Day 1 gross chip — only rendered in Day 2 view, sits to the right of
+   the Team ## badge so the operator can compare scores at a glance
+   while dragging teams around. */
+.pr-team__d1 { margin-left: auto; font: 700 0.72rem/1 -apple-system, "Segoe UI", Roboto, sans-serif; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0.2rem 0.5rem; border-radius: 999px; background: var(--panel-bg, #f4f0e5); border: 1px solid var(--line); white-space: nowrap; }
+.pr-team__d1 b { font-size: 0.95rem; color: var(--primary-green); margin-left: 0.15rem; letter-spacing: -0.01em; }
+.pr-team__d1--pending b { color: var(--muted); }
 .pr-team__players { display: flex; flex-direction: column; gap: 0.05rem; font-size: 0.9rem; }
 .pr-team__player { color: var(--ink); font-weight: 600; }
 .pr-team--empty { background: transparent; border: 1px dashed var(--line); color: var(--muted); font-style: italic; font-size: 0.82rem; font-weight: 400; text-align: center; display: flex; align-items: center; justify-content: center; padding: 1rem 0.5rem; cursor: default; }
