@@ -177,6 +177,7 @@
         <section class="noms wb-sheet" data-sheet="money" id="twExpenses" aria-label="Expenses and P and L">
           <div class="noms__bar">
             <h3 class="noms__title">Expenses &amp; P&amp;L</h3>
+            <button class="btn btn--solid" type="button" id="plPrintCourseCheck" title="Print the check written to F&amp;H Golf Course on pre-printed check stock">Print check to course</button>
             <button class="btn btn--solid" type="button" id="expRefresh">Refresh</button>
           </div>
           <div class="pl" id="twPL"></div>
@@ -318,6 +319,8 @@
           <div class="noms__bar">
             <h3 class="noms__title">Payout</h3>
             <div class="noms__bar-actions">
+              <button class="btn btn--solid" type="button" id="poPrintChecksAm" title="Print pre-printed checks for teams playing the Sunday A.M. shotgun">Print AM checks</button>
+              <button class="btn btn--solid" type="button" id="poPrintChecksPm" title="Print pre-printed checks for teams playing the Sunday P.M. shotgun">Print PM checks</button>
               <button class="btn btn--primary" type="button" id="poPrint">Print now</button>
             </div>
           </div>
@@ -5876,6 +5879,206 @@
       }
 
       // ---- Payout tab (checks to write) ----
+      // ---- Check printing (pre-printed check stock) --------------------
+      // Positions target the QuickBooks-standard business voucher check —
+      // check portion at the top 3.5" of an 8.5" × 11" sheet, one voucher
+      // stub below. If a course later uses different stock, the .field
+      // positions in the print HTML are the only thing to nudge.
+      function _numToWords(n) {
+        // Amount-in-words for the check body: "One thousand two hundred
+        // thirty-four and 56/100". Handles values up to $999,999.99, which
+        // covers any tournament payout we'd ever write.
+        var num = Math.max(0, Number(n) || 0);
+        var dollars = Math.floor(num);
+        var cents = Math.round((num - dollars) * 100);
+        var ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+                    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+                    "Seventeen", "Eighteen", "Nineteen"];
+        var tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+        function under1000(v) {
+          if (v === 0) return "";
+          var s = "";
+          if (v >= 100) { s += ones[Math.floor(v / 100)] + " Hundred"; v = v % 100; if (v) s += " "; }
+          if (v >= 20) { s += tens[Math.floor(v / 10)]; if (v % 10) s += "-" + ones[v % 10]; }
+          else if (v > 0) { s += ones[v]; }
+          return s;
+        }
+        var words;
+        if (dollars === 0) {
+          words = "Zero";
+        } else {
+          var parts = [];
+          var thousands = Math.floor(dollars / 1000);
+          var rem = dollars % 1000;
+          if (thousands > 0) parts.push(under1000(thousands) + " Thousand");
+          if (rem > 0) parts.push(under1000(rem));
+          words = parts.join(" ");
+        }
+        var centStr = (cents < 10 ? "0" : "") + cents;
+        return words + " and " + centStr + "/100";
+      }
+      function _todayMDY() {
+        var d = new Date();
+        var mm = String(d.getMonth() + 1).padStart(2, "0");
+        var dd = String(d.getDate()).padStart(2, "0");
+        return mm + "/" + dd + "/" + d.getFullYear();
+      }
+      // "8 AM" | "1 PM" → "AM" | "PM". Uses Day 2 Start (Sunday shotgun).
+      // Falls back to Day 1 Start if a team hasn't been assigned to a Day 2
+      // wave yet — better to still print the check than to drop it.
+      function _teamWave(rec) {
+        var f = (rec && rec.fields) || {};
+        var s = String(f["Day 2 Start"] || f["Start"] || "").toUpperCase();
+        if (s.indexOf("AM") !== -1 || s.indexOf("8") !== -1) return "AM";
+        if (s.indexOf("PM") !== -1 || s.indexOf("1 P") !== -1) return "PM";
+        return "";
+      }
+      // Build one voucher-check page as an HTML string. Positions are in
+      // inches so the browser's print engine lays them out to physical
+      // scale on the check stock.
+      function _checkPageHtml(o) {
+        // o: { payee, amount, memo, tournament, note, teamName, category }
+        var amt = Number(o.amount) || 0;
+        var amtStr = "$" + amt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var words = _numToWords(amt);
+        var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); };
+        var stubLines = [];
+        if (o.tournament) stubLines.push('<div class="stub__line"><span>Tournament</span><b>' + esc(o.tournament) + '</b></div>');
+        if (o.teamName)   stubLines.push('<div class="stub__line"><span>Team</span><b>' + esc(o.teamName) + '</b></div>');
+        if (o.note)       stubLines.push('<div class="stub__line"><span>For</span><b>' + esc(o.note) + '</b></div>');
+        stubLines.push('<div class="stub__line stub__line--tot"><span>Amount</span><b>' + esc(amtStr) + '</b></div>');
+        return ''
+          + '<div class="check-page">'
+          +   '<div class="field field-date">' + esc(_todayMDY()) + '</div>'
+          +   '<div class="field field-payee">' + esc(o.payee) + '</div>'
+          +   '<div class="field field-amount-num">' + esc(amtStr) + '</div>'
+          +   '<div class="field field-amount-words">' + esc(words) + '</div>'
+          +   '<div class="field field-memo">' + esc(o.memo || "") + '</div>'
+          +   '<div class="stub">'
+          +     '<h3>' + esc(o.payee) + ' &middot; ' + esc(amtStr) + '</h3>'
+          +     stubLines.join("")
+          +   '</div>'
+          + '</div>';
+      }
+      // Open a print window populated with one page per check. Positions
+      // target QuickBooks-standard business voucher check stock. Popup
+      // blocker fallback: warns the operator and returns.
+      function _openCheckPrintWindow(title, checks) {
+        if (!checks || !checks.length) {
+          alert("No checks to print in this batch.");
+          return;
+        }
+        var pages = checks.map(_checkPageHtml).join("");
+        var css = ''
+          + '@page { size: 8.5in 11in; margin: 0; }'
+          + 'html, body { margin: 0; padding: 0; background: #fff; color: #000; }'
+          + '.check-page { position: relative; width: 8.5in; height: 11in; page-break-after: always; overflow: hidden; }'
+          + '.check-page:last-child { page-break-after: auto; }'
+          + '.field { position: absolute; font-family: "Courier New", Courier, monospace; color: #000; }'
+          + '.field-date { top: 0.62in; left: 6.55in; width: 1.7in; font-size: 11pt; text-align: left; }'
+          + '.field-payee { top: 1.05in; left: 1.15in; width: 5.4in; font-size: 12pt; letter-spacing: 0.01em; }'
+          + '.field-amount-num { top: 1.05in; left: 7.05in; width: 1.3in; font-size: 12pt; text-align: right; }'
+          + '.field-amount-words { top: 1.5in; left: 0.55in; width: 7.4in; font-size: 11pt; }'
+          + '.field-memo { top: 2.72in; left: 0.85in; width: 3.9in; font-size: 10pt; }'
+          + '.stub { position: absolute; top: 4in; left: 0.5in; right: 0.5in; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #222; padding-top: 0.5in; border-top: 1px dashed #999; }'
+          + '.stub h3 { margin: 0 0 0.15in 0; font-size: 12pt; }'
+          + '.stub__line { display: flex; justify-content: space-between; padding: 0.05in 0; border-bottom: 1px dotted #ddd; font-size: 10pt; }'
+          + '.stub__line b { font-weight: 700; }'
+          + '.stub__line--tot { margin-top: 0.1in; border-bottom: none; border-top: 2px solid #000; padding-top: 0.15in; font-size: 12pt; }'
+          + '@media screen { body { background: #eee; padding: 20px; } .check-page { background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.15); margin: 0 auto 20px; } }';
+        var doc = '<!doctype html><html><head><meta charset="utf-8"><title>' + title + '</title><style>' + css + '</style></head><body>' + pages + '<script>window.addEventListener("load",function(){setTimeout(function(){window.print();},250);});<\/script></body></html>';
+        var w = window.open("", "_blank");
+        if (!w) { alert("Enable popups for this site so the checks can open in a new window."); return; }
+        w.document.open();
+        w.document.write(doc);
+        w.document.close();
+      }
+      // Print flight-winnings + Calcutta checks for one Sunday wave. Uses
+      // each team's Day 2 Start to bucket. Called by the AM / PM Payout
+      // toolbar buttons.
+      function printPayoutChecksForWave(wave) {
+        if (!scAllCache) { alert("Data still loading. Try again in a moment."); return; }
+        var all = scAllCache;
+        var recs = all.filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        if (!recs.length) { alert("No teams to pay yet."); return; }
+        var m = computeMoney(all);
+        var data = computeLeaderboardData(recs, m.cfg);
+        var checks = [];
+        var byId = {};
+        recs.forEach(function (r) { byId[r.id] = r; });
+        data.flights.forEach(function (fl) {
+          // Flight winnings
+          var flPrizes = m.flightPrizes;
+          var byPlace = {};
+          fl.rows.forEach(function (r) { if (r.grossPlace && r.grossPlace <= m.flightSplit.length) (byPlace[r.grossPlace] = byPlace[r.grossPlace] || []).push(r); });
+          Object.keys(byPlace).forEach(function (p) {
+            var place = Number(p), teams = byPlace[p];
+            var combined = 0;
+            for (var i = 0; i < teams.length; i++) { var rank = place - 1 + i; if (rank < flPrizes.length) combined += flPrizes[rank]; }
+            var each = combined / teams.length;
+            teams.forEach(function (t) {
+              if (_teamWave(t.rec) !== wave) return;
+              checks.push({
+                payee: t.name,
+                amount: each,
+                memo: fl.name + " Flight " + ordinal(place) + " place",
+                tournament: KEY,
+                teamName: t.name,
+                note: fl.name + " Flight — " + ordinal(place) + " place gross" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
+              });
+            });
+          });
+          // Calcutta payouts (paid to the buyer, tied to team wave)
+          var caPool = fl.rows.reduce(function (s, r) { var v = r.rec && r.rec.fields && r.rec.fields["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
+          var caPayout = Math.max(0, caPool * (1 - m.calcuttaCommissionPct / 100));
+          var caPrizes = m.calSplit.map(function (pct) { return caPayout * (pct / 100); });
+          var byNet = {};
+          fl.rows.forEach(function (r) { if (r.netPlace && r.netPlace <= m.calSplit.length) (byNet[r.netPlace] = byNet[r.netPlace] || []).push(r); });
+          Object.keys(byNet).forEach(function (p) {
+            var place = Number(p), teams = byNet[p];
+            var combined = 0;
+            for (var i = 0; i < teams.length; i++) { var rank = place - 1 + i; if (rank < caPrizes.length) combined += caPrizes[rank]; }
+            var each = combined / teams.length;
+            teams.forEach(function (t) {
+              if (_teamWave(t.rec) !== wave) return;
+              var buyer = (t.buyer && t.buyer.trim()) || "(no buyer)";
+              checks.push({
+                payee: buyer,
+                amount: each,
+                memo: fl.name + " Flight Calcutta " + ordinal(place) + " (team " + t.name + ")",
+                tournament: KEY,
+                teamName: t.name,
+                note: fl.name + " Flight Calcutta — " + ordinal(place) + " net" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
+              });
+            });
+          });
+        });
+        if (!checks.length) {
+          alert("No " + wave + " checks to print — no teams in the Sunday " + wave + " shotgun have winnings yet.");
+          return;
+        }
+        _openCheckPrintWindow("F&H Founders — " + wave + " checks (" + checks.length + ")", checks);
+      }
+      // Print the single check that goes from the tournament account to
+      // F&H Golf Course. Amount = green fees + meals + extra meals + cart
+      // rentals + other + Calcutta commission (same total the $ Summary
+      // page shows in "Check to write to the course").
+      function printCourseCheck() {
+        if (!scAllCache) { alert("Data still loading. Try again in a moment."); return; }
+        var m = computeMoney(scAllCache);
+        var courseTotal = (m.greenFees || 0) + (m.meals || 0) + (m.extraMealsRevenue || 0) + (m.cartRentalRevenue || 0) + (m.otherRevenue || 0) + (m.calcuttaCommission || 0);
+        if (courseTotal <= 0) { alert("Course total is $0 — nothing to pay yet."); return; }
+        var checks = [{
+          payee: "F&H Golf Course",
+          amount: courseTotal,
+          memo: KEY + " — course hosting settlement",
+          tournament: KEY,
+          teamName: "",
+          note: "Green fees, meals, cart rentals, and Calcutta commission"
+        }];
+        _openCheckPrintWindow("F&H Founders — check to course", checks);
+      }
+
       function renderPayout(all) {
         var body = document.getElementById("poBody"); if (!body) return;
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
@@ -7108,6 +7311,12 @@
           setTimeout(function () { window.print(); }, 30);
           setTimeout(cleanup, 2000);
         });
+        var poAm = document.getElementById("poPrintChecksAm");
+        if (poAm) poAm.addEventListener("click", function () { printPayoutChecksForWave("AM"); });
+        var poPm = document.getElementById("poPrintChecksPm");
+        if (poPm) poPm.addEventListener("click", function () { printPayoutChecksForWave("PM"); });
+        var plCk = document.getElementById("plPrintCourseCheck");
+        if (plCk) plCk.addEventListener("click", printCourseCheck);
         var prp = document.getElementById("prPrint");
         if (prp) prp.addEventListener("click", function () {
           var sel = document.getElementById("prPrintWhich");
