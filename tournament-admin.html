@@ -1359,12 +1359,98 @@
             if (!j || !j.ok) throw new Error(j && j.error || "archive failed");
           })
           .then(function () {
-            alert("Snapshot committed to History. Nothing was cleared -- all scores, buyers, paid marks stay on the Signups records. Switch to the History tab to see the archive.");
+            // Non-blocking: offer to send the thank-you + next-year-signup
+            // email to every player with an address on file. Cancel skips
+            // the send and just tells the operator the snapshot is done.
+            offerThankYouEmailBlast(name, Number(year));
             loadRoster();
           })
           .catch(function (e) {
             alert("Could not commit to history: " + (e && e.message ? e.message : e));
           });
+      }
+      // Gather every player + email from the field, dedupe by address, and
+      // offer to send the post-tournament thank-you + save-your-spot email.
+      // Player 1 email comes from the signup record; Player 2 (and any
+      // additional partners) come from the Players roster cache.
+      function offerThankYouEmailBlast(tournamentDisplayName, tournamentYear) {
+        var recs = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        ensurePlayersCache().then(function (cache) {
+          var byEmail = {}; // email(lc) → { email, name }
+          function add(rawName, rawEmail) {
+            var name = String(rawName || "").trim();
+            var em = String(rawEmail || "").trim();
+            if (!name || !em) return;
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return;
+            var k = em.toLowerCase();
+            if (!byEmail[k]) byEmail[k] = { email: em, name: name };
+          }
+          recs.forEach(function (r) {
+            var f = r.fields || {};
+            add(f["Player Name"], f["Email"]);
+            String(f["Team / Partners"] || "").split(/\s*\/\s*/).forEach(function (p) {
+              var partnerName = String(p || "").trim();
+              if (!partnerName) return;
+              var em = (cache && cache.byNameLc && cache.byNameLc[partnerName.toLowerCase()] || {}).email;
+              add(partnerName, em);
+            });
+          });
+          var recipients = Object.keys(byEmail).map(function (k) { return byEmail[k]; });
+          recipients.sort(function (a, b) { return a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
+
+          var total = recs.length * 2; // upper-bound approximation for the message
+          var msg = "Snapshot committed to History ✓\n\nSend a thank-you + next-year signup email to "
+                  + recipients.length + " player" + (recipients.length === 1 ? "" : "s") + " with an email on file?\n\n"
+                  + "Each email links to the final leaderboard, invites them to save their spot for "
+                  + (tournamentYear + 1) + ", and explains the July 25 signup / August 1 paid-priority dates.\n\n"
+                  + "Click OK to send. Cancel skips the emails — the snapshot is already saved either way.";
+          if (!recipients.length) {
+            alert("Snapshot committed to History ✓\n\nNo player emails on file — nothing to send. Add addresses on the Check-In cards next year to reach every player.");
+            return;
+          }
+          if (!confirm(msg)) return;
+          sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear);
+        }).catch(function () {
+          alert("Snapshot committed. Couldn't load the player roster to send thank-you emails — try again from the History tab if you want to send them manually.");
+        });
+      }
+      // Send one email per recipient, sequentially, with a small delay so
+      // Resend's rate limit stays happy. Progress is shown via inline
+      // banner; summary alert at the end. Failures are collected and
+      // reported by name.
+      function sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear) {
+        var btn = document.getElementById("plCommit");
+        var origLabel = btn ? btn.textContent : "";
+        var sent = 0, failed = [];
+        function step(i) {
+          if (i >= recipients.length) {
+            if (btn) { btn.disabled = false; btn.textContent = origLabel || "Commit snapshot to History →"; }
+            var summary = "Sent " + sent + " of " + recipients.length + " thank-you email"
+                        + (recipients.length === 1 ? "" : "s") + ".";
+            if (failed.length) summary += "\n\nFailed: " + failed.join(", ");
+            alert(summary);
+            return;
+          }
+          var r = recipients[i];
+          if (btn) { btn.disabled = true; btn.textContent = "Emailing " + (i + 1) + " / " + recipients.length + "…"; }
+          fetch(FH_API.url("/api/calcutta-receipt"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify({
+              template: "thankYou",
+              to: r.email,
+              playerName: r.name,
+              tournamentName: tournamentDisplayName || "F&H Founders Tournament",
+              tournamentYear: tournamentYear,
+              leaderboardUrl: "https://fandhgolf.com/founders-leaderboard-display.html",
+              signupUrl: "https://fandhgolf.com/tournaments.html"
+            })
+          }).then(function (res) { return res.json().catch(function () { return { ok: false }; }); })
+            .then(function (j) { if (j && j.ok) sent++; else failed.push(r.name); })
+            .catch(function () { failed.push(r.name); })
+            .then(function () { setTimeout(function () { step(i + 1); }, 300); });
+        }
+        step(0);
       }
       // Locked-away "reset for next year" flow. Requires the operator to
       // type the year exactly ("2026", "2027", ...) before clearing runs,
