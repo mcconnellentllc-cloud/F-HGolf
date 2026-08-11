@@ -5923,6 +5923,34 @@
         var dd = String(d.getDate()).padStart(2, "0");
         return mm + "/" + dd + "/" + d.getFullYear();
       }
+      // Full legal names of every player on a team, in signup order.
+      // Player 1 comes from "Player Name"; the rest from "Team / Partners"
+      // (split on "/"). Used for check printing — banks reject checks
+      // made out to "Player A / Player B", so flight winnings are split
+      // one check per player.
+      function _teamPlayerNames(rec) {
+        var f = (rec && rec.fields) || {};
+        var names = [];
+        var p1 = String(f["Player Name"] || "").trim();
+        if (p1) names.push(p1);
+        String(f["Team / Partners"] || "").split(/\s*\/\s*/).forEach(function (p) {
+          var s = String(p || "").trim();
+          if (s) names.push(s);
+        });
+        return names;
+      }
+      // Split a dollar amount evenly across N recipients to the cent.
+      // Any leftover cent goes on the last recipient so the sum matches
+      // the original exactly. Returns an array of length N in dollars.
+      function _splitEvenly(amount, n) {
+        n = Math.max(1, n | 0);
+        var cents = Math.round((Number(amount) || 0) * 100);
+        var per = Math.floor(cents / n);
+        var rem = cents - per * n;
+        var out = [];
+        for (var i = 0; i < n; i++) out.push((per + (i === n - 1 ? rem : 0)) / 100);
+        return out;
+      }
       // "8 AM" | "1 PM" → "AM" | "PM". Uses Day 2 Start (Sunday shotgun).
       // Falls back to Day 1 Start if a team hasn't been assigned to a Day 2
       // wave yet — better to still print the check than to drop it.
@@ -6018,13 +6046,23 @@
             var each = combined / teams.length;
             teams.forEach(function (t) {
               if (_teamWave(t.rec) !== wave) return;
-              checks.push({
-                payee: t.name,
-                amount: each,
-                memo: fl.name + " Flight " + ordinal(place) + " place",
-                tournament: KEY,
-                teamName: t.name,
-                note: fl.name + " Flight — " + ordinal(place) + " place gross" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
+              // Split the team's flight winnings evenly across every
+              // player on the team — banks won't cash a check made out
+              // to both names, so each player gets their own check.
+              var players = _teamPlayerNames(t.rec);
+              if (!players.length) players = [t.name]; // fallback: no player fields → single team check
+              var shares = _splitEvenly(each, players.length);
+              players.forEach(function (playerName, idx) {
+                checks.push({
+                  payee: playerName,
+                  amount: shares[idx],
+                  memo: fl.name + " Flight " + ordinal(place) + " place",
+                  tournament: KEY,
+                  teamName: t.name,
+                  note: fl.name + " Flight — " + ordinal(place) + " place gross"
+                    + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
+                    + (players.length > 1 ? " · " + (idx + 1) + " of " + players.length + " players" : "")
+                });
               });
             });
           });
