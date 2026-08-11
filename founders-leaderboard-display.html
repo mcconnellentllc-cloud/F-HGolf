@@ -298,7 +298,10 @@
           rows.forEach(function (r) {
             if (r.d1 != null && leader != null) {
               r.hcp = Math.round((r.d1 - leader) * HCP_MULT);
-              if (r.gross != null) r.net = r.gross - r.hcp;
+              // Net for Calcutta places = Day 2 gross − HCP only.
+              // Day 1 sets flights + handicaps; only Day 2 counts against
+              // the handicap. Net stays null until Day 2 is entered.
+              if (r.d2 != null) r.net = r.d2 - r.hcp;
             }
           });
           rankPlaces(rows, "gross", "grossPlace");
