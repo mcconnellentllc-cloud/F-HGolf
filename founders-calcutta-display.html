@@ -204,22 +204,38 @@
       var pageUrl = location.origin + location.pathname;
       urlEl.textContent = pageUrl.replace(/^https?:\/\//, "");
       var rendered = false;
-      function open() {
-        modal.classList.add("is-open");
-        // First open: try to draw the QR. If qrcode.js isn't loaded yet
-        // (slow network), retry once after a beat before giving up.
-        if (rendered) return;
-        function draw() {
-          if (typeof QRCode === "undefined" || !QRCode.toCanvas) {
-            card.innerHTML = '<div class="qrshow__err">QR generator didn’t load &mdash; use the URL below.</div>';
-            return;
-          }
+      // Fallback chain: 1) local QR library (crisp canvas), 2) public
+      // QR image API, 3) URL only. Any failure at one tier flips to the
+      // next so the operator never sees a blank card.
+      function drawWithLib() {
+        try {
           QRCode.toCanvas(canvas, pageUrl, { width: 640, margin: 1, color: { dark: "#0b1a10", light: "#ffffff" } }, function (err) {
-            if (err) { card.innerHTML = '<div class="qrshow__err">Couldn’t draw QR &mdash; use the URL below.</div>'; }
+            if (err) drawWithImg();
           });
           rendered = true;
-        }
-        if (typeof QRCode === "undefined") { setTimeout(draw, 400); } else { draw(); }
+        } catch (e) { drawWithImg(); }
+      }
+      function drawWithImg() {
+        var src = "https://api.qrserver.com/v1/create-qr-code/?size=640x640&margin=8&data=" + encodeURIComponent(pageUrl);
+        card.innerHTML = '<img class="qrshow__canvas" alt="Scan to open live Calcutta auction" style="width:100%;height:100%;object-fit:contain;background:#fff;border-radius:12px;" src="' + src + '" />';
+        var img = card.querySelector("img");
+        if (img) img.addEventListener("error", function () {
+          card.innerHTML = '<div class="qrshow__err">Couldn’t draw QR &mdash; use the URL below.</div>';
+        });
+        rendered = true;
+      }
+      function open() {
+        modal.classList.add("is-open");
+        if (rendered) return;
+        // Poll for the CDN library up to ~3s; if it doesn't land,
+        // fall back to the image API. Either way, one of the tiers wins.
+        var waited = 0;
+        (function poll() {
+          if (typeof QRCode !== "undefined" && QRCode.toCanvas) { drawWithLib(); return; }
+          waited += 150;
+          if (waited < 3000) { setTimeout(poll, 150); return; }
+          drawWithImg();
+        })();
       }
       function close() { modal.classList.remove("is-open"); }
       btn.addEventListener("click", open);
