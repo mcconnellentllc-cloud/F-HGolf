@@ -659,6 +659,14 @@
           <span>Notes</span>
           <textarea id="pmNotes" rows="2"></textarea>
         </label>
+        <div class="pm-history" id="pmHistory" hidden>
+          <div class="pm-history__hd">
+            <h4 class="pm-history__title">Tournament history</h4>
+            <span class="pm-history__count" id="pmHistoryCount"></span>
+          </div>
+          <div class="pm-history__body" id="pmHistoryBody"></div>
+          <p class="pm-history__hint">Matched by first-initial + last-name against every archived leaderboard &amp; Calcutta payout. Fuzzy — check names carefully.</p>
+        </div>
       </div>
       <div class="pm-modal__foot">
         <button type="button" class="btn btn--solid" id="pmCancel">Cancel</button>
@@ -1223,16 +1231,36 @@
           + "Sponsors, volunteers, the pro shop, the kitchen -- one paragraph.\n";
       }
 
+      // Cached history archives — populated on first History tab open (or
+      // on first Player Card open, whichever comes first). Reused by the
+      // Player Card modal to build the personal-history section without
+      // a second round-trip.
+      var _histCache = null;
+      var _histInFlight = null;
+      function ensureHistoryCache() {
+        if (_histCache) return Promise.resolve(_histCache);
+        if (_histInFlight) return _histInFlight;
+        _histInFlight = fetch(FH_API.url("/api/tournament-signups?archives=1"), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var recs = (j && j.ok && j.records) || [];
+            _histCache = recs;
+            _histInFlight = null;
+            return recs;
+          })
+          .catch(function () { _histInFlight = null; _histCache = []; return []; });
+        return _histInFlight;
+      }
       function loadHistory() {
         var body = document.getElementById("histBody"); if (!body) return;
         body.innerHTML = '<p class="noms__msg">Loading archived tournaments…</p>';
-        fetch(FH_API.url("/api/tournament-signups?archives=1"), { headers: { "x-admin-key": getKey() } })
-          .then(function (r) { return r.json().catch(function () { return {}; }); })
-          .then(function (j) {
-            if (!j || !j.ok) { body.innerHTML = '<p class="noms__msg">' + esc((j && j.error) || "Couldn't load history.") + '</p>'; return; }
-            renderHistory(j.records || []);
-          })
-          .catch(function () { body.innerHTML = '<p class="noms__msg">Network error loading history.</p>'; });
+        // Force a fresh fetch when the tab is opened so newly committed
+        // snapshots show up — but also update the shared cache.
+        _histCache = null; _histInFlight = null;
+        ensureHistoryCache().then(function (recs) {
+          if (!recs.length) { body.innerHTML = '<p class="noms__msg">No archived tournaments yet. Commit a completed tournament from the $ Summary tab.</p>'; return; }
+          renderHistory(recs);
+        }).catch(function () { body.innerHTML = '<p class="noms__msg">Network error loading history.</p>'; });
       }
       function renderHistory(recs) {
         var body = document.getElementById("histBody");
@@ -2189,6 +2217,100 @@
           });
       }
 
+      // Build a first-initial + last-name fingerprint from a full name.
+      // "Marcus Sanchez" → "M. Sanchez". Team names on archived
+      // leaderboards use the same shape, so this is the join key.
+      function _playerFingerprint(fullName) {
+        var s = String(fullName || "").trim();
+        if (!s) return "";
+        if (/^[A-Z]\./.test(s)) return s; // already fingerprinted
+        var parts = s.split(/\s+/);
+        if (parts.length < 2) return s;
+        var last = parts[parts.length - 1];
+        return parts[0].charAt(0).toUpperCase() + ". " + last.charAt(0).toUpperCase() + last.slice(1);
+      }
+      // Fill the Personal history section on the Player Card modal by
+      // scanning cached History archives for this player. Matches
+      // leaderboard team names by fingerprint (first-initial + last-name)
+      // and Calcutta payout recipients by fingerprint OR exact full-name
+      // match. Groups results by year, newest first. Fuzzy — a hint below
+      // the section reminds the operator to sanity-check the matches.
+      function renderPlayerHistory(fullName) {
+        var histEl = document.getElementById("pmHistory");
+        var histBody = document.getElementById("pmHistoryBody");
+        var histCount = document.getElementById("pmHistoryCount");
+        if (!histEl || !histBody) return;
+        histEl.hidden = false;
+        histBody.innerHTML = '<p class="pm-history__none">Loading past tournaments…</p>';
+        if (histCount) histCount.textContent = "";
+        var fp = _playerFingerprint(fullName);
+        var fullNameLc = String(fullName || "").trim().toLowerCase();
+        if (!fp) { histBody.innerHTML = '<p class="pm-history__none">Enter a name to see history.</p>'; return; }
+        ensureHistoryCache().then(function (recs) {
+          if (!recs || !recs.length) { histBody.innerHTML = '<p class="pm-history__none">No archived tournaments yet — commit one from $ Summary to start building history.</p>'; return; }
+          var rowsHtml = [];
+          var yearsSet = {};
+          recs.forEach(function (r) {
+            var f = r.fields || {};
+            var year = String(f.Year || "—");
+            var tname = String(f.Name || "");
+            var snap = null; try { snap = f.Snapshot ? JSON.parse(f.Snapshot) : null; } catch (e) {}
+            if (!snap) return;
+            var yearHits = [];
+            // Leaderboard finishes
+            (snap.leaderboard || []).forEach(function (row) {
+              var team = String(row.name || "");
+              if (team.indexOf(fp) === -1) return;
+              var place = row.grossPlace ? ordinal(row.grossPlace) + " " + esc(row.flight || "Flight") : esc(row.flight || "Flight");
+              var scores = (row.d1 != null && row.d2 != null) ? row.d1 + "+" + row.d2 + " = " + (row.gross == null ? "—" : row.gross) : (row.gross == null ? "" : String(row.gross));
+              yearHits.push({
+                sortKey: row.grossPlace || 999,
+                what: '<b>' + place + '</b> · <span class="pm-history__what"><small>' + esc(team) + '</small></span>',
+                amt: scores ? ('<small>' + esc(scores) + '</small>') : ''
+              });
+            });
+            // Calcutta payouts (buyer / recipient)
+            (snap.payouts || []).forEach(function (p) {
+              var recip = String(p.recipient || "");
+              var recipLc = recip.toLowerCase();
+              var team = String(p.teamName || "");
+              var isBuyer = recipLc === fullNameLc || _playerFingerprint(recip) === fp;
+              var isTeamMember = team.indexOf(fp) !== -1;
+              if (!isBuyer && !isTeamMember) return;
+              if (isBuyer && !/Calcutta/i.test(p.note || "")) return; // team flight-win check goes with leaderboard row above
+              yearHits.push({
+                sortKey: 500,
+                what: '<b>Calcutta</b> <small>' + esc(p.note || "") + '</small>',
+                amt: '<b>+' + money(Number(p.amount) || 0) + '</b>'
+              });
+            });
+            if (yearHits.length) {
+              yearsSet[year] = true;
+              yearHits.sort(function (a, b) { return (a.sortKey || 999) - (b.sortKey || 999); });
+              yearHits.forEach(function (h, i) {
+                rowsHtml.push(
+                  '<div class="pm-history__row">'
+                  + '<span class="pm-history__year">' + (i === 0 ? esc(year) : '') + '</span>'
+                  + '<span class="pm-history__what">' + h.what + '</span>'
+                  + '<span class="pm-history__amt">' + h.amt + '</span>'
+                  + '</div>'
+                );
+              });
+            }
+          });
+          var years = Object.keys(yearsSet).sort(function (a, b) { return String(b).localeCompare(a); });
+          if (!rowsHtml.length) {
+            histBody.innerHTML = '<p class="pm-history__none">No archived finishes yet for <b>' + esc(fp) + '</b>. Their history will show up here as tournaments are committed.</p>';
+            if (histCount) histCount.textContent = "";
+            return;
+          }
+          histBody.innerHTML = rowsHtml.join("");
+          if (histCount) histCount.textContent = years.length + " tournament" + (years.length === 1 ? "" : "s") + " played";
+        }).catch(function () {
+          histBody.innerHTML = '<p class="pm-history__none">Couldn&rsquo;t load history archives.</p>';
+        });
+      }
+
       function openPlayerCard(signupId, role, currentName) {
         var modal = document.getElementById("playerModal");
         if (!modal) return;
@@ -2197,6 +2319,13 @@
         var mem = document.getElementById("pmMember"); if (mem) mem.checked = false;
         var status = document.getElementById("pmStatus"); if (status) { status.textContent = "Looking up…"; status.className = "pm-status is-info"; }
         var hint = document.getElementById("pmSetupHint"); if (hint) hint.hidden = true;
+        // Reset history section — will fill in when Player card loads.
+        var histEl = document.getElementById("pmHistory");
+        var histBody = document.getElementById("pmHistoryBody");
+        var histCount = document.getElementById("pmHistoryCount");
+        if (histEl) histEl.hidden = true;
+        if (histBody) histBody.innerHTML = "";
+        if (histCount) histCount.textContent = "";
         pmSetVal("pmName", currentName || "");
         modal.hidden = false; modal.setAttribute("aria-hidden", "false");
         document.body.classList.add("modal-open");
@@ -2235,6 +2364,8 @@
               status.textContent = "No card yet for this name — save to create it.";
               status.className = "pm-status is-info";
             }
+            // Personal tournament history — scan cached archives by name.
+            renderPlayerHistory(pmVal("pmName") || currentName);
           })
           .catch(function () { if (status) { status.textContent = "Couldn't reach the players endpoint."; status.className = "pm-status is-error"; } });
       }
