@@ -319,8 +319,10 @@
           <div class="noms__bar">
             <h3 class="noms__title">Payout</h3>
             <div class="noms__bar-actions">
-              <button class="btn btn--solid" type="button" id="poPrintChecksAm" title="Print pre-printed checks for teams playing the Sunday A.M. shotgun">Print AM checks</button>
-              <button class="btn btn--solid" type="button" id="poPrintChecksPm" title="Print pre-printed checks for teams playing the Sunday P.M. shotgun">Print PM checks</button>
+              <button class="btn btn--solid" type="button" id="poPrintChecksAm" title="Print pre-printed checks for teams playing the Sunday A.M. shotgun (flight winnings + Calcutta)">Print AM checks</button>
+              <button class="btn btn--solid" type="button" id="poPrintChecksPm" title="Print pre-printed checks for teams playing the Sunday P.M. shotgun (flight winnings + Calcutta)">Print PM checks</button>
+              <button class="btn btn--solid" type="button" id="poPayoutCalcuttaAm" title="Print ONLY Calcutta buyer payouts for teams in the Sunday A.M. shotgun">Payout AM Calcutta</button>
+              <button class="btn btn--solid" type="button" id="poPayoutCalcuttaPm" title="Print ONLY Calcutta buyer payouts for teams in the Sunday P.M. shotgun">Payout PM Calcutta</button>
               <button class="btn btn--primary" type="button" id="poPrint">Print now</button>
             </div>
           </div>
@@ -6601,6 +6603,81 @@
       // F&H Golf Course. Amount = green fees + meals + extra meals + cart
       // rentals + other + Calcutta commission (same total the $ Summary
       // page shows in "Check to write to the course").
+      // Calcutta-only wave payout: buyer checks for teams in the Sunday
+      // AM (or PM) shotgun. Same math as printPayoutChecksForWave's
+      // Calcutta section — bucket by saved Flight field, rank net within
+      // that bucket, split ties — but skips the flight-winnings player
+      // checks entirely. Wire this up to Payout AM Calcutta / PM Calcutta.
+      function printCalcuttaChecksForWave(wave) {
+        if (!scAllCache) { alert("Data still loading. Try again in a moment."); return; }
+        var all = scAllCache;
+        var recs = all.filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+        if (!recs.length) { alert("No teams to pay yet."); return; }
+        var m = computeMoney(all);
+        var data = computeLeaderboardData(recs, m.cfg);
+        var checks = [];
+        var byRec = {};
+        data.flights.forEach(function (fl) { fl.rows.forEach(function (row) { byRec[row.id] = row; }); });
+        data.unassigned.forEach(function (row) { byRec[row.id] = row; });
+        var savedFlBuckets = {};
+        recs.forEach(function (r) {
+          var f = r.fields || {};
+          var savedFl = (f["Flight"] != null && f["Flight"] !== "") ? Number(f["Flight"]) : 0;
+          if (!savedFl) return;
+          var row = byRec[r.id];
+          if (!row) return;
+          (savedFlBuckets[savedFl] = savedFlBuckets[savedFl] || []).push(row);
+        });
+        Object.keys(savedFlBuckets).forEach(function (fnumStr) {
+          var fnum = Number(fnumStr);
+          var flName = flightName(fnum);
+          var rows = savedFlBuckets[fnum];
+          var caPool = rows.reduce(function (s, row) {
+            var v = row.rec && row.rec.fields && row.rec.fields["Buy Amount"];
+            return s + (typeof v === "number" ? v : 0);
+          }, 0);
+          var caPayout = Math.max(0, caPool * (1 - m.calcuttaCommissionPct / 100));
+          var caPrizes = m.calSplit.map(function (pct) { return caPayout * (pct / 100); });
+          var scored = rows.slice().filter(function (r) { return r.net != null; }).sort(function (a, b) { return a.net - b.net; });
+          var rank = 1, si = 0;
+          var placeMap = {};
+          while (si < scored.length) {
+            var val = scored[si].net, tied = [];
+            while (si < scored.length && scored[si].net === val) { tied.push(scored[si]); si++; }
+            tied.forEach(function (t) { placeMap[t.id] = rank; });
+            rank += tied.length;
+          }
+          var byNet = {};
+          rows.forEach(function (row) {
+            var p = placeMap[row.id];
+            if (p && p <= m.calSplit.length) (byNet[p] = byNet[p] || []).push(row);
+          });
+          Object.keys(byNet).forEach(function (p) {
+            var place = Number(p), teams = byNet[p];
+            var combined = 0;
+            for (var i = 0; i < teams.length; i++) { var rankIdx = place - 1 + i; if (rankIdx < caPrizes.length) combined += caPrizes[rankIdx]; }
+            var each = combined / teams.length;
+            teams.forEach(function (t) {
+              if (_teamWave(t.rec) !== wave) return;
+              var buyer = (t.buyer && t.buyer.trim()) || "(no buyer)";
+              checks.push({
+                payee: buyer,
+                amount: each,
+                memo: flName + " Flight Calcutta " + ordinal(place) + " (team " + t.name + ")",
+                tournament: KEY,
+                teamName: t.name,
+                note: flName + " Flight Calcutta — " + ordinal(place) + " net" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
+              });
+            });
+          });
+        });
+        if (!checks.length) {
+          alert("No " + wave + " Calcutta checks to print — no teams in the Sunday " + wave + " shotgun placed in the money yet.");
+          return;
+        }
+        _openCheckPrintWindow("F&H Founders — " + wave + " Calcutta payouts (" + checks.length + ")", checks);
+      }
+
       function printCourseCheck() {
         if (!scAllCache) { alert("Data still loading. Try again in a moment."); return; }
         var m = computeMoney(scAllCache);
@@ -7886,6 +7963,10 @@
           setTimeout(function () { window.print(); }, 30);
           setTimeout(cleanup, 2000);
         });
+        var poCaAm = document.getElementById("poPayoutCalcuttaAm");
+        if (poCaAm) poCaAm.addEventListener("click", function () { printCalcuttaChecksForWave("AM"); });
+        var poCaPm = document.getElementById("poPayoutCalcuttaPm");
+        if (poCaPm) poCaPm.addEventListener("click", function () { printCalcuttaChecksForWave("PM"); });
         var poAm = document.getElementById("poPrintChecksAm");
         if (poAm) poAm.addEventListener("click", function () { printPayoutChecksForWave("AM"); });
         var poPm = document.getElementById("poPrintChecksPm");
