@@ -291,6 +291,11 @@
           <p class="scaffold__desc">One card per buyer. Shows every team they bought, the running total they owe, a paid check + method dropdown, and an email field so you can send them a receipt. Email all / Print all send a receipt to every buyer with one click.</p>
           <div class="tab-toolbar tab-toolbar--cs">
             <input type="search" class="tab-filter" id="csFilter" placeholder="Filter buyers by name…" autocomplete="off" />
+            <div class="seg" role="tablist" aria-label="Filter by paid status">
+              <button type="button" class="seg__btn" data-cs-status="all" role="tab" aria-selected="true">All</button>
+              <button type="button" class="seg__btn" data-cs-status="unpaid" role="tab" aria-selected="false">Unpaid</button>
+              <button type="button" class="seg__btn" data-cs-status="paid" role="tab" aria-selected="false">Paid</button>
+            </div>
             <span class="tab-toolbar__count" id="csFilterCount" aria-live="polite"></span>
           </div>
           <div id="caSumBody"><p class="noms__msg">Loading…</p></div>
@@ -5027,6 +5032,45 @@
         }
       }
 
+      // Shared filter for the Calcutta Buyers tab. Combines the name box
+      // and the All / Unpaid / Paid segmented toggle. Called on every
+      // search input, every toggle click, and after each re-render — so
+      // hiding a buyer stays hidden across "Saving…"/"Saved ✓" round
+      // trips, and marking someone Paid instantly drops them out of the
+      // Unpaid list.
+      function csStatus() {
+        try { return localStorage.getItem("fh:calcuttaBuyersStatus") || "all"; }
+        catch (e) { return "all"; }
+      }
+      function setCsStatus(status) {
+        try { localStorage.setItem("fh:calcuttaBuyersStatus", status); } catch (e) {}
+        var btns = document.querySelectorAll(".seg__btn[data-cs-status]");
+        Array.prototype.forEach.call(btns, function (b) {
+          b.setAttribute("aria-selected", b.getAttribute("data-cs-status") === status ? "true" : "false");
+        });
+      }
+      function applyCsFilters() {
+        var filterEl = document.getElementById("csFilter");
+        var countEl = document.getElementById("csFilterCount");
+        var body = document.getElementById("caSumBody");
+        if (!body) return;
+        var q = filterEl ? filterEl.value.trim().toLowerCase() : "";
+        var status = csStatus();
+        var cards = body.querySelectorAll(".cs-card");
+        var shown = 0, total = cards.length;
+        Array.prototype.forEach.call(cards, function (card) {
+          var name = String(card.getAttribute("data-buyer") || "").toLowerCase();
+          var isPaid = card.classList.contains("is-paid");
+          var nameHit = !q || name.indexOf(q) !== -1;
+          var statusHit = status === "all" || (status === "paid" && isPaid) || (status === "unpaid" && !isPaid);
+          var hit = nameHit && statusHit;
+          card.style.display = hit ? "" : "none";
+          if (hit) shown++;
+        });
+        var showCount = !!(q || status !== "all");
+        if (countEl) countEl.textContent = showCount ? (shown + " of " + total + " buyers") : "";
+      }
+
       // ---- Calcutta Summary tab ------------------------------------------
       // Group signups by Buyer name → one card per buyer showing every team
       // they bought + total owed + a Paid pill and Method dropdown. Paying
@@ -5302,14 +5346,11 @@
           });
         });
 
-        // Re-apply any active buyer-name filter after each re-render so
-        // a mid-typing operator doesn't see the list snap back to every
-        // buyer just because a save round-tripped. Dispatches the input
-        // event on the search box; the wired handler does the work.
-        try {
-          var csFilterEl = document.getElementById("csFilter");
-          if (csFilterEl && csFilterEl.value) csFilterEl.dispatchEvent(new Event("input"));
-        } catch (e) {}
+        // Re-apply the name search + paid/unpaid toggle after every
+        // re-render so a save round-trip doesn't reset either filter,
+        // and marking a buyer Paid immediately drops them from the
+        // Unpaid view.
+        try { applyCsFilters(); } catch (e) {}
       }
 
       // localStorage cache for buyer emails — namespaced by tournament KEY
@@ -6643,25 +6684,19 @@
         if (csEa) csEa.addEventListener("click", emailAllBuyers);
         var csPa = document.getElementById("csPrintAll");
         if (csPa) csPa.addEventListener("click", printAllBuyerReceipts);
-        // Search bar on the Calcutta Buyers tab. Wired once here so it
-        // survives re-renders — the handler re-scans .cs-card each
-        // input event.
+        // Calcutta Buyers filters — name search + All/Unpaid/Paid toggle.
+        // Both handlers run applyCsFilters so name + status combine, and
+        // the toggle selection persists across page loads.
         var csFilter = document.getElementById("csFilter");
-        var csFilterCount = document.getElementById("csFilterCount");
-        if (csFilter) csFilter.addEventListener("input", function () {
-          var q = csFilter.value.trim().toLowerCase();
-          var body = document.getElementById("caSumBody");
-          if (!body) return;
-          var cards = body.querySelectorAll(".cs-card");
-          var shown = 0;
-          Array.prototype.forEach.call(cards, function (card) {
-            var name = String(card.getAttribute("data-buyer") || "").toLowerCase();
-            var hit = !q || name.indexOf(q) !== -1;
-            card.style.display = hit ? "" : "none";
-            if (hit) shown++;
+        if (csFilter) csFilter.addEventListener("input", applyCsFilters);
+        var csSegBtns = document.querySelectorAll(".seg__btn[data-cs-status]");
+        Array.prototype.forEach.call(csSegBtns, function (b) {
+          b.addEventListener("click", function () {
+            setCsStatus(b.getAttribute("data-cs-status"));
+            applyCsFilters();
           });
-          if (csFilterCount) csFilterCount.textContent = q ? (shown + " of " + cards.length + " buyers") : "";
         });
+        setCsStatus(csStatus());
         var lbs = document.getElementById("lbSaveFlights");
         if (lbs) lbs.addEventListener("click", saveFlights);
         var lbInc = document.getElementById("lbFlInc");
