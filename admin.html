@@ -286,7 +286,28 @@
       var touCount = document.getElementById("touCount");
       var touRefresh = document.getElementById("touRefresh");
 
-      function getKey() { try { return sessionStorage.getItem(KEYK) || ""; } catch (e) { return ""; } }
+      // Persist the admin session in localStorage so it survives browser
+      // restarts, service-worker cache bumps, and closing the tab. Old
+      // sessionStorage-only sessions get migrated on first read so nobody
+      // has to re-enter the passphrase after this ships.
+      function _readAuth(k) {
+        try {
+          var v = localStorage.getItem(k);
+          if (v) return v;
+          var s = sessionStorage.getItem(k);
+          if (s) { try { localStorage.setItem(k, s); } catch (e) {} return s; }
+        } catch (e) {}
+        return "";
+      }
+      function _writeAuth(k, v) {
+        try { localStorage.setItem(k, v); } catch (e) {}
+        try { sessionStorage.setItem(k, v); } catch (e) {}
+      }
+      function _clearAuth() {
+        try { localStorage.removeItem(FLAG); localStorage.removeItem(KEYK); } catch (e) {}
+        try { sessionStorage.removeItem(FLAG); sessionStorage.removeItem(KEYK); } catch (e) {}
+      }
+      function getKey() { return _readAuth(KEYK); }
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
       function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); } catch (e) { return ""; } }
 
@@ -499,12 +520,13 @@
         if (logout) logout.hidden = !authed;
         if (authed) { buildManager([]); loadNominations(); loadTournaments(); }
       }
-      try { show(sessionStorage.getItem(FLAG) === "1"); } catch (e) { show(false); }
+      show(_readAuth(FLAG) === "1");
 
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         if (input.value === PASS) {
-          try { sessionStorage.setItem(FLAG, "1"); sessionStorage.setItem(KEYK, input.value); } catch (e) {}
+          _writeAuth(FLAG, "1");
+          _writeAuth(KEYK, input.value);
           err.textContent = "";
           show(true);
         } else {
@@ -519,7 +541,7 @@
 
       if (logout) logout.addEventListener("click", function (e) {
         e.preventDefault();
-        try { sessionStorage.removeItem(FLAG); sessionStorage.removeItem(KEYK); } catch (e) {}
+        _clearAuth();
         input.value = "";
         show(false);
       });

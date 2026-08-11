@@ -685,8 +685,20 @@
       var FLAG = "fh_admin_ok", KEYK = "fh_admin_key";
       var gate = document.getElementById("twGate");
       var panel = document.getElementById("twPanel");
-      function getKey() { try { return sessionStorage.getItem(KEYK) || ""; } catch (e) { return ""; } }
-      function authed() { try { return sessionStorage.getItem(FLAG) === "1"; } catch (e) { return false; } }
+      // Auth is stored in localStorage so it survives browser restarts,
+      // service-worker cache bumps, and closing the tab. Older sessions
+      // that only wrote to sessionStorage get migrated on first read.
+      function _readAuth(k) {
+        try {
+          var v = localStorage.getItem(k);
+          if (v) return v;
+          var s = sessionStorage.getItem(k);
+          if (s) { try { localStorage.setItem(k, s); } catch (e) {} return s; }
+        } catch (e) {}
+        return "";
+      }
+      function getKey() { return _readAuth(KEYK); }
+      function authed() { return _readAuth(FLAG) === "1"; }
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
 
       // Shared filter-bar helper. Prepends a search input to `host`, filters
@@ -2741,6 +2753,36 @@
         clearTimeout(loadRoster._t);
         loadRoster._t = setTimeout(_doLoadRoster, 200);
       }
+      // Detect a stripped (public) payload. The server returns { sold: bool }
+      // on each record instead of Buyer / Buy Amount when the admin key is
+      // missing. Any record with `sold` defined and `Buyer` undefined = stripped.
+      function _isStrippedPayload(recs) {
+        if (!recs || !recs.length) return false;
+        for (var i = 0; i < recs.length && i < 5; i++) {
+          var f = (recs[i] && recs[i].fields) || {};
+          if (typeof f.sold !== "undefined" && typeof f["Buyer"] === "undefined") return true;
+        }
+        return false;
+      }
+      // Persistent gold banner across the whole workbook. Idempotent —
+      // reused on every roster load so it either appears or disappears
+      // based on the current auth state.
+      function _renderAuthWarning(show) {
+        var id = "twAuthWarn";
+        var existing = document.getElementById(id);
+        if (!show) { if (existing) existing.remove(); return; }
+        if (existing) return;
+        var el = document.createElement("div");
+        el.id = id;
+        el.className = "tw-auth-warn";
+        el.innerHTML = 'Not signed in — <b>buyer names, buy amounts, and payments are hidden</b> because the admin session expired. Nothing is deleted; the data is safe in Airtable. '
+          + '<a href="admin.html" class="tw-auth-warn__btn">Sign in at the Staff Portal &rarr;</a>';
+        var host = document.querySelector(".container.admin") || document.body;
+        host.insertBefore(el, host.firstChild);
+      }
+      function _showSignInGate() {
+        try { if (gate) gate.hidden = false; if (panel) panel.hidden = true; } catch (e) {}
+      }
       function _doLoadRoster() {
         var list = document.getElementById("twRoster");
         var isEmpty = !list || !list.querySelector(".ci-grid, .noms__row");
@@ -2752,10 +2794,20 @@
               // Keep the shared record cache fresh so lazy renders on tab
               // switch have current data.
               scAllCache = res.j.records || [];
+              // Stripped-payload guard. The public GET path returns 200
+              // OK with `sold` (bool) instead of `Buyer` on each record.
+              // If that shape comes back on this authed workbook, the
+              // admin key is missing / wrong / rotated. Buyer names +
+              // amounts will look "gone" on the Calcutta Buyers tab
+              // even though Airtable is fine. Show a loud banner + open
+              // the sign-in gate instead of silently rendering empty.
+              var strip = _isStrippedPayload(scAllCache);
+              _renderAuthWarning(strip);
+              if (strip) { _showSignInGate(); return; }
               renderSheetsForActive(scAllCache);
               flashLoadStatus("");
             }
-            else if (res.status === 401 && list) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; }
+            else if (res.status === 401 && list) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; _renderAuthWarning(true); _showSignInGate(); }
             else {
               // Transient error (429, 5xx, network hiccup). Keep the current
               // roster DOM intact — blanking to "Couldn't load" is worse than
