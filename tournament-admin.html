@@ -4984,13 +4984,15 @@
         // whatever display casing showed up first.
         var buckets = {};
         var order = [];
+        var caWinnings = computeCalcuttaWinningsBySignup(all);
         sold.forEach(function (r) {
           var f = r.fields || {};
           var raw = String(f["Buyer"] || "").trim();
           var key = raw.toLowerCase();
-          if (!buckets[key]) { buckets[key] = { display: raw, items: [], total: 0, paidMethod: "", email: "" }; order.push(key); }
+          if (!buckets[key]) { buckets[key] = { display: raw, items: [], total: 0, won: 0, paidMethod: "", email: "" }; order.push(key); }
           buckets[key].items.push(r);
           buckets[key].total += Number(f["Buy Amount"]) || 0;
+          buckets[key].won += Number(caWinnings[r.id] || 0);
           // Any paid method on any of the buyer's items counts them paid.
           var pm = String(f["Calcutta Paid"] || "").trim();
           if (pm && !buckets[key].paidMethod) buckets[key].paidMethod = pm;
@@ -5013,22 +5015,32 @@
         var methodOpts = function (sel) {
           return methods.map(function (m) { return '<option value="' + m + '"' + (m === sel ? " selected" : "") + '>' + (m || "method") + '</option>'; }).join("");
         };
-        var totalOwed = 0, totalPaid = 0;
+        var totalOwed = 0, totalPaid = 0, totalWon = 0;
         var cards = order.map(function (k) {
           var b = buckets[k];
           totalOwed += b.total;
+          totalWon += b.won || 0;
           if (b.paidMethod) totalPaid += b.total;
           var itemsHtml = b.items.slice().sort(function (x, y) { return (caTeamNumbers[x.id] || 0) - (caTeamNumbers[y.id] || 0); }).map(function (r) {
             var f = r.fields || {};
             var tn = caTeamNumbers[r.id];
             var tag = tn ? 'T-' + String(tn).padStart(2, "0") : '—';
             var team = teamShortNames(f);
+            var w = Number(caWinnings[r.id] || 0);
+            var winHtml = w > 0 ? '<span class="cs-item__win" title="Calcutta payout">+' + money(w) + '</span>' : '<span class="cs-item__win cs-item__win--zero"></span>';
             return '<div class="cs-item"><span class="cs-item__tn">' + esc(tag) + '</span>'
               + '<span class="cs-item__team">' + esc(team) + '</span>'
-              + '<span class="cs-item__amt">' + money(Number(f["Buy Amount"]) || 0) + '</span></div>';
+              + '<span class="cs-item__amt">' + money(Number(f["Buy Amount"]) || 0) + '</span>'
+              + winHtml
+              + '</div>';
           }).join("");
           var isPaid = !!b.paidMethod;
           var emAttr = esc(b.email || "");
+          var wonAmt = b.won || 0;
+          var netAmt = wonAmt - b.total;
+          var netClass = netAmt > 0 ? "is-net-pos" : (netAmt < 0 ? "is-net-neg" : "");
+          var netSign = netAmt > 0 ? "+" : (netAmt < 0 ? "−" : "");
+          var netAbs = Math.abs(netAmt);
           return '<article class="cs-card' + (isPaid ? " is-paid" : "") + '" data-buyer="' + esc(b.display) + '" data-email="' + emAttr + '">'
             + '<header class="cs-card__hd">'
             + '<h4 class="cs-card__buyer">' + esc(b.display) + '</h4>'
@@ -5036,11 +5048,15 @@
             + '<span class="ci__status cs-card__status"></span>'
             + '</header>'
             + '<div class="cs-card__items">' + itemsHtml + '</div>'
+            + '<div class="cs-money">'
+            + '<div class="cs-money__side cs-money__spent"><small>Spent</small><b>' + money(b.total) + '</b></div>'
+            + '<div class="cs-money__side cs-money__won"><small>Won</small><b>' + money(wonAmt) + '</b></div>'
+            + '<div class="cs-money__net ' + netClass + '"><small>Net</small><b>' + netSign + money(netAbs) + '</b></div>'
+            + '</div>'
             + '<div class="cs-card__email">'
             + '<label class="cs-email-lbl">Email <input type="email" class="cs-email" inputmode="email" autocomplete="email" spellcheck="false" placeholder="buyer@example.com" value="' + emAttr + '" /></label>'
             + '</div>'
             + '<footer class="cs-card__ft">'
-            + '<div class="cs-tot"><small>Total owed</small><b>' + money(b.total) + '</b></div>'
             + '<label class="ci-check cs-paid" title="Mark buyer paid"><input type="checkbox" class="cs-paid-box"' + (isPaid ? " checked" : "") + ' /><span>Paid</span></label>'
             + '<select class="cs-method">' + methodOpts(b.paidMethod) + '</select>'
             + '<button type="button" class="cs-email-btn" title="Email this buyer their receipt">Email</button>'
@@ -5052,7 +5068,8 @@
         var strip = '<div class="cs-strip">'
           + '<span><small>Buyers</small><b>' + order.length + '</b></span>'
           + '<span><small>Teams sold</small><b>' + sold.length + '</b></span>'
-          + '<span><small>Total owed</small><b>' + money(totalOwed) + '</b></span>'
+          + '<span><small>Total spent</small><b>' + money(totalOwed) + '</b></span>'
+          + '<span><small>Total won</small><b class="cs-strip__won">' + money(totalWon) + '</b></span>'
           + '<span><small>Collected</small><b class="cs-strip__paid">' + money(totalPaid) + '</b></span>'
           + '<span><small>Outstanding</small><b class="cs-strip__owe">' + money(Math.max(0, totalOwed - totalPaid)) + '</b></span>'
           + '</div>';
@@ -5205,7 +5222,7 @@
             if (!b) { alert("Couldn't find that buyer in the current buys."); return; }
             var to = String(card.getAttribute("data-email") || b.email || "").trim();
             var subject = buildReceiptSubject(b);
-            var bodyText = buildReceiptBody(b, data.teamNumbers);
+            var bodyText = buildReceiptBody(b, data.teamNumbers, data.winnings);
             var href = "mailto:" + encodeURIComponent(to)
               + "?subject=" + encodeURIComponent(subject)
               + "&body=" + encodeURIComponent(bodyText);
@@ -5240,7 +5257,8 @@
       }
 
       // Build a Calcutta receipt as plain text for mailto: bodies.
-      function buildReceiptBody(b, teamNumbers) {
+      function buildReceiptBody(b, teamNumbers, winnings) {
+        winnings = winnings || {};
         var lines = [];
         lines.push("Hi " + (b.display || "there") + ",");
         lines.push("");
@@ -5254,12 +5272,20 @@
           var tag = tn ? "T-" + String(tn).padStart(2, "0") : "—";
           var team = teamShortNames(f);
           var amt = money(Number(f["Buy Amount"]) || 0);
-          lines.push("  " + tag + "  " + team + "  " + amt);
+          var w = Number(winnings[r.id] || 0);
+          var winTxt = w > 0 ? "  won " + money(w) : "";
+          lines.push("  " + tag + "  " + team + "  " + amt + winTxt);
         });
         lines.push("");
-        lines.push("Total: " + money(b.total));
-        if (b.paidMethod) lines.push("Paid: " + b.paidMethod);
-        else lines.push("Balance due: " + money(b.total));
+        var won = Number(b.won || 0);
+        var net = won - b.total;
+        lines.push("Total spent: " + money(b.total));
+        lines.push("Total won:   " + money(won));
+        if (net > 0) lines.push("Net:         +" + money(net) + " (payable to you)");
+        else if (net < 0) lines.push("Net:         −" + money(-net) + " (balance to F&H)");
+        else lines.push("Net:         even");
+        if (b.paidMethod) { lines.push(""); lines.push("Calcutta buy-in paid: " + b.paidMethod); }
+        else if (b.total > 0) { lines.push(""); lines.push("Calcutta buy-in due: " + money(b.total)); }
         lines.push("");
         lines.push("Please make checks payable to F&H Golf Course.");
         lines.push("");
@@ -5268,7 +5294,13 @@
       }
 
       function buildReceiptSubject(b) {
-        return "F&H Founders 2026 — Calcutta receipt (" + money(b.total) + ")";
+        var won = Number(b.won || 0);
+        var net = won - b.total;
+        var tag;
+        if (net > 0) tag = "won " + money(net);
+        else if (net < 0) tag = "owes " + money(-net);
+        else tag = money(b.total);
+        return "F&H Founders 2026 — Calcutta receipt (" + tag + ")";
       }
 
       // Print a hand-checkable list of every buyer + total. Builds the table
@@ -5349,12 +5381,52 @@
         setTimeout(cleanup, 3000);
       }
 
+      // Compute Calcutta winnings by signup id. Mirrors the top-4-net
+      // math in renderPayout so the buyer cards show the same dollars
+      // the Payout tab shows. Returns { signupId: dollars won }.
+      // Safe to call before scores are entered — flights/nets that
+      // don't resolve yet contribute 0.
+      function computeCalcuttaWinningsBySignup(all) {
+        var out = {};
+        try {
+          var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+          if (!recs.length) return out;
+          var m = computeMoney(all);
+          var cfg = m.cfg;
+          var data = computeLeaderboardData(recs, cfg);
+          var calSplit = m.calSplit || [40, 30, 20, 10];
+          var comm = (m.calcuttaCommissionPct || 0) / 100;
+          data.flights.forEach(function (fl) {
+            var caPool = fl.rows.reduce(function (s, r) {
+              var v = r.rec && r.rec.fields && r.rec.fields["Buy Amount"];
+              return s + (typeof v === "number" ? v : 0);
+            }, 0);
+            var caPayout = Math.max(0, caPool * (1 - comm));
+            var caPrizes = calSplit.map(function (pct) { return caPayout * (pct / 100); });
+            var byNet = {};
+            fl.rows.forEach(function (r) { if (r.netPlace && r.netPlace <= calSplit.length) (byNet[r.netPlace] = byNet[r.netPlace] || []).push(r); });
+            Object.keys(byNet).forEach(function (p) {
+              var place = Number(p), teams = byNet[p];
+              var combined = 0;
+              for (var i = 0; i < teams.length; i++) {
+                var rank = place - 1 + i;
+                if (rank < caPrizes.length) combined += caPrizes[rank];
+              }
+              var each = combined / teams.length;
+              teams.forEach(function (t) { out[t.id] = (out[t.id] || 0) + each; });
+            });
+          });
+        } catch (e) {}
+        return out;
+      }
+
       // Bucket the current tournament's Calcutta buys the same way
       // renderCalcuttaSummary does. Kept separate so Email All / Print
       // All read directly from scAllCache instead of scraping DOM.
       function computeBuyerBuckets() {
         var recs = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         var caTeamNumbers = computeTeamNumbers(recs);
+        var winnings = computeCalcuttaWinningsBySignup(scAllCache);
         var sold = recs.filter(function (r) {
           var f = r.fields || {};
           return String(f["Buyer"] || "").trim() !== "" && typeof f["Buy Amount"] === "number";
@@ -5364,9 +5436,10 @@
           var f = r.fields || {};
           var raw = String(f["Buyer"] || "").trim();
           var key = raw.toLowerCase();
-          if (!buckets[key]) { buckets[key] = { display: raw, items: [], total: 0, paidMethod: "", email: "" }; order.push(key); }
+          if (!buckets[key]) { buckets[key] = { display: raw, items: [], total: 0, won: 0, paidMethod: "", email: "" }; order.push(key); }
           buckets[key].items.push(r);
           buckets[key].total += Number(f["Buy Amount"]) || 0;
+          buckets[key].won += Number(winnings[r.id] || 0);
           var pm = String(f["Calcutta Paid"] || "").trim();
           if (pm && !buckets[key].paidMethod) buckets[key].paidMethod = pm;
           var em = String(f["Buyer Email"] || "").trim();
@@ -5375,7 +5448,7 @@
         var cache = readBuyerEmailCache();
         order.forEach(function (k) { if (!buckets[k].email && cache[k]) buckets[k].email = cache[k]; });
         order.sort(function (a, b) { return buckets[a].display.toLowerCase().localeCompare(buckets[b].display.toLowerCase()); });
-        return { order: order, buckets: buckets, teamNumbers: caTeamNumbers };
+        return { order: order, buckets: buckets, teamNumbers: caTeamNumbers, winnings: winnings };
       }
 
       // Email All — open one mailto: draft per buyer who has an email
@@ -5404,7 +5477,7 @@
           setTimeout(function () {
             var href = "mailto:" + encodeURIComponent(b.email)
               + "?subject=" + encodeURIComponent(buildReceiptSubject(b))
-              + "&body=" + encodeURIComponent(buildReceiptBody(b, data.teamNumbers));
+              + "&body=" + encodeURIComponent(buildReceiptBody(b, data.teamNumbers, data.winnings));
             var w = window.open(href, "_blank");
             if (!w) window.location.href = href;
           }, i * 350);
@@ -5424,11 +5497,19 @@
             var f = r.fields || {};
             var tn = data.teamNumbers[r.id];
             var tag = tn ? "T-" + String(tn).padStart(2, "0") : "—";
+            var w = Number(data.winnings[r.id] || 0);
+            var winHtml = w > 0 ? '<span class="cs-item__win">+' + money(w) + '</span>' : '<span class="cs-item__win cs-item__win--zero"></span>';
             return '<div class="cs-item"><span class="cs-item__tn">' + esc(tag) + '</span>'
               + '<span class="cs-item__team">' + esc(teamShortNames(f)) + '</span>'
-              + '<span class="cs-item__amt">' + money(Number(f["Buy Amount"]) || 0) + '</span></div>';
+              + '<span class="cs-item__amt">' + money(Number(f["Buy Amount"]) || 0) + '</span>'
+              + winHtml
+              + '</div>';
           }).join("");
           var isPaid = !!b.paidMethod;
+          var wonAmt = Number(b.won || 0);
+          var netAmt = wonAmt - b.total;
+          var netClass = netAmt > 0 ? "is-net-pos" : (netAmt < 0 ? "is-net-neg" : "");
+          var netSign = netAmt > 0 ? "+" : (netAmt < 0 ? "−" : "");
           return '<article class="cs-card cs-card--print-page' + (isPaid ? " is-paid" : "") + '">'
             + '<div class="cs-print-head">'
             + '<img class="cs-print-head__logo" src="images/logo.png" alt="F&H Golf Course" />'
@@ -5442,9 +5523,13 @@
             + '<header class="cs-card__hd"><h4 class="cs-card__buyer">' + esc(b.display) + '</h4>'
             + '<span class="cs-card__count">' + b.items.length + (b.items.length === 1 ? " team" : " teams") + '</span></header>'
             + '<div class="cs-card__items">' + items + '</div>'
+            + '<div class="cs-money">'
+            + '<div class="cs-money__side cs-money__spent"><small>Spent</small><b>' + money(b.total) + '</b></div>'
+            + '<div class="cs-money__side cs-money__won"><small>Won</small><b>' + money(wonAmt) + '</b></div>'
+            + '<div class="cs-money__net ' + netClass + '"><small>Net</small><b>' + netSign + money(Math.abs(netAmt)) + '</b></div>'
+            + '</div>'
             + '<footer class="cs-card__ft">'
-            + '<div class="cs-tot"><small>Total owed</small><b>' + money(b.total) + '</b></div>'
-            + '<div class="cs-tot"><small>Status</small><b>' + (isPaid ? esc("Paid · " + b.paidMethod) : "Balance due") + '</b></div>'
+            + '<div class="cs-tot"><small>Buy-in status</small><b>' + (isPaid ? esc("Paid · " + b.paidMethod) : "Balance due") + '</b></div>'
             + '</footer>'
             + '<div class="cs-print-foot">'
             + '<div class="cs-print-sig"><div><span class="cs-print-sig__line"></span><small>Buyer signature</small></div>'
