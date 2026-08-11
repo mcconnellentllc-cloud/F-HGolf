@@ -92,6 +92,20 @@
     .disp__empty-msg { text-align: center; color: var(--muted); padding: 1.5rem 1rem; font-style: italic; }
     .disp__empty-msg--all { padding: 3rem 1rem; font-size: 1.3rem; color: var(--green); font-style: normal; font-weight: 700; }
 
+    /* Auction-complete thank-you card — shown on the TV once every team
+       is sold and the auction is marked done. Warm, celebratory, names
+       the folks who made the night. */
+    .thanks { max-width: 60rem; margin: 2rem auto 1.5rem; padding: clamp(1.25rem, 3vw, 2.5rem) clamp(1.25rem, 3vw, 2.5rem); background: linear-gradient(180deg, rgba(63,188,107,0.12) 0%, rgba(63,188,107,0.04) 100%); border: 1px solid rgba(245,197,66,0.35); border-radius: 18px; text-align: center; box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 10px 40px rgba(0,0,0,0.35); }
+    .thanks__eyebrow { text-transform: uppercase; letter-spacing: 0.32em; font-size: clamp(0.75rem, 1vw, 0.9rem); color: var(--gold); font-weight: 800; }
+    .thanks__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(2.2rem, 5vw, 4rem); margin: 0.4rem 0 0.6rem; line-height: 1.05; color: #fff; letter-spacing: -0.01em; }
+    .thanks__lede { font-size: clamp(1rem, 1.55vw, 1.35rem); color: var(--ink); opacity: 0.9; margin: 0 auto 1.6rem; max-width: 42rem; line-height: 1.5; }
+    .thanks__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: 1rem; margin: 0.6rem auto 1.6rem; max-width: 52rem; }
+    .thanks__cell { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1.1rem 1.15rem; text-align: left; }
+    .thanks__cell b { display: block; font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: clamp(1.05rem, 1.4vw, 1.25rem); color: var(--gold); margin-bottom: 0.35rem; letter-spacing: 0.01em; }
+    .thanks__cell span { display: block; color: var(--ink); opacity: 0.85; font-size: clamp(0.9rem, 1.1vw, 1.05rem); line-height: 1.45; }
+    .thanks__signoff { font-family: "Fraunces", Georgia, serif; font-style: italic; font-size: clamp(1.15rem, 1.7vw, 1.5rem); color: var(--green); margin: 1.6rem auto 0.3rem; max-width: 42rem; line-height: 1.4; }
+    .thanks__crew { font-size: clamp(0.9rem, 1.2vw, 1.1rem); color: var(--muted); letter-spacing: 0.04em; }
+
     .disp__foot { text-align: center; color: var(--muted); font-size: 0.75rem; padding: 0.4rem 1rem 0.8rem; letter-spacing: 0.08em; }
     .disp__foot .live-dot { display: inline-block; width: 0.55rem; height: 0.55rem; background: var(--green); border-radius: 50%; margin-right: 0.35rem; vertical-align: middle; animation: pulse 1.8s ease-in-out infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -352,7 +366,24 @@
 
         var body = document.getElementById("dispBody");
         if (auctionMode === "done") {
-          body.innerHTML = '<p class="disp__empty-msg disp__empty-msg--all">Auction complete &mdash; thanks everyone!</p>';
+          // Auction is closed for the night — swap the board for a warm
+          // thank-you card. Generic on purpose so it doesn't need editing
+          // year to year.
+          body.innerHTML =
+              '<section class="thanks" role="status" aria-live="polite">'
+            +   '<div class="thanks__eyebrow">That&rsquo;s a wrap</div>'
+            +   '<h2 class="thanks__title">Auction complete.</h2>'
+            +   '<p class="thanks__lede">The pool is set, the teams are placed, and the golf starts tomorrow. Before we get there &mdash; a huge thank you to everyone who made tonight what it was.</p>'
+            +   '<div class="thanks__grid">'
+            +     '<div class="thanks__cell"><b>To the buyers</b><span>You built the pool. Every hand raised tonight is why this weekend gets to be the one everyone circles on the calendar.</span></div>'
+            +     '<div class="thanks__cell"><b>To the players</b><span>Sixty-four teams. Go earn it out there tomorrow &mdash; you&rsquo;re the reason there&rsquo;s a Calcutta to bid on.</span></div>'
+            +     '<div class="thanks__cell"><b>To the meal crew</b><span>Dinner made the room. Thank you for feeding the whole field and doing it well.</span></div>'
+            +     '<div class="thanks__cell"><b>To our auctioneer</b><span>Kept the room moving, kept the pace up, and made bidding actually fun. We couldn&rsquo;t run this night without you.</span></div>'
+            +     '<div class="thanks__cell"><b>To everyone else</b><span>Setup crew, sponsors, servers, spotters, and every person who lent a hand tonight &mdash; thank you. This is a group effort and it shows.</span></div>'
+            +   '</div>'
+            +   '<p class="thanks__signoff">See you on the first tee.</p>'
+            +   '<div class="thanks__crew">&mdash; The F&amp;H Golf Course crew</div>'
+            + '</section>';
           return;
         }
         if (!recs.length) {
