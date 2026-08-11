@@ -1858,6 +1858,13 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .cs-strip__owe { color: #ffe08a; }
 .cs-strip__won { color: #ffd76a; }
 
+/* Signed-out warning on tournament-admin. Loud but not scary — makes
+   the "empty Calcutta Buyers tab" state readable at a glance. */
+.tw-auth-warn { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; padding: 0.85rem 1rem; margin: 0 0 1rem; background: #fff5d6; color: #6b4a00; border: 1px solid #e0b83a; border-radius: 10px; font-weight: 600; }
+.tw-auth-warn b { color: #6b4a00; }
+.tw-auth-warn__btn { display: inline-block; margin-left: auto; padding: 0.4rem 0.85rem; background: #1B5E20; color: #fff !important; border-radius: 999px; font-weight: 700; text-decoration: none; font-size: 0.85rem; letter-spacing: 0.02em; }
+.tw-auth-warn__btn:hover { background: #0f4413; }
+
 .cs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr)); gap: 0.9rem; align-items: start; }
 .cs-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-sm); overflow: hidden; }
 .cs-card.is-paid { border-color: var(--primary-green); box-shadow: 0 0 0 1px var(--primary-green) inset, var(--shadow-sm); background: #f6faf1; }
