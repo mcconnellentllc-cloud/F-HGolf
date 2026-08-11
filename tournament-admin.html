@@ -289,6 +289,10 @@
             </div>
           </div>
           <p class="scaffold__desc">One card per buyer. Shows every team they bought, the running total they owe, a paid check + method dropdown, and an email field so you can send them a receipt. Email all / Print all send a receipt to every buyer with one click.</p>
+          <div class="tab-toolbar tab-toolbar--cs">
+            <input type="search" class="tab-filter" id="csFilter" placeholder="Filter buyers by name…" autocomplete="off" />
+            <span class="tab-toolbar__count" id="csFilterCount" aria-live="polite"></span>
+          </div>
           <div id="caSumBody"><p class="noms__msg">Loading…</p></div>
         </section>
 
@@ -5060,11 +5064,16 @@
           var em = String(f["Buyer Email"] || "").trim();
           if (em && !buckets[key].email) buckets[key].email = em;
         });
-        // localStorage fallback: read cached emails and fill anywhere the
-        // Airtable copy came back empty. Never overwrite an Airtable value.
+        // Email backfill priority: Airtable Buyer Email (already set
+        // above) → localStorage cache → Players roster. Never overwrite
+        // a value we already have.
         var emailCache = readBuyerEmailCache();
         order.forEach(function (k) {
           if (!buckets[k].email && emailCache[k]) buckets[k].email = emailCache[k];
+          if (!buckets[k].email) {
+            var em = lookupPlayerEmail(buckets[k].display);
+            if (em) buckets[k].email = em;
+          }
         });
         // Alphabetize by display name.
         order.sort(function (a, b) { return buckets[a].display.toLowerCase().localeCompare(buckets[b].display.toLowerCase()); });
@@ -5266,6 +5275,11 @@
               }).catch(function () {
                 if (statusEl) { statusEl.textContent = "Save error"; statusEl.className = "ci__status is-error"; }
               });
+              // Fire-and-forget mirror to the Player card so next
+              // year's autofill sees this email. Runs in parallel with
+              // the signup writes above; failures don't affect the
+              // buyer-card save which is authoritative.
+              try { syncBuyerEmailToPlayer(buyer, raw); } catch (e) {}
             });
           }
 
@@ -5288,6 +5302,15 @@
             if (!w) window.location.href = href;
           });
         });
+
+        // Re-apply any active buyer-name filter after each re-render so
+        // a mid-typing operator doesn't see the list snap back to every
+        // buyer just because a save round-tripped. Dispatches the input
+        // event on the search box; the wired handler does the work.
+        try {
+          var csFilterEl = document.getElementById("csFilter");
+          if (csFilterEl && csFilterEl.value) csFilterEl.dispatchEvent(new Event("input"));
+        } catch (e) {}
       }
 
       // localStorage cache for buyer emails — namespaced by tournament KEY
@@ -5312,6 +5335,85 @@
           else delete map[k];
           localStorage.setItem(buyerEmailCacheKey(), JSON.stringify(map));
         } catch (e) {}
+      }
+
+      // In-memory Players roster cache. Fetched once per session on first
+      // Calcutta Buyers open, then reused for buyer-email autofill and
+      // for the push-back-to-Player-card write path. Never re-fetched on
+      // every render — the Player list changes on the order of days,
+      // not the seconds a Calcutta card sits open.
+      var _playersCache = null; // { byNameLc: { [nameLc]: {id, email, name} }, list: [...] }
+      var _playersInFlight = null;
+      function ensurePlayersCache() {
+        if (_playersCache) return Promise.resolve(_playersCache);
+        if (_playersInFlight) return _playersInFlight;
+        _playersInFlight = fetch(FH_API.url("/api/players"), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var out = { byNameLc: {}, list: [] };
+            if (j && j.ok && Array.isArray(j.records)) {
+              j.records.forEach(function (rec) {
+                var f = rec.fields || {};
+                var name = String(f.Name || "").trim();
+                if (!name) return;
+                var entry = { id: rec.id, name: name, email: String(f.Email || "").trim() };
+                out.list.push(entry);
+                out.byNameLc[name.toLowerCase()] = entry;
+              });
+            }
+            _playersCache = out;
+            _playersInFlight = null;
+            return out;
+          })
+          .catch(function () { _playersInFlight = null; return { byNameLc: {}, list: [] }; });
+        return _playersInFlight;
+      }
+      // Read from whatever is currently in cache. Non-blocking; if the
+      // cache hasn't loaded yet, returns undefined.
+      function lookupPlayerEmail(buyerName) {
+        if (!_playersCache) return "";
+        var k = String(buyerName || "").trim().toLowerCase();
+        var p = _playersCache.byNameLc[k];
+        return (p && p.email) || "";
+      }
+      // Push a typed-on-buyer-card email up to the Player record so the
+      // Player Card, next tournament's autofill, and this year's other
+      // uses all get the same address. If no Player card exists for
+      // that name, create one with just Name + Email. Silent on errors —
+      // the buyer-card save is authoritative; this is a bonus write.
+      function syncBuyerEmailToPlayer(buyerName, email) {
+        var name = String(buyerName || "").trim();
+        var em = String(email || "").trim();
+        if (!name) return Promise.resolve();
+        return ensurePlayersCache().then(function (cache) {
+          var k = name.toLowerCase();
+          var existing = cache.byNameLc[k];
+          if (existing) {
+            // Skip if the Player card already has the same email.
+            if ((existing.email || "").toLowerCase() === em.toLowerCase()) return;
+            return fetch(FH_API.url("/api/players"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+              body: JSON.stringify({ id: existing.id, email: em })
+            }).then(function (r) { return r.json().catch(function () { return {}; }); })
+              .then(function (j) { if (j && j.ok) existing.email = em; })
+              .catch(function () {});
+          }
+          if (!em) return; // Don't create an empty Player card just because we cleared an email.
+          return fetch(FH_API.url("/api/players"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify({ name: name, email: em })
+          }).then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+              if (j && j.ok && j.id) {
+                var entry = { id: j.id, name: name, email: em };
+                cache.list.push(entry);
+                cache.byNameLc[k] = entry;
+              }
+            })
+            .catch(function () {});
+        });
       }
 
       // Build a Calcutta receipt as plain text for mailto: bodies.
@@ -5504,7 +5606,13 @@
           if (em && !buckets[key].email) buckets[key].email = em;
         });
         var cache = readBuyerEmailCache();
-        order.forEach(function (k) { if (!buckets[k].email && cache[k]) buckets[k].email = cache[k]; });
+        order.forEach(function (k) {
+          if (!buckets[k].email && cache[k]) buckets[k].email = cache[k];
+          if (!buckets[k].email) {
+            var em = lookupPlayerEmail(buckets[k].display);
+            if (em) buckets[k].email = em;
+          }
+        });
         order.sort(function (a, b) { return buckets[a].display.toLowerCase().localeCompare(buckets[b].display.toLowerCase()); });
         return { order: order, buckets: buckets, teamNumbers: caTeamNumbers, winnings: winnings };
       }
@@ -6327,7 +6435,18 @@
             else if (s === "pairings") { try { _wirePrDayControls(); } catch (e) {} renderPairings(scAllCache); }
             else if (s === "leaderboard") renderLeaderboard(scAllCache);
             else if (s === "calcutta") renderCalcutta(scAllCache);
-            else if (s === "calcuttaSummary") { try { flushCalcuttaPending(); } catch (e) {} renderCalcuttaSummary(scAllCache); }
+            else if (s === "calcuttaSummary") {
+              try { flushCalcuttaPending(); } catch (e) {}
+              renderCalcuttaSummary(scAllCache);
+              // Kick off the Players roster fetch once so buyer cards
+              // can auto-fill emails from the Player card. Re-render
+              // when it lands so cards that had a fresh lookup pick up
+              // the email without the operator having to reload.
+              var alreadyLoaded = !!_playersCache;
+              ensurePlayersCache().then(function () {
+                if (!alreadyLoaded && window.__fhActive === "calcuttaSummary") { try { renderCalcuttaSummary(scAllCache); } catch (e) {} }
+              });
+            }
             else if (s === "payout") renderPayout(scAllCache);
             else if (s === "flights") renderBoard(scAllCache);
           } catch (e) {}
@@ -6495,6 +6614,25 @@
         if (csEa) csEa.addEventListener("click", emailAllBuyers);
         var csPa = document.getElementById("csPrintAll");
         if (csPa) csPa.addEventListener("click", printAllBuyerReceipts);
+        // Search bar on the Calcutta Buyers tab. Wired once here so it
+        // survives re-renders — the handler re-scans .cs-card each
+        // input event.
+        var csFilter = document.getElementById("csFilter");
+        var csFilterCount = document.getElementById("csFilterCount");
+        if (csFilter) csFilter.addEventListener("input", function () {
+          var q = csFilter.value.trim().toLowerCase();
+          var body = document.getElementById("caSumBody");
+          if (!body) return;
+          var cards = body.querySelectorAll(".cs-card");
+          var shown = 0;
+          Array.prototype.forEach.call(cards, function (card) {
+            var name = String(card.getAttribute("data-buyer") || "").toLowerCase();
+            var hit = !q || name.indexOf(q) !== -1;
+            card.style.display = hit ? "" : "none";
+            if (hit) shown++;
+          });
+          if (csFilterCount) csFilterCount.textContent = q ? (shown + " of " + cards.length + " buyers") : "";
+        });
         var lbs = document.getElementById("lbSaveFlights");
         if (lbs) lbs.addEventListener("click", saveFlights);
         var lbInc = document.getElementById("lbFlInc");
