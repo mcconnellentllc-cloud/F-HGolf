@@ -3537,11 +3537,14 @@
         var badge = teamNum ? '<span class="pr-team__num">Team ' + String(teamNum).padStart(2, "0") + '</span>' : '';
         // Day 2 pairings: surface Day 1 gross on every card so the
         // operator can see at a glance what each team shot yesterday.
-        // Not shown on Day 1 (no prior day to compare against).
+        // Not shown on Day 1 (no prior day to compare against). Reads
+        // via the shared d1g() helper so it uses the same field name +
+        // "scores present + gross > 0" gating the leaderboard uses.
         var d1Chip = "";
         if (PR_DAY === "d2") {
-          var d1 = Number(f["Day 1 Gross"]);
-          d1Chip = isFinite(d1) && d1 > 0
+          var srcRec = r.__src || r; // aliased Day 2 records carry the real row on __src
+          var d1 = d1g(srcRec);
+          d1Chip = (d1 != null && d1 > 0)
             ? '<span class="pr-team__d1" title="Day 1 gross score">D1 <b>' + d1 + '</b></span>'
             : '<span class="pr-team__d1 pr-team__d1--pending" title="Day 1 gross not entered yet">D1 <b>—</b></span>';
         }
