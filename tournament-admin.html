@@ -4564,26 +4564,48 @@
             +  '</div>';
         }
 
-        var pages = groups.map(function (g) {
+        // One card per team in the group so every team walks away with the
+        // OPPONENT they're scoring on top of their sheet. Teams cycle:
+        //   • Pair (2 teams): 2 cards — [T1/T2] then [T2/T1].
+        //   • Trio (3 teams): 3 cards — [T1/T2], [T2/T3], [T3/T1].
+        //   • N teams: N cards — team i sits in the top block, team (i+1)
+        //     mod N in the bottom block. Solo team → one card, unchanged.
+        // Single-team layouts for 3+ player rosters keep the existing
+        // multi-player block layout — that mode doesn't mix with rotation.
+        function cardPagesForGroup(g) {
+          var teams = g.teams || [];
           var waveTag = g.wave === "8 AM" ? "8 AM" : "1 PM";
           var slotTag = "Tee " + g.hole + "-" + g.slot + " · " + waveTag;
-          // Tee-mark absolute left = first-hole x + (hole - 1) × per-hole step.
           var teeLeftPx = "calc(" + CARD_OFFSETS.teeMarkFirst + " + " + CARD_OFFSETS.teeMarkStep + " * " + (g.hole - 1) + ")";
-          var t1 = g.teams[0];
-          var t2 = g.teams[1] || null;
-          var blocksHtml;
-          if (!t2 && t1 && fullPlayerNames(t1.fields || {}).length >= 3) {
-            blocksHtml = singleTeamMultiPlayerBlocks(t1);
-          } else {
-            blocksHtml = teamNameBlock(t1, "sc-block--team1")
-                       + teamNameBlock(t2, "sc-block--team2");
+          function pageHtml(blocksHtml) {
+            return '<div class="sc-page">'
+              + '<div class="sc-hdr">' + esc(slotTag) + '</div>'
+              + blocksHtml
+              + '<div class="sc-teemark" style="left: ' + teeLeftPx + '"><span class="sc-teemark__slot">' + esc(g.slot) + '</span></div>'
+              + '</div>';
           }
-          return '<div class="sc-page">'
-            + '<div class="sc-hdr">' + esc(slotTag) + '</div>'
-            + blocksHtml
-            + '<div class="sc-teemark" style="left: ' + teeLeftPx + '"><span class="sc-teemark__slot">' + esc(g.slot) + '</span></div>'
-            + '</div>';
-        }).join("");
+          if (teams.length <= 1) {
+            var t = teams[0] || null;
+            var blocksHtml;
+            if (t && fullPlayerNames(t.fields || {}).length >= 3) {
+              blocksHtml = singleTeamMultiPlayerBlocks(t);
+            } else {
+              blocksHtml = teamNameBlock(t, "sc-block--team1")
+                         + teamNameBlock(null, "sc-block--team2");
+            }
+            return pageHtml(blocksHtml);
+          }
+          var htmls = [];
+          for (var i = 0; i < teams.length; i++) {
+            var top = teams[i];
+            var bot = teams[(i + 1) % teams.length];
+            htmls.push(pageHtml(
+              teamNameBlock(top, "sc-block--team1") + teamNameBlock(bot, "sc-block--team2")
+            ));
+          }
+          return htmls.join("");
+        }
+        var pages = groups.map(cardPagesForGroup).join("");
 
         var host = document.createElement("div");
         host.id = "prCardsHost";
@@ -4738,12 +4760,22 @@
             teeHtml = '<div class="sc-teemark" style="left: ' + teeLeftPx + '"><span class="sc-teemark__slot">' + aSlot + '</span></div>';
           }
           var hdr = "DAY 2 · " + flTag + " · Pair " + pairNum;
-          pages.push('<div class="sc-page">'
-            + '<div class="sc-hdr">' + esc(hdr) + '</div>'
-            + d2Block(a, "sc-block--team1")
-            + d2Block(b, "sc-block--team2")
-            + teeHtml
-            + '</div>');
+          function pagePairHtml(top, bot) {
+            return '<div class="sc-page">'
+              + '<div class="sc-hdr">' + esc(hdr) + '</div>'
+              + d2Block(top, "sc-block--team1")
+              + d2Block(bot, "sc-block--team2")
+              + teeHtml
+              + '</div>';
+          }
+          // One card per team in the pair so each team scores its opponent
+          // on top. Solo remainder (odd-count flight tail) prints one card.
+          if (b) {
+            pages.push(pagePairHtml(a, b));
+            pages.push(pagePairHtml(b, a));
+          } else {
+            pages.push(pagePairHtml(a, null));
+          }
         }
 
         var host = document.createElement("div");
