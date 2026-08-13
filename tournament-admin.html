@@ -170,7 +170,7 @@
               <button class="btn btn--solid" type="button" id="prPrintTestCard" title="Print one card with dummy names + corner markers to calibrate alignment">Print test scorecard</button>
             </div>
           </div>
-          <p class="scaffold__desc">Two teams to a tee. Tap a hole up top to add a <em>Tee A</em> or <em>A+B</em> &mdash; teams auto-fill from Unplaced. Drag a team (or pick from its dropdown) to insert at a seat &mdash; the rest of the placed teams shift to fit. Drop onto <em>seat 3</em> to make a trio. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
+          <p class="scaffold__desc">Workflow: set the A/B slots &rarr; <em>Autofill this wave</em> &rarr; drag teams around to swap into empty seats or use a team's dropdown to swap or make a trio (pick <em>Team 3</em>) &rarr; print cards. Drops onto a full tee are rejected on purpose &mdash; free a seat first or use the dropdown. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
           <div id="prBoard"><p class="noms__msg">Loading…</p></div>
         </section>
 
@@ -3829,37 +3829,63 @@
             prDrag = null;
           });
         });
-        // Move-to dropdown per team card. Uses the same cascade-insert
-        // primitive as drag/drop so the two paths behave identically.
-        // Value "" clears the team to Unplaced. Value "<hole><slot><seat>"
-        // targets a specific seat and rotates the wave around it.
+        // Move-to dropdown per team card. Picks a specific seat by
+        // value "<hole><slot><seat>", e.g. "3A1" = Hole 3, Tee A, seat 1.
+        // Empty value → Unplaced. If a team already sits at the target
+        // seat, we SWAP: the displaced team takes the moving team's
+        // source seat (or Unplaced if the source was the pool).
+        // Picking seat 3 on a non-trio tee is how the operator makes
+        // a trio explicit — no other path does it.
         Array.prototype.forEach.call(board.querySelectorAll(".pr-team__move"), function (sel) {
           sel.addEventListener("mousedown", function (e) { e.stopPropagation(); });
           sel.addEventListener("change", function () {
             var id = sel.getAttribute("data-id");
             var wave = sel.getAttribute("data-wave");
             var val = sel.value;
-            if (!val) {
-              positionSaveMany([{ id: id, hole: "", slot: "", seat: "", start: wave }]);
-              return;
-            }
+            var srcTee = sel.closest(".pr-tee");
+            var srcHole = srcTee ? Number(srcTee.getAttribute("data-hole")) : null;
+            var srcSlot = srcTee ? srcTee.getAttribute("data-slot") : "";
+            var srcSeat = Number(sel.getAttribute("data-seat")) || null;
+            if (!val) { positionSaveMany([{ id: id, hole: "", slot: "", seat: "", start: wave }]); return; }
             var m = /^(\d+)([AB])([123])$/.exec(val);
             if (!m) return;
             var tgtHole = Number(m[1]), tgtSlot = m[2], tgtSeat = Number(m[3]);
-            var ops = computeCascadeInsert(wave, id, tgtHole, tgtSlot, tgtSeat);
-            if (ops.assignments.length) positionSaveMany(ops.assignments);
+            if (tgtHole === srcHole && tgtSlot === srcSlot && tgtSeat === srcSeat) return;
+            var zone = board.querySelector('.pr-tee[data-wave="' + wave + '"][data-hole="' + tgtHole + '"][data-slot="' + tgtSlot + '"]');
+            var occupantId = null;
+            if (zone) {
+              var seatEl = zone.querySelector('.pr-team[data-seat="' + tgtSeat + '"][data-id]');
+              if (seatEl && seatEl.getAttribute("data-id") !== id) occupantId = seatEl.getAttribute("data-id");
+            }
+            var assignments = [{ id: id, hole: tgtHole, slot: tgtSlot, seat: tgtSeat, start: wave }];
+            if (occupantId) {
+              if (srcHole && srcSlot && srcSeat) {
+                assignments.push({ id: occupantId, hole: srcHole, slot: srcSlot, seat: srcSeat, start: wave });
+              } else {
+                assignments.push({ id: occupantId, hole: "", slot: "", seat: "", start: wave });
+              }
+            }
+            positionSaveMany(assignments);
           });
         });
       }
 
-      // Drop routing:
-      //   • On the Unplaced pool  → clear this team's placement, no cascade.
-      //   • On a tee (or seat inside it) → cascade insert at the target
-      //     seat, shifting other placed teams to preserve everyone's
-      //     placement. Everyone else in the wave stays placed unless the
-      //     wave is genuinely over capacity — in which case the LAST
-      //     linear team overflows to Unplaced (exactly one).
+      // Drop routing — SIMPLE, PREDICTABLE. No cascade, no surprises.
+      //   • Drop on the Unplaced pool → this team goes to Unplaced.
+      //   • Drop on a tee zone:
+      //       - Any empty seat (1, 2, or already-trio 3) → team goes to
+      //         the earliest empty seat. Source seat (if placed) becomes
+      //         empty — the row update overwrites the moved team's
+      //         placement so its old seat is naturally vacated.
+      //       - No empty seat → REJECT with a message. The user has to
+      //         free a seat first, or use a team's dropdown → "Team 3
+      //         (trio)" to explicitly promote the tee to a trio.
+      // Trios are never spawned by drag. Swap semantics live on the
+      // per-team dropdown — pick a target seat there to swap with its
+      // current occupant (the classic Move-to behavior below).
       function handleDrop(zone, drag) {
+        var msg = document.getElementById("prMsg");
+        var setMsg = function (t) { if (msg) msg.textContent = t; };
         if (zone.classList.contains("pr-pool")) {
           var w = zone.getAttribute("data-wave") || drag.srcWave || "";
           positionSaveMany([{ id: drag.id, hole: "", slot: "", seat: "", start: w }]);
@@ -3869,112 +3895,19 @@
         var tgtSlot = zone.getAttribute("data-slot");
         var tgtWave = zone.getAttribute("data-wave") || drag.srcWave;
         if (drag.srcHole === tgtHole && drag.srcSlot === tgtSlot && drag.srcWave === tgtWave) return;
-        var tgtSeat = _pickTargetSeat(zone, drag.id);
-        var ops = computeCascadeInsert(tgtWave, drag.id, tgtHole, tgtSlot, tgtSeat);
-        if (ops.assignments.length) positionSaveMany(ops.assignments);
-      }
-      // Pick the seat within a tee zone the dragged team should land in.
-      // Priority: earliest empty seat (fills gaps first), else seat 1 —
-      // the cascade insert then shifts everyone else to make room.
-      function _pickTargetSeat(zone, dragId) {
+        var tgtSeat = 0;
         for (var s = 1; s <= 3; s++) {
           var el = zone.querySelector('[data-seat="' + s + '"]');
           if (!el) continue;
           var id = el.getAttribute("data-id");
-          if (!id || id === dragId) return s;
+          if (!id || id === drag.id) { tgtSeat = s; break; }
         }
-        return 1;
+        if (!tgtSeat) {
+          setMsg("Hole " + tgtHole + " Tee " + tgtSlot + " is full — free a seat first, or pick a seat from a team's dropdown.");
+          return;
+        }
+        positionSaveMany([{ id: drag.id, hole: tgtHole, slot: tgtSlot, seat: tgtSeat, start: tgtWave }]);
       }
-      // The core cascade-insert primitive.
-      //
-      // Model: each wave has a linear sequence of tee positions —
-      //   H1A/1, H1A/2, [H1A/3 if trio], H1B/1, H1B/2, [H1B/3 if trio],
-      //   H2A/1, ..., through the last active slot.
-      // A tee is a "trio" iff a team currently occupies seat 3 (self-
-      // healing: an empty seat 3 auto-demotes on the next render).
-      // Targeting seat 3 auto-promotes the destination tee.
-      //
-      // Semantics: PLACE `teamId` at the target seat, then re-slot every
-      // team in the wave into consecutive linear positions preserving
-      // their existing relative order. That gives the user's expected
-      // "insert here, everyone else shifts" feel — no surprise trios, no
-      // surprise unplacings unless the wave is genuinely over capacity
-      // (extra teams overflow to Unplaced from the tail).
-      function computeCascadeInsert(wave, teamId, tgtHole, tgtSlot, tgtSeat) {
-        var cfg = loadSlotCfg(wave);
-        var slots = activeSlots(cfg);
-        if (!slots.length) return { assignments: [] };
-        var teamRec = null;
-        for (var i = 0; i < prRecs.length; i++) { if (prRecs[i].id === teamId) { teamRec = prRecs[i]; break; } }
-        if (!teamRec) return { assignments: [] };
-        var waveTeams = prRecs.filter(function (r) { return String((r.fields || {}).Start || "") === wave; });
-        // Trio set: any tee holding a seat-3 team + the target if seat 3.
-        var trioSet = {};
-        waveTeams.forEach(function (r) {
-          var f = r.fields || {};
-          if (Number(f.Seat) === 3 && Number(f.Hole)) trioSet[Number(f.Hole) + String(f.Slot).toUpperCase()] = true;
-        });
-        if (tgtSeat === 3) trioSet[tgtHole + tgtSlot] = true;
-        var tgtInActive = false;
-        for (var i = 0; i < slots.length; i++) { if (slots[i].hole === tgtHole && slots[i].slot === tgtSlot) { tgtInActive = true; break; } }
-        if (!tgtInActive) return { assignments: [] };
-        var positions = [];
-        slots.forEach(function (s) {
-          var k = s.hole + s.slot;
-          var seats = trioSet[k] ? 3 : 2;
-          for (var seat = 1; seat <= seats; seat++) positions.push({ hole: s.hole, slot: s.slot, seat: seat });
-        });
-        var tgtIdx = -1;
-        for (var i = 0; i < positions.length; i++) {
-          if (positions[i].hole === tgtHole && positions[i].slot === tgtSlot && positions[i].seat === tgtSeat) { tgtIdx = i; break; }
-        }
-        if (tgtIdx < 0) return { assignments: [] };
-        // Only PLACED teams participate in the cascade — Unplaced teams
-        // stay in the pool. That keeps a single move to a small number of
-        // Airtable writes: only teams between the source and target
-        // positions shift, not the whole roster.
-        var placedOthers = waveTeams.filter(function (r) {
-          if (r.id === teamId) return false;
-          var f = r.fields || {};
-          return Number(f.Hole) && (String(f.Slot || "").toUpperCase() === "A" || String(f.Slot || "").toUpperCase() === "B") && Number(f.Seat);
-        });
-        placedOthers.sort(function (a, b) {
-          var fa = a.fields || {}, fb = b.fields || {};
-          var ha = Number(fa.Hole) || 0, hb = Number(fb.Hole) || 0;
-          var sa = String(fa.Slot || "").toUpperCase(), sb = String(fb.Slot || "").toUpperCase();
-          var xa = Number(fa.Seat) || 0, xb = Number(fb.Seat) || 0;
-          if (ha !== hb) return ha - hb;
-          if (sa !== sb) return sa < sb ? -1 : 1;
-          return xa - xb;
-        });
-        // Insert the moving team at tgtIdx (clamped to the tail so a
-        // move to an empty end seat behaves as append).
-        var insertAt = Math.min(tgtIdx, placedOthers.length);
-        var finalOrder = placedOthers.slice(0, insertAt).concat([teamRec], placedOthers.slice(insertAt));
-        // Walk positions[0..N-1] and re-slot the first N teams. Any team
-        // that no longer fits (overflow) goes to Unplaced. When the
-        // moving team came from the pool AND the wave was already full,
-        // exactly one placed team overflows — matching the natural
-        // "insert here, tail team gets bumped" gesture.
-        var assignments = [];
-        for (var i = 0; i < finalOrder.length; i++) {
-          var t = finalOrder[i];
-          var tf = t.fields || {};
-          var curH = Number(tf.Hole), curS = String(tf.Slot || "").toUpperCase(), curSeat = Number(tf.Seat);
-          var curStart = String(tf.Start || "");
-          if (i < positions.length) {
-            var p = positions[i];
-            if (curH !== p.hole || curS !== p.slot || curSeat !== p.seat || curStart !== wave) {
-              assignments.push({ id: t.id, hole: p.hole, slot: p.slot, seat: p.seat, start: wave });
-            }
-          } else {
-            var alreadyUnplaced = !curH && !curS && !curSeat && curStart === wave;
-            if (!alreadyUnplaced) assignments.push({ id: t.id, hole: "", slot: "", seat: "", start: wave });
-          }
-        }
-        return { assignments: assignments };
-      }
-
       function autofillWave(wave, silent) {
         var msg = document.getElementById("prMsg");
         var setMsg = function (t) { if (msg && !silent) msg.textContent = t; };
