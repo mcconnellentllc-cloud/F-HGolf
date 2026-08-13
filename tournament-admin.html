@@ -3211,12 +3211,20 @@
           newF.Hole = f["Day 2 Hole"];
           newF.Slot = f["Day 2 Slot"];
           newF.Seat = f["Day 2 Seat"];
-          // Day 2 wave OVERRIDES Day 1 wave here — a team that played Day 1
-          // AM but finished in Champ flight will show in the Day 2 PM wave.
-          // Fall back to Day 1 Start until the Day 2 wave is set (autofill
-          // will populate it).
+          // Day 2 wave rule (in priority order):
+          //   1. Explicit "Day 2 Start" — always wins.
+          //   2. Flight-based fallback — Champ + 1st flight → 1 PM,
+          //      2nd + 3rd flight → 8 AM. This keeps the Pairings Day 2
+          //      view accurate BEFORE the operator has run "Autofill Day 2
+          //      from Day 1 scores", so 47 AM / 17 PM never happens just
+          //      because the wave field hasn't been re-computed yet.
+          //   3. Last-resort: Day 1 Start (unflighted / no-flight teams).
           if (typeof f["Day 2 Start"] === "string" && f["Day 2 Start"]) {
             newF.Start = f["Day 2 Start"];
+          } else {
+            var fl = Number(f["Flight"]) || 0;
+            if (fl === 1 || fl === 2) newF.Start = "1 PM";
+            else if (fl === 3 || fl === 4) newF.Start = "8 AM";
           }
           return { id: r.id, created: r.created, fields: newF, __src: r };
         });
