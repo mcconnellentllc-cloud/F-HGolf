@@ -170,7 +170,7 @@
               <button class="btn btn--solid" type="button" id="prPrintTestCard" title="Print one card with dummy names + corner markers to calibrate alignment">Print test scorecard</button>
             </div>
           </div>
-          <p class="scaffold__desc">Workflow: set the A/B slots &rarr; <em>Autofill this wave</em> &rarr; drag teams around to swap into empty seats or use a team's dropdown to swap or make a trio (pick <em>Team 3</em>) &rarr; print cards. Drops onto a full tee are rejected on purpose &mdash; free a seat first or use the dropdown. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
+          <p class="scaffold__desc">Workflow: <em>Unplace wave</em> to start clean &rarr; tap the hole buttons up top to set A/B slots until <b>seats = teams</b> &rarr; <em>Autofill this wave</em> &rarr; drag teams around or use a team's dropdown to swap (pick <em>Team 3</em> for a trio) &rarr; print cards. Drops onto a full tee are rejected on purpose &mdash; free a seat first or use the dropdown. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
           <div id="prBoard"><p class="noms__msg">Loading…</p></div>
         </section>
 
@@ -3675,6 +3675,7 @@
           + '<span class="pr-cfg__lbl">Tees per hole &mdash; tap to cycle</span>'
           + '<div class="pr-hbs">' + btns + '</div>'
           + '<div class="pr-cfg__sum">' + summary + '</div>'
+          + '<button type="button" class="btn btn--solid pr-unplace" data-wave="' + w.k + '" title="Clear every placement in this wave. Everyone lands in Unplaced so you can set the A/B slots exactly and then Autofill.">Unplace wave</button>'
           + '<button type="button" class="btn btn--primary pr-autofill" data-wave="' + w.k + '"' + (canAutofill ? "" : " disabled") + '>Autofill this wave</button>'
           + '<button type="button" class="btn btn--solid pr-shiftup" data-wave="' + w.k + '" title="Repack every placed team into consecutive linear seats (H1A/1 → H1A/2 → H1B/1 → ... → H9B/2), preserving current trios. Fills any gap left by a manual move.">Shift wave up</button>'
           + '</div>'
@@ -3802,6 +3803,11 @@
         // Autofill per wave.
         Array.prototype.forEach.call(board.querySelectorAll(".pr-autofill"), function (btn) {
           btn.addEventListener("click", function () { autofillWave(btn.getAttribute("data-wave")); });
+        });
+        // Unplace wave — clears every team's placement in this wave so the
+        // operator can set the A/B slots cleanly and re-autofill.
+        Array.prototype.forEach.call(board.querySelectorAll(".pr-unplace"), function (btn) {
+          btn.addEventListener("click", function () { unplaceWave(btn.getAttribute("data-wave")); });
         });
         // Shift wave up — compact all placed teams into consecutive linear
         // seats (H1A/1 → H1A/2 → H1B/1 → ... → H9B/2), keeping the current
@@ -3975,6 +3981,23 @@
           }
         });
         if (!assignments.length) { tell("All teams in " + wave + " are already seated — nothing to fill. If you want to reshuffle, first drag some teams to Unplaced (or use their dropdown → unplaced)."); return; }
+        positionSaveMany(assignments);
+      }
+
+      // Clear every placement in a wave. Everyone in that wave goes to
+      // Unplaced so the operator can dial the A/B slots to the exact team
+      // count and then Autofill from a clean slate. Confirms first — this
+      // wipes any manual moves already saved.
+      function unplaceWave(wave) {
+        var msg = document.getElementById("prMsg");
+        var teams = prRecs.filter(function (r) {
+          if (String((r.fields || {})["Start"] || "") !== wave) return false;
+          var f = r.fields || {};
+          return Number(f.Hole) || (String(f.Slot || "").toUpperCase() === "A" || String(f.Slot || "").toUpperCase() === "B") || Number(f.Seat);
+        });
+        if (!teams.length) { if (msg) msg.textContent = "Wave " + wave + " is already empty."; return; }
+        if (!confirm("Move every team in " + wave + " back to Unplaced? " + teams.length + " placement(s) will be cleared. Slot config stays as-is.")) return;
+        var assignments = teams.map(function (r) { return { id: r.id, hole: "", slot: "", seat: "", start: wave }; });
         positionSaveMany(assignments);
       }
 
