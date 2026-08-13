@@ -3668,6 +3668,7 @@
           + '<div class="pr-hbs">' + btns + '</div>'
           + '<div class="pr-cfg__sum">' + summary + '</div>'
           + '<button type="button" class="btn btn--primary pr-autofill" data-wave="' + w.k + '"' + (canAutofill ? "" : " disabled") + '>Autofill this wave</button>'
+          + '<button type="button" class="btn btn--solid pr-shiftup" data-wave="' + w.k + '" title="Repack every placed team into consecutive linear seats (H1A/1 → H1A/2 → H1B/1 → ... → H9B/2), preserving current trios. Fills any gap left by a manual move.">Shift wave up</button>'
           + '</div>'
           + poolHtml
           + '<div class="pr-teegrid">' + teeHtml + '</div>'
@@ -3794,6 +3795,13 @@
         Array.prototype.forEach.call(board.querySelectorAll(".pr-autofill"), function (btn) {
           btn.addEventListener("click", function () { autofillWave(btn.getAttribute("data-wave")); });
         });
+        // Shift wave up — compact all placed teams into consecutive linear
+        // seats (H1A/1 → H1A/2 → H1B/1 → ... → H9B/2), keeping the current
+        // active tees and current trios. Fills the gap left by any manual
+        // move so the next team cascades up.
+        Array.prototype.forEach.call(board.querySelectorAll(".pr-shiftup"), function (btn) {
+          btn.addEventListener("click", function () { shiftWaveUp(btn.getAttribute("data-wave")); });
+        });
         // Drag-and-drop.
         Array.prototype.forEach.call(board.querySelectorAll(".pr-team[draggable='true']"), function (el) {
           el.addEventListener("dragstart", function (e) {
@@ -3878,23 +3886,23 @@
         var tgtSlot = zone.getAttribute("data-slot");
         var tgtWave = zone.getAttribute("data-wave") || drag.srcWave;
         if (drag.srcHole === tgtHole && drag.srcSlot === tgtSlot && drag.srcWave === tgtWave) return;
-        // Seat selection priority:
+        // Seat selection priority — trios are NEVER created by drag/drop
+        // (that was spawning surprise trios every time someone tried to
+        // reshuffle a full wave). To make a trio, use the seat-3 dropdown
+        // on a team card. Drag/drop rule:
         //   1. Empty seat 1 or 2 → drop there
-        //   2. Both 1 and 2 taken, seat 3 empty → drop into seat 3 (creates
-        //      a trio — this is the "hooked onto a group" flow)
-        //   3. All three taken → swap with seat 1 (moves seat-1 team back
-        //      to the drag's source position, or Unplaced if the source
-        //      was the pool)
+        //   2. Both 1 and 2 taken → SWAP with seat 1 (seat-1 team goes
+        //      back to the drag's source position, or Unplaced if the
+        //      source was the pool)
+        // If a seat 3 already exists (existing trio), a drop onto that
+        // tee still swaps with seat 1 rather than piling on a fourth.
         var seat1El = zone.querySelector('[data-seat="1"]');
         var seat2El = zone.querySelector('[data-seat="2"]');
-        var seat3El = zone.querySelector('[data-seat="3"]');
         var seat1Occupant = seat1El && seat1El.getAttribute("data-id") && seat1El.getAttribute("data-id") !== drag.id ? seat1El.getAttribute("data-id") : null;
         var seat2Occupant = seat2El && seat2El.getAttribute("data-id") && seat2El.getAttribute("data-id") !== drag.id ? seat2El.getAttribute("data-id") : null;
-        var seat3Occupant = seat3El && seat3El.getAttribute("data-id") && seat3El.getAttribute("data-id") !== drag.id ? seat3El.getAttribute("data-id") : null;
         var tgtSeat, displacedId = null;
         if (!seat1Occupant) { tgtSeat = 1; }
         else if (!seat2Occupant) { tgtSeat = 2; }
-        else if (!seat3Occupant) { tgtSeat = 3; }
         else { tgtSeat = 1; displacedId = seat1Occupant; }
         var assignments = [{ id: drag.id, hole: tgtHole, slot: tgtSlot, seat: tgtSeat, start: tgtWave }];
         if (displacedId) {
@@ -3959,6 +3967,67 @@
           }
         });
         if (!assignments.length) { setMsg("All teams already seated in " + wave + " — nothing to fill."); return; }
+        positionSaveMany(assignments);
+      }
+
+      // Compact all placed teams in a wave into consecutive linear seats,
+      // preserving the current active-slot config and the current trio set
+      // (any seat 3 that already holds a team stays a trio). Sorts placed
+      // teams by their current linear position, then re-lays them out from
+      // H1A/1 onward — so a manual move that leaves a hole gets the field
+      // to cascade up one seat. Overflow (teams beyond capacity) goes back
+      // to Unplaced rather than being silently promoted to new trios;
+      // undercount just leaves later seats empty.
+      function shiftWaveUp(wave) {
+        var msg = document.getElementById("prMsg");
+        var setMsg = function (t) { if (msg) msg.textContent = t; };
+        var cfg = loadSlotCfg(wave);
+        var slots = activeSlots(cfg);
+        if (!slots.length) { setMsg("Turn on some A/B slots at the top of this wave first."); return; }
+        var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === wave; });
+        if (!teams.length) { setMsg("No teams in this wave."); return; }
+        // Placed teams, sorted by (hole ascending, slot A→B, seat ascending).
+        var placed = teams.filter(function (r) {
+          var f = r.fields || {};
+          return Number(f.Hole) && (String(f.Slot || "").toUpperCase() === "A" || String(f.Slot || "").toUpperCase() === "B");
+        }).sort(function (a, b) {
+          var fa = a.fields || {}, fb = b.fields || {};
+          var ha = Number(fa.Hole), hb = Number(fb.Hole);
+          if (ha !== hb) return ha - hb;
+          var sa = String(fa.Slot).toUpperCase(), sb = String(fb.Slot).toUpperCase();
+          if (sa !== sb) return sa < sb ? -1 : 1;
+          var xa = Number(fa.Seat) || 99, xb = Number(fb.Seat) || 99;
+          return xa - xb;
+        });
+        // Which slots currently hold a seat 3 (trio) — those stay trios.
+        var trioSet = {};
+        placed.forEach(function (r) {
+          var f = r.fields || {};
+          if (Number(f.Seat) === 3) trioSet[Number(f.Hole) + String(f.Slot).toUpperCase()] = true;
+        });
+        // Walk the linear slot order in the wave's active config, pulling
+        // teams off the placed queue into consecutive seats.
+        var queue = placed.slice();
+        var assignments = [];
+        for (var i = 0; i < slots.length && queue.length; i++) {
+          var s = slots[i];
+          var k = s.hole + s.slot;
+          var cap = trioSet[k] ? 3 : 2;
+          for (var j = 0; j < cap && queue.length; j++) {
+            var t = queue.shift();
+            var f = t.fields || {};
+            var currHole = Number(f.Hole), currSlot = String(f.Slot || "").toUpperCase(), currSeat = Number(f.Seat) || 0;
+            if (currHole === s.hole && currSlot === s.slot && currSeat === (j + 1)) continue; // already in the right seat
+            assignments.push({ id: t.id, hole: s.hole, slot: s.slot, seat: j + 1, start: wave });
+          }
+        }
+        // Anyone we couldn't fit gets sent back to Unplaced so the wave
+        // stays consistent instead of double-booking seats.
+        while (queue.length) {
+          var t2 = queue.shift();
+          assignments.push({ id: t2.id, hole: "", slot: "", seat: "", start: wave });
+        }
+        if (!assignments.length) { setMsg("Wave " + wave + " is already packed — nothing to shift."); return; }
         positionSaveMany(assignments);
       }
 
