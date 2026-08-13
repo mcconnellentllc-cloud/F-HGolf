@@ -4472,15 +4472,15 @@
         // then update ONE number here and reprint — the whole batch shifts.
         headerTop: "0.10in",   // small verification tag at top-left corner
         headerLeft: "0.35in",
-        team1Top: "1.13in",    // Team 1 player 1 cell — top of upper score block
-        team2Top: "3.14in",    // Team 2 player 1 cell — top of lower score block
+        team1Top: "1.16in",    // Team 1 player 1 cell — top of upper score block
+        team2Top: "3.17in",    // Team 2 player 1 cell — top of lower score block
         teamLeft: "0.30in",    // right of the row-label column — hugs the outer margin
         rowStep:  "0.40in",    // one full 3/8"+ row between player 1 and player 2 lines
         cellW:    "0.75in",    // width of the name cell (first-top-left / last-bottom-right)
         cellH:    "0.38in",    // height of a single player row on the card
         nameSize: "13pt",      // fits two lines (first + last) inside one 0.38in cell
         teeMarkTop: "2.93in",  // ring row in HOLE
-        teeMarkStep: "0.44in", // per-hole horizontal step in the HOLE row
+        teeMarkStep: "0.45in", // per-hole horizontal step in the HOLE row
         teeMarkFirst: "1.38in",// ring CENTER for hole 1 — sits AROUND the preprinted "1" digit
         teeMarkDia: "0.28in"   // ring diameter — sized to fit the "1" cell
       };
@@ -4736,6 +4736,8 @@
           + " body.is-print-cards .sc-nm { position: absolute; left: 0; width: " + cellW + "; height: " + cellH + "; }"
           + " body.is-print-cards .sc-nm--p1 { top: 0; }"
           + " body.is-print-cards .sc-nm--p2 { top: " + step + "; }"
+          + " body.is-print-cards .sc-nm--score { top: calc(" + step + " * 2); text-align: left; }"
+          + " body.is-print-cards .sc-nm--score .d1-circle { position: absolute; top: 0; left: 0; display: inline-block; min-width: 1.5em; padding: 0.02in 0.10in; border: 1pt solid #1a6e35; border-radius: 999px; color: #1a6e35; font-weight: 800; font-size: 11pt; line-height: 1; }"
           + " body.is-print-cards .sc-nm__first { position: absolute; top: 0; left: 0; white-space: nowrap; }"
           + " body.is-print-cards .sc-nm__last  { position: absolute; bottom: 0; left: 0; white-space: nowrap; }"
           + " body.is-print-cards .sc-teemark { position: absolute; top: " + CARD_OFFSETS.teeMarkTop + "; width: " + dia + "; height: " + dia + "; margin-left: calc(" + dia + " / -2); margin-top: calc(" + dia + " / -2); border: 1.4pt solid #b11e2d; border-radius: 999px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }"
@@ -4819,7 +4821,10 @@
             var s0 = splitFirstLast(names[0] || "");
             var s1 = splitFirstLast(names[1] || "");
             var gross = d1g(entry.rec);
-            var seed = gross ? ' <span class="d1-circle">' + gross + '</span>' : '';
+            // D1 gross prints on its OWN row directly under the two players
+            // (was inline with the last name — moved so scorers see the seed
+            // as a heading, not tangled with names). Empty gross = no row.
+            var scoreRow = gross ? '<div class="sc-nm sc-nm--score"><span class="d1-circle">' + gross + '</span></div>' : "";
             return '<div class="sc-block ' + blockClass + '">'
               + '<div class="sc-nm sc-nm--p1">'
               +   '<span class="sc-nm__first">' + esc(s0.first) + '</span>'
@@ -4827,8 +4832,9 @@
               + '</div>'
               + '<div class="sc-nm sc-nm--p2">'
               +   '<span class="sc-nm__first">' + esc(s1.first) + '</span>'
-              +   '<span class="sc-nm__last">' + esc(s1.last) + seed + '</span>'
+              +   '<span class="sc-nm__last">' + esc(s1.last) + '</span>'
               + '</div>'
+              + scoreRow
               + '</div>';
           }
           var teeHtml = "";
