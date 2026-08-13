@@ -3910,12 +3910,19 @@
       }
       function autofillWave(wave, silent) {
         var msg = document.getElementById("prMsg");
-        var setMsg = function (t) { if (msg && !silent) msg.textContent = t; };
+        // Explicit clicks bubble user-facing feedback via alert() so the
+        // operator scrolled deep in a long wave still sees why nothing
+        // happened. `silent` (called from the tap-to-cycle handler) stays
+        // silent — just quietly fill any new empties.
+        function tell(t) {
+          if (msg) msg.textContent = t;
+          if (!silent) { try { alert(t); } catch (e) {} }
+        }
         var cfg = loadSlotCfg(wave);
         var slots = activeSlots(cfg);
-        if (!slots.length) { setMsg("Turn on some A/B slots at the top of this wave first."); return; }
+        if (!slots.length) { tell("Turn on some A/B slots at the top of this wave first."); return; }
         var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === wave; }).sort(byCreated);
-        if (!teams.length) { setMsg("No teams in this wave (check the Check-In sheet)."); return; }
+        if (!teams.length) { tell("No teams in this wave (check the Check-In sheet)."); return; }
         // Capacity math with trio support:
         //   pairCap  = slots × 2 (baseline, everyone in pairs)
         //   trioCap  = slots × 3 (upper bound if every slot were a trio)
@@ -3927,7 +3934,7 @@
         var trioCount = Math.min(overflow, slots.length);
         var trioCap = pairCap + trioCount; // effective capacity after promotions
         if (trioCap < teams.length) {
-          if (!silent) { setMsg("Need " + (teams.length - trioCap) + " more seat(s) — add more A/B slots first."); return; }
+          if (!silent) { tell("Need " + (teams.length - trioCap) + " more seat(s) — add more A/B slots first."); return; }
         }
         // Preserve teams already seated at active slots; fill remaining seats
         // from the unplaced pool in order. Each slot has 2 or 3 seats
@@ -3959,7 +3966,7 @@
             assignments.push({ id: t.id, hole: s.hole, slot: s.slot, seat: i + 1, start: wave });
           }
         });
-        if (!assignments.length) { setMsg("All teams already seated in " + wave + " — nothing to fill."); return; }
+        if (!assignments.length) { tell("All teams in " + wave + " are already seated — nothing to fill. If you want to reshuffle, first drag some teams to Unplaced (or use their dropdown → unplaced)."); return; }
         positionSaveMany(assignments);
       }
 
