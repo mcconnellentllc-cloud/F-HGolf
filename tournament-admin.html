@@ -3886,23 +3886,28 @@
         var tgtSlot = zone.getAttribute("data-slot");
         var tgtWave = zone.getAttribute("data-wave") || drag.srcWave;
         if (drag.srcHole === tgtHole && drag.srcSlot === tgtSlot && drag.srcWave === tgtWave) return;
-        // Seat selection priority — trios are NEVER created by drag/drop
-        // (that was spawning surprise trios every time someone tried to
-        // reshuffle a full wave). To make a trio, use the seat-3 dropdown
-        // on a team card. Drag/drop rule:
+        // Seat selection priority. Trios only form when the natural
+        // gesture is "drag a spare team into a group" — a drag from the
+        // Unplaced pool onto a tee that already holds a pair. Reshuffling
+        // between placed tees stays a swap so it never silently promotes
+        // a pair into a trio.
         //   1. Empty seat 1 or 2 → drop there
-        //   2. Both 1 and 2 taken → SWAP with seat 1 (seat-1 team goes
-        //      back to the drag's source position, or Unplaced if the
-        //      source was the pool)
-        // If a seat 3 already exists (existing trio), a drop onto that
-        // tee still swaps with seat 1 rather than piling on a fourth.
+        //   2. Both 1 and 2 taken, drag came from Unplaced, seat 3 empty
+        //      → drop into seat 3 (creates the trio)
+        //   3. Any other "full tee" case → SWAP with seat 1 (seat-1 team
+        //      goes back to the drag's source, or Unplaced if the source
+        //      was the pool)
+        var fromPool = !(drag.srcHole && drag.srcSlot && drag.srcSeat);
         var seat1El = zone.querySelector('[data-seat="1"]');
         var seat2El = zone.querySelector('[data-seat="2"]');
+        var seat3El = zone.querySelector('[data-seat="3"]');
         var seat1Occupant = seat1El && seat1El.getAttribute("data-id") && seat1El.getAttribute("data-id") !== drag.id ? seat1El.getAttribute("data-id") : null;
         var seat2Occupant = seat2El && seat2El.getAttribute("data-id") && seat2El.getAttribute("data-id") !== drag.id ? seat2El.getAttribute("data-id") : null;
+        var seat3Occupant = seat3El && seat3El.getAttribute("data-id") && seat3El.getAttribute("data-id") !== drag.id ? seat3El.getAttribute("data-id") : null;
         var tgtSeat, displacedId = null;
         if (!seat1Occupant) { tgtSeat = 1; }
         else if (!seat2Occupant) { tgtSeat = 2; }
+        else if (fromPool && !seat3Occupant) { tgtSeat = 3; }
         else { tgtSeat = 1; displacedId = seat1Occupant; }
         var assignments = [{ id: drag.id, hole: tgtHole, slot: tgtSlot, seat: tgtSeat, start: tgtWave }];
         if (displacedId) {
