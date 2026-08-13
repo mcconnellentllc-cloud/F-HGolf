@@ -4383,11 +4383,11 @@
         rowStep:  "0.40in",    // one full 3/8"+ row between player 1 and player 2 lines
         cellW:    "0.75in",    // width of the name cell (first-top-left / last-bottom-right)
         cellH:    "0.38in",    // height of a single player row on the card
-        nameSize: "11pt",      // fits two lines (first + last) inside one 0.38in cell
+        nameSize: "13pt",      // fits two lines (first + last) inside one 0.38in cell
         teeMarkTop: "3.05in",  // ring row in HOLE
         teeMarkStep: "0.44in", // per-hole horizontal step in the HOLE row
-        teeMarkFirst: "0.98in",// ring CENTER for hole 1 — sits over the preprinted "1" digit
-        teeMarkDia: "0.36in"   // ring diameter — tight around the "1"
+        teeMarkFirst: "1.25in",// ring CENTER for hole 1 — sits JUST RIGHT of the preprinted "1" digit
+        teeMarkDia: "0.36in"   // ring diameter — holds the A or B letter inside
       };
       // Split "First M. Last" style names — first token is the first name,
       // everything after joins as the last name. Preserves "Van Dyke",
@@ -4568,7 +4568,7 @@
           + " body.is-print-cards .sc-nm__first { position: absolute; top: 0; left: 0; white-space: nowrap; }"
           + " body.is-print-cards .sc-nm__last  { position: absolute; bottom: 0; right: 0; white-space: nowrap; }"
           + " body.is-print-cards .sc-teemark { position: absolute; top: " + CARD_OFFSETS.teeMarkTop + "; width: " + dia + "; height: " + dia + "; margin-left: calc(" + dia + " / -2); margin-top: calc(" + dia + " / -2); border: 1.4pt solid #b11e2d; border-radius: 999px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }"
-          + " body.is-print-cards .sc-teemark__slot { position: absolute; top: 50%; left: calc(100% + 3pt); transform: translateY(-50%); color: #b11e2d; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-size: 10pt; font-weight: 800; line-height: 1; }";
+          + " body.is-print-cards .sc-teemark__slot { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #b11e2d; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-size: 12pt; font-weight: 800; line-height: 1; }";
       }
 
       // Day 2 scorecards. Teams are re-paired for Day 2 by Day 1 gross —
