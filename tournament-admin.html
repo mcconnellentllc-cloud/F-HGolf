@@ -3073,16 +3073,18 @@
               scAllCache = res.j.records || [];
               // Stripped-payload guard. The public GET path returns 200
               // OK with `sold` (bool) instead of `Buyer` on each record.
-              // If that shape comes back on this authed workbook, the
-              // admin key is missing / wrong / rotated. Buyer names +
-              // amounts will look "gone" on the Calcutta Buyers tab
-              // even though Airtable is fine. Show a loud banner + open
-              // the sign-in gate instead of silently rendering empty.
+              // If a stripped payload comes back:
+              //   • no stored admin key → clearly signed out, open the gate.
+              //   • stored key present → treat as transient (edge/rate/proxy
+              //     hiccup, or a stray public-shape response) and keep the
+              //     workbook usable — show the banner and render whatever
+              //     came back. Only an explicit 401 slams the gate shut.
               var strip = _isStrippedPayload(scAllCache);
+              var haveKey = !!getKey();
+              if (strip && !haveKey) { _renderAuthWarning(true); _showSignInGate(); return; }
               _renderAuthWarning(strip);
-              if (strip) { _showSignInGate(); return; }
               renderSheetsForActive(scAllCache);
-              flashLoadStatus("");
+              flashLoadStatus(strip ? "Buyer data hidden — retrying…" : "");
             }
             else if (res.status === 401 && list) { list.innerHTML = '<p class="noms__msg">Session expired — sign in again at the <a href="admin.html">Staff Portal</a>.</p>'; _renderAuthWarning(true); _showSignInGate(); }
             else {
