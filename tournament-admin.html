@@ -154,11 +154,12 @@
               </select>
               <button class="btn btn--primary" type="button" id="prSavePairings" title="Force-save every team's current Hole/Slot/Seat/Wave to Airtable — use this if pairings seem to revert on reload.">Save pairings</button>
               <button class="btn btn--primary" type="button" id="prAutofillD2" hidden title="Populate Day 2 pairings from Day 1 gross scores — lowest score to Hole 1 A, highest to Hole 9 B, within each wave.">Autofill Day 2 from Day 1 scores</button>
-              <button class="btn btn--solid" type="button" id="prPrint">Print tee sheet</button>
+              <button class="btn btn--solid pr-tee-btn" type="button" id="prPrintTeeD1" data-prday="d1">Print Day 1 Tee Sheet</button>
+              <button class="btn btn--solid pr-tee-btn" type="button" id="prPrintTeeD2" data-prday="d2" hidden>Print Day 2 Tee Sheet</button>
               <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsAmD1" data-prday="d1" title="Day 1 A.M. wave scorecards only">Print Day 1 AM Score Cards</button>
               <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsPmD1" data-prday="d1" title="Day 1 P.M. wave scorecards only">Print Day 1 PM Score Cards</button>
-              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsAmD2" data-prday="d2" title="Day 2 A.M. wave scorecards — pairs ordered by ascending Day 1 gross within flight">Print Day 2 AM Score Cards</button>
-              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsPmD2" data-prday="d2" title="Day 2 P.M. wave scorecards — pairs ordered by ascending Day 1 gross within flight">Print Day 2 PM Score Cards</button>
+              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsAmD2" data-prday="d2" hidden title="Day 2 A.M. wave scorecards — pairs ordered by ascending Day 1 gross within flight">Print Day 2 AM Score Cards</button>
+              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsPmD2" data-prday="d2" hidden title="Day 2 P.M. wave scorecards — pairs ordered by ascending Day 1 gross within flight">Print Day 2 PM Score Cards</button>
               <select id="prPaperSize" class="pr-print-which" aria-label="Paper size for scorecard prints" title="Match what your printer can actually feed">
                 <option value="12in 5.875in" selected>Paper: F&amp;H card landscape (12 × 5.875)</option>
                 <option value="5.875in 12in">Paper: F&amp;H card portrait (5.875 × 12)</option>
@@ -3483,10 +3484,11 @@
         if (af && !af.__wired) { af.__wired = true; af.addEventListener("click", autofillDay2); af.hidden = PR_DAY !== "d2"; }
         _syncPrCardsButtons();
       }
-      // Only the two scorecard buttons for the currently-selected day should
-      // be visible. Day 1 tab → AM/PM Day 1 buttons; Day 2 tab → AM/PM Day 2.
+      // Only the buttons matching the currently-selected day tab should be
+      // visible — both the tee-sheet button and the AM/PM scorecard pair.
       function _syncPrCardsButtons() {
-        Array.prototype.forEach.call(document.querySelectorAll(".pr-cards-btn"), function (b) {
+        var sels = ".pr-cards-btn, .pr-tee-btn";
+        Array.prototype.forEach.call(document.querySelectorAll(sels), function (b) {
           b.hidden = b.getAttribute("data-prday") !== PR_DAY;
         });
       }
@@ -3675,6 +3677,7 @@
         // Show/hide the Day 2 autofill button based on current day.
         var autoBtn = document.getElementById("prAutofillD2");
         if (autoBtn) autoBtn.hidden = PR_DAY !== "d2";
+        try { _syncPrCardsButtons(); } catch (e) {}
         if (!recs.length) { board.innerHTML = '<p class="noms__msg">No teams yet. Import the 2026 field above, or add teams on the Check-In sheet.</p>'; return; }
         window.__prTeamNumbers = computeTeamNumbers(recs);
         board.innerHTML = WAVES.map(function (w) {
@@ -8087,8 +8090,7 @@
         if (poPm) poPm.addEventListener("click", function () { printPayoutChecksForWave("PM"); });
         var plCk = document.getElementById("plPrintCourseCheck");
         if (plCk) plCk.addEventListener("click", printCourseCheck);
-        var prp = document.getElementById("prPrint");
-        if (prp) prp.addEventListener("click", function () {
+        function _printTeeSheet() {
           var sel = document.getElementById("prPrintWhich");
           var which = sel ? sel.value : "both";
           document.body.classList.remove("is-print-am", "is-print-pm", "is-print-both");
@@ -8097,7 +8099,11 @@
           window.addEventListener("afterprint", cleanup);
           setTimeout(function () { window.print(); }, 30);
           setTimeout(cleanup, 2000);
-        });
+        }
+        var prTeeD1 = document.getElementById("prPrintTeeD1");
+        if (prTeeD1) prTeeD1.addEventListener("click", _printTeeSheet);
+        var prTeeD2 = document.getElementById("prPrintTeeD2");
+        if (prTeeD2) prTeeD2.addEventListener("click", _printTeeSheet);
 
         // Announcement page — a single sheet listing every tee slot with the
         // teams reading order, for the starter to call names at shotgun start.
