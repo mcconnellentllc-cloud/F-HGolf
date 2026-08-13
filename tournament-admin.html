@@ -3486,10 +3486,15 @@
       }
       // Only the buttons matching the currently-selected day tab should be
       // visible — both the tee-sheet button and the AM/PM scorecard pair.
+      // .btn styles set display:inline-block which beats [hidden]'s
+      // display:none at equal specificity, so we force display via inline
+      // style rather than relying on the hidden attribute alone.
       function _syncPrCardsButtons() {
         var sels = ".pr-cards-btn, .pr-tee-btn";
         Array.prototype.forEach.call(document.querySelectorAll(sels), function (b) {
-          b.hidden = b.getAttribute("data-prday") !== PR_DAY;
+          var match = b.getAttribute("data-prday") === PR_DAY;
+          b.hidden = !match;
+          b.style.display = match ? "" : "none";
         });
       }
 
