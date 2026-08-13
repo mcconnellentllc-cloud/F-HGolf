@@ -4361,6 +4361,11 @@
       // of the top half; Team 2 on the top blank line under the grey "Hole"
       // bar. Positions tune via CARD_OFFSETS below — do one test print,
       // measure, and adjust here.
+      // LOCKED — these offsets are the calibrated fit for the F&H pre-printed
+      // card stock and apply to EVERY tournament that prints on this card.
+      // Do NOT tune per-tournament. If the card stock itself changes, update
+      // these values once (measure against one test print) and every
+      // tournament picks up the new geometry.
       var CARD_OFFSETS = {
         // Physical F&H scorecard is landscape: 12" wide × 5 7/8" tall. Fed
         // long-edge-first so the 12" edge enters the printer; paper size in
@@ -4485,21 +4490,60 @@
         // top score area above the HOLE bar; Team 2 (P1 + P2) fills the bottom
         // area below the HOLE bar. A red circle marks the tee-off hole in the
         // HOLE row so scorers know at a glance where the group tees off.
+        // The card has FOUR physical name cells (team1 p1/p2 top, team2 p1/p2
+        // bottom). Layout depends on what shares the card:
+        //   • Two teams (Bulldog / Founders 2-per-card): each team fills one
+        //     block, first+last per player. Unchanged.
+        //   • One team, 1-2 players: fills team1 block only.
+        //   • One team, 3 players: first+last across p1/p2 of team1 + p1 of
+        //     team2 (the third teammate lands directly under the 2nd player).
+        //     Team2 p2 stays blank.
+        //   • One team, 4+ players: LAST NAME ONLY across all 4 cells (the
+        //     card has no room for first + last on four players). Extra
+        //     players beyond 4 are dropped — flag the pairing config if a
+        //     future tournament ever runs teams of 5+.
+        function renderNameCell(pClass, player, lastOnly) {
+          var first = (player && player.first) || "";
+          var last  = (player && player.last)  || "";
+          if (lastOnly) {
+            var solo = last || first; // if a single-word name landed as "first"
+            return '<div class="sc-nm ' + pClass + '">'
+              +   '<span class="sc-nm__last">' + esc(solo) + '</span>'
+              + '</div>';
+          }
+          return '<div class="sc-nm ' + pClass + '">'
+            +   '<span class="sc-nm__first">' + esc(first) + '</span>'
+            +   '<span class="sc-nm__last">'  + esc(last)  + '</span>'
+            + '</div>';
+        }
         function teamNameBlock(rec, blockClass) {
           if (!rec) return "";
           var names = fullPlayerNames(rec.fields || {});
           var s0 = splitFirstLast(names[0] || "");
           var s1 = splitFirstLast(names[1] || "");
           return '<div class="sc-block ' + blockClass + '">'
-            + '<div class="sc-nm sc-nm--p1">'
-            +   '<span class="sc-nm__first">' + esc(s0.first) + '</span>'
-            +   '<span class="sc-nm__last">' + esc(s0.last) + '</span>'
-            + '</div>'
-            + '<div class="sc-nm sc-nm--p2">'
-            +   '<span class="sc-nm__first">' + esc(s1.first) + '</span>'
-            +   '<span class="sc-nm__last">' + esc(s1.last) + '</span>'
-            + '</div>'
+            + renderNameCell("sc-nm--p1", s0, false)
+            + renderNameCell("sc-nm--p2", s1, false)
             + '</div>';
+        }
+        // One-team card with 3+ players. Spreads them across both blocks
+        // per the rule above. Never called when two teams share a card.
+        function singleTeamMultiPlayerBlocks(rec) {
+          var names = fullPlayerNames(rec.fields || {});
+          var lastOnly = names.length >= 4;
+          var players = names.slice(0, 4).map(splitFirstLast);
+          var b1p1 = players[0] || null;
+          var b1p2 = players[1] || null;
+          var b2p1 = players[2] || null;
+          var b2p2 = players[3] || null; // undefined for 3-player teams — blank cell
+          return '<div class="sc-block sc-block--team1">'
+            +    renderNameCell("sc-nm--p1", b1p1, lastOnly)
+            +    renderNameCell("sc-nm--p2", b1p2, lastOnly)
+            +  '</div>'
+            +  '<div class="sc-block sc-block--team2">'
+            +    renderNameCell("sc-nm--p1", b2p1, lastOnly)
+            +    renderNameCell("sc-nm--p2", b2p2, lastOnly)
+            +  '</div>';
         }
 
         var pages = groups.map(function (g) {
@@ -4507,10 +4551,18 @@
           var slotTag = "Tee " + g.hole + "-" + g.slot + " · " + waveTag;
           // Tee-mark absolute left = first-hole x + (hole - 1) × per-hole step.
           var teeLeftPx = "calc(" + CARD_OFFSETS.teeMarkFirst + " + " + CARD_OFFSETS.teeMarkStep + " * " + (g.hole - 1) + ")";
+          var t1 = g.teams[0];
+          var t2 = g.teams[1] || null;
+          var blocksHtml;
+          if (!t2 && t1 && fullPlayerNames(t1.fields || {}).length >= 3) {
+            blocksHtml = singleTeamMultiPlayerBlocks(t1);
+          } else {
+            blocksHtml = teamNameBlock(t1, "sc-block--team1")
+                       + teamNameBlock(t2, "sc-block--team2");
+          }
           return '<div class="sc-page">'
             + '<div class="sc-hdr">' + esc(slotTag) + '</div>'
-            + teamNameBlock(g.teams[0], "sc-block--team1")
-            + teamNameBlock(g.teams[1] || null, "sc-block--team2")
+            + blocksHtml
             + '<div class="sc-teemark" style="left: ' + teeLeftPx + '"><span class="sc-teemark__slot">' + esc(g.slot) + '</span></div>'
             + '</div>';
         }).join("");
