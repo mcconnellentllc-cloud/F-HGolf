@@ -1,12 +1,17 @@
-// Vercel serverless function — Tournament Signups list + remove + archives.
+// Vercel serverless function — Tournament Signups list + remove + archives +
+// Format config.
 //
 //   GET  (no key)             -> stripped public payload (team + scores +
 //                                calcutta + flight), safe for TV / phone.
 //   GET  (x-admin-key)        -> full record set including contact info.
 //   GET  ?archives=1 (admin)  -> list rows from the Tournament Archives table.
+//   GET  ?config=<name>       -> the Tournament Config row for one tournament
+//                                (public — feeds the shareable public card).
+//   GET  ?config=1            -> ALL tournament config rows (public list).
 //   POST (admin) { action: "remove", id }
 //   POST (admin) { action: "archive", name, year, dates, snapshot }
-//        -> write a snapshot to the Tournament Archives table.
+//   POST (admin) { action: "config-write", tournament, fields }
+//        -> upsert one Tournament Config row (Format tab writes here).
 //
 // Consolidates the old tournament-remove endpoint here to stay under Vercel's
 // serverless-function cap. Read-only tools still hit GET; frontend uses POST
@@ -15,6 +20,37 @@
 //
 // Env: AIRTABLE_TOKEN (data.records:read+write), AIRTABLE_BASE_ID,
 //      TOURNAMENTS_TABLE (defaults to "Tournament Signups"), ADMIN_KEY.
+//
+// Tournament Config table (env: CONFIG_TABLE, defaults to "Tournament Config").
+// One row per tournament, keyed by the "Tournament" field (matches the
+// workbook's `t=` URL parameter). Existing rows already hold "Auction
+// State" and "Recap" — Phase 1 adds the Format fields below. Add them
+// once in Airtable; the endpoint accepts unknown fields via typecast:
+//
+//   Tournament        (Single-line text, primary)
+//   Name              (Single-line text)     – shareable display name
+//   Blurb             (Long text)            – 1-line public description
+//   Location          (Single-line text)
+//   Start Date        (Date)
+//   End Date          (Date)                 – optional, multi-day events
+//   Reg Opens         (Date)
+//   Reg Closes        (Date)
+//   Play Style        (Single select)        – Scramble / Best Ball /
+//                                              Bulldog / Stroke / Match /
+//                                              Couples / Adult+Child / Junior
+//   Players Per Team  (Number, integer)
+//   Rounds            (Number, integer 1 or 2)
+//   Team Cap          (Number, integer; 0 = unlimited)
+//   Alternates Allowed (Checkbox)
+//   Calcutta Enabled  (Checkbox)
+//   Flights           (Number, integer 0-6)
+//   Start Type        (Single select)        – Shotgun / Tee time
+//   Waves JSON        (Long text)            – e.g. [{"label":"AM","time":"8:00"}]
+//   Extras JSON       (Long text)            – e.g. [{"name":"Extra dinner","price":30}]
+//   Registration Cost (Currency or Number)
+//   Cart Cost         (Currency or Number)   – per player
+//   Card Fee Pct      (Number)               – default 4
+//   Public Slug       (Single-line text)     – URL segment for /t/<slug>
 
 // Fields we're willing to hand to anonymous readers — anything not on this list
 // is stripped out before the public payload leaves the server.
@@ -158,12 +194,103 @@ module.exports = async (req, res) => {
       }
     }
 
+    if (body.action === "config-write") {
+      // Upsert a Tournament Config row keyed by the "Tournament" field.
+      // Admin writes only. Body: { tournament, fields } where fields is a
+      // plain object of Airtable field name → value. Missing fields are
+      // left alone (PATCH semantics on update).
+      const tournament = typeof body.tournament === "string" ? body.tournament.trim().slice(0, 200) : "";
+      const fields = (body.fields && typeof body.fields === "object") ? body.fields : null;
+      if (!tournament || !fields) return res.status(400).json({ ok: false, error: "Missing tournament or fields." });
+      const cfgTable = process.env.CONFIG_TABLE || "Tournament Config";
+      const cfgUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}`;
+      try {
+        // Look up any existing row for this tournament.
+        const filter = "?filterByFormula=" + encodeURIComponent(`{Tournament}='${tournament.replace(/'/g, "\\'")}'`);
+        const findRes = await fetch(cfgUrl + filter + "&maxRecords=1", { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        if (!findRes.ok) {
+          const detail = await findRes.text();
+          console.error("config lookup error", findRes.status, detail);
+          return res.status(502).json({ ok: false, error: "Could not read the config table." });
+        }
+        const found = await findRes.json();
+        const existing = (found.records || [])[0] || null;
+        // Always merge the Tournament key on writes so brand-new rows
+        // still get their identifier.
+        const merged = Object.assign({ Tournament: tournament }, fields);
+        // Airtable rejects unknown fields — surface a helpful error if
+        // the schema hasn't been extended yet. `typecast: true` lets
+        // Airtable coerce strings into single-select options / numbers.
+        const write = existing
+          ? {
+              method: "PATCH",
+              url: `${cfgUrl}/${existing.id}`,
+              body: JSON.stringify({ fields: merged, typecast: true }),
+            }
+          : {
+              method: "POST",
+              url: cfgUrl,
+              body: JSON.stringify({ records: [{ fields: merged }], typecast: true }),
+            };
+        const wr = await fetch(write.url, {
+          method: write.method,
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+          body: write.body,
+        });
+        if (!wr.ok) {
+          const detail = await wr.text();
+          console.error("config write error", wr.status, detail);
+          const msg = /Unknown field/i.test(detail)
+            ? "Airtable rejected the write — a field name in the payload doesn't exist in the Tournament Config table."
+            : "Could not save the config.";
+          return res.status(502).json({ ok: false, error: msg, detail });
+        }
+        const wjson = await wr.json();
+        const saved = existing ? wjson : (wjson.records && wjson.records[0]);
+        return res.status(200).json({ ok: true, id: saved && saved.id, fields: (saved && saved.fields) || merged });
+      } catch (e) {
+        console.error("config write exception", e);
+        return res.status(500).json({ ok: false, error: "Something went wrong writing the config." });
+      }
+    }
+
     return res.status(400).json({ ok: false, error: "Unknown action." });
+  }
+
+  const q = req.query || {};
+
+  // GET ?config=<tournament name> returns a single Tournament Config row.
+  // GET ?config=1 returns every config row. Public — this feeds the
+  // shareable public tournament card, so no admin key required.
+  if (q.config !== undefined && q.config !== "") {
+    const cfgTable = process.env.CONFIG_TABLE || "Tournament Config";
+    const cfgUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}`;
+    const wantAll = q.config === "1" || q.config === 1 || q.config === "all";
+    res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=120");
+    try {
+      let url = cfgUrl + "?pageSize=100";
+      if (!wantAll) {
+        const name = String(q.config).slice(0, 200);
+        url += "&filterByFormula=" + encodeURIComponent(`{Tournament}='${name.replace(/'/g, "\\'")}'`) + "&maxRecords=1";
+      }
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      if (!r.ok) {
+        const detail = await r.text();
+        console.error("config read error", r.status, detail);
+        return res.status(502).json({ ok: false, error: "Could not load the config.", detail });
+      }
+      const data = await r.json();
+      const rows = (data.records || []).map((rec) => ({ id: rec.id, fields: rec.fields || {} }));
+      if (wantAll) return res.status(200).json({ ok: true, count: rows.length, records: rows });
+      return res.status(200).json({ ok: true, record: rows[0] || null });
+    } catch (e) {
+      console.error("config read exception", e);
+      return res.status(500).json({ ok: false, error: "Something went wrong loading the config." });
+    }
   }
 
   // GET ?archives=1 returns the archive list. Public — tournament results are
   // published information, so anyone can browse the historical record.
-  const q = req.query || {};
   if (q.archives === "1" || q.archives === 1) {
     if (!isAdmin) res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
     try {
