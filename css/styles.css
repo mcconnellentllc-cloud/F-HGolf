@@ -2183,3 +2183,18 @@ body.modal-open { overflow: hidden; }
 .pm-history__hint { font-size: 0.75rem; color: var(--muted); margin: 0.6rem 0 0; font-style: italic; }
 .pm-check input { width: 1.1rem; height: 1.1rem; }
 @media (max-width: 520px) { .pm-row, .pm-row--csz { grid-template-columns: 1fr; } }
+
+/* Format tab — Tournament Config editor. Compact form, one section per group. */
+.fmt-form { display: flex; flex-direction: column; gap: 1.1rem; padding-top: 0.4rem; }
+.fmt-set { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 1rem 1rem; margin: 0; }
+.fmt-set > legend { font-weight: 700; color: var(--primary-green); padding: 0 0.4rem; }
+.fmt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; }
+.fmt-row { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.88rem; color: var(--ink); }
+.fmt-row > span { font-weight: 600; color: var(--muted); font-size: 0.82rem; letter-spacing: 0.02em; text-transform: uppercase; }
+.fmt-row input[type="text"], .fmt-row input[type="date"], .fmt-row input[type="number"], .fmt-row select, .fmt-row textarea { padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: 6px; font-size: 0.92rem; font-family: inherit; color: var(--ink); background: #fff; }
+.fmt-row textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; line-height: 1.35; resize: vertical; min-height: 2.6rem; }
+.fmt-row--chk { flex-direction: row; align-items: center; gap: 0.5rem; }
+.fmt-row--chk input { width: 1.05rem; height: 1.05rem; }
+.fmt-row--chk > span { text-transform: none; letter-spacing: 0; font-size: 0.88rem; font-weight: 500; color: var(--ink); }
+.fmt-note { font-size: 0.8rem; color: var(--muted); margin: 0.4rem 0 0; }
+.fmt-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; padding-top: 0.2rem; }

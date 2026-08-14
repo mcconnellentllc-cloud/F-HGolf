@@ -61,6 +61,7 @@
 
         <!-- Excel-style workbook tabs -->
         <div class="wb-tabs" id="wbTabs" role="tablist">
+          <button type="button" class="wb-tab" data-sheet="format" role="tab">Format</button>
           <button type="button" class="wb-tab" data-sheet="check" role="tab">Check-In</button>
           <button type="button" class="wb-tab" data-sheet="pairings" role="tab">Pairings</button>
           <button type="button" class="wb-tab" data-sheet="scores" role="tab">Scores</button>
@@ -86,6 +87,76 @@
             <a class="btn btn--solid" href="admin.html">&larr; All tournaments</a>
           </div>
           <div class="tw-actions" id="twActions"></div>
+        </section>
+
+        <!-- Format tab — one row per tournament in Tournament Config. -->
+        <section class="noms wb-sheet" data-sheet="format" id="twFormat" aria-label="Tournament Format" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Tournament Format</h3>
+            <span id="fmtStatus" class="checkin-add__msg" role="status" aria-live="polite"></span>
+          </div>
+          <p class="scaffold__desc">Configure the shape of this tournament. Powers the shareable public card; later, the same values will drive Pairings, Scoring, and Calcutta so every event is self-describing.</p>
+          <form id="fmtForm" class="fmt-form" onsubmit="return false;">
+            <fieldset class="fmt-set">
+              <legend>Identity &amp; schedule</legend>
+              <label class="fmt-row"><span>Display name</span><input type="text" name="Name" placeholder="Founder's Tournament" /></label>
+              <label class="fmt-row"><span>Blurb</span><textarea name="Blurb" rows="2" placeholder="One line the public sees on the shareable card."></textarea></label>
+              <label class="fmt-row"><span>Location</span><input type="text" name="Location" placeholder="F&amp;H Golf Course" /></label>
+              <div class="fmt-grid">
+                <label class="fmt-row"><span>Start date</span><input type="date" name="Start Date" /></label>
+                <label class="fmt-row"><span>End date</span><input type="date" name="End Date" /></label>
+                <label class="fmt-row"><span>Reg opens</span><input type="date" name="Reg Opens" /></label>
+                <label class="fmt-row"><span>Reg closes</span><input type="date" name="Reg Closes" /></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="fmt-set">
+              <legend>Format &amp; capacity</legend>
+              <div class="fmt-grid">
+                <label class="fmt-row"><span>Play style</span>
+                  <select name="Play Style">
+                    <option value="">—</option>
+                    <option>Scramble</option><option>Best Ball</option><option>Bulldog</option>
+                    <option>Stroke</option><option>Match</option><option>Couples</option>
+                    <option>Adult+Child</option><option>Junior</option>
+                  </select>
+                </label>
+                <label class="fmt-row"><span>Players per team</span><input type="number" name="Players Per Team" min="1" max="4" /></label>
+                <label class="fmt-row"><span>Rounds</span><input type="number" name="Rounds" min="1" max="2" /></label>
+                <label class="fmt-row"><span>Team cap</span><input type="number" name="Team Cap" min="0" placeholder="0 = unlimited" /></label>
+                <label class="fmt-row"><span>Start type</span>
+                  <select name="Start Type">
+                    <option value="">—</option><option>Shotgun</option><option>Tee time</option>
+                  </select>
+                </label>
+                <label class="fmt-row"><span>Flights</span><input type="number" name="Flights" min="0" max="6" /></label>
+                <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Alternates Allowed" /><span>Alternates allowed once cap is hit</span></label>
+                <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Calcutta Enabled" /><span>Calcutta auction enabled</span></label>
+              </div>
+              <label class="fmt-row"><span>Waves JSON</span><textarea name="Waves JSON" rows="2" placeholder='[{"label":"AM","time":"8:00"},{"label":"PM","time":"1:00"}]'></textarea></label>
+            </fieldset>
+
+            <fieldset class="fmt-set">
+              <legend>Money</legend>
+              <div class="fmt-grid">
+                <label class="fmt-row"><span>Registration cost</span><input type="number" name="Registration Cost" min="0" step="1" placeholder="150" /></label>
+                <label class="fmt-row"><span>Cart cost (per player)</span><input type="number" name="Cart Cost" min="0" step="1" placeholder="20" /></label>
+                <label class="fmt-row"><span>Card fee %</span><input type="number" name="Card Fee Pct" min="0" step="0.5" placeholder="4" /></label>
+              </div>
+              <label class="fmt-row"><span>Extras JSON</span><textarea name="Extras JSON" rows="2" placeholder='[{"name":"Extra dinner","price":30}]'></textarea></label>
+            </fieldset>
+
+            <fieldset class="fmt-set">
+              <legend>Public link</legend>
+              <label class="fmt-row"><span>Public slug</span><input type="text" name="Public Slug" placeholder="founders-2026" /></label>
+              <p class="fmt-note">Once Step 3 ships, the public card lives at <code>/t/&lt;slug&gt;</code>.</p>
+            </fieldset>
+
+            <div class="fmt-actions">
+              <button type="button" class="btn btn--primary" id="fmtSave">Save format</button>
+              <button type="button" class="btn btn--solid" id="fmtReload">Reload from Airtable</button>
+            </div>
+          </form>
         </section>
 
         <!-- Check-in & money (live from sign-ups) -->
@@ -1150,6 +1221,75 @@
           + '</div>'
           + '<div class="pl__row pl__row--net"><span>Net P&amp;L (course keeps)</span><strong class="' + (net < 0 ? "is-neg" : "is-pos") + '">' + money2(net) + "</strong></div>"
           + '</div>';
+      }
+
+      // ---- Format (Tournament Config, one row per tournament) --------------
+      // Loads the current Tournament Config row via the public
+      // GET ?config=<name> path; saves via POST action:config-write.
+      // Loaded once per tab open; the Reload button re-fetches on demand.
+      var _formatLoaded = false;
+      function _fmtSetStatus(txt, kind) {
+        var s = document.getElementById("fmtStatus"); if (!s) return;
+        s.textContent = txt || "";
+        s.className = "checkin-add__msg" + (kind ? " is-" + kind : "");
+      }
+      function loadFormat(force) {
+        if (_formatLoaded && !force) return;
+        _fmtSetStatus("Loading…");
+        var url = FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(KEY));
+        fetch(url)
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) { _fmtSetStatus((j && j.error) || "Couldn't load the format.", "error"); return; }
+            _fmtApplyRecord(j.record);
+            _formatLoaded = true;
+            _fmtSetStatus(j.record ? "Loaded ✓" : "New tournament — fill in and save.", "ok");
+          })
+          .catch(function () { _fmtSetStatus("Network error loading the format.", "error"); });
+      }
+      // Airtable → form. Missing record renders blank inputs (new tournament).
+      function _fmtApplyRecord(rec) {
+        var form = document.getElementById("fmtForm"); if (!form) return;
+        var f = (rec && rec.fields) || {};
+        Array.prototype.forEach.call(form.querySelectorAll("input, select, textarea"), function (el) {
+          var name = el.getAttribute("name"); if (!name) return;
+          var v = f[name];
+          if (el.type === "checkbox") { el.checked = !!v; return; }
+          if (v === undefined || v === null) { el.value = ""; return; }
+          el.value = String(v);
+        });
+      }
+      // Form → payload. Only sends fields the operator actually filled in
+      // so Airtable's PATCH keeps other columns intact. Numbers coerce
+      // through Number(); dates + text send raw strings; checkboxes always
+      // send explicit true/false so a toggle-off actually persists.
+      function _fmtCollectPayload() {
+        var form = document.getElementById("fmtForm");
+        var out = {};
+        Array.prototype.forEach.call(form.querySelectorAll("input, select, textarea"), function (el) {
+          var name = el.getAttribute("name"); if (!name) return;
+          if (el.type === "checkbox") { out[name] = !!el.checked; return; }
+          var raw = String(el.value == null ? "" : el.value).trim();
+          if (!raw) return; // blank string → skip so the field stays as-is server-side
+          if (el.type === "number") { var n = Number(raw); if (!isNaN(n)) out[name] = n; return; }
+          out[name] = raw;
+        });
+        return out;
+      }
+      function saveFormat() {
+        var payload = _fmtCollectPayload();
+        _fmtSetStatus("Saving…");
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "config-write", tournament: KEY, fields: payload }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            if (res.j && res.j.ok) { _fmtSetStatus("Saved ✓", "ok"); if (res.j.fields) _fmtApplyRecord({ fields: res.j.fields }); return; }
+            _fmtSetStatus((res.j && res.j.error) || ("Save failed (" + res.status + ")"), "error");
+          })
+          .catch(function () { _fmtSetStatus("Network error saving.", "error"); });
       }
 
       // ---- Tournament History (archived years) ----
@@ -7601,6 +7741,7 @@
           if (s === "dispCalcutta" || s === "dispLeaderboard") mountDisplayTab(s);
           if (s === "history") loadHistory();
           if (s === "recap") loadRecap();
+          if (s === "format") loadFormat();
           // Lazy-render the freshly-opened tab from the shared cache so
           // switching tabs shows current data without a network round-trip.
           // (Check-In already renders on every roster load — it's the
@@ -7780,6 +7921,10 @@
         });
         var pc = document.getElementById("plCommit");
         if (pc) pc.addEventListener("click", commitToHistory);
+        var fmtSave = document.getElementById("fmtSave");
+        if (fmtSave) fmtSave.addEventListener("click", saveFormat);
+        var fmtReload = document.getElementById("fmtReload");
+        if (fmtReload) fmtReload.addEventListener("click", function () { loadFormat(true); });
         // Locked reset hatch -- only reachable from the browser console
         // (window.__fhResetTournament()). There is no button.
         try { window.__fhResetTournament = resetTournamentForNextYear; } catch (e) {}
