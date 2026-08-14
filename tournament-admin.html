@@ -133,7 +133,17 @@
                 <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Alternates Allowed" /><span>Alternates allowed once cap is hit</span></label>
                 <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Calcutta Enabled" /><span>Calcutta auction enabled</span></label>
               </div>
-              <label class="fmt-row"><span>Waves JSON</span><textarea name="Waves JSON" rows="2" placeholder='[{"label":"AM","time":"8:00"},{"label":"PM","time":"1:00"}]'></textarea></label>
+              <div class="fmt-grid fmt-grid--shot">
+                <label class="fmt-row"><span>Shotgun starts</span>
+                  <select id="fmtShotCount">
+                    <option value="1">1 (one wave)</option>
+                    <option value="2" selected>2 (AM + PM)</option>
+                  </select>
+                </label>
+                <label class="fmt-row" id="fmtShotRowAm"><span id="fmtShotLabelAm">AM shotgun time</span><input type="time" id="fmtShotTimeAm" value="08:00" /></label>
+                <label class="fmt-row" id="fmtShotRowPm"><span>PM shotgun time</span><input type="time" id="fmtShotTimePm" value="13:00" /></label>
+              </div>
+              <input type="hidden" name="Waves JSON" id="fmtWavesJson" />
             </fieldset>
 
             <fieldset class="fmt-set">
@@ -1258,6 +1268,58 @@
           if (v === undefined || v === null) { el.value = ""; return; }
           el.value = String(v);
         });
+        _fmtHydrateShotgun(f["Waves JSON"]);
+      }
+      // Parse a stored Waves JSON string into the shotgun picker (count + times).
+      // Missing/invalid JSON falls back to a 2-wave 8:00 / 13:00 default.
+      function _fmtHydrateShotgun(raw) {
+        var waves = [];
+        try { waves = JSON.parse(raw || "[]"); if (!Array.isArray(waves)) waves = []; } catch (e) { waves = []; }
+        var cnt = waves.length >= 2 ? 2 : (waves.length === 1 ? 1 : 2);
+        var cntSel = document.getElementById("fmtShotCount"); if (cntSel) cntSel.value = String(cnt);
+        var amTime = _fmt24hrFromWave(waves[0], "08:00");
+        var pmTime = _fmt24hrFromWave(waves[1], "13:00");
+        var amEl = document.getElementById("fmtShotTimeAm"); if (amEl) amEl.value = amTime;
+        var pmEl = document.getElementById("fmtShotTimePm"); if (pmEl) pmEl.value = pmTime;
+        _fmtSyncShotgunUI();
+      }
+      // Tolerant time parser: accepts "8:00", "08:00", "1:00 PM", "13:00".
+      function _fmt24hrFromWave(w, fallback) {
+        var t = String((w && w.time) || "").trim();
+        if (!t) return fallback;
+        var m = /^(\d{1,2}):(\d{2})\s*(am|pm)?$/i.exec(t);
+        if (!m) return fallback;
+        var h = Number(m[1]), min = Number(m[2]), ampm = (m[3] || "").toLowerCase();
+        if (ampm === "pm" && h < 12) h += 12;
+        if (ampm === "am" && h === 12) h = 0;
+        return (h < 10 ? "0" : "") + h + ":" + (min < 10 ? "0" : "") + min;
+      }
+      // Show / hide the PM row when count = 1. Also relabels the first row.
+      function _fmtSyncShotgunUI() {
+        var cnt = Number((document.getElementById("fmtShotCount") || {}).value || 2);
+        var pmRow = document.getElementById("fmtShotRowPm"); if (pmRow) pmRow.style.display = cnt === 1 ? "none" : "";
+        var amLbl = document.getElementById("fmtShotLabelAm"); if (amLbl) amLbl.textContent = cnt === 1 ? "Shotgun time" : "AM shotgun time";
+      }
+      // Picker → Waves JSON, written to the hidden input just before submit
+      // so _fmtCollectPayload picks it up like any other field.
+      function _fmtWriteShotgunToHidden() {
+        var cnt = Number((document.getElementById("fmtShotCount") || {}).value || 2);
+        var amT = String((document.getElementById("fmtShotTimeAm") || {}).value || "08:00");
+        var pmT = String((document.getElementById("fmtShotTimePm") || {}).value || "13:00");
+        var waves = cnt === 1
+          ? [{ label: "Shotgun", time: _fmtTo12hr(amT) }]
+          : [{ label: "AM", time: _fmtTo12hr(amT) }, { label: "PM", time: _fmtTo12hr(pmT) }];
+        var hidden = document.getElementById("fmtWavesJson"); if (hidden) hidden.value = JSON.stringify(waves);
+      }
+      // Store readable "8:00" / "1:00" strings (the format the Auction State
+      // display + public card already assume) rather than raw 24-hour input.
+      function _fmtTo12hr(t) {
+        var m = /^(\d{2}):(\d{2})$/.exec(String(t || ""));
+        if (!m) return t;
+        var h = Number(m[1]), min = m[2];
+        var suffix = ""; // omit "AM"/"PM" so labels stay short — AM/PM label is on the wave itself
+        var h12 = h % 12; if (h12 === 0) h12 = 12;
+        return h12 + ":" + min + suffix;
       }
       // Form → payload. Only sends fields the operator actually filled in
       // so Airtable's PATCH keeps other columns intact. Numbers coerce
@@ -1277,6 +1339,7 @@
         return out;
       }
       function saveFormat() {
+        _fmtWriteShotgunToHidden();
         var payload = _fmtCollectPayload();
         _fmtSetStatus("Saving…");
         fetch(FH_API.url("/api/tournament-signups"), {
@@ -7925,6 +7988,8 @@
         if (fmtSave) fmtSave.addEventListener("click", saveFormat);
         var fmtReload = document.getElementById("fmtReload");
         if (fmtReload) fmtReload.addEventListener("click", function () { loadFormat(true); });
+        var fmtShotCount = document.getElementById("fmtShotCount");
+        if (fmtShotCount) fmtShotCount.addEventListener("change", _fmtSyncShotgunUI);
         // Locked reset hatch -- only reachable from the browser console
         // (window.__fhResetTournament()). There is no button.
         try { window.__fhResetTournament = resetTournamentForNextYear; } catch (e) {}
