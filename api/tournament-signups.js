@@ -215,6 +215,28 @@ module.exports = async (req, res) => {
         }
         const found = await findRes.json();
         const existing = (found.records || [])[0] || null;
+        // Uniqueness guard on Public Slug — reject the save if any OTHER
+        // tournament already owns this slug. Same-tournament re-saves are
+        // fine (the existing row keeps its slug). Empty/whitespace slugs
+        // aren't enforced (many tournaments won't have public cards yet).
+        const wantSlug = String(fields["Public Slug"] || "").trim().toLowerCase();
+        if (wantSlug) {
+          const dupFilter = "?filterByFormula=" + encodeURIComponent(
+            `AND(LOWER({Public Slug})='${wantSlug.replace(/'/g, "\\'")}', {Tournament}!='${tournament.replace(/'/g, "\\'")}')`
+          ) + "&maxRecords=1";
+          const dupRes = await fetch(cfgUrl + dupFilter, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+          if (dupRes.ok) {
+            const dupJson = await dupRes.json();
+            const dupRow = (dupJson.records || [])[0] || null;
+            if (dupRow) {
+              const owner = (dupRow.fields && dupRow.fields.Tournament) || "another tournament";
+              return res.status(409).json({
+                ok: false,
+                error: `Public slug "${wantSlug}" is already taken by "${owner}". Pick a different slug — leading with the tournament date (e.g. "august-22-2026-couples-scramble") keeps every event unique across years.`,
+              });
+            }
+          }
+        }
         // Always merge the Tournament key on writes so brand-new rows
         // still get their identifier.
         const merged = Object.assign({ Tournament: tournament }, fields);
