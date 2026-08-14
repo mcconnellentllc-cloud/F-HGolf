@@ -1416,12 +1416,12 @@
         // "Yes" wiped every buyer + paid mark + score). Roster + scores +
         // Calcutta buyers all STAY in Airtable. A separate "Reset for next
         // year" action lives in a locked-away confirmation flow below.
-        openConfirmModal({
-          title: "Commit " + year + " " + name + " to History?",
-          body: "Snapshots the current leaderboard, Calcutta, payouts, and P&L to the History tab. Nothing is cleared -- all scores, buyers, paid marks, and flights stay on the Signups records. Safe to run any time.",
-          confirmLabel: "Yes, snapshot",
-          onConfirm: function () { doCommit(name, year, dates); }
-        });
+        var msg = "Commit " + year + " " + name + " to History?\n\n"
+                + "Snapshots the current leaderboard, Calcutta, payouts, and P&L to the History tab. "
+                + "Nothing is cleared — all scores, buyers, paid marks, and flights stay on the Signups records. "
+                + "Safe to run any time.";
+        if (!confirm(msg)) return;
+        doCommit(name, year, dates);
       }
       function doCommit(name, year, dates) {
         var snapshot = buildSnapshot();
