@@ -153,7 +153,15 @@
                 <label class="fmt-row"><span>Cart cost (per round)</span><input type="number" name="Cart Cost" min="0" step="1" placeholder="20" /></label>
                 <label class="fmt-row"><span>Card fee %</span><input type="number" name="Card Fee Pct" min="0" step="0.5" placeholder="4" /></label>
               </div>
-              <label class="fmt-row"><span>Extras JSON</span><textarea name="Extras JSON" rows="2" placeholder='[{"name":"Extra dinner","price":30}]'></textarea></label>
+              <label class="fmt-row"><span>Chargeable extras JSON</span><textarea name="Extras JSON" rows="2" placeholder='[{"name":"Extra dinner","price":30}]'></textarea></label>
+              <p class="fmt-note">Chargeable add-ons collected at Check-In (e.g. Founders extra dinners). Leave blank for tournaments without paid extras.</p>
+            </fieldset>
+
+            <fieldset class="fmt-set">
+              <legend>Public highlights</legend>
+              <label class="fmt-row"><span>Advertising bullets (one per line)</span><textarea id="fmtHighlightsText" rows="4" placeholder="Lunch Included&#10;Breakfast Burritos provided by Haxtun JHS Volleyball&#10;$500 in prizes per flight"></textarea></label>
+              <p class="fmt-note">Rendered as a bullet list on the shareable public card. One line = one highlight. Keep each line short — this is advertising copy.</p>
+              <input type="hidden" name="Highlights" id="fmtHighlightsJson" />
             </fieldset>
 
             <fieldset class="fmt-set">
@@ -1274,6 +1282,27 @@
           el.value = String(v);
         });
         _fmtHydrateShotgun(f["Waves JSON"]);
+        _fmtHydrateHighlights(f["Highlights"]);
+      }
+      // Parse the stored JSON array of strings into the textarea (one per line).
+      // Missing or invalid JSON falls back to empty.
+      function _fmtHydrateHighlights(raw) {
+        var ta = document.getElementById("fmtHighlightsText"); if (!ta) return;
+        var arr = [];
+        try { arr = JSON.parse(raw || "[]"); if (!Array.isArray(arr)) arr = []; } catch (e) { arr = []; }
+        ta.value = arr.map(function (s) { return String(s || "").trim(); }).filter(Boolean).join("\n");
+      }
+      // Textarea → JSON array of strings, written to the hidden input just
+      // before save. Blank lines are dropped; each line is trimmed.
+      function _fmtWriteHighlightsToHidden() {
+        var ta = document.getElementById("fmtHighlightsText");
+        var hidden = document.getElementById("fmtHighlightsJson");
+        if (!ta || !hidden) return;
+        var lines = String(ta.value || "").split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+        // Always write a JSON array (even []) so clearing all highlights
+        // actually clears the stored field — collect skips truly blank
+        // strings and would otherwise leave old bullets stuck in Airtable.
+        hidden.value = JSON.stringify(lines);
       }
       // Parse a stored Waves JSON string into the shotgun picker (count + times).
       // Missing/invalid JSON falls back to a 2-wave 8:00 / 13:00 default.
@@ -1345,6 +1374,7 @@
       }
       function saveFormat() {
         _fmtWriteShotgunToHidden();
+        _fmtWriteHighlightsToHidden();
         var payload = _fmtCollectPayload();
         _fmtSetStatus("Saving…");
         fetch(FH_API.url("/api/tournament-signups"), {
