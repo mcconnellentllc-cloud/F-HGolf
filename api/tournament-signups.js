@@ -46,7 +46,11 @@
 //   Flights           (Number, integer 0-6)
 //   Start Type        (Single select)        – Shotgun / Tee time
 //   Waves JSON        (Long text)            – e.g. [{"label":"AM","time":"8:00"}]
-//   Extras JSON       (Long text)            – e.g. [{"name":"Extra dinner","price":30}]
+//   Extras JSON       (Long text)            – chargeable add-ons for Check-In,
+//                                              e.g. [{"name":"Extra dinner","price":30}]
+//   Highlights        (Long text)            – JSON array of short advertising
+//                                              strings for the public card,
+//                                              e.g. ["Lunch Included","Trophies awarded"]
 //   Registration Cost (Currency or Number)  – per TEAM
 //   Cart Cost         (Currency or Number)  – per ROUND
 //   Card Fee Pct      (Number)               – default 4
