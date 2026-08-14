@@ -187,6 +187,7 @@
           <div class="noms__bar">
             <h3 class="noms__title">Check-in &amp; Money <span class="noms__count" id="twCount"></span></h3>
             <span class="ci-load-status" id="twLoadStatus" hidden aria-live="polite"></span>
+            <button class="btn btn--primary" type="button" id="ciAddTeamBtn" title="Open the walk-up add-team form and focus the first name field">+ Add team</button>
             <button class="btn btn--solid" type="button" id="ciBulkPay" title="Mark every unpaid player paid with a chosen method">Mark all paid</button>
             <button class="btn btn--solid" type="button" id="twRefresh">Refresh</button>
           </div>
@@ -7986,6 +7987,16 @@
         });
         var wa = document.getElementById("waAdd");
         if (wa) wa.addEventListener("click", addWalkup);
+        // Toolbar "+ Add team" — opens the collapsed walk-up form,
+        // scrolls it into view, and puts focus on the first name field
+        // so the operator can start typing without hunting.
+        var ciAddBtn = document.getElementById("ciAddTeamBtn");
+        if (ciAddBtn) ciAddBtn.addEventListener("click", function () {
+          var d = document.querySelector(".checkin-add"); if (!d) return;
+          d.open = true;
+          try { d.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) { d.scrollIntoView(); }
+          var name = document.getElementById("waName"); if (name) setTimeout(function () { try { name.focus({ preventScroll: true }); } catch (e) { name.focus(); } }, 200);
+        });
         // Enter in any walk-up field submits the row (and cancels the
         // browser default, which was blanking the tab as if the page had
         // form-submitted).
