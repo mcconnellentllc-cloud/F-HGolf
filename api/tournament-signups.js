@@ -47,8 +47,8 @@
 //   Start Type        (Single select)        – Shotgun / Tee time
 //   Waves JSON        (Long text)            – e.g. [{"label":"AM","time":"8:00"}]
 //   Extras JSON       (Long text)            – e.g. [{"name":"Extra dinner","price":30}]
-//   Registration Cost (Currency or Number)
-//   Cart Cost         (Currency or Number)   – per player
+//   Registration Cost (Currency or Number)  – per TEAM
+//   Cart Cost         (Currency or Number)  – per ROUND
 //   Card Fee Pct      (Number)               – default 4
 //   Public Slug       (Single-line text)     – URL segment for /t/<slug>
 
