@@ -158,8 +158,13 @@
 
             <fieldset class="fmt-set">
               <legend>Public link</legend>
-              <label class="fmt-row"><span>Public slug</span><input type="text" name="Public Slug" placeholder="founders-2026" /></label>
-              <p class="fmt-note">Once Step 3 ships, the public card lives at <code>/t/&lt;slug&gt;</code>.</p>
+              <label class="fmt-row"><span>Public slug</span><input type="text" name="Public Slug" placeholder="august-22-2026-couples-scramble" /></label>
+              <p class="fmt-note">
+                <b>Format:</b> <code>&lt;month&gt;-&lt;day&gt;-&lt;year&gt;-&lt;event&gt;</code> — all lowercase, spaces become hyphens, no other punctuation.
+                <br /><b>Example:</b> August 22, 2026 · Couples Scramble &rarr; <code>august-22-2026-couples-scramble</code>
+                <br /><b>Rule:</b> starting with the date guarantees each year's event has a unique slug even if the tournament name repeats. Never reuse a slug from a prior year — that link is already indexed / shared.
+                <br /><b>Where it goes:</b> once Step 3 ships, the public card lives at <code>fandhgolf.com/t/&lt;slug&gt;</code>.
+              </p>
             </fieldset>
 
             <div class="fmt-actions">
