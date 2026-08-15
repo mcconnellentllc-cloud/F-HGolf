@@ -417,7 +417,14 @@ module.exports = async (req, res) => {
       const cfgUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}`;
       try {
         // Look up any existing row for this tournament.
-        const filter = "?filterByFormula=" + encodeURIComponent(`{Tournament}='${tournament.replace(/'/g, "\\'")}'`);
+        // Airtable formula strings support backslash-escaping inside
+        // DOUBLE quotes but not single quotes — using {F}='O\'Brien' silently
+        // matches nothing. Every tournament with an apostrophe (Couple's,
+        // Founder's) was hitting this: existing lookup returned no match,
+        // config-write would then insert a duplicate row instead of
+        // updating the real one, and the next load would surface the stale
+        // number the operator thought they saved over.
+        const filter = "?filterByFormula=" + encodeURIComponent(`{Tournament}="${tournament.replace(/"/g, '\\"')}"`);
         const findRes = await fetch(cfgUrl + filter + "&maxRecords=1", { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
         if (!findRes.ok) {
           const detail = await findRes.text();
@@ -433,7 +440,7 @@ module.exports = async (req, res) => {
         const wantSlug = String(fields["Public Slug"] || "").trim().toLowerCase();
         if (wantSlug) {
           const dupFilter = "?filterByFormula=" + encodeURIComponent(
-            `AND(LOWER({Public Slug})='${wantSlug.replace(/'/g, "\\'")}', {Tournament}!='${tournament.replace(/'/g, "\\'")}')`
+            `AND(LOWER({Public Slug})="${wantSlug.replace(/"/g, '\\"')}", {Tournament}!="${tournament.replace(/"/g, '\\"')}")`
           ) + "&maxRecords=1";
           const dupRes = await fetch(cfgUrl + dupFilter, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
           if (dupRes.ok) {
@@ -602,7 +609,7 @@ module.exports = async (req, res) => {
     const cfgTable = process.env.CONFIG_TABLE || "Tournament Config";
     try {
       // Look up the signup that owns this token.
-      const filter = "?filterByFormula=" + encodeURIComponent(`{Live Token}='${token.replace(/'/g, "\\'")}'`) + "&maxRecords=1";
+      const filter = "?filterByFormula=" + encodeURIComponent(`{Live Token}="${token.replace(/"/g, '\\"')}"`) + "&maxRecords=1";
       const listUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}${filter}`;
       const lr = await fetch(listUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
       if (!lr.ok) {
@@ -619,9 +626,9 @@ module.exports = async (req, res) => {
       // Fetch the tournament's config (pars, name, rounds) and its full
       // leaderboard-eligible field in parallel.
       const [cfgRes, fieldRes] = await Promise.all([
-        fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}?filterByFormula=${encodeURIComponent(`{Tournament}='${tournament.replace(/'/g, "\\'")}'`)}&maxRecords=1`,
+        fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}?filterByFormula=${encodeURIComponent(`{Tournament}="${tournament.replace(/"/g, '\\"')}"`)}&maxRecords=1`,
           { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
-        fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}?filterByFormula=${encodeURIComponent(`AND({Tournament}='${tournament.replace(/'/g, "\\'")}', NOT({Alternate}))`)}&pageSize=100`,
+        fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}?filterByFormula=${encodeURIComponent(`AND({Tournament}="${tournament.replace(/"/g, '\\"')}", NOT({Alternate}))`)}&pageSize=100`,
           { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
       ]);
       const cfg = cfgRes.ok ? ((await cfgRes.json()).records || [])[0] : null;
@@ -673,7 +680,7 @@ module.exports = async (req, res) => {
       let url = cfgUrl + "?pageSize=100";
       if (!wantAll) {
         const name = String(q.config).slice(0, 200);
-        url += "&filterByFormula=" + encodeURIComponent(`{Tournament}='${name.replace(/'/g, "\\'")}'`) + "&maxRecords=1";
+        url += "&filterByFormula=" + encodeURIComponent(`{Tournament}="${name.replace(/"/g, '\\"')}"`) + "&maxRecords=1";
       }
       const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
       if (!r.ok) {
