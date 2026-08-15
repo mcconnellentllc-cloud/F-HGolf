@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>People — F&amp;H Golf Course</title>
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1B5E20" />
+  <link rel="apple-touch-icon" href="images/icon-180.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <header class="nav" id="top">
+    <div class="nav__inner">
+      <a href="index.html" class="nav__brand" aria-label="F&H Golf Course home">
+        <img class="nav__mark" src="images/logo.png" alt="" aria-hidden="true" />
+        <span class="nav__wordmark">
+          <span class="nav__name">F&amp;H Golf Course</span>
+          <span class="nav__tagline">Staff Portal</span>
+        </span>
+      </a>
+      <nav class="nav__links">
+        <a href="admin.html">Tournaments</a>
+        <a href="index.html">View public site &rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero hero--strip">
+    <div class="hero__inner">
+      <div class="hero__content">
+        <p class="hero__kicker">Staff Only</p>
+        <h1 class="hero__title">People</h1>
+        <p class="hero__subtitle">Every player, member, and contributor in one list. Search, filter, and clean up clerical errors.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--alt">
+    <div class="container admin">
+      <div class="admin-gate" id="peopleGate" hidden>
+        <h2>Sign in first</h2>
+        <p>Open this page from the <a href="admin.html">Staff Portal</a> after signing in. Your session unlocks it automatically.</p>
+        <p><a class="btn btn--primary" href="admin.html">Go to Staff Portal &rarr;</a></p>
+      </div>
+
+      <div id="peoplePanel">
+        <div class="ppl-bar">
+          <input type="search" id="pplSearch" class="ppl-search" placeholder="Search name, phone, or email…" autocomplete="off" />
+          <div class="ppl-alpha" id="pplAlpha" role="tablist"></div>
+          <div class="ppl-filters" id="pplFilters">
+            <button type="button" class="ppl-fchip is-active" data-flag="all">All (<span id="pplCount">…</span>)</button>
+            <button type="button" class="ppl-fchip" data-flag="missing">Missing contact</button>
+            <button type="button" class="ppl-fchip" data-flag="dupe">Possible duplicates</button>
+          </div>
+        </div>
+
+        <p class="ppl-help">Filter chips <b>dim</b> non-matching rows instead of hiding them, so a clerical error can't slip behind an active filter. Click any row to edit; the ⚠ column shows problems.</p>
+
+        <div id="pplStatus" class="ppl-status" role="status" aria-live="polite">Loading players…</div>
+        <div class="ppl-tablewrap">
+          <table class="ppl-table" id="pplTable">
+            <thead>
+              <tr>
+                <th class="ppl-th-name">Name</th>
+                <th class="ppl-th-phone">Phone</th>
+                <th class="ppl-th-email">Email</th>
+                <th class="ppl-th-loc">City / State</th>
+                <th class="ppl-th-mem">Member</th>
+                <th class="ppl-th-flag" title="Missing contact info or possible duplicate">⚠</th>
+              </tr>
+            </thead>
+            <tbody id="pplBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Edit modal -->
+  <div class="pv-modal" id="pplEditModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="pplEditTitle">
+    <div class="pv-modal__backdrop" data-close="1"></div>
+    <div class="pv-modal__panel pv-modal__panel--md">
+      <div class="pv-modal__head">
+        <h3 class="pv-modal__title" id="pplEditTitle">Edit player</h3>
+        <button class="pv-modal__x" type="button" data-close="1" aria-label="Close">&times;</button>
+      </div>
+      <div class="pv-modal__body">
+        <form id="pplEditForm" class="fmt-form" onsubmit="return false;">
+          <div class="fmt-grid">
+            <label class="fmt-row"><span>Name</span><input type="text" name="name" maxlength="120" /></label>
+            <label class="fmt-row"><span>Phone</span><input type="tel" name="phone" maxlength="40" /></label>
+            <label class="fmt-row"><span>Email</span><input type="email" name="email" maxlength="200" /></label>
+            <label class="fmt-row"><span>Street</span><input type="text" name="street" maxlength="200" /></label>
+            <label class="fmt-row"><span>City</span><input type="text" name="city" maxlength="100" /></label>
+            <label class="fmt-row"><span>State</span><input type="text" name="state" maxlength="20" /></label>
+            <label class="fmt-row"><span>Zip</span><input type="text" name="zip" maxlength="20" /></label>
+            <label class="fmt-row fmt-row--chk"><input type="checkbox" name="member" /><span>Member</span></label>
+          </div>
+          <label class="fmt-row"><span>Notes</span><textarea name="notes" rows="3"></textarea></label>
+        </form>
+      </div>
+      <div class="pv-modal__foot">
+        <span class="pv-modal__status" id="pplEditStatus"></span>
+        <button type="button" class="btn btn--solid" data-close="1">Cancel</button>
+        <button type="button" class="btn btn--primary" id="pplEditSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Merge modal -->
+  <div class="pv-modal" id="pplMergeModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="pplMergeTitle">
+    <div class="pv-modal__backdrop" data-close-merge="1"></div>
+    <div class="pv-modal__panel pv-modal__panel--md">
+      <div class="pv-modal__head">
+        <h3 class="pv-modal__title" id="pplMergeTitle">Merge duplicates</h3>
+        <button class="pv-modal__x" type="button" data-close-merge="1" aria-label="Close">&times;</button>
+      </div>
+      <div class="pv-modal__body">
+        <p class="fmt-note">Pick which side wins each field. Notes are combined automatically. On confirm, the losing record is deleted and every signup that pointed at it is re-linked to the survivor.</p>
+        <div id="pplMergeGrid" class="ppl-merge"></div>
+      </div>
+      <div class="pv-modal__foot">
+        <span class="pv-modal__status" id="pplMergeStatus"></span>
+        <button type="button" class="btn btn--solid" data-close-merge="1">Cancel</button>
+        <button type="button" class="btn btn--primary" id="pplMergeConfirm">Merge</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__brand"><img src="images/logo.png" alt="" class="footer__mark" /><span>F&amp;H Golf Course</span></div>
+    </div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    (function () {
+      var FLAG = "fh_admin_ok", KEYK = "fh_admin_key";
+      function _readAuth(k) { try { var v = localStorage.getItem(k); if (v) return v; var s = sessionStorage.getItem(k); if (s) return s; } catch (e) {} return ""; }
+      function getKey() { return _readAuth(KEYK); }
+      function authed() { return _readAuth(FLAG) === "1"; }
+      function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
+
+      if (!authed()) {
+        document.getElementById("peopleGate").hidden = false;
+        document.getElementById("peoplePanel").hidden = true;
+        return;
+      }
+
+      var all = [];
+      var activeLetter = "all";
+      var activeFilter = "all"; // all / missing / dupe
+      var query = "";
+
+      function lastName(name) {
+        var s = String(name || "").trim();
+        if (!s) return "";
+        var parts = s.split(/\s+/);
+        return parts[parts.length - 1] || "";
+      }
+      function firstLetter(name) {
+        var ln = lastName(name);
+        var c = (ln.charAt(0) || "").toUpperCase();
+        return /[A-Z]/.test(c) ? c : "#";
+      }
+      function normPhone(p) { return String(p || "").replace(/\D+/g, ""); }
+      var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      function flagsFor(rec, dupeIds) {
+        var f = rec.fields || {};
+        var out = [];
+        if (!String(f.Phone || "").trim() && !String(f.Email || "").trim()) out.push("no contact");
+        if (String(f.Email || "").trim() && !EMAIL_RE.test(String(f.Email).trim())) out.push("bad email");
+        var phDigits = normPhone(f.Phone);
+        if (phDigits && phDigits.length < 10) out.push("short phone");
+        if (dupeIds && dupeIds[rec.id]) out.push("dupe");
+        return out;
+      }
+
+      function findDuplicates(recs) {
+        var byName = {}, byPhone = {};
+        var dupes = {}; // id -> list of matching ids
+        function mark(a, b) {
+          (dupes[a] = dupes[a] || {})[b] = true;
+          (dupes[b] = dupes[b] || {})[a] = true;
+        }
+        recs.forEach(function (r) {
+          var f = r.fields || {};
+          var n = String(f.Name || "").trim().toLowerCase();
+          if (n) { (byName[n] = byName[n] || []).push(r.id); }
+          var p = normPhone(f.Phone);
+          if (p && p.length >= 7) { (byPhone[p] = byPhone[p] || []).push(r.id); }
+        });
+        Object.keys(byName).forEach(function (k) {
+          var list = byName[k]; if (list.length < 2) return;
+          for (var i = 0; i < list.length; i++) for (var j = i + 1; j < list.length; j++) mark(list[i], list[j]);
+        });
+        Object.keys(byPhone).forEach(function (k) {
+          var list = byPhone[k]; if (list.length < 2) return;
+          for (var i = 0; i < list.length; i++) for (var j = i + 1; j < list.length; j++) mark(list[i], list[j]);
+        });
+        // Flatten to just { id: true } for quick lookup, keep list too.
+        var flat = {}, byId = {};
+        Object.keys(dupes).forEach(function (id) {
+          flat[id] = true;
+          byId[id] = Object.keys(dupes[id]);
+        });
+        return { flat: flat, byId: byId };
+      }
+
+      function buildAlpha() {
+        var letters = ["all"];
+        for (var c = 65; c <= 90; c++) letters.push(String.fromCharCode(c));
+        letters.push("#");
+        var host = document.getElementById("pplAlpha");
+        host.innerHTML = letters.map(function (L) {
+          var lbl = L === "all" ? "All" : L;
+          return '<button type="button" class="ppl-alpha__btn' + (activeLetter === L ? " is-active" : "") + '" data-letter="' + esc(L) + '">' + esc(lbl) + "</button>";
+        }).join("");
+        Array.prototype.forEach.call(host.querySelectorAll(".ppl-alpha__btn"), function (b) {
+          b.addEventListener("click", function () {
+            activeLetter = b.getAttribute("data-letter");
+            Array.prototype.forEach.call(host.querySelectorAll(".ppl-alpha__btn"), function (o) { o.classList.toggle("is-active", o === b); });
+            render();
+          });
+        });
+      }
+
+      function matchesQuery(rec) {
+        if (!query) return true;
+        var f = rec.fields || {};
+        var hay = [f.Name, f.Phone, f.Email, f.City, f.State].map(function (x) { return String(x || "").toLowerCase(); }).join(" ");
+        return hay.indexOf(query) !== -1;
+      }
+      function matchesLetter(rec) {
+        if (activeLetter === "all") return true;
+        return firstLetter((rec.fields || {}).Name) === activeLetter;
+      }
+      function matchesFilter(rec, dupeInfo) {
+        if (activeFilter === "all") return true;
+        var fs = flagsFor(rec, dupeInfo.flat);
+        if (activeFilter === "missing") return fs.some(function (x) { return x !== "dupe"; });
+        if (activeFilter === "dupe") return fs.indexOf("dupe") !== -1;
+        return true;
+      }
+
+      var _dupeCache = null;
+      function render() {
+        var body = document.getElementById("pplBody");
+        var status = document.getElementById("pplStatus");
+        if (!all.length) { body.innerHTML = ""; status.textContent = "No players yet."; return; }
+        if (!_dupeCache) _dupeCache = findDuplicates(all);
+        var recs = all.slice().sort(function (a, b) {
+          var la = lastName((a.fields || {}).Name).toLowerCase();
+          var lb = lastName((b.fields || {}).Name).toLowerCase();
+          if (la !== lb) return la < lb ? -1 : 1;
+          var na = String((a.fields || {}).Name || "").toLowerCase();
+          var nb = String((b.fields || {}).Name || "").toLowerCase();
+          return na < nb ? -1 : (na > nb ? 1 : 0);
+        });
+        var rows = recs.map(function (r) {
+          var f = r.fields || {};
+          var visibleQ = matchesQuery(r);
+          var visibleL = matchesLetter(r);
+          var visibleF = matchesFilter(r, _dupeCache);
+          var dim = !(visibleQ && visibleL && visibleF);
+          var fs = flagsFor(r, _dupeCache.flat);
+          var isDupe = fs.indexOf("dupe") !== -1;
+          var flagBits = fs.map(function (x) {
+            if (x === "dupe") return '<button type="button" class="ppl-flag ppl-flag--dupe" data-merge-id="' + esc(r.id) + '" title="Possible duplicate — click to merge">dupe</button>';
+            return '<span class="ppl-flag ppl-flag--miss" title="Missing / invalid contact info">' + esc(x) + '</span>';
+          }).join(" ");
+          return '<tr class="ppl-row' + (dim ? " is-dim" : "") + (isDupe ? " is-dupe" : "") + '" data-id="' + esc(r.id) + '">'
+            + '<td class="ppl-td-name"><b>' + esc(f.Name || "(no name)") + '</b>' + (f.Member ? ' <span class="ppl-badge">member</span>' : "") + "</td>"
+            + '<td class="ppl-td-phone">' + esc(f.Phone || "") + "</td>"
+            + '<td class="ppl-td-email">' + esc(f.Email || "") + "</td>"
+            + '<td class="ppl-td-loc">' + esc([f.City, f.State].filter(Boolean).join(", ")) + "</td>"
+            + '<td class="ppl-td-mem">' + (f.Member ? "✓" : "") + "</td>"
+            + '<td class="ppl-td-flag">' + (flagBits || "") + "</td>"
+            + "</tr>";
+        }).join("");
+        body.innerHTML = rows;
+        var visibleCount = recs.filter(function (r) { return matchesQuery(r) && matchesLetter(r) && matchesFilter(r, _dupeCache); }).length;
+        status.textContent = "Showing " + visibleCount + " of " + recs.length + " players.";
+        document.getElementById("pplCount").textContent = recs.length;
+        // Wire row clicks (delegated to body).
+      }
+
+      // Row click → edit modal. Delegated.
+      document.getElementById("pplBody").addEventListener("click", function (e) {
+        var mergeBtn = e.target.closest && e.target.closest(".ppl-flag--dupe");
+        if (mergeBtn) { e.stopPropagation(); openMerge(mergeBtn.getAttribute("data-merge-id")); return; }
+        var row = e.target.closest && e.target.closest(".ppl-row"); if (!row) return;
+        openEdit(row.getAttribute("data-id"));
+      });
+
+      // Search input.
+      document.getElementById("pplSearch").addEventListener("input", function () {
+        query = String(this.value || "").trim().toLowerCase();
+        render();
+      });
+
+      // Filter chips.
+      Array.prototype.forEach.call(document.querySelectorAll(".ppl-fchip"), function (b) {
+        b.addEventListener("click", function () {
+          activeFilter = b.getAttribute("data-flag") || "all";
+          Array.prototype.forEach.call(document.querySelectorAll(".ppl-fchip"), function (o) { o.classList.toggle("is-active", o === b); });
+          render();
+        });
+      });
+
+      // ---- Edit modal
+      var editModal = document.getElementById("pplEditModal");
+      var editForm = document.getElementById("pplEditForm");
+      var editStatus = document.getElementById("pplEditStatus");
+      var editingId = "";
+      function openEdit(id) {
+        var rec = null; for (var i = 0; i < all.length; i++) if (all[i].id === id) { rec = all[i]; break; }
+        if (!rec) return;
+        editingId = id;
+        var f = rec.fields || {};
+        var map = { name: f.Name, phone: f.Phone, email: f.Email, street: f.Street, city: f.City, state: f.State, zip: f.Zip, notes: f.Notes };
+        Array.prototype.forEach.call(editForm.querySelectorAll("input, textarea"), function (el) {
+          var n = el.getAttribute("name"); if (!n) return;
+          if (el.type === "checkbox") { el.checked = !!f.Member; return; }
+          el.value = map[n] == null ? "" : String(map[n]);
+        });
+        editStatus.textContent = "";
+        editModal.hidden = false;
+      }
+      function closeEdit() { editModal.hidden = true; editingId = ""; }
+      Array.prototype.forEach.call(editModal.querySelectorAll("[data-close]"), function (el) {
+        el.addEventListener("click", closeEdit);
+      });
+      document.getElementById("pplEditSave").addEventListener("click", function () {
+        if (!editingId) return;
+        var payload = { id: editingId };
+        Array.prototype.forEach.call(editForm.querySelectorAll("input, textarea"), function (el) {
+          var n = el.getAttribute("name"); if (!n) return;
+          if (el.type === "checkbox") { payload.member = !!el.checked; return; }
+          payload[n] = String(el.value || "").trim();
+        });
+        editStatus.textContent = "Saving…";
+        fetch(FH_API.url("/api/players"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify(payload) })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) { editStatus.textContent = (j && j.error) || "Save failed."; return; }
+            // Merge changes into cache and re-render.
+            for (var i = 0; i < all.length; i++) if (all[i].id === editingId) { all[i].fields = j.fields || all[i].fields; break; }
+            _dupeCache = null;
+            render();
+            closeEdit();
+          })
+          .catch(function () { editStatus.textContent = "Network error."; });
+      });
+
+      // ---- Merge modal
+      var mergeModal = document.getElementById("pplMergeModal");
+      var mergeGrid = document.getElementById("pplMergeGrid");
+      var mergeStatus = document.getElementById("pplMergeStatus");
+      var mergeKeepId = "", mergeDropId = "";
+      var MERGE_FIELDS = [
+        { k: "Name", label: "Name" },
+        { k: "Phone", label: "Phone" },
+        { k: "Email", label: "Email" },
+        { k: "Street", label: "Street" },
+        { k: "City", label: "City" },
+        { k: "State", label: "State" },
+        { k: "Zip", label: "Zip" },
+        { k: "Member", label: "Member", isBool: true },
+        { k: "Notes", label: "Notes", combine: true },
+      ];
+      function openMerge(anchorId) {
+        var partners = (_dupeCache && _dupeCache.byId[anchorId]) || [];
+        var otherId = partners[0]; if (!otherId) return;
+        // Default: keep the more-complete record.
+        function completeness(rec) {
+          var f = rec.fields || {}; var n = 0;
+          MERGE_FIELDS.forEach(function (m) { if (m.k === "Member") return; if (String(f[m.k] || "").trim()) n++; });
+          return n;
+        }
+        var a = null, b = null;
+        for (var i = 0; i < all.length; i++) { if (all[i].id === anchorId) a = all[i]; else if (all[i].id === otherId) b = all[i]; }
+        if (!a || !b) return;
+        var keep = completeness(a) >= completeness(b) ? a : b;
+        var drop = keep === a ? b : a;
+        mergeKeepId = keep.id; mergeDropId = drop.id;
+        mergeGrid.innerHTML = MERGE_FIELDS.map(function (m) {
+          var kv = (keep.fields || {})[m.k];
+          var dv = (drop.fields || {})[m.k];
+          var kStr = m.isBool ? (kv ? "Yes" : "No") : (kv == null ? "" : String(kv));
+          var dStr = m.isBool ? (dv ? "Yes" : "No") : (dv == null ? "" : String(dv));
+          var kSel = 'checked';
+          var opts = ''
+            + '<label class="ppl-merge__opt"><input type="radio" name="fld_' + esc(m.k) + '" value="keep" ' + kSel + ' /><span>' + (kStr ? esc(kStr) : '<i>(blank)</i>') + '</span></label>'
+            + '<label class="ppl-merge__opt"><input type="radio" name="fld_' + esc(m.k) + '" value="drop" /><span>' + (dStr ? esc(dStr) : '<i>(blank)</i>') + '</span></label>';
+          if (m.combine) opts += '<label class="ppl-merge__opt"><input type="radio" name="fld_' + esc(m.k) + '" value="combine" /><span>Combine both</span></label>';
+          return '<div class="ppl-merge__row"><div class="ppl-merge__lbl">' + esc(m.label) + '</div><div class="ppl-merge__opts">' + opts + '</div></div>';
+        }).join("");
+        // Header note showing which id survives.
+        mergeGrid.insertAdjacentHTML("afterbegin",
+          '<p class="fmt-note"><b>Surviving record:</b> ' + esc((keep.fields || {}).Name || "(no name)")
+          + ' &middot; <b>Deleted:</b> ' + esc((drop.fields || {}).Name || "(no name)")
+          + ' <button type="button" class="btn btn--solid" id="pplMergeFlip" style="margin-left:0.5rem;padding:0.25rem 0.6rem;font-size:0.8rem;">Flip</button></p>');
+        document.getElementById("pplMergeFlip").addEventListener("click", function () {
+          // Swap keep/drop and rebuild.
+          var tmp = mergeKeepId; mergeKeepId = mergeDropId; mergeDropId = tmp;
+          openMerge(mergeKeepId);
+        });
+        mergeStatus.textContent = "";
+        mergeModal.hidden = false;
+      }
+      function closeMerge() { mergeModal.hidden = true; mergeKeepId = ""; mergeDropId = ""; }
+      Array.prototype.forEach.call(mergeModal.querySelectorAll("[data-close-merge]"), function (el) {
+        el.addEventListener("click", closeMerge);
+      });
+      document.getElementById("pplMergeConfirm").addEventListener("click", function () {
+        if (!mergeKeepId || !mergeDropId) return;
+        var keep = null, drop = null;
+        for (var i = 0; i < all.length; i++) { if (all[i].id === mergeKeepId) keep = all[i]; else if (all[i].id === mergeDropId) drop = all[i]; }
+        if (!keep || !drop) return;
+        var merged = {};
+        MERGE_FIELDS.forEach(function (m) {
+          var pick = (document.querySelector('input[name="fld_' + m.k + '"]:checked') || {}).value || "keep";
+          var kv = (keep.fields || {})[m.k];
+          var dv = (drop.fields || {})[m.k];
+          if (pick === "drop") merged[m.k] = dv == null ? "" : dv;
+          else if (pick === "combine" && m.k === "Notes") {
+            var joined = [kv, dv].filter(Boolean).join("\n---\n");
+            merged[m.k] = joined;
+          } else merged[m.k] = kv == null ? "" : kv;
+        });
+        mergeStatus.textContent = "Merging…";
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "player-merge", keepId: mergeKeepId, dropId: mergeDropId, fields: merged }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) { mergeStatus.textContent = (j && j.error) || "Merge failed."; return; }
+            // Reload from Airtable so the cache reflects the merge fully.
+            closeMerge();
+            load(true);
+          })
+          .catch(function () { mergeStatus.textContent = "Network error."; });
+      });
+
+      function load(force) {
+        var status = document.getElementById("pplStatus");
+        status.textContent = "Loading players…";
+        fetch(FH_API.url("/api/players"), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) { status.textContent = (j && j.error) || "Couldn't load players."; return; }
+            all = j.records || [];
+            _dupeCache = null;
+            render();
+          })
+          .catch(function () { status.textContent = "Network error."; });
+      }
+
+      buildAlpha();
+      load();
+    })();
+  </script>
+</body>
+</html>

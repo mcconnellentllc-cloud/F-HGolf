@@ -212,6 +212,80 @@ module.exports = async (req, res) => {
       }
     }
 
+    if (body.action === "player-merge") {
+      // Merge two Players table rows: the "keep" row survives with the
+      // caller-supplied merged fields; the "drop" row's signups are
+      // re-linked to the keep row, then the drop row itself is deleted.
+      // Order matters — do the field write + re-link BEFORE the delete so
+      // a partial failure never orphans historical Signups.
+      const keepId = typeof body.keepId === "string" ? body.keepId : "";
+      const dropId = typeof body.dropId === "string" ? body.dropId : "";
+      const mergedFields = (body.fields && typeof body.fields === "object") ? body.fields : {};
+      if (!keepId || !dropId) return res.status(400).json({ ok: false, error: "Missing keepId or dropId." });
+      if (keepId === dropId) return res.status(400).json({ ok: false, error: "keepId and dropId are the same record." });
+      const PLAYERS = process.env.PLAYERS_TABLE || "Players";
+      const playersUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(PLAYERS)}`;
+      try {
+        // Step 1 — write merged fields onto the keep record.
+        if (Object.keys(mergedFields).length) {
+          const wr = await fetch(`${playersUrl}/${keepId}`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ fields: mergedFields, typecast: true }),
+          });
+          if (!wr.ok) {
+            const detail = await wr.text();
+            console.error("player-merge PATCH keep error", wr.status, detail);
+            return res.status(502).json({ ok: false, error: "Could not save merged fields to the surviving player.", detail });
+          }
+        }
+        // Step 2 — find every Signups row linked to the drop player and
+        // repoint its Player link at the keep id. Airtable linked-record
+        // fields want an ARRAY of record ids.
+        const filter = "?filterByFormula=" + encodeURIComponent(`FIND('${dropId}', ARRAYJOIN({Player}))`) + "&pageSize=100";
+        let offset = "";
+        const relinkIds = [];
+        for (let guard = 0; guard < 20; guard++) {
+          const url = listUrl + filter + (offset ? "&offset=" + encodeURIComponent(offset) : "");
+          const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+          if (!r.ok) {
+            const detail = await r.text();
+            console.error("player-merge signups lookup error", r.status, detail);
+            return res.status(502).json({ ok: false, error: "Could not find signups linked to the drop player." });
+          }
+          const data = await r.json();
+          (data.records || []).forEach((rec) => relinkIds.push(rec.id));
+          if (!data.offset) break;
+          offset = data.offset;
+        }
+        // Batch PATCH up to 10 per Airtable call.
+        while (relinkIds.length) {
+          const batch = relinkIds.splice(0, 10).map((id) => ({ id, fields: { Player: [keepId] } }));
+          const patchRes = await fetch(listUrl, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ records: batch, typecast: true }),
+          });
+          if (!patchRes.ok) {
+            const detail = await patchRes.text();
+            console.error("player-merge signups relink error", patchRes.status, detail);
+            return res.status(502).json({ ok: false, error: "Could not re-link some signups to the surviving player.", detail });
+          }
+        }
+        // Step 3 — delete the drop player row.
+        const del = await fetch(`${playersUrl}/${dropId}`, { method: "DELETE", headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        if (!del.ok) {
+          const detail = await del.text();
+          console.error("player-merge delete drop error", del.status, detail);
+          return res.status(502).json({ ok: false, error: "Merged fields saved and signups re-linked, but could not delete the duplicate player row — remove it manually in Airtable." });
+        }
+        return res.status(200).json({ ok: true, keepId: keepId, dropId: dropId, relinked: relinkIds.length });
+      } catch (e) {
+        console.error("player-merge exception", e);
+        return res.status(500).json({ ok: false, error: "Something went wrong merging the players." });
+      }
+    }
+
     if (body.action === "config-write") {
       // Upsert a Tournament Config row keyed by the "Tournament" field.
       // Admin writes only. Body: { tournament, fields } where fields is a
