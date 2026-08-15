@@ -2283,6 +2283,12 @@ body.modal-open { overflow: hidden; }
 .wb-sheet[data-sheet="check"].ci--no-meals .ci-extra-meals-line,
 .wb-sheet[data-sheet="check"].ci--no-meals .ci-cartline--meal { display: none; }
 
+/* Single-wave tournaments (Format Waves = 1): no AM/PM chips, no per-team
+   wave dropdown — there's only one shotgun so any of those controls just
+   confuses operators. Everything is driven by the Format tab. */
+.wb-sheet[data-sheet="check"].ci--single-wave #ciWaveFilterGroup { display: none; }
+.wb-sheet[data-sheet="check"].ci--single-wave .ci-card__start { display: none; }
+
 /* Pairings single-day mode: driven by Format's Rounds field. Hide every
    Day 2 control so operators of one-day tournaments never see a Day 2
    tab, autofill, or print button they'd have to ignore. */
