@@ -72,7 +72,6 @@
           <button type="button" class="wb-tab" data-sheet="leaderboard" role="tab">Leaderboard</button>
           <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
-          <button type="button" class="wb-tab" data-sheet="calc" role="tab">Calc</button>
           <button type="button" class="wb-tab" data-sheet="rules" role="tab">Rules</button>
           <button type="button" class="wb-tab" data-sheet="recap" role="tab">Recap</button>
           <button type="button" class="wb-tab wb-tab--history" data-sheet="history" role="tab">History</button>
@@ -132,7 +131,6 @@
                 </label>
                 <label class="fmt-row"><span>Flights</span><input type="number" name="Flights" min="0" max="6" /></label>
                 <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Alternates Allowed" /><span>Alternates allowed once cap is hit</span></label>
-                <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Calcutta Enabled" /><span>Calcutta auction enabled</span></label>
                 <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Extra Meals Enabled" /><span>Track extra meals per player (kitchen head count)</span></label>
               </div>
               <div class="fmt-grid fmt-grid--shot">
@@ -150,13 +148,11 @@
 
             <fieldset class="fmt-set">
               <legend>Money</legend>
-              <div class="fmt-grid">
-                <label class="fmt-row"><span>Registration cost (per team)</span><input type="number" name="Registration Cost" min="0" step="1" placeholder="150" /></label>
-                <label class="fmt-row"><span>Cart cost (per round)</span><input type="number" name="Cart Cost" min="0" step="1" placeholder="20" /></label>
-                <label class="fmt-row"><span>Card fee %</span><input type="number" name="Card Fee Pct" min="0" step="0.5" placeholder="4" /></label>
+              <p class="fmt-note">Per-player expenses that drive the whole workbook. Change any value here — the Leaderboard, Calcutta, Payout, and $ Summary tabs pick it up immediately. Values auto-save as you edit.</p>
+              <div id="fmtCalcMoneyMount" class="fmt-calc-mount"></div>
+              <div class="fmt-actions" style="justify-content:flex-start;">
+                <button type="button" class="btn btn--solid" id="calcReset" title="Reset every money / flight / calcutta value to defaults">Reset calculations to defaults</button>
               </div>
-              <label class="fmt-row"><span>Chargeable extras JSON</span><textarea name="Extras JSON" rows="2" placeholder='[{"name":"Extra dinner","price":30}]'></textarea></label>
-              <p class="fmt-note">Chargeable add-ons collected at Check-In (e.g. Founders extra dinners). Leave blank for tournaments without paid extras.</p>
             </fieldset>
 
             <fieldset class="fmt-set">
@@ -164,6 +160,25 @@
               <label class="fmt-row"><span>Advertising bullets (one per line)</span><textarea id="fmtHighlightsText" rows="4" placeholder="Lunch Included&#10;Breakfast Burritos provided by Haxtun JHS Volleyball&#10;$500 in prizes per flight"></textarea></label>
               <p class="fmt-note">Rendered as a bullet list on the shareable public card. One line = one highlight. Keep each line short — this is advertising copy.</p>
               <input type="hidden" name="Highlights" id="fmtHighlightsJson" />
+            </fieldset>
+
+            <fieldset class="fmt-set">
+              <legend>Flight payout calculator</legend>
+              <p class="fmt-note">Flight count, prize split, and any custom adjustments (sponsorships, skins pot, range balls). Live formulas below show exactly how the pool becomes each place's check.</p>
+              <div id="fmtCalcFlightMount" class="fmt-calc-mount"></div>
+            </fieldset>
+
+            <fieldset class="fmt-set" id="fmtCalcuttaSet">
+              <legend>Calcutta</legend>
+              <label class="fmt-row fmt-calcutta-toggle">
+                <span>Calcutta auction</span>
+                <select id="fmtCalcuttaEnabled">
+                  <option value="off">Disabled — hide Calcutta tabs</option>
+                  <option value="on">Enabled — top-4 net payout per flight</option>
+                </select>
+              </label>
+              <p class="fmt-note">When disabled, the Calcutta, Calcutta Buyers, and Calcutta Disp workbook tabs are hidden. Turn on for tournaments that auction teams (Founders, etc.).</p>
+              <div id="fmtCalcCalcuttaMount" class="fmt-calc-mount"></div>
             </fieldset>
 
             <fieldset class="fmt-set">
@@ -211,7 +226,7 @@
             <div class="checkin-summary" id="twSummary"></div>
             <a class="btn btn--solid" id="twCardLink" target="_blank" rel="noopener" href="#">Card payment page &rarr;</a>
           </div>
-          <p class="scaffold__desc" style="margin-top:0.4rem">Entry fee is set on the <b>Calc</b> tab (currently: <b id="twFeeReadout">—</b> / player). Change it there so it flows through the whole workbook.</p>
+          <p class="scaffold__desc" style="margin-top:0.4rem">Entry fee is set on the <b>Format</b> tab (currently: <b id="twFeeReadout">—</b> / player). Change it there so it flows through the whole workbook.</p>
 
           <details class="checkin-add">
             <summary>+ Add a walk-up team</summary>
@@ -328,19 +343,6 @@
         </section>
 
         <!-- Calculations (editable formula) -->
-        <section class="noms wb-sheet" data-sheet="calc" id="twCalc" aria-label="Calculations">
-          <div class="noms__bar">
-            <h3 class="noms__title">Calculations</h3>
-            <button class="btn btn--solid" type="button" id="calcReset">Reset to defaults</button>
-          </div>
-          <p class="scaffold__desc">Every formula lives here — change any value and the leaderboard &amp; Calcutta use it immediately. Staff can still manually override any team's numbers on the leaderboard.</p>
-          <div id="calcForm" class="calcform"></div>
-          <div class="sc__foot">
-            <button class="btn btn--primary" type="button" id="calcSave">Save calculations</button>
-            <span class="sc__status" id="calcStatus"></span>
-          </div>
-        </section>
-
         <!-- Calcutta — buyers + payouts per flight -->
         <section class="noms wb-sheet" data-sheet="calcutta" id="twCalcutta" aria-label="Calcutta" hidden>
           <div class="noms__bar">
@@ -1351,6 +1353,39 @@
         _fmtHydrateShotgun(f["Waves JSON"]);
         _fmtHydrateHighlights(f["Highlights"]);
         _fmtHydrateMemberCarts(f["Member Carts JSON"]);
+        // Calcutta Enabled is a select on the form (id fmtCalcuttaEnabled)
+        // but stored as boolean — hydrate the dropdown from the stored value.
+        var ce = document.getElementById("fmtCalcuttaEnabled");
+        if (ce) ce.value = f["Calcutta Enabled"] ? "on" : "off";
+        _applyCalcuttaVisibility(!!f["Calcutta Enabled"]);
+      }
+      // Hide/show the Calcutta workbook tabs + the Calcutta payout mount on
+      // Format based on whether the tournament runs a Calcutta. When off,
+      // Calcutta / Calcutta Buyers / Calcutta Disp all disappear from the
+      // tab bar so tournaments without an auction get a decluttered workbook.
+      function _applyCalcuttaVisibility(enabled) {
+        var tabs = ["calcutta", "calcuttaSummary", "dispCalcutta"];
+        tabs.forEach(function (name) {
+          var btn = document.querySelector('.wb-tab[data-sheet="' + name + '"]');
+          if (btn) btn.style.display = enabled ? "" : "none";
+          // Also collapse the tab's <section> so a saved-tab reload can't
+          // land on a hidden Calcutta view.
+          var sec = document.querySelector('.wb-sheet[data-sheet="' + name + '"]');
+          if (!enabled && sec && !sec.hidden) { sec.hidden = true; }
+        });
+        var calcuttaMount = document.getElementById("fmtCalcCalcuttaMount");
+        if (calcuttaMount) calcuttaMount.style.display = enabled ? "" : "none";
+        // If the operator just disabled Calcutta while on that tab, bounce
+        // to Check-In so they don't stare at a now-hidden section.
+        if (!enabled) {
+          try {
+            var active = window.__fhActive;
+            if (active === "calcutta" || active === "calcuttaSummary" || active === "dispCalcutta") {
+              var checkBtn = document.querySelector('.wb-tab[data-sheet="check"]');
+              if (checkBtn) checkBtn.click();
+            }
+          } catch (e) {}
+        }
       }
       // Member cart pool — repeating card widget. Each entry has name,
       // shed, spot, power (Electric/Gas), notes. Legacy string entries
@@ -1508,6 +1543,13 @@
           if (el.type === "number") { var n = Number(raw); if (!isNaN(n)) out[name] = n; return; }
           out[name] = raw;
         });
+        // Calcutta Enabled is rendered as a select ("on"/"off") but stored on
+        // Airtable as a checkbox — coerce to boolean here so the Airtable
+        // config writes the proper value. Only included when the operator
+        // actually made a choice (default "off" still writes explicit false
+        // so a toggle-off persists).
+        var ce = document.getElementById("fmtCalcuttaEnabled");
+        if (ce) out["Calcutta Enabled"] = (ce.value === "on");
         return out;
       }
       function saveFormat() {
@@ -1543,6 +1585,8 @@
                 // Rental Carts inventory may have changed — recompute the
                 // hero cart-demand summary.
                 try { _renderCartDemand(); } catch (e) {}
+                // Calcutta toggle may have flipped — re-hide/show tabs.
+                try { _applyCalcuttaVisibility(!!_tcConfigCache["Calcutta Enabled"]); } catch (e) {}
               }
               return;
             }
@@ -3241,6 +3285,7 @@
             try { _applyCheckinFeatureFlags(_tcConfigCache); } catch (e) {}
             try { _applyPairingsMultiDay(_tcConfigCache); } catch (e) {}
             try { _renderCartDemand(); } catch (e) {}
+            try { _applyCalcuttaVisibility(!!_tcConfigCache["Calcutta Enabled"]); } catch (e) {}
             if (cb) cb(_tcConfigCache);
             // Re-render check-in so the cart dropdowns pick up the config
             // once it arrives (initial roster render fires before this GET).
@@ -8086,54 +8131,63 @@
       function money(n) { if (n == null || !isFinite(n)) return "$0"; return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 
       function renderCalcForm() {
-        var c = loadCalc(), box = document.getElementById("calcForm");
-        if (!box) return;
+        var c = loadCalc();
+        // The Calc tab moved into three Format-tab fieldsets: Money, Flight
+        // Payout, and Calcutta. Each mount below owns one slice of the calc
+        // form; the shared refreshTotals() below re-populates the totals /
+        // formula elements no matter which mount they landed in.
+        var moneyBox = document.getElementById("fmtCalcMoneyMount");
+        var flightBox = document.getElementById("fmtCalcFlightMount");
+        var calcuttaBox = document.getElementById("fmtCalcCalcuttaMount");
+        if (!moneyBox && !flightBox && !calcuttaBox) return;
         var gv = function (k, d) { return c[k] != null ? c[k] : d; };
-        box.innerHTML =
-          // Field summary — teams & players (assumption: 2 players per team, all paid).
-          '<div class="calc__summary" id="calcSummary"></div>'
-
-          + '<div class="calc__grp"><h4>Money (per person)</h4>'
-          + '<div class="calc__totals" id="calcMoneyTotals"></div>'
-          + '<label class="calc__row">Entry fee $ ' + numIn("cEntry", gv("entryPP", 120), "1") + "</label>"
-          + '<label class="calc__row">Green fee $ ' + numIn("cGreen", gv("greenFeePP", 20), "1") + "</label>"
-          + '<label class="calc__row">Meals $ ' + numIn("cMeal", gv("mealPP", 30), "1") + "</label>"
-          + '<label class="calc__row">Other $ ' + numIn("cOther", gv("otherPP", 0), "1") + "</label>"
-          + '<label class="calc__row">Cart rental $ (per team) ' + numIn("cCart", gv("cartRentalFee", 22), "1") + "</label>"
-          + '<label class="calc__row">Extra meal $ (guest / spouse) ' + numIn("cExtraM", gv("extraMealFee", 10), "1") + "</label>"
-          + '<label class="calc__row">Card / Online surcharge % ' + numIn("cSur", gv("surchargePct", 4), "0.1") + "</label>"
-          + '<div class="calc__formula" id="calcMoneyFormula"></div>'
-          + '<p class="calc__note">Assumes 2 players / team. Prize pool = (entry − green − meal − other) × <b>paid</b> players + additional + custom income − custom expense − manual expenses. Green &amp; meals go to the course.</p></div>'
-
-          + '<div class="calc__grp"><h4>Custom lines (extra expense / income)</h4>'
-          + '<p class="calc__note">Add extra items that adjust the flight prize pool -- range balls, sponsorships, skins pot, ad-hoc supplies, etc. Income adds to the pool; expense subtracts. Per-player scales with paid players; lump-sum applies once.</p>'
-          + '<div id="calcCustomList" class="calc__custom"></div>'
-          + '<button type="button" class="btn btn--solid calc__add" id="calcAddLine">+ Add line</button>'
-          + '</div>'
-
-          + '<div class="calc__grp"><h4>Handicap</h4>'
-          + '<label class="calc__row">Multiplier (× stroke difference) ' + numIn("cMult", c.handicapMultiplier) + "</label>"
-          + '<p class="calc__note">HCP = (team Day-1 gross − flight-leader Day-1 gross) × multiplier. Net = Day 2 gross − HCP. Calcutta places are decided on Day 2 net only; Day 1 sets the flight + handicap.</p></div>'
-
-          + '<div class="calc__grp"><h4>Flight prizes</h4>'
-          + '<div class="calc__totals" id="calcFlightTotals"></div>'
-          + '<label class="calc__row">Number of flights ' + numIn("cFlights", c.flights, "1") + "</label>"
-          + '<label class="calc__row">Pool — 1st % ' + numIn("cF1", c.flightSplit[0], "1") + "</label>"
-          + '<label class="calc__row">2nd % ' + numIn("cF2", c.flightSplit[1], "1") + "</label>"
-          + '<label class="calc__row">3rd % ' + numIn("cF3", c.flightSplit[2], "1") + "</label>"
-          + '<label class="calc__row">Additional $ (added) ' + numIn("cAdd", gv("additionalFlight", 0), "1") + "</label>"
-          + '<div class="calc__formula" id="calcFlightFormula"></div>'
-          + '<p class="calc__note">Every flight pays the same 1st / 2nd / 3rd dollar amount. Flight budget = pool ÷ # flights. Each budget splits by these %. Places by 2-day gross; ties split.</p></div>'
-
-          + '<div class="calc__grp"><h4>Calcutta (top 4 net)</h4>'
-          + '<div class="calc__totals" id="calcCalTotals"></div>'
-          + '<label class="calc__row">Club commission % ' + numIn("cComm", c.calcuttaCommission, "1") + "</label>"
-          + '<label class="calc__row">Payout — 1st % ' + numIn("cS1", c.calcuttaSplit[0], "1") + "</label>"
-          + '<label class="calc__row">2nd % ' + numIn("cS2", c.calcuttaSplit[1], "1") + "</label>"
-          + '<label class="calc__row">3rd % ' + numIn("cS3", c.calcuttaSplit[2], "1") + "</label>"
-          + '<label class="calc__row">4th % ' + numIn("cS4", c.calcuttaSplit[3], "1") + "</label>"
-          + '<div class="calc__formula" id="calcCalFormula"></div>'
-          + '<p class="calc__note">Per flight: pool × (100 − commission)%, split by these percents to the top 4 net.</p></div>';
+        if (moneyBox) {
+          moneyBox.innerHTML =
+            '<div class="calc__summary" id="calcSummary"></div>'
+            + '<div class="calc__grp"><h4>Money (per person)</h4>'
+            + '<div class="calc__totals" id="calcMoneyTotals"></div>'
+            + '<label class="calc__row">Entry fee $ ' + numIn("cEntry", gv("entryPP", 120), "1") + "</label>"
+            + '<label class="calc__row">Green fee $ ' + numIn("cGreen", gv("greenFeePP", 20), "1") + "</label>"
+            + '<label class="calc__row">Meals $ ' + numIn("cMeal", gv("mealPP", 30), "1") + "</label>"
+            + '<label class="calc__row">Other $ ' + numIn("cOther", gv("otherPP", 0), "1") + "</label>"
+            + '<label class="calc__row">Cart rental $ (per team) ' + numIn("cCart", gv("cartRentalFee", 22), "1") + "</label>"
+            + '<label class="calc__row">Extra meal $ (guest / spouse) ' + numIn("cExtraM", gv("extraMealFee", 10), "1") + "</label>"
+            + '<label class="calc__row">Card / Online surcharge % ' + numIn("cSur", gv("surchargePct", 4), "0.1") + "</label>"
+            + '<div class="calc__formula" id="calcMoneyFormula"></div>'
+            + '<p class="calc__note">Prize pool = (entry − green − meal − other) × <b>paid</b> players + additional + custom income − custom expense − manual expenses. Green &amp; meals go to the course.</p></div>';
+        }
+        if (flightBox) {
+          flightBox.innerHTML =
+            '<div class="calc__grp"><h4>Custom lines (extra expense / income)</h4>'
+            + '<p class="calc__note">Add extra items that adjust the flight prize pool — range balls, sponsorships, skins pot, ad-hoc supplies, etc. Income adds to the pool; expense subtracts. Per-player scales with paid players; lump-sum applies once.</p>'
+            + '<div id="calcCustomList" class="calc__custom"></div>'
+            + '<button type="button" class="btn btn--solid calc__add" id="calcAddLine">+ Add line</button>'
+            + '</div>'
+            + '<div class="calc__grp"><h4>Handicap</h4>'
+            + '<label class="calc__row">Multiplier (× stroke difference) ' + numIn("cMult", c.handicapMultiplier) + "</label>"
+            + '<p class="calc__note">HCP = (team Day-1 gross − flight-leader Day-1 gross) × multiplier. Net = Day 2 gross − HCP. Calcutta places are decided on Day 2 net only; Day 1 sets the flight + handicap.</p></div>'
+            + '<div class="calc__grp"><h4>Flight prizes</h4>'
+            + '<div class="calc__totals" id="calcFlightTotals"></div>'
+            + '<label class="calc__row">Number of flights ' + numIn("cFlights", c.flights, "1") + "</label>"
+            + '<label class="calc__row">Pool — 1st % ' + numIn("cF1", c.flightSplit[0], "1") + "</label>"
+            + '<label class="calc__row">2nd % ' + numIn("cF2", c.flightSplit[1], "1") + "</label>"
+            + '<label class="calc__row">3rd % ' + numIn("cF3", c.flightSplit[2], "1") + "</label>"
+            + '<label class="calc__row">Additional $ (added) ' + numIn("cAdd", gv("additionalFlight", 0), "1") + "</label>"
+            + '<div class="calc__formula" id="calcFlightFormula"></div>'
+            + '<p class="calc__note">Every flight pays the same 1st / 2nd / 3rd dollar amount. Flight budget = pool ÷ # flights. Each budget splits by these %. Places by 2-day gross; ties split.</p></div>';
+        }
+        if (calcuttaBox) {
+          calcuttaBox.innerHTML =
+            '<div class="calc__grp"><h4>Calcutta (top 4 net)</h4>'
+            + '<div class="calc__totals" id="calcCalTotals"></div>'
+            + '<label class="calc__row">Club commission % ' + numIn("cComm", c.calcuttaCommission, "1") + "</label>"
+            + '<label class="calc__row">Payout — 1st % ' + numIn("cS1", c.calcuttaSplit[0], "1") + "</label>"
+            + '<label class="calc__row">2nd % ' + numIn("cS2", c.calcuttaSplit[1], "1") + "</label>"
+            + '<label class="calc__row">3rd % ' + numIn("cS3", c.calcuttaSplit[2], "1") + "</label>"
+            + '<label class="calc__row">4th % ' + numIn("cS4", c.calcuttaSplit[3], "1") + "</label>"
+            + '<div class="calc__formula" id="calcCalFormula"></div>'
+            + '<p class="calc__note">Per flight: pool × (100 − commission)%, split by these percents to the top 4 net.</p></div>';
+        }
 
         // Custom lines are managed in-memory here and re-render into the
         // #calcCustomList container each time refreshTotals runs (persist
@@ -8347,8 +8401,12 @@
         }
         renderCustomLines();
         refreshTotals();
-        Array.prototype.forEach.call(box.querySelectorAll("input.calc__in"), function (el) {
-          el.addEventListener("input", refreshTotals);
+        // Wire input listeners across all three mounts.
+        [moneyBox, flightBox, calcuttaBox].forEach(function (mount) {
+          if (!mount) return;
+          Array.prototype.forEach.call(mount.querySelectorAll("input.calc__in"), function (el) {
+            el.addEventListener("input", refreshTotals);
+          });
         });
       }
       function saveCalc() {
@@ -8614,6 +8672,12 @@
         if (fmtReload) fmtReload.addEventListener("click", function () { loadFormat(true); });
         var fmtShotCount = document.getElementById("fmtShotCount");
         if (fmtShotCount) fmtShotCount.addEventListener("change", _fmtSyncShotgunUI);
+        // Calcutta dropdown → live-toggle Calcutta workbook tabs. Payload
+        // still writes on Save; this just gives immediate visual feedback.
+        var fmtCE = document.getElementById("fmtCalcuttaEnabled");
+        if (fmtCE) fmtCE.addEventListener("change", function () {
+          _applyCalcuttaVisibility(fmtCE.value === "on");
+        });
         var fmtAddCart = document.getElementById("fmtAddCart");
         if (fmtAddCart) fmtAddCart.addEventListener("click", function () {
           var list = document.getElementById("fmtMemberCartsList"); if (!list) return;
