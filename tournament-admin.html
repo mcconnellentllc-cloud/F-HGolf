@@ -539,7 +539,7 @@
           </div>
           <div class="disp-tab">
             <div class="disp-tab__row">
-              <a class="btn btn--primary disp-tab__open" href="founders-calcutta-display.html" target="_blank" rel="noopener">Open display in new tab &rarr;</a>
+              <a class="btn btn--primary disp-tab__open" data-page="founders-calcutta-display.html" href="founders-calcutta-display.html" target="_blank" rel="noopener">Open display in new tab &rarr;</a>
               <button type="button" class="btn btn--solid disp-tab__copy" data-page="founders-calcutta-display.html">Copy public link</button>
               <span class="disp-tab__copied" hidden>Copied.</span>
             </div>
@@ -571,7 +571,7 @@
           </div>
           <div class="disp-tab">
             <div class="disp-tab__row">
-              <a class="btn btn--primary disp-tab__open" href="founders-leaderboard-display.html" target="_blank" rel="noopener">Open display in new tab &rarr;</a>
+              <a class="btn btn--primary disp-tab__open" data-page="founders-leaderboard-display.html" href="founders-leaderboard-display.html" target="_blank" rel="noopener">Open display in new tab &rarr;</a>
               <button type="button" class="btn btn--solid disp-tab__copy" data-page="founders-leaderboard-display.html">Copy public link</button>
               <span class="disp-tab__copied" hidden>Copied.</span>
             </div>
@@ -7522,6 +7522,8 @@
         var data = computeLeaderboardData(recs, cfg);
         var nFlightPrizes = (cfg.flightSplit || [50, 30, 20]).length; // usually 3
         var nCalcuttaPrizes = (cfg.calcuttaSplit || [40, 30, 20, 10]).length; // usually 4
+        // Rounds = 1 → single-day tournament, no D2 column. Format-driven.
+        var isTwoDay = Number((_tcConfigCache && _tcConfigCache["Rounds"]) || 1) >= 2;
 
         // Top summary strip (matches Flights strip).
         var stripHtml = '';
@@ -7562,7 +7564,7 @@
               + '<td class="lbd-place">' + placeCell + "</td>"
               + '<td class="lbd-name">' + (row.teamNumber ? '<span class="lb-tnum">T-' + String(row.teamNumber).padStart(2, "0") + '</span> ' : '') + esc(row.name) + "</td>"
               + "<td>" + (row.d1 == null ? "—" : row.d1) + "</td>"
-              + "<td>" + (row.d2 == null ? "—" : row.d2) + "</td>"
+              + (isTwoDay ? "<td>" + (row.d2 == null ? "—" : row.d2) + "</td>" : "")
               + "<td><b>" + (row.gross == null ? "—" : row.gross) + "</b></td>"
               + "<td>" + (row.hcp == null ? "—" : row.hcp) + "</td>"
               + "<td><b>" + (row.net == null ? "—" : row.net) + "</b></td>"
@@ -7570,16 +7572,17 @@
           }).join("");
           return '<div class="lb-flight lbd-flight">'
             + '<h4 class="lb-flight__title">' + esc(fl.name) + ' Flight <span class="lb-flight__count">' + fl.rows.length + ' teams' + (fl.leader != null ? ', leader ' + fl.leader : '') + '</span></h4>'
-            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th class="lbd-place">Place</th><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th class="lbd-place">Place</th><th>Team</th><th>D1</th>' + (isTwoDay ? '<th>D2</th>' : '') + '<th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
             + trs + '</tbody></table></div></div>';
         }).join("");
         var unHtml = "";
         if (data.unassigned.length) {
+          var emptyCells = isTwoDay ? "<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>" : "<td>—</td><td>—</td><td>—</td><td>—</td>";
           var unTrs = data.unassigned.map(function (row) {
-            return '<tr><td class="lbd-place"></td><td>' + esc(row.name) + "</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";
+            return '<tr><td class="lbd-place"></td><td>' + esc(row.name) + "</td>" + emptyCells + "</tr>";
           }).join("");
           unHtml = '<div class="lb-flight"><h4 class="lb-flight__title">Unassigned <span class="lb-flight__count">' + data.unassigned.length + ' teams (no Day-1 score yet)</span></h4>'
-            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th class="lbd-place">Place</th><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th class="lbd-place">Place</th><th>Team</th><th>D1</th>' + (isTwoDay ? '<th>D2</th>' : '') + '<th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
             + unTrs + '</tbody></table></div></div>';
         }
         body.innerHTML = stripHtml + (out || '<p class="noms__msg">No Day-1 scores yet — enter scores on the Scores tab.</p>') + unHtml;
@@ -8687,22 +8690,34 @@
         showSheet(savedTab);
 
         // Fill URL fields, wire copy buttons, lazy-load iframes for the two
-        // public-display tabs. Public URL is the current site origin + page.
-        function publicUrl(page) { return location.origin.replace(/\/$/, "") + "/" + page; }
+        // public-display tabs. Public URL always carries the current
+        // tournament (?t=<KEY>) so a Leaderboard Disp link opened from the
+        // Aug 22 Couples workbook shows Aug 22 data, not the hard-coded
+        // Founders default.
+        function publicUrl(page) {
+          var base = location.origin.replace(/\/$/, "") + "/" + page;
+          return KEY ? (base + (page.indexOf("?") >= 0 ? "&" : "?") + "t=" + encodeURIComponent(KEY)) : base;
+        }
         function mountDisplayTab(sheet) {
           var host = document.querySelector('[data-sheet="' + sheet + '"]');
-          if (!host || host.__mounted) return;
+          if (!host) return;
           Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__url"), function (inp) {
-            if (!inp.value) inp.value = publicUrl(inp.getAttribute("data-page"));
+            inp.value = publicUrl(inp.getAttribute("data-page"));
           });
+          // Anchor href — the "Open display in new tab →" button. Update
+          // every mount so switching tournaments in the same session opens
+          // the right one.
+          Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__open"), function (a) {
+            var page = a.getAttribute("data-page") || a.getAttribute("href").split("?")[0];
+            if (page) a.href = publicUrl(page);
+          });
+          if (host.__mounted) return;
           // Fill in the big readable URL text on every QR block so the URL
           // is always available even if the QR image can't reach any
           // external service. Then try to load a QR image with a cascade of
           // fallback sources.
           Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__qr-url"), function (span) {
-            if (!span.textContent || span.textContent.indexOf(location.host) === -1) {
-              span.textContent = publicUrl(span.getAttribute("data-page")).replace(/^https?:\/\//, "");
-            }
+            span.textContent = publicUrl(span.getAttribute("data-page")).replace(/^https?:\/\//, "");
           });
           // Per-page static QR files staff can drop into /images/ so we don't
           // rely on any external QR generator (some networks block them).
