@@ -182,19 +182,6 @@
             </fieldset>
 
             <fieldset class="fmt-set">
-              <legend>Carts</legend>
-              <div class="fmt-grid">
-                <label class="fmt-row"><span>Rental carts on-site</span><input type="number" name="Rental Carts" min="0" step="1" placeholder="12" /></label>
-              </div>
-              <p class="fmt-note">Member cart pool — folks who've offered to lend their cart once the on-site rentals run out. The Check-In cart-assignment dropdown will list these entries after the rental threshold is hit.</p>
-              <div id="fmtMemberCartsList" class="fmt-cart-list" role="list"></div>
-              <div class="fmt-actions" style="justify-content:flex-start;">
-                <button type="button" class="btn btn--solid" id="fmtAddCart">+ Add member cart</button>
-              </div>
-              <input type="hidden" name="Member Carts JSON" id="fmtMemberCartsJson" />
-            </fieldset>
-
-            <fieldset class="fmt-set">
               <legend>Public link</legend>
               <label class="fmt-row"><span>Public slug</span><input type="text" name="Public Slug" placeholder="august-22-2026-couples-scramble" /></label>
               <p class="fmt-note">
@@ -1352,7 +1339,6 @@
         });
         _fmtHydrateShotgun(f["Waves JSON"]);
         _fmtHydrateHighlights(f["Highlights"]);
-        _fmtHydrateMemberCarts(f["Member Carts JSON"]);
         // Calcutta Enabled is a select on the form (id fmtCalcuttaEnabled)
         // but stored as boolean — hydrate the dropdown from the stored value.
         var ce = document.getElementById("fmtCalcuttaEnabled");
@@ -1555,7 +1541,6 @@
       function saveFormat() {
         _fmtWriteShotgunToHidden();
         _fmtWriteHighlightsToHidden();
-        _fmtWriteMemberCartsToHidden();
         var payload = _fmtCollectPayload();
         _fmtSetStatus("Saving…");
         fetch(FH_API.url("/api/tournament-signups"), {
@@ -3193,10 +3178,22 @@
       // when the Format tab saves. Feeds the Check-In cart-assignment
       // dropdown (needs Rental Carts + Member Carts JSON).
       var _tcConfigCache = null;
-      function _tcRentalCount() { var n = Number((_tcConfigCache && _tcConfigCache["Rental Carts"]) || 0); return n > 0 ? n : 0; }
+      // Course-wide cart pool (Rental Carts count + Member Carts JSON) —
+      // lives on a "__course__" Tournament Config row edited from the
+      // Staff Portal's Tournaments page. Every tournament workbook pulls
+      // from the same pool. Falls back to the tournament's own config
+      // fields for backward compat (older bases still had per-tournament
+      // Rental Carts / Member Carts JSON before this refactor).
+      var _courseCartsCache = null;
+      function _tcRentalCount() {
+        var n = Number((_courseCartsCache && _courseCartsCache["Rental Carts"]));
+        if (!isFinite(n) || n <= 0) n = Number((_tcConfigCache && _tcConfigCache["Rental Carts"]) || 0);
+        return n > 0 ? n : 0;
+      }
       function _tcMemberCarts() {
         try {
-          var raw = _tcConfigCache && _tcConfigCache["Member Carts JSON"];
+          var raw = (_courseCartsCache && _courseCartsCache["Member Carts JSON"])
+            || (_tcConfigCache && _tcConfigCache["Member Carts JSON"]);
           var arr = JSON.parse(raw || "[]");
           if (!Array.isArray(arr)) return [];
           return arr.map(function (e) {
@@ -3204,6 +3201,25 @@
             return e || {};
           }).filter(function (e) { return e.name; });
         } catch (x) { return []; }
+      }
+      // Fetch the course-wide cart pool once. Silent on failure — the
+      // fallback to per-tournament fields keeps the dropdown working
+      // even offline / on a fresh base.
+      function ensureCourseCartsCache(cb) {
+        if (_courseCartsCache) { if (cb) cb(_courseCartsCache); return; }
+        fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent("__course__")))
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            _courseCartsCache = (j && j.record && j.record.fields) || {};
+            if (cb) cb(_courseCartsCache);
+            // Refresh check-in dropdowns + hero demand now that we know
+            // the real fleet size.
+            try { _renderCartDemand(); } catch (e) {}
+            if (window.__fhActive === "check" && typeof renderCheckin === "function") {
+              try { renderCheckin(scAllCache); } catch (e) {}
+            }
+          })
+          .catch(function () { _courseCartsCache = {}; if (cb) cb(_courseCartsCache); });
       }
       // Reflect config-driven visibility rules onto the check-in section
       // (currently: hide "Extra Meals" inputs unless Format toggled them on).
@@ -3286,6 +3302,9 @@
             try { _applyPairingsMultiDay(_tcConfigCache); } catch (e) {}
             try { _renderCartDemand(); } catch (e) {}
             try { _applyCalcuttaVisibility(!!_tcConfigCache["Calcutta Enabled"]); } catch (e) {}
+            // Kick off the course-wide cart pool fetch too so the check-in
+            // cart dropdown has options as soon as the operator opens a card.
+            try { ensureCourseCartsCache(); } catch (e) {}
             if (cb) cb(_tcConfigCache);
             // Re-render check-in so the cart dropdowns pick up the config
             // once it arrives (initial roster render fires before this GET).
@@ -8677,13 +8696,6 @@
         var fmtCE = document.getElementById("fmtCalcuttaEnabled");
         if (fmtCE) fmtCE.addEventListener("change", function () {
           _applyCalcuttaVisibility(fmtCE.value === "on");
-        });
-        var fmtAddCart = document.getElementById("fmtAddCart");
-        if (fmtAddCart) fmtAddCart.addEventListener("click", function () {
-          var list = document.getElementById("fmtMemberCartsList"); if (!list) return;
-          var card = _fmtBuildCartCard({});
-          list.appendChild(card);
-          var firstInput = card.querySelector('[data-k="name"]'); if (firstInput) firstInput.focus();
         });
         // Locked reset hatch -- only reachable from the browser console
         // (window.__fhResetTournament()). There is no button.
