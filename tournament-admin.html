@@ -169,8 +169,11 @@
               <div class="fmt-grid">
                 <label class="fmt-row"><span>Rental carts on-site</span><input type="number" name="Rental Carts" min="0" step="1" placeholder="12" /></label>
               </div>
-              <label class="fmt-row"><span>Member cart pool (one per line)</span><textarea id="fmtMemberCartsText" rows="4" placeholder="Chris Fuesz — navy Yamaha, 2-seater&#10;Adam Tempel — Club Car, blue&#10;Kyle McConnell — EZ-Go w/ cooler"></textarea></label>
-              <p class="fmt-note">Members who've offered to lend their cart when we run out of rentals. One member per line — freeform "Name — description" is fine. The Check-In cart-assignment dropdown will list these once the rental threshold is hit.</p>
+              <p class="fmt-note">Member cart pool — folks who've offered to lend their cart once the on-site rentals run out. The Check-In cart-assignment dropdown will list these entries after the rental threshold is hit.</p>
+              <div id="fmtMemberCartsList" class="fmt-cart-list" role="list"></div>
+              <div class="fmt-actions" style="justify-content:flex-start;">
+                <button type="button" class="btn btn--solid" id="fmtAddCart">+ Add member cart</button>
+              </div>
               <input type="hidden" name="Member Carts JSON" id="fmtMemberCartsJson" />
             </fieldset>
 
@@ -1296,18 +1299,75 @@
         _fmtHydrateHighlights(f["Highlights"]);
         _fmtHydrateMemberCarts(f["Member Carts JSON"]);
       }
+      // Member cart pool — repeating card widget. Each entry has name,
+      // shed, spot, power (Electric/Gas), notes. Legacy string entries
+      // ("Chris Fuesz — navy Yamaha") from the v240 shape parse into
+      // {name: "Chris Fuesz", notes: "navy Yamaha"} so operators don't
+      // lose data across the schema bump.
       function _fmtHydrateMemberCarts(raw) {
-        var ta = document.getElementById("fmtMemberCartsText"); if (!ta) return;
         var arr = [];
         try { arr = JSON.parse(raw || "[]"); if (!Array.isArray(arr)) arr = []; } catch (e) { arr = []; }
-        ta.value = arr.map(function (s) { return String(s || "").trim(); }).filter(Boolean).join("\n");
+        var carts = arr.map(function (entry) {
+          if (typeof entry === "string") {
+            var parts = entry.split(/\s+[—-]\s+/);
+            return { name: (parts[0] || "").trim(), shed: "", spot: "", power: "", notes: (parts.slice(1).join(" — ") || "").trim() };
+          }
+          entry = entry || {};
+          return {
+            name: String(entry.name || "").trim(),
+            shed: String(entry.shed || "").trim(),
+            spot: String(entry.spot || "").trim(),
+            power: (String(entry.power || "").toLowerCase() === "gas" ? "Gas" : (String(entry.power || "").toLowerCase() === "electric" ? "Electric" : "")),
+            notes: String(entry.notes || "").trim(),
+          };
+        });
+        _fmtRenderMemberCarts(carts);
+      }
+      function _fmtRenderMemberCarts(carts) {
+        var list = document.getElementById("fmtMemberCartsList"); if (!list) return;
+        list.innerHTML = "";
+        carts.forEach(function (c) { list.appendChild(_fmtBuildCartCard(c)); });
+      }
+      function _fmtBuildCartCard(c) {
+        c = c || {};
+        var card = document.createElement("div");
+        card.className = "fmt-cart";
+        card.setAttribute("role", "listitem");
+        card.innerHTML = ''
+          + '<div class="fmt-cart__grid">'
+          +   '<label class="fmt-row"><span>Member name</span><input type="text" data-k="name" maxlength="120" /></label>'
+          +   '<label class="fmt-row"><span>Shed #</span><input type="text" data-k="shed" maxlength="20" /></label>'
+          +   '<label class="fmt-row"><span>Spot #</span><input type="text" data-k="spot" maxlength="20" /></label>'
+          +   '<label class="fmt-row"><span>Power</span><select data-k="power"><option value="">—</option><option>Electric</option><option>Gas</option></select></label>'
+          + '</div>'
+          + '<label class="fmt-row"><span>Special instructions</span><textarea data-k="notes" rows="2" placeholder="Key in the console. Charger in the shed."></textarea></label>'
+          + '<div class="fmt-cart__ft"><button type="button" class="btn btn--solid fmt-cart__rm" title="Remove this member cart">Remove</button></div>';
+        var setField = function (k, v) {
+          var el = card.querySelector('[data-k="' + k + '"]'); if (el) el.value = v || "";
+        };
+        setField("name", c.name);
+        setField("shed", c.shed);
+        setField("spot", c.spot);
+        setField("power", c.power);
+        setField("notes", c.notes);
+        card.querySelector(".fmt-cart__rm").addEventListener("click", function () {
+          if (card.parentNode) card.parentNode.removeChild(card);
+        });
+        return card;
       }
       function _fmtWriteMemberCartsToHidden() {
-        var ta = document.getElementById("fmtMemberCartsText");
+        var list = document.getElementById("fmtMemberCartsList");
         var hidden = document.getElementById("fmtMemberCartsJson");
-        if (!ta || !hidden) return;
-        var lines = String(ta.value || "").split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
-        hidden.value = JSON.stringify(lines);
+        if (!list || !hidden) return;
+        var carts = [];
+        Array.prototype.forEach.call(list.querySelectorAll(".fmt-cart"), function (card) {
+          var pick = function (k) { var el = card.querySelector('[data-k="' + k + '"]'); return el ? String(el.value || "").trim() : ""; };
+          var entry = { name: pick("name"), shed: pick("shed"), spot: pick("spot"), power: pick("power"), notes: pick("notes") };
+          // Drop entries where every field is blank — an empty card is
+          // just leftover from an accidental "+ Add" click.
+          if (entry.name || entry.shed || entry.spot || entry.power || entry.notes) carts.push(entry);
+        });
+        hidden.value = JSON.stringify(carts);
       }
       // Parse the stored JSON array of strings into the textarea (one per line).
       // Missing or invalid JSON falls back to empty.
@@ -8061,6 +8121,13 @@
         if (fmtReload) fmtReload.addEventListener("click", function () { loadFormat(true); });
         var fmtShotCount = document.getElementById("fmtShotCount");
         if (fmtShotCount) fmtShotCount.addEventListener("change", _fmtSyncShotgunUI);
+        var fmtAddCart = document.getElementById("fmtAddCart");
+        if (fmtAddCart) fmtAddCart.addEventListener("click", function () {
+          var list = document.getElementById("fmtMemberCartsList"); if (!list) return;
+          var card = _fmtBuildCartCard({});
+          list.appendChild(card);
+          var firstInput = card.querySelector('[data-k="name"]'); if (firstInput) firstInput.focus();
+        });
         // Locked reset hatch -- only reachable from the browser console
         // (window.__fhResetTournament()). There is no button.
         try { window.__fhResetTournament = resetTournamentForNextYear; } catch (e) {}
