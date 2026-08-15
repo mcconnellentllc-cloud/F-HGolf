@@ -1005,16 +1005,19 @@
         var feeReadout = document.getElementById("twFeeReadout"); if (feeReadout) feeReadout.textContent = fee ? money(fee) : "—";
         cashTotal = 0; checkTotal = 0; cardTotal = 0;
         var paidCount = 0, players = 0;
+        // Player slot count comes from Format's Players Per Team so a 4-player
+        // team (couples scramble) counts all 4 payments, not just p1/p2.
+        var _perTeam = Number((_tcConfigCache && _tcConfigCache["Players Per Team"]) || 0);
         recs.forEach(function (r) {
           var f = r.fields || {}, pp = teamPlayers(f, r);
-          [["Player 1 Paid", true], ["Player 2 Paid", pp.hasP2]].forEach(function (s) {
-            if (!s[1]) return;
+          var slotCount = Math.max(1, Math.min(4, _perTeam || Math.max(pp.names.length, 2)));
+          for (var i = 1; i <= slotCount; i++) {
             players++;
-            var m = (f[s[0]] || "").toLowerCase();
-            if (!m) return;
+            var m = (f["Player " + i + " Paid"] || "").toLowerCase();
+            if (!m) continue;
             paidCount++;
             if (m === "check") checkTotal += fee; else if (m === "card") cardTotal += fee; else cashTotal += fee;
-          });
+          }
         });
         collectedTotal = cashTotal + checkTotal + cardTotal;
         // Extra-meals headcount for the kitchen — sum across the field.
@@ -1032,12 +1035,16 @@
       // function. Consistent inputs → consistent output everywhere. Serves as
       // the tournament's live ledger.
       //
-      // Assumption per Calc tab: 2 players per team, all paid.
+      // Players per team comes from Format's "Players Per Team" (2 for
+      // Founders, 4 for couples scramble, etc.) so the ledger counts every
+      // seat, not just the first two.
       function computeMoney(all) {
         var cfg = loadCalc();
         var teams = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         var teamCount = teams.length;
-        var players = teamCount * 2;
+        var _perTeam = Number((_tcConfigCache && _tcConfigCache["Players Per Team"]) || 0);
+        var slotCount = Math.max(1, Math.min(4, _perTeam || 2));
+        var players = teamCount * slotCount;
         var entryPP = cfg.entryPP || 0;
         var greenPP = cfg.greenFeePP || 0;
         var mealPP = cfg.mealPP || 0;
@@ -1055,17 +1062,17 @@
         // pool literally comes from these collected entries.
         var paidPlayers = 0;
         teams.forEach(function (r) {
-          var f = r.fields || {}, pp = teamPlayers(f, r);
-          [["Player 1 Paid", true], ["Player 2 Paid", pp.hasP2]].forEach(function (s) {
-            if (!s[1]) return;
-            if ((f[s[0]] || "").toString().length > 0) paidPlayers++;
-          });
+          var f = r.fields || {};
+          for (var i = 1; i <= slotCount; i++) {
+            if ((f["Player " + i + " Paid"] || "").toString().length > 0) paidPlayers++;
+          }
         });
         var entryCollected = paidPlayers * entryPP;
         var entryIncome = players * entryPP;
         var fullyPaid = paidPlayers >= players && players > 0;
         var calcuttaPool = teams.reduce(function (s, r) { var v = (r.fields || {})["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
-        // Extra meals — per-player numeric counts at check-in. Sum both.
+        // Extra meals — per-player numeric counts across every slot Format
+        // has enabled (couples scramble = 4 slots, Founders = 2).
         var mealNum = function (v) {
           if (typeof v === "number") return Math.max(0, v);
           if (v === true) return 1;
@@ -1073,7 +1080,9 @@
         };
         var extraMealsCount = teams.reduce(function (s, r) {
           var f = r.fields || {};
-          return s + mealNum(f["Player 1 Extra Meal"]) + mealNum(f["Player 2 Extra Meal"]);
+          var t = 0;
+          for (var i = 1; i <= slotCount; i++) t += mealNum(f["Player " + i + " Extra Meal"]);
+          return s + t;
         }, 0);
         var extraMealsRevenue = extraMealsCount * extraMealFee;
         // Cart rental revenue = sum of per-player cart shares × cartFee.
@@ -1962,7 +1971,7 @@
           return chain.then(function () {
             return fetch(FH_API.url("/api/tournament-score"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ id: t.id, day: 1, scores: NULL_ROUND }) })
               .then(function () { return fetch(FH_API.url("/api/tournament-score"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ id: t.id, day: 2, scores: NULL_ROUND }) }); })
-              .then(function () { return fetch(FH_API.url("/api/tournament-checkin"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ id: t.id, buyer: "", buyAmount: "", flightCheck: "", calcuttaCheck: "", player1Paid: "", player2Paid: "", extraMeals: "" }) }); })
+              .then(function () { return fetch(FH_API.url("/api/tournament-checkin"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ id: t.id, buyer: "", buyAmount: "", flightCheck: "", calcuttaCheck: "", player1Paid: "", player2Paid: "", player3Paid: "", player4Paid: "", extraMeals: "" }) }); })
               .then(function () { return fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: [{ id: t.id, flight: null, hole: null, slot: null }] }) }).catch(function () {}); })
               .then(function () { return new Promise(function (resolve) { setTimeout(resolve, 120); }); });
           });
@@ -2148,13 +2157,34 @@
       // P1 = Player Name, P2 = Team/Partners; falls back to splitting a combined
       // "A / B" name (imported teams sometimes store both in Player Name).
       function teamPlayers(f, rec) {
-        var p1 = f["Player Name"] || "", p2 = f["Team / Partners"] || "";
-        if (!p2 && /[\/&]| and /i.test(p1)) { var parts = splitGolfers(rec); if (parts.length > 1) { p1 = parts[0]; p2 = parts.slice(1).join(" / "); } }
-        return { p1: p1, p2: p2, hasP2: !!p2 };
+        var p1 = String(f["Player Name"] || "").trim();
+        var team = String(f["Team / Partners"] || "").trim();
+        var partners = team ? team.split(/\s*\/\s*/).map(function (s) { return s.trim(); }).filter(Boolean) : [];
+        // Legacy imports sometimes stuff both names into Player Name with a
+        // "/" or "and" separator. Split those out if no Team / Partners.
+        if (!partners.length && /[\/&]| and /i.test(p1)) {
+          var parts = splitGolfers(rec);
+          if (parts.length > 1) { p1 = parts[0]; partners = parts.slice(1); }
+        }
+        var names = [p1].concat(partners);
+        // Backward-compat shape (.p1/.p2/.hasP2) still returned so existing
+        // callers keep working; new code uses .names.
+        return {
+          names: names,
+          p1: p1,
+          p2: partners[0] || "",
+          hasP2: !!partners.length,
+        };
       }
       function fullyPaid(rec) {
         var f = rec.fields || {}, pp = teamPlayers(f, rec);
-        return !!f["Player 1 Paid"] && (pp.hasP2 ? !!f["Player 2 Paid"] : true);
+        // Fully paid when every rendered player slot has a payment method.
+        // Slot count comes from Format's Players Per Team (fallback to the
+        // actual name count so legacy 2-player rows still resolve).
+        var perTeam = Number((_tcConfigCache && _tcConfigCache["Players Per Team"]) || 0);
+        var slotCount = Math.max(1, Math.min(4, perTeam || Math.max(pp.names.length, 2)));
+        for (var i = 1; i <= slotCount; i++) { if (!f["Player " + i + " Paid"]) return false; }
+        return true;
       }
       // Name cell: clickable link opens the Player Card modal; ✎ starts inline rename.
       function nameCell(role, name) {
@@ -2175,22 +2205,32 @@
         var entryPP = cfg.entryPP || 0;
         var cartFee = cfg.cartRentalFee || 0;
         var extraMealFee = cfg.extraMealFee || 0;
-        var p1Cart = typeof f["Player 1 Cart Share"] === "number" ? f["Player 1 Cart Share"] : 0;
-        var p2Cart = typeof f["Player 2 Cart Share"] === "number" ? f["Player 2 Cart Share"] : 0;
-        var p3Cart = typeof f["Player 3 Cart Share"] === "number" ? f["Player 3 Cart Share"] : 0;
-        var p4Cart = typeof f["Player 4 Cart Share"] === "number" ? f["Player 4 Cart Share"] : 0;
-        // Field is a Number now (used to be Checkbox). Keep coercion so a
-        // stray `true` from an older row still reads as 1.
-        var p1Meal = typeof f["Player 1 Extra Meal"] === "number" ? f["Player 1 Extra Meal"] : (f["Player 1 Extra Meal"] === true ? 1 : 0);
-        var p2Meal = typeof f["Player 2 Extra Meal"] === "number" ? f["Player 2 Extra Meal"] : (f["Player 2 Extra Meal"] === true ? 1 : 0);
-        var m1 = f["Player 1 Paid"] || "", m2 = f["Player 2 Paid"] || "";
-        // Every team is a pair — always render both slots, even if the second
-        // partner name hasn't been entered yet (staff can add via the pencil
-        // rename or Player Card).
-        var players = [
-          { name: pp.p1, role: "p1", method: m1, cart: p1Cart, meal: p1Meal },
-          { name: pp.p2, role: "p2", method: m2, cart: p2Cart, meal: p2Meal }
-        ];
+        // Per-player values read as an array indexed 0..3 so the render
+        // loop can iterate whatever team size Format calls for.
+        function _numAt(field) { var v = f[field]; return typeof v === "number" ? v : (v === true ? 1 : 0); }
+        var carts = [1, 2, 3, 4].map(function (i) { return typeof f["Player " + i + " Cart Share"] === "number" ? f["Player " + i + " Cart Share"] : 0; });
+        var meals = [1, 2, 3, 4].map(function (i) { return _numAt("Player " + i + " Extra Meal"); });
+        var methods = [1, 2, 3, 4].map(function (i) { return f["Player " + i + " Paid"] || ""; });
+        // Local aliases for the rest of the file that still reads by name.
+        var p1Cart = carts[0], p2Cart = carts[1], p3Cart = carts[2], p4Cart = carts[3];
+        var p1Meal = meals[0], p2Meal = meals[1];
+        var m1 = methods[0], m2 = methods[1];
+        // Render one row per player slot. Slot count comes from Format's
+        // Players Per Team (2 for Founders, 4 for couples scramble, etc.).
+        // Fall back to the actual name count when Format isn't loaded yet,
+        // then clamp to [1, 4] so we never render an unbounded team card.
+        var perTeam = Number((_tcConfigCache && _tcConfigCache["Players Per Team"]) || 0);
+        var slotCount = Math.max(1, Math.min(4, perTeam || Math.max(pp.names.length, 2)));
+        var players = [];
+        for (var _pi = 0; _pi < slotCount; _pi++) {
+          players.push({
+            name: pp.names[_pi] || "",
+            role: "p" + (_pi + 1),
+            method: methods[_pi],
+            cart: carts[_pi],
+            meal: meals[_pi],
+          });
+        }
         // Card and Online (QR) pay a 4% processing surcharge on top of the
         // player's base amount. Kept in one place so a rate change touches
         // every path (initial render, live recalc, downstream ledger).
@@ -2227,7 +2267,8 @@
         var p1Name = (players[0] && players[0].name) || "P1";
         var p2Name = (players[1] && players[1].name) || "P2";
         var shortLabel = function (n) { n = String(n || "").trim().split(/\s+/); return n[0] || ""; };
-        var teamSize = Math.max(1, Math.min(4, pp && pp.length ? pp.length : 2));
+        // Team size mirrors the rendered player-row count (Format-driven).
+        var teamSize = slotCount;
         // "Rentals Needed" is the new numeric field (0/1/2). Legacy rows
         // may only have the old "Cart Type"=Rental checkbox — those count
         // as 1 until the operator edits the dropdown.
@@ -2430,11 +2471,28 @@
             try { renderPL(); } catch (e) {}
           });
 
+          // Payload keys per role. p3/p4 rows send player3Paid/player4Paid;
+          // Airtable base may not have those columns yet — the endpoint's
+          // auto-strip fallback drops missing fields silently so the rest
+          // of the save still lands.
+          function _paidPayloadKey(role) {
+            return { p1: "player1Paid", p2: "player2Paid", p3: "player3Paid", p4: "player4Paid" }[role];
+          }
+          function _mealPayloadKey(role) {
+            return { p1: "p1ExtraMeal", p2: "p2ExtraMeal", p3: "p3ExtraMeal", p4: "p4ExtraMeal" }[role];
+          }
+          function _fieldNameForPaid(role) {
+            var i = { p1: 1, p2: 2, p3: 3, p4: 4 }[role]; return i ? "Player " + i + " Paid" : "";
+          }
+          function _fieldNameForMeal(role) {
+            var i = { p1: 1, p2: 2, p3: 3, p4: 4 }[role]; return i ? "Player " + i + " Extra Meal" : "";
+          }
+
           // Per-player Paid checkbox. Checked = default to "Cash" if method is
           // empty; unchecked = method cleared. Method dropdown mirrors this.
           Array.prototype.forEach.call(card.querySelectorAll(".ci-paid-box"), function (box) {
             var role = box.getAttribute("data-role");
-            var payload = role === "p1" ? "player1Paid" : "player2Paid";
+            var payload = _paidPayloadKey(role); if (!payload) return;
             var meth = card.querySelector('.ci-p__method[data-role="' + role + '"]');
             box.addEventListener("change", function () {
               var v = box.checked ? (meth && meth.value ? meth.value : "Cash") : "";
@@ -2448,8 +2506,8 @@
           // Per-player extra meal count (number input — 0..N).
           Array.prototype.forEach.call(card.querySelectorAll(".ci__extra-meal"), function (box) {
             var role = box.getAttribute("data-role");
-            var payloadKey = role === "p1" ? "p1ExtraMeal" : "p2ExtraMeal";
-            var cacheField = role === "p1" ? "Player 1 Extra Meal" : "Player 2 Extra Meal";
+            var payloadKey = _mealPayloadKey(role); if (!payloadKey) return;
+            var cacheField = _fieldNameForMeal(role);
             var t = null;
             box.addEventListener("input", function () {
               clearTimeout(t);
@@ -2510,7 +2568,7 @@
           // Per-player payment method dropdown — empty = not paid.
           Array.prototype.forEach.call(card.querySelectorAll(".ci-p"), function (pRow) {
             var role = pRow.getAttribute("data-role");
-            var payload = role === "p1" ? "player1Paid" : "player2Paid";
+            var payload = _paidPayloadKey(role); if (!payload) return;
             var meth = pRow.querySelector(".ci-p__method");
             if (meth) meth.addEventListener("change", function () {
               var p = {}; p[payload] = meth.value;
@@ -8681,14 +8739,15 @@
           var pv = document.getElementById("cbpPreview"); if (!pv) return;
           var blanksOnly = !!document.getElementById("cbpBlanksOnly").checked;
           var teams = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+          var _perTeam = Number((_tcConfigCache && _tcConfigCache["Players Per Team"]) || 0);
           var count = 0;
           teams.forEach(function (r) {
             var f = r.fields || {}, pp = teamPlayers(f, r);
-            [["Player 1 Paid", true], ["Player 2 Paid", pp.hasP2]].forEach(function (s) {
-              if (!s[1]) return;
-              if (blanksOnly && String(f[s[0]] || "").trim().length > 0) return;
+            var slotCount = Math.max(1, Math.min(4, _perTeam || Math.max(pp.names.length, 2)));
+            for (var i = 1; i <= slotCount; i++) {
+              if (blanksOnly && String(f["Player " + i + " Paid"] || "").trim().length > 0) continue;
               count++;
-            });
+            }
           });
           pv.innerHTML = 'Will update <b>' + count + '</b> player payment' + (count === 1 ? '' : 's') + ' across <b>' + teams.length + '</b> team' + (teams.length === 1 ? '' : 's') + '.';
         }
@@ -8710,13 +8769,18 @@
           var st = document.getElementById("cbpStatus");
           if (apply) apply.disabled = true;
           var teams = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
+          var _perTeam = Number((_tcConfigCache && _tcConfigCache["Players Per Team"]) || 0);
           var jobs = [];
           teams.forEach(function (r) {
             var f = r.fields || {}, pp = teamPlayers(f, r);
+            var slotCount = Math.max(1, Math.min(4, _perTeam || Math.max(pp.names.length, 2)));
             var payload = { id: r.id };
             var touched = false;
-            if (!blanksOnly || !String(f["Player 1 Paid"] || "").trim()) { payload.player1Paid = method; touched = true; }
-            if (pp.hasP2 && (!blanksOnly || !String(f["Player 2 Paid"] || "").trim())) { payload.player2Paid = method; touched = true; }
+            var keys = ["player1Paid", "player2Paid", "player3Paid", "player4Paid"];
+            for (var i = 1; i <= slotCount; i++) {
+              if (blanksOnly && String(f["Player " + i + " Paid"] || "").trim().length > 0) continue;
+              payload[keys[i - 1]] = method; touched = true;
+            }
             if (touched) jobs.push({ rec: r, payload: payload });
           });
           var done = 0, failed = 0;
@@ -8735,6 +8799,8 @@
                   scAllCache[k].fields = scAllCache[k].fields || {};
                   if (jobs[i].payload.player1Paid !== undefined) scAllCache[k].fields["Player 1 Paid"] = jobs[i].payload.player1Paid;
                   if (jobs[i].payload.player2Paid !== undefined) scAllCache[k].fields["Player 2 Paid"] = jobs[i].payload.player2Paid;
+                  if (jobs[i].payload.player3Paid !== undefined) scAllCache[k].fields["Player 3 Paid"] = jobs[i].payload.player3Paid;
+                  if (jobs[i].payload.player4Paid !== undefined) scAllCache[k].fields["Player 4 Paid"] = jobs[i].payload.player4Paid;
                   break;
                 }
                 done++;
