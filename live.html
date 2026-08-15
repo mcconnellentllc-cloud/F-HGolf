@@ -162,6 +162,9 @@
     /* Dots strip */
     .dots-wrap { margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px dashed var(--line); }
     .dots { display: grid; grid-template-columns: repeat(9, 1fr); gap: 0.25rem; }
+    .dots-lap { display: flex; align-items: baseline; margin: 0.55rem 0 0.3rem; }
+    .dots-lap--back { margin-top: 0.7rem; }
+    .dots-lap__lbl { font: 700 0.62rem/1 system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
     .dot {
       text-align: center;
       padding: 0.3rem 0;
@@ -324,17 +327,22 @@
       var TOKEN = q.get("t") || "";
       var app = document.getElementById("app");
 
-      // Standard 9-hole par set for F&H. Server config can override in
-      // future via a pars array on the Tournament Config.
-      var PARS = [4, 3, 4, 4, 5, 4, 4, 3, 5];
+      // F&H is a 9-hole course. Most tournaments play those 9 holes TWICE
+      // for an 18-hole round; a rare 9-hole event just plays once. Pars are
+      // the physical 9-hole par set — the back nine reuses the same values.
+      var PARS9 = [4, 3, 4, 4, 5, 4, 4, 3, 5];
+      var HOLES_TOTAL = 18; // default per round; could be Format-driven later
+      function parAtIndex(idx) { return PARS9[idx % 9] || 4; }
+      function physicalHole(idx) { return (idx % 9) + 1; }
+      function lapOf(idx) { return Math.floor(idx / 9) + 1; }
 
       var STATE = {
         team: null,       // { id, teamName, partners, hole, ... }
         tournament: "",
         config: {},
         field: [],
-        day: 1,           // 1 or 2
-        hole: 1,          // 1..9 — the hole currently displayed
+        day: 1,           // 1 or 2 (rounds — Founders is 2)
+        holeIdx: 0,       // 0..17 — storage index of the hole currently displayed
         scores: { 1: [], 2: [] },
         tab: "score",     // "score" | "lb"
         lbFilter: "mine", // "mine" | "all"
@@ -342,13 +350,25 @@
         savingCount: 0,
       };
 
-      // Shotgun play order starting from H: [H, H+1, …, 9, 1, …, H-1]. Used to
-      // decide the "next hole" and to find the first blank in play order after
-      // a mid-round refresh so the captain always lands where they left off.
+      // Shotgun play order for one lap starting from H: [H, H+1, …, 9, 1, …, H-1].
+      // playOrderIndices(startHole) returns storage indices in the order the
+      // captain actually plays them across both laps of an 18-hole round.
+      // Example (startHole=2): first lap = holes 2..9,1 → indices 1..8,0; second
+      // lap plays the same 9 again → indices 10..17,9. So the captain hits
+      // "Next" 17 times to walk their whole day.
       function playOrder(startHole) {
         var start = (Number(startHole) >= 1 && Number(startHole) <= 9) ? Number(startHole) : 1;
         var out = [];
         for (var i = 0; i < 9; i++) out.push(((start - 1 + i) % 9) + 1);
+        return out;
+      }
+      function playOrderIndices(startHole) {
+        var laps = HOLES_TOTAL >= 18 ? 2 : 1;
+        var lapHoles = playOrder(startHole);
+        var out = [];
+        for (var lap = 0; lap < laps; lap++) {
+          for (var i = 0; i < lapHoles.length; i++) out.push((lap * 9) + (lapHoles[i] - 1));
+        }
         return out;
       }
       function teamStartHole() {
@@ -379,8 +399,8 @@
             // Land on the first blank hole IN SHOTGUN ORDER so a captain
             // starting on hole 5 opens straight to hole 5 (not 1), and a
             // mid-round refresh drops them back at whichever hole they're
-            // playing next, not the front of the card.
-            STATE.hole = firstBlankInPlayOrder(STATE.day) || teamStartHole();
+            // playing next — including the back nine once the front is done.
+            STATE.holeIdx = firstBlankInPlayOrder(STATE.day);
             render();
           })
           .catch(function () { showError("Network error loading your scorecard."); });
@@ -389,60 +409,64 @@
       function parseScores(raw) {
         try {
           var arr = JSON.parse(raw || "[]");
-          if (!Array.isArray(arr)) return new Array(9).fill(null);
-          // Pad/clip to 9. Legacy 18-hole arrays get truncated to the front
-          // nine — F&H is a 9-hole course.
-          var out = new Array(9).fill(null);
-          for (var i = 0; i < 9; i++) {
+          if (!Array.isArray(arr)) return new Array(HOLES_TOTAL).fill(null);
+          var out = new Array(HOLES_TOTAL).fill(null);
+          for (var i = 0; i < HOLES_TOTAL; i++) {
             var n = Math.round(Number(arr[i]));
             out[i] = (isFinite(n) && n >= 1 && n <= 40) ? n : null;
           }
           return out;
-        } catch (e) { return new Array(9).fill(null); }
+        } catch (e) { return new Array(HOLES_TOTAL).fill(null); }
       }
       function isDayFull(d) {
         var s = STATE.scores[d] || [];
-        for (var i = 0; i < 9; i++) if (s[i] == null) return false;
+        for (var i = 0; i < HOLES_TOTAL; i++) if (s[i] == null) return false;
         return true;
       }
-      function firstBlankHole(d) {
-        var s = STATE.scores[d] || [];
-        for (var i = 0; i < 9; i++) if (s[i] == null) return i + 1;
-        return 9;
-      }
+      // First unentered hole in shotgun play order — used to land the captain
+      // on their next hole after a mid-round refresh (front OR back nine).
       function firstBlankInPlayOrder(d) {
         var s = STATE.scores[d] || [];
-        var order = playOrder(teamStartHole());
+        var order = playOrderIndices(teamStartHole());
         for (var i = 0; i < order.length; i++) {
-          if (s[order[i] - 1] == null) return order[i];
+          if (s[order[i]] == null) return order[i];
         }
         return order[order.length - 1];
       }
-      // Advance/retreat in shotgun order — H → H+1 → … → wrap.
+      // Advance/retreat in shotgun order. Walks the full 18-hole play sequence
+      // (front nine, then back nine at the same shotgun start).
       function stepHole(dir) {
-        var order = playOrder(teamStartHole());
-        var idx = order.indexOf(STATE.hole);
+        var order = playOrderIndices(teamStartHole());
+        var idx = order.indexOf(STATE.holeIdx);
         if (idx < 0) idx = 0;
         var next = idx + dir;
-        if (next < 0 || next >= order.length) return; // clamp at first/last in order
-        STATE.hole = order[next];
+        if (next < 0 || next >= order.length) return;
+        STATE.holeIdx = order[next];
       }
       function holeStepIndex() {
-        var order = playOrder(teamStartHole());
-        var idx = order.indexOf(STATE.hole);
+        var order = playOrderIndices(teamStartHole());
+        var idx = order.indexOf(STATE.holeIdx);
         return idx < 0 ? 0 : idx;
       }
-      function currentPar() { return PARS[STATE.hole - 1] || 4; }
-      function currentScore() { return STATE.scores[STATE.day][STATE.hole - 1]; }
+      function currentPar() { return parAtIndex(STATE.holeIdx); }
+      function currentScore() { return STATE.scores[STATE.day][STATE.holeIdx]; }
       function grossThru(d) {
         var s = STATE.scores[d] || [], t = 0, has = 0;
-        for (var i = 0; i < 9; i++) if (s[i] != null) { t += s[i]; has++; }
+        for (var i = 0; i < HOLES_TOTAL; i++) if (s[i] != null) { t += s[i]; has++; }
         return { total: t, holes: has };
       }
+      // To-par against the holes ACTUALLY PLAYED (in shotgun order) — a
+      // captain 4-holes in should see their to-par against the pars of those
+      // specific 4 holes, not "the first 4 pars on the card".
       function pplThru(d) {
-        var g = grossThru(d), par = 0;
-        for (var i = 0; i < g.holes; i++) par += PARS[i] || 4;
-        return g.total - par;
+        var s = STATE.scores[d] || [];
+        var order = playOrderIndices(teamStartHole());
+        var gross = 0, parSoFar = 0, holes = 0;
+        for (var i = 0; i < order.length; i++) {
+          var idx = order[i];
+          if (s[idx] != null) { gross += s[idx]; parSoFar += parAtIndex(idx); holes++; }
+        }
+        return holes ? (gross - parSoFar) : 0;
       }
       function labelForScore(v, par) {
         if (v == null) return "";
@@ -502,24 +526,36 @@
         var cur = currentScore();
         var g = grossThru(STATE.day);
         var toPar = pplThru(STATE.day);
-        var order = playOrder(teamStartHole());
+        var order = playOrderIndices(teamStartHole());
         var stepIdx = holeStepIndex();
-        // Dots strip walks the shotgun play order (start hole first) instead
-        // of always 1→9, so the captain reads their card left-to-right in
-        // the order they actually play. The number under each dot is still
-        // the real hole number.
-        var dots = "";
-        for (var i = 0; i < order.length; i++) {
-          var holeN = order[i];
-          var arrIdx = holeN - 1;
-          var cls = "empty";
-          if (scores[arrIdx] != null) cls = (holeN === STATE.hole) ? "now" : "done";
-          else if (holeN === STATE.hole) cls = "now";
-          dots += '<button type="button" class="dot ' + cls + '" data-jump="' + holeN + '"><span class="n">' + holeN + '</span><span class="v">' + (scores[arrIdx] == null ? "–" : scores[arrIdx]) + '</span></button>';
+        // Dots walk shotgun play order across both laps. First 9 = front,
+        // next 9 = back (same physical holes played a second time). Two
+        // rows so the strip stays finger-friendly on a phone.
+        function renderDotRow(sliceStart, sliceEnd) {
+          var out = "";
+          for (var i = sliceStart; i < sliceEnd; i++) {
+            var idx = order[i];
+            var holeN = physicalHole(idx);
+            var cls = "empty";
+            if (scores[idx] != null) cls = (idx === STATE.holeIdx) ? "now" : "done";
+            else if (idx === STATE.holeIdx) cls = "now";
+            out += '<button type="button" class="dot ' + cls + '" data-jumpidx="' + idx + '"><span class="n">' + holeN + '</span><span class="v">' + (scores[idx] == null ? "–" : scores[idx]) + '</span></button>';
+          }
+          return out;
+        }
+        var lapCount = HOLES_TOTAL >= 18 ? 2 : 1;
+        var dotsHtml = '<div class="dots">' + renderDotRow(0, 9) + '</div>';
+        if (lapCount === 2) {
+          dotsHtml = '<div class="dots-lap"><span class="dots-lap__lbl">Front 9</span></div>'
+            + '<div class="dots">' + renderDotRow(0, 9) + '</div>'
+            + '<div class="dots-lap dots-lap--back"><span class="dots-lap__lbl">Back 9</span></div>'
+            + '<div class="dots">' + renderDotRow(9, 18) + '</div>';
         }
         var lbl = labelForScore(cur, par);
         var lblCls = labelClass(cur, par);
         var startHole = teamStartHole();
+        var lap = lapOf(STATE.holeIdx);
+        var lapBadge = (lapCount === 2 && lap === 2) ? ' &middot; 2nd time around' : '';
         var startBadge = (STATE.team && STATE.team.hole)
           ? ('Started on Hole ' + startHole + (STATE.team.start ? (' · ' + esc(STATE.team.start)) : ''))
           : 'No tee assigned yet';
@@ -528,11 +564,11 @@
           + '<div class="hole-card">'
           +   '<div class="hole-nav">'
           +     '<button class="hole-arrow" type="button" id="prevHole"' + (stepIdx === 0 ? " disabled" : "") + ' aria-label="Previous hole">&lsaquo;</button>'
-          +     '<div class="hole-big"><div class="lbl">Hole</div><div class="num">' + STATE.hole + '</div></div>'
+          +     '<div class="hole-big"><div class="lbl">Hole</div><div class="num">' + physicalHole(STATE.holeIdx) + '</div></div>'
           +     '<button class="hole-arrow" type="button" id="nextHole"' + (stepIdx === order.length - 1 ? " disabled" : "") + ' aria-label="Next hole">&rsaquo;</button>'
           +   '</div>'
-          +   '<div class="hole-meta">Par ' + par + ' &middot; ' + startBadge + '</div>'
-          +   '<div class="dots-wrap"><div class="dots">' + dots + '</div></div>'
+          +   '<div class="hole-meta">Par ' + par + lapBadge + ' &middot; ' + startBadge + '</div>'
+          +   '<div class="dots-wrap">' + dotsHtml + '</div>'
           + '</div>'
           + '<div class="team">'
           +   '<div class="team-hd">'
@@ -560,15 +596,16 @@
       }
 
       function renderLeaderboard() {
-        // Build team-with-progress rows from the field, then rank by
-        // completed gross first, in-progress by to-par + holes.
+        // Build team-with-progress rows from the field, then rank by to-par
+        // (completed gross first, in-progress ranked by their pace to par).
         var mineFlight = STATE.team.flight;
         var rows = STATE.field.map(function (t) {
           var s = parseScores(t.day1);
-          var g = 0, holes = 0;
-          for (var i = 0; i < 9; i++) if (s[i] != null) { g += s[i]; holes++; }
-          var par = 0; for (var j = 0; j < holes; j++) par += PARS[j] || 4;
-          return { id: t.id, name: t.teamName, partners: t.partners, flight: t.flight, gross: g, holes: holes, toPar: holes ? (g - par) : null };
+          var g = 0, holes = 0, parSoFar = 0;
+          for (var i = 0; i < s.length; i++) {
+            if (s[i] != null) { g += s[i]; parSoFar += parAtIndex(i); holes++; }
+          }
+          return { id: t.id, name: t.teamName, partners: t.partners, flight: t.flight, gross: g, holes: holes, toPar: holes ? (g - parSoFar) : null };
         });
         var showFlight = (STATE.lbFilter === "mine" && mineFlight != null);
         var visible = showFlight
@@ -619,7 +656,7 @@
       }
 
       function bumpScore(dir) {
-        var i = STATE.hole - 1;
+        var i = STATE.holeIdx;
         var cur = STATE.scores[STATE.day][i];
         var par = currentPar();
         var next;
@@ -630,7 +667,7 @@
         queueSave();
       }
       function setScoreFromKeypad(v) {
-        var i = STATE.hole - 1;
+        var i = STATE.holeIdx;
         STATE.scores[STATE.day][i] = v;
         render();
         queueSave();
@@ -643,8 +680,8 @@
       }
       function saveNow() {
         var day = STATE.day;
-        // Server expects up to 18. We're a 9-hole course, so pad with nulls
-        // to keep the endpoint happy without pretending we played 18.
+        // Server expects up to 18. Pad with nulls for holes not yet played
+        // (or for a 9-hole event that only fills the front nine).
         var scores = STATE.scores[day].slice();
         while (scores.length < 18) scores.push(null);
         STATE.savingCount++;
@@ -670,12 +707,12 @@
         Array.prototype.forEach.call(document.querySelectorAll("[data-day]"), function (b) {
           b.addEventListener("click", function () {
             STATE.day = Number(b.getAttribute("data-day")) || 1;
-            STATE.hole = firstBlankHole(STATE.day) || 1;
+            STATE.holeIdx = firstBlankInPlayOrder(STATE.day);
             render();
           });
         });
-        Array.prototype.forEach.call(document.querySelectorAll("[data-jump]"), function (b) {
-          b.addEventListener("click", function () { STATE.hole = Number(b.getAttribute("data-jump")); render(); });
+        Array.prototype.forEach.call(document.querySelectorAll("[data-jumpidx]"), function (b) {
+          b.addEventListener("click", function () { STATE.holeIdx = Number(b.getAttribute("data-jumpidx")); render(); });
         });
         Array.prototype.forEach.call(document.querySelectorAll("[data-lb]"), function (b) {
           b.addEventListener("click", function () { STATE.lbFilter = b.getAttribute("data-lb"); render(); });
