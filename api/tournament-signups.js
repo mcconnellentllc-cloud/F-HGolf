@@ -55,9 +55,16 @@
 //                                              default 12. Cart dropdown on
 //                                              Check-In uses this as the
 //                                              rental-vs-borrowed threshold.
-//   Member Carts JSON (Long text)            – JSON array of freeform strings,
-//                                              one member cart per entry,
-//                                              e.g. ["Chris Fuesz — navy Yamaha"]
+//   Member Carts JSON (Long text)            – JSON array of member-cart
+//                                              objects: {name, shed, spot,
+//                                              power, notes}. Example:
+//                                              [{"name":"Chris Fuesz",
+//                                                "shed":"3","spot":"12",
+//                                                "power":"Electric",
+//                                                "notes":"key in console"}]
+//                                              Legacy string entries are
+//                                              parsed as {name, notes} for
+//                                              backward compatibility.
 //   Registration Cost (Currency or Number)  – per TEAM
 //   Cart Cost         (Currency or Number)  – per ROUND
 //   Card Fee Pct      (Number)               – default 4
