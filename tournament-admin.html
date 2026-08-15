@@ -1341,10 +1341,14 @@
         _fmtHydrateShotgun(f["Waves JSON"]);
         _fmtHydrateHighlights(f["Highlights"]);
         // Calcutta Enabled is a select on the form (id fmtCalcuttaEnabled)
-        // but stored as boolean — hydrate the dropdown from the stored value.
+        // but stored as boolean. DEFAULTS TO ON: every pre-existing
+        // tournament in Airtable (Founders included) predates this field,
+        // so an undefined value means "the operator hasn't explicitly
+        // opted out". Only an explicit false hides the Calcutta tabs.
         var ce = document.getElementById("fmtCalcuttaEnabled");
-        if (ce) ce.value = f["Calcutta Enabled"] ? "on" : "off";
-        _applyCalcuttaVisibility(!!f["Calcutta Enabled"]);
+        var caOn = (f["Calcutta Enabled"] === false) ? false : true;
+        if (ce) ce.value = caOn ? "on" : "off";
+        _applyCalcuttaVisibility(caOn);
       }
       // Hide/show the Calcutta workbook tabs + the Calcutta payout mount on
       // Format based on whether the tournament runs a Calcutta. When off,
@@ -1572,7 +1576,7 @@
                 // hero cart-demand summary.
                 try { _renderCartDemand(); } catch (e) {}
                 // Calcutta toggle may have flipped — re-hide/show tabs.
-                try { _applyCalcuttaVisibility(!!_tcConfigCache["Calcutta Enabled"]); } catch (e) {}
+                try { _applyCalcuttaVisibility(_tcConfigCache["Calcutta Enabled"] !== false); } catch (e) {}
               }
               return;
             }
@@ -3358,7 +3362,7 @@
             try { _applyCheckinFeatureFlags(_tcConfigCache); } catch (e) {}
             try { _applyPairingsMultiDay(_tcConfigCache); } catch (e) {}
             try { _renderCartDemand(); } catch (e) {}
-            try { _applyCalcuttaVisibility(!!_tcConfigCache["Calcutta Enabled"]); } catch (e) {}
+            try { _applyCalcuttaVisibility(_tcConfigCache["Calcutta Enabled"] !== false); } catch (e) {}
             // Kick off the course-wide cart pool fetch too so the check-in
             // cart dropdown has options as soon as the operator opens a card.
             try { ensureCourseCartsCache(); } catch (e) {}
