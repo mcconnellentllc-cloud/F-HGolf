@@ -236,11 +236,11 @@
           </details>
 
           <div class="ci-filters" id="ciFilters" role="group" aria-label="Filter teams">
-            <div class="ci-filter-group">
+            <div class="ci-filter-group" id="ciWaveFilterGroup">
               <span class="ci-filter-label">Wave</span>
               <button class="sc-tab ci-fchip is-active" type="button" data-fwave="all">All</button>
-              <button class="sc-tab ci-fchip" type="button" data-fwave="am">8 AM</button>
-              <button class="sc-tab ci-fchip" type="button" data-fwave="pm">1 PM</button>
+              <button class="sc-tab ci-fchip" type="button" data-fwave="am" id="ciWaveChipAm">8 AM</button>
+              <button class="sc-tab ci-fchip" type="button" data-fwave="pm" id="ciWaveChipPm">1 PM</button>
               <button class="sc-tab ci-fchip" type="button" data-fwave="none" title="No wave assigned yet">Unset</button>
             </div>
             <div class="ci-filter-group">
@@ -3248,6 +3248,26 @@
         if (!sec) return;
         var mealsOn = !!(cfg && cfg["Extra Meals Enabled"]);
         sec.classList.toggle("ci--no-meals", !mealsOn);
+        // Single-wave tournaments (Format Waves = 1): hide the WAVE filter
+        // chips row + the per-team "start" dropdown. There's only one
+        // shotgun, so there's nothing to choose — an untrained operator
+        // would just get confused looking at 8 AM / 1 PM chips for a one-
+        // shotgun event. CSS handles the actual hiding via .ci--single-wave.
+        var waves = _tcWaveCount(cfg);
+        sec.classList.toggle("ci--single-wave", waves <= 1);
+        // Rewrite the AM/PM chip labels from Format's Waves JSON so a course
+        // that shotguns at 9:00 / 2:00 doesn't see stale "8 AM" chips.
+        try {
+          if (waves >= 2 && cfg && cfg["Waves JSON"]) {
+            var arr = JSON.parse(cfg["Waves JSON"] || "[]");
+            if (Array.isArray(arr)) {
+              var am = document.getElementById("ciWaveChipAm");
+              var pm = document.getElementById("ciWaveChipPm");
+              if (am && arr[0] && arr[0].time) am.textContent = String(arr[0].time);
+              if (pm && arr[1] && arr[1].time) pm.textContent = String(arr[1].time);
+            }
+          }
+        } catch (e) {}
       }
       // Cart-demand summary in the hero. Sums "Rentals Needed" across the
       // current tournament's live signups, compares against the course's
