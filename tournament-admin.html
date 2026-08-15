@@ -629,6 +629,32 @@
     </div>
   </div>
 
+  <!-- ==================== TEAM-MERGE MODAL ==================== -->
+  <div class="pv-modal" id="ciMergeModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="ciMergeTitle">
+    <div class="pv-modal__backdrop" data-mclose="1"></div>
+    <div class="pv-modal__panel pv-modal__panel--md">
+      <div class="pv-modal__head">
+        <h3 class="pv-modal__title" id="ciMergeTitle">Merge two teams</h3>
+        <button class="pv-modal__x" type="button" data-mclose="1" aria-label="Close">&times;</button>
+      </div>
+      <div class="pv-modal__body">
+        <p class="fmt-note">Combines two signups into one 4-player team. The surviving team's captain (whose name gets checks) stays as-is. Everyone else — this team's partners plus the other team's captain and partners — join Team / Partners. Money paid and extras sum. The other signup record is deleted.</p>
+        <div class="fmt-grid">
+          <label class="fmt-row"><span>Surviving team (captain kept)</span><input type="text" id="ciMergeKeep" readonly /></label>
+          <label class="fmt-row"><span>Merge with…</span>
+            <select id="ciMergeDrop"><option value="">— pick a team —</option></select>
+          </label>
+        </div>
+        <div id="ciMergePreview" class="ci-merge-preview"></div>
+      </div>
+      <div class="pv-modal__foot">
+        <span class="pv-modal__status" id="ciMergeStatus"></span>
+        <button type="button" class="btn btn--solid" data-mclose="1">Cancel</button>
+        <button type="button" class="btn btn--primary" id="ciMergeConfirm" disabled>Merge teams</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== CHECK-IN BULK PAID MODAL ==================== -->
   <div class="pm-modal cd-modal" id="ciBulkPayModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cbpTitle">
     <div class="pm-modal__backdrop" data-close="1"></div>
@@ -2226,6 +2252,7 @@
           + '</div>'
           + '<div class="ci-card__acts">'
           + '<button type="button" class="ci__update" title="Recalculate + save this team’s payment state">Take Payment</button>'
+          + '<button type="button" class="ci__merge" title="Merge this team with another (e.g. two couples arrived as separate signups)">Merge</button>'
           + '<button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + '</button>'
           + '<button type="button" class="ci__remove" title="Remove team">&times;</button>'
           + '</div>'
@@ -2449,6 +2476,8 @@
             if (!window.confirm("Remove " + who.trim() + " from this tournament? This can't be undone.")) return;
             removeTeam(id, statusEl, remove);
           });
+          var mergeBtn = card.querySelector(".ci__merge");
+          if (mergeBtn) mergeBtn.addEventListener("click", function () { openTeamMerge(id); });
 
           // Name = link opens Player Card. ✎ pencil = inline rename in place.
           Array.prototype.forEach.call(card.querySelectorAll(".ci-name"), function (link) {
@@ -3606,6 +3635,85 @@
             else { if (btn) btn.disabled = false; if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't remove."; statusEl.className = "ci__status is-error"; } }
           })
           .catch(function () { if (btn) btn.disabled = false; if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
+      }
+
+      // Team-merge modal: pick two Signups records in the same tournament,
+      // consolidate players into one 4-player team, delete the loser.
+      var _teamMergeKeepId = "";
+      function _fmtTeamLabel(rec) {
+        var f = rec.fields || {};
+        var cap = String(f["Player Name"] || "").trim() || "(no captain)";
+        var partners = String(f["Team / Partners"] || "").split(/\s*\/\s*/).map(function (s) { return s.trim(); }).filter(Boolean);
+        var all = [cap].concat(partners);
+        return all.join(" + ");
+      }
+      function openTeamMerge(keepId) {
+        _teamMergeKeepId = keepId;
+        var keepRec = null;
+        for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === keepId) { keepRec = scAllCache[i]; break; }
+        if (!keepRec) return;
+        var others = scAllCache.filter(function (r) {
+          return r.id !== keepId && (r.fields || {}).Tournament === KEY;
+        });
+        others.sort(function (a, b) { return String((a.fields || {})["Player Name"] || "").toLowerCase().localeCompare(String((b.fields || {})["Player Name"] || "").toLowerCase()); });
+        document.getElementById("ciMergeKeep").value = _fmtTeamLabel(keepRec);
+        var sel = document.getElementById("ciMergeDrop");
+        sel.innerHTML = '<option value="">— pick a team —</option>' + others.map(function (r) {
+          return '<option value="' + esc(r.id) + '">' + esc(_fmtTeamLabel(r)) + "</option>";
+        }).join("");
+        document.getElementById("ciMergePreview").innerHTML = "";
+        document.getElementById("ciMergeStatus").textContent = "";
+        document.getElementById("ciMergeConfirm").disabled = true;
+        document.getElementById("ciMergeModal").hidden = false;
+      }
+      function _teamMergePreview() {
+        var dropId = document.getElementById("ciMergeDrop").value;
+        var host = document.getElementById("ciMergePreview");
+        document.getElementById("ciMergeConfirm").disabled = !dropId;
+        if (!dropId) { host.innerHTML = ""; return; }
+        var keep = null, drop = null;
+        for (var i = 0; i < scAllCache.length; i++) {
+          if (scAllCache[i].id === _teamMergeKeepId) keep = scAllCache[i];
+          else if (scAllCache[i].id === dropId) drop = scAllCache[i];
+        }
+        if (!keep || !drop) { host.innerHTML = ""; return; }
+        var kf = keep.fields || {}, df = drop.fields || {};
+        var captain = String(kf["Player Name"] || "").trim();
+        var kPartners = String(kf["Team / Partners"] || "").split(/\s*\/\s*/).map(function (s) { return s.trim(); }).filter(Boolean);
+        var dCap = String(df["Player Name"] || "").trim();
+        var dPartners = String(df["Team / Partners"] || "").split(/\s*\/\s*/).map(function (s) { return s.trim(); }).filter(Boolean);
+        var seen = {}; seen[captain.toLowerCase()] = true;
+        var combined = [captain];
+        [].concat(kPartners, [dCap], dPartners).forEach(function (n) {
+          var k = String(n || "").toLowerCase(); if (!n || seen[k]) return;
+          seen[k] = true; combined.push(n);
+        });
+        var kPaid = Number(kf["Amount Paid"] || 0);
+        var dPaid = Number(df["Amount Paid"] || 0);
+        host.innerHTML = ''
+          + '<p class="fmt-note"><b>After merge:</b> ' + esc(combined.length) + '-player team &middot; captain <b>' + esc(captain) + '</b></p>'
+          + '<ul class="ci-merge-preview__list">' + combined.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join("") + '</ul>'
+          + '<p class="fmt-note">Money merged: <b>' + esc((kPaid + dPaid).toFixed(2)) + '</b> paid total. The other signup record will be deleted.</p>';
+      }
+      function _closeTeamMerge() { document.getElementById("ciMergeModal").hidden = true; _teamMergeKeepId = ""; }
+      function _confirmTeamMerge() {
+        var dropId = document.getElementById("ciMergeDrop").value;
+        if (!_teamMergeKeepId || !dropId) return;
+        var status = document.getElementById("ciMergeStatus");
+        status.textContent = "Merging…";
+        document.getElementById("ciMergeConfirm").disabled = true;
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "team-merge", keepId: _teamMergeKeepId, dropId: dropId }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) { status.textContent = (j && j.error) || "Merge failed."; document.getElementById("ciMergeConfirm").disabled = false; return; }
+            _closeTeamMerge();
+            loadRoster();
+          })
+          .catch(function () { status.textContent = "Network error."; document.getElementById("ciMergeConfirm").disabled = false; });
       }
 
       // Rebuild the walk-up name inputs to match Format's Players Per Team.
@@ -8243,6 +8351,18 @@
         // Toolbar "+ Add team" — opens the collapsed walk-up form,
         // scrolls it into view, and puts focus on the first name field
         // so the operator can start typing without hunting.
+        // Team-merge modal — close buttons, dropdown live-preview, confirm.
+        var ciMergeModal = document.getElementById("ciMergeModal");
+        if (ciMergeModal) {
+          Array.prototype.forEach.call(ciMergeModal.querySelectorAll("[data-mclose]"), function (el) {
+            el.addEventListener("click", _closeTeamMerge);
+          });
+          var mergeDropSel = document.getElementById("ciMergeDrop");
+          if (mergeDropSel) mergeDropSel.addEventListener("change", _teamMergePreview);
+          var mergeConfirm = document.getElementById("ciMergeConfirm");
+          if (mergeConfirm) mergeConfirm.addEventListener("click", _confirmTeamMerge);
+        }
+
         var ciAddBtn = document.getElementById("ciAddTeamBtn");
         if (ciAddBtn) ciAddBtn.addEventListener("click", function () {
           var d = document.querySelector(".checkin-add"); if (!d) return;

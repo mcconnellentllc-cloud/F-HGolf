@@ -2244,3 +2244,10 @@ body.modal-open { overflow: hidden; }
 .ppl-merge__opts { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 .ppl-merge__opt { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.88rem; padding: 0.2rem 0.4rem; border-radius: 4px; background: #fafaf3; }
 .ppl-merge__opt input { margin: 0; }
+
+/* Check-In: team-merge preview inside the merge modal. */
+.ci-merge-preview { margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px dashed rgba(0,0,0,0.1); }
+.ci-merge-preview__list { list-style: none; padding: 0; margin: 0.3rem 0 0.6rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ci-merge-preview__list li { padding: 0.25rem 0.55rem; background: #fafaf3; border: 1px solid var(--line); border-radius: 6px; font-size: 0.88rem; font-weight: 600; }
+.ci__merge { padding: 0.25rem 0.55rem; font-size: 0.82rem; background: #fff; border: 1px solid var(--primary-green); color: var(--primary-green); border-radius: 6px; cursor: pointer; }
+.ci__merge:hover { background: var(--primary-green); color: #fff; }
