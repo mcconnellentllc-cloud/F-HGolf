@@ -4736,8 +4736,17 @@
         try { _syncPrCardsButtons(); } catch (e) {}
         if (!recs.length) { board.innerHTML = '<p class="noms__msg">No teams yet. Import the 2026 field above, or add teams on the Check-In sheet.</p>'; return; }
         window.__prTeamNumbers = computeTeamNumbers(recs);
-        board.innerHTML = WAVES.map(function (w) {
-          var teams = recs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; }).sort(byCreated);
+        // Single-wave tournaments (Format Waves = 1) collapse to one wave
+        // block and show EVERY team regardless of the Start field — an
+        // unset Start is normal for 1-shotgun events where the operator
+        // doesn't touch the wave dropdown. Two-wave tournaments (Founders)
+        // still split by "8 AM" / "1 PM" as before.
+        var _singleWave = _tcWaveCount(_tcConfigCache) <= 1;
+        var _wavesToRender = _singleWave ? [WAVES[0]] : WAVES;
+        board.innerHTML = _wavesToRender.map(function (w) {
+          var teams = _singleWave
+            ? recs.slice().sort(byCreated)
+            : recs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; }).sort(byCreated);
           return renderWaveBlock(w, teams);
         }).join("");
         attachRowFilter(board, { rowSelector: ".pr-team[draggable='true']", parentSelector: ".pr-tee", placeholder: "Filter — find a team's tee or team number" });
@@ -4758,11 +4767,14 @@
           // though he's a 1st-flight team that belongs in the Day 2 PM
           // reflight).
           if (PR_DAY === "d2") return;
-          WAVES.forEach(function (w) {
+          var _wavesForAutofill = _singleWave ? [WAVES[0]] : WAVES;
+          _wavesForAutofill.forEach(function (w) {
             var cfg = loadSlotCfg(w.k);
             var slots = activeSlots(cfg);
             if (!slots.length) return;
-            var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; });
+            var teams = _singleWave
+              ? prRecs.slice()
+              : prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === w.k; });
             if (!teams.length) return;
             var anyPlaced = teams.some(function (t) {
               var f = t.fields || {};
@@ -4977,6 +4989,18 @@
         }
         positionSaveMany([{ id: drag.id, hole: tgtHole, slot: tgtSlot, seat: tgtSeat, start: tgtWave }]);
       }
+      // Teams that belong to a wave. Two-wave tournaments filter on the
+      // Start field; single-wave tournaments (Format Waves = 1) put every
+      // team in the sole wave, since operators don't bother setting Start
+      // when there's only one shotgun. Every wave-scoped operation on
+      // Pairings routes through this so autofill / cycle / shift-up all
+      // see the same team list the renderer does.
+      function _teamsForWave(recs, waveKey) {
+        var singleWave = _tcWaveCount(_tcConfigCache) <= 1;
+        if (singleWave) return (recs || []).slice();
+        return (recs || []).filter(function (r) { return ((r.fields || {})["Start"] || "") === waveKey; });
+      }
+
       function autofillWave(wave, silent) {
         var msg = document.getElementById("prMsg");
         // Explicit clicks bubble user-facing feedback via alert() so the
@@ -4990,7 +5014,7 @@
         var cfg = loadSlotCfg(wave);
         var slots = activeSlots(cfg);
         if (!slots.length) { tell("Turn on some A/B slots at the top of this wave first."); return; }
-        var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === wave; }).sort(byCreated);
+        var teams = _teamsForWave(prRecs, wave).sort(byCreated);
         if (!teams.length) { tell("No teams in this wave (check the Check-In sheet)."); return; }
         // Capacity math with trio support:
         //   pairCap  = slots × 2 (baseline, everyone in pairs)
@@ -5045,8 +5069,7 @@
       // wipes any manual moves already saved.
       function unplaceWave(wave) {
         var msg = document.getElementById("prMsg");
-        var teams = prRecs.filter(function (r) {
-          if (String((r.fields || {})["Start"] || "") !== wave) return false;
+        var teams = _teamsForWave(prRecs, wave).filter(function (r) {
           var f = r.fields || {};
           return Number(f.Hole) || (String(f.Slot || "").toUpperCase() === "A" || String(f.Slot || "").toUpperCase() === "B") || Number(f.Seat);
         });
@@ -5070,7 +5093,7 @@
         var cfg = loadSlotCfg(wave);
         var slots = activeSlots(cfg);
         if (!slots.length) { setMsg("Turn on some A/B slots at the top of this wave first."); return; }
-        var teams = prRecs.filter(function (r) { return ((r.fields || {})["Start"] || "") === wave; });
+        var teams = _teamsForWave(prRecs, wave);
         if (!teams.length) { setMsg("No teams in this wave."); return; }
         // Placed teams, sorted by (hole ascending, slot A→B, seat ascending).
         var placed = teams.filter(function (r) {
@@ -5456,11 +5479,13 @@
         host.id = "prAnnHost";
         host.className = "pr-ann";
 
-        var wavesHtml = WAVES.map(function (w) {
+        var _singleWaveAnn = _tcWaveCount(_tcConfigCache) <= 1;
+        var _wavesForAnn = _singleWaveAnn ? [WAVES[0]] : WAVES;
+        var wavesHtml = _wavesForAnn.map(function (w) {
           var cfg = loadSlotCfg(w.k);
           var slots = activeSlots(cfg);
           if (!slots.length) return "";
-          var teams = prRecs.filter(function (r) { return ((r.fields || {}).Start || "") === w.k; }).sort(byCreated);
+          var teams = _teamsForWave(prRecs, w.k).sort(byCreated);
           if (!teams.length) return "";
           // Seat-aware placement — Team 1 always announced first, Team 2 second.
           var placed = {}, backfill = [];
