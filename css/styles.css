@@ -2211,3 +2211,36 @@ body.modal-open { overflow: hidden; }
    Rental line so the operator can see billing + physical cart together. */
 .ci-cartline--assign { margin-top: 0.35rem; }
 .ci-cartline--assign .ci-cart-assign { padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: #fff; min-width: 15rem; }
+
+/* People page — dense filterable table. */
+.ppl-bar { display: flex; flex-direction: column; gap: 0.6rem; margin: 0.4rem 0 0.8rem; }
+.ppl-search { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: 8px; font-size: 1rem; font-family: inherit; }
+.ppl-alpha { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.ppl-alpha__btn { padding: 0.3rem 0.55rem; border: 1px solid var(--line); background: #fff; border-radius: 6px; font: inherit; font-size: 0.85rem; font-weight: 700; color: var(--muted); cursor: pointer; min-width: 2rem; }
+.ppl-alpha__btn.is-active { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
+.ppl-filters { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ppl-fchip { padding: 0.35rem 0.7rem; border: 1px solid var(--line); background: #fff; border-radius: 999px; font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--ink); cursor: pointer; }
+.ppl-fchip.is-active { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
+.ppl-help { font-size: 0.82rem; color: var(--muted); margin: 0 0 0.7rem; }
+.ppl-status { font-size: 0.85rem; color: var(--muted); margin: 0.4rem 0; font-weight: 600; }
+.ppl-tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+.ppl-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.ppl-table th, .ppl-table td { padding: 0.5rem 0.7rem; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.06); vertical-align: middle; }
+.ppl-table th { background: #f6f5ee; font-weight: 700; color: var(--primary-green); font-size: 0.78rem; letter-spacing: 0.03em; text-transform: uppercase; }
+.ppl-row { cursor: pointer; transition: background 0.1s; }
+.ppl-row:hover { background: #fafaf3; }
+.ppl-row.is-dim { opacity: 0.35; }
+.ppl-row.is-dupe { background: rgba(255, 200, 120, 0.14); }
+.ppl-row.is-dupe:hover { background: rgba(255, 200, 120, 0.28); }
+.ppl-badge { font-size: 0.7rem; padding: 0.08rem 0.4rem; border-radius: 4px; background: var(--primary-green); color: #fff; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; margin-left: 0.35rem; vertical-align: middle; }
+.ppl-flag { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
+.ppl-flag--miss { background: #f8e0c8; color: #8a4a10; }
+.ppl-flag--dupe { background: #c00; color: #fff; border: 0; cursor: pointer; }
+.ppl-flag--dupe:hover { background: #8a0000; }
+
+.ppl-merge { display: flex; flex-direction: column; gap: 0.4rem; }
+.ppl-merge__row { display: grid; grid-template-columns: 6rem 1fr; gap: 0.6rem; align-items: start; padding: 0.4rem 0; border-bottom: 1px dashed rgba(0,0,0,0.08); }
+.ppl-merge__lbl { font-weight: 700; color: var(--primary-green); font-size: 0.85rem; }
+.ppl-merge__opts { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.ppl-merge__opt { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.88rem; padding: 0.2rem 0.4rem; border-radius: 4px; background: #fafaf3; }
+.ppl-merge__opt input { margin: 0; }
