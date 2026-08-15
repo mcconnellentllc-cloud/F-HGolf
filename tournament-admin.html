@@ -2283,8 +2283,19 @@
           var surchargeHint = isSurchargeMethod(t.method) && base > 0
             ? '<span class="ci-p__surcharge">+' + _srPct + '% (' + money(base * surchargeRate()) + ')</span>'
             : '';
+          // Captain badge: P1 is always the captain. Other rows get a small
+          // ★ button — click to promote that player, which swaps their name
+          // into Player Name and moves the old captain into Team / Partners
+          // (and refreshes the signup's Email from the Players table).
+          var isCaptain = t.role === "p1";
+          var capCell = isCaptain
+            ? '<span class="ci-p__cap ci-p__cap--is" title="Team captain — scoring link + check go to this player">&#9733; Captain</span>'
+            : (t.name
+                ? '<button type="button" class="ci-p__cap ci-p__cap--set" data-role="' + esc(t.role) + '" title="Make ' + esc(t.name) + ' the captain (scoring link + check)">&#9734; Captain</button>'
+                : '<span class="ci-p__cap ci-p__cap--empty" title="Add a name first">&#9734;</span>');
           return '<div class="ci-p" data-role="' + esc(t.role) + '">'
             + '<div class="ci-p__name">' + nameCell(t.role, t.name) + '</div>'
+            + capCell
             + '<label class="ci-check" title="Charge entry to this player"><input type="checkbox" class="ci-paid-box" data-role="' + esc(t.role) + '"' + paidCk + ' /><span>Entry</span></label>'
             + '<label class="ci-meal" title="Extra meals × ' + money(extraMealFee) + '"><input type="number" min="0" max="10" step="1" class="ci__extra-meal" data-role="' + esc(t.role) + '" value="' + (Number(t.meal) || 0) + '" /><span>Meals</span></label>'
             + '<select class="ci-p__method" data-role="' + esc(t.role) + '">' + methodOpts(t.method) + '</select>'
@@ -2618,6 +2629,11 @@
           if (mergeBtn) mergeBtn.addEventListener("click", function () { openTeamMerge(id); });
           var liveBtn = card.querySelector(".ci__live");
           if (liveBtn) liveBtn.addEventListener("click", function () { mintScoringLink(id, statusEl); });
+          // Captain picker — a ★ button on each non-P1 player row promotes
+          // that player to captain (swaps names + refreshes email).
+          Array.prototype.forEach.call(card.querySelectorAll(".ci-p__cap--set"), function (btn) {
+            btn.addEventListener("click", function () { promoteToCaptain(id, btn.getAttribute("data-role"), statusEl); });
+          });
 
           // Name = link opens Player Card. ✎ pencil = inline rename in place.
           Array.prototype.forEach.call(card.querySelectorAll(".ci-name"), function (link) {
@@ -3889,6 +3905,60 @@
           else if (s === "payout") renderPayout(all);
           else if (s === "flights") renderBoard(all);
         } catch (e) {}
+      }
+
+      // Promote the player at `role` (p2 / p3 / p4) to team captain. Swaps
+      // their name into "Player Name" and moves the old captain into the
+      // "Team / Partners" slash-joined list. Also refreshes the signup's
+      // Email by looking up the new captain in the Players table — that
+      // way the next Scoring Link click emails the right person.
+      function promoteToCaptain(signupId, newCapRole, statusEl) {
+        var rec = null;
+        for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === signupId) { rec = scAllCache[i]; break; }
+        if (!rec) return;
+        var f = rec.fields || {};
+        var pp = teamPlayers(f, rec);
+        var names = (pp.names || []).slice();
+        var newCapIdx = { p1: 0, p2: 1, p3: 2, p4: 3 }[newCapRole];
+        if (newCapIdx == null || newCapIdx === 0) return; // already captain
+        if (!names[newCapIdx]) { alert("That row has no name yet."); return; }
+        if (!confirm("Make " + names[newCapIdx] + " the team captain? The scoring link and any check will go to them.")) return;
+        var newCaptain = names[newCapIdx];
+        // Everyone else, in order, becomes the partners list.
+        var partners = [];
+        for (var j = 0; j < names.length; j++) if (j !== newCapIdx && names[j]) partners.push(names[j]);
+        if (statusEl) { statusEl.textContent = "Looking up " + newCaptain + "…"; statusEl.className = "ci__status"; }
+        // Best-effort email lookup — a missing Players row just means the
+        // Email field ends up blank and staff will need to type it in.
+        fetch(FH_API.url("/api/players?name=" + encodeURIComponent(newCaptain)), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (pj) {
+            var email = "";
+            if (pj && pj.ok && pj.records && pj.records.length) {
+              email = String((pj.records[0].fields || {}).Email || "").trim();
+            }
+            if (statusEl) { statusEl.textContent = "Promoting " + newCaptain + "…"; }
+            return fetch(FH_API.url("/api/tournament-checkin"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+              body: JSON.stringify({
+                id: signupId,
+                playerName: newCaptain,
+                teamPartners: partners.join(" / "),
+                email: email, // "" clears; matched email overwrites; unmatched leaves blank so staff notices
+              }),
+            });
+          })
+          .then(function (r) { return r ? r.json().catch(function () { return {}; }) : {}; })
+          .then(function (j) {
+            if (j && j.ok) {
+              if (statusEl) { statusEl.textContent = "Captain updated ✓"; }
+              loadRoster();
+            } else {
+              if (statusEl) { statusEl.textContent = (j && j.error) || "Couldn't set captain."; statusEl.className = "ci__status is-error"; }
+            }
+          })
+          .catch(function () { if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
       }
 
       // Mint a live-scoring magic link for one team. If the signup has an

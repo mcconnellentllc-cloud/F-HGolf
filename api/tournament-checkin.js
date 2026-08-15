@@ -96,6 +96,9 @@ module.exports = async (req, res) => {
   });
   if (typeof body.playerName === "string") fields["Player Name"] = body.playerName.slice(0, 200);
   if (typeof body.teamPartners === "string") fields["Team / Partners"] = body.teamPartners.slice(0, 500);
+  // Email — set when the captain changes so the scoring-link email routes
+  // to the new captain's inbox. Empty string clears it.
+  if (typeof body.email === "string") fields["Email"] = body.email ? body.email.slice(0, 200) : null;
   // Link this signup to a canonical Players table row. Needs a "Player" linked
   // field on Tournament Signups. Empty string clears the link.
   if (typeof body.playerId === "string") fields["Player"] = body.playerId ? [body.playerId] : [];
