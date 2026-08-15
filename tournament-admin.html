@@ -3415,8 +3415,22 @@
 
       function scTeamLabel(rec) {
         var f = rec.fields || {};
-        // P1 / P2 shown as "F. Last" — matches the Pairings tee cards.
+        // 2-player events (Founders, most singles+ scrambles): full "F. Last
+        // / F. Last" fits in the Team column so keep it — the partner name
+        // is useful context for the scorekeeper.
+        // 3+ player events (Aug 22 Couples has 4): the joined string
+        // overflows into the score inputs. Show just the captain here;
+        // the row's title attribute carries every name for a hover.
+        var partners = String(f["Team / Partners"] || "").split(/\s*\/\s*/).filter(Boolean);
+        var teamSize = 1 + partners.length;
+        if (teamSize >= 3) return shortName(f["Player Name"] || "") || "(no name)";
         return teamShortNames(f);
+      }
+      function scTeamFullTitle(rec) {
+        var f = rec.fields || {};
+        var names = [String(f["Player Name"] || "").trim()];
+        String(f["Team / Partners"] || "").split(/\s*\/\s*/).forEach(function (p) { p = p.trim(); if (p) names.push(p); });
+        return names.filter(Boolean).join(" · ");
       }
 
       function renderScores(all) {
@@ -3502,7 +3516,7 @@
         }
         cells += '<td class="sc-tbl__loop" data-loop="in">&mdash;</td>';
         cells += '<td class="sc-tbl__total"><span class="sc-tbl__totVal">&mdash;</span><span class="sc-tbl__save" title="Save state"></span></td>';
-        return '<td class="sc-tbl__team">' + esc(scTeamLabel(rec)) + '</td>' + cells;
+        return '<td class="sc-tbl__team" title="' + esc(scTeamFullTitle(rec)) + '">' + esc(scTeamLabel(rec)) + '</td>' + cells;
       }
 
       function renderScoresGrid(host, day) {
