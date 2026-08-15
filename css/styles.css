@@ -2199,6 +2199,15 @@ body.modal-open { overflow: hidden; }
 .fmt-note { font-size: 0.8rem; color: var(--muted); margin: 0.4rem 0 0; }
 .fmt-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; padding-top: 0.2rem; }
 
+/* Format tab — mount points for the calc-form sections (Money, Flight,
+   Calcutta) that used to live on the standalone Calc tab. Keeps the calc
+   groups from bleeding into the surrounding fmt-set legend styling. */
+.fmt-calc-mount { display: block; margin-top: 0.5rem; }
+.fmt-calc-mount .calc__grp:last-child { margin-bottom: 0; }
+.fmt-calcutta-toggle { flex-direction: row; align-items: center; gap: 0.7rem; margin-bottom: 0.4rem; }
+.fmt-calcutta-toggle > span { text-transform: none; letter-spacing: 0; font-size: 0.9rem; font-weight: 600; color: var(--ink); }
+.fmt-calcutta-toggle select { flex: 1 1 auto; max-width: 26rem; }
+
 /* Format tab — Member cart pool (repeating card widget). */
 .fmt-cart-list { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.4rem; }
 .fmt-cart { border: 1px solid var(--line); border-left: 3px solid var(--primary-green); border-radius: 8px; padding: 0.7rem 0.8rem 0.5rem; background: #fafaf7; }
