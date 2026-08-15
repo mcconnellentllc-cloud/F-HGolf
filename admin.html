@@ -468,6 +468,47 @@
           .catch(function () { touList.innerHTML = '<p class="noms__msg">Network error loading sign-ups.</p>'; buildManager([]); });
       }
 
+      // ---- Format-config overrides for the tournament cards -----------
+      // The tournament cards on the Staff Portal are seeded from a hard-
+      // coded metadata block in js/tournaments.js (FH_TMETA). That block
+      // pre-dates the Format tab; when Format saves a Team Cap / Display
+      // Name / Play Style / Players Per Team, those should override the
+      // seed on the cards so the portal reads what the operator actually
+      // configured — not stale defaults from a year ago.
+      //
+      // Fetch all Tournament Config rows once, patch FH_TMETA in place,
+      // then re-run buildManager so the cards render with the fresh caps.
+      function loadTournamentConfigs() {
+        var T = window.FH_TMETA || {}; if (!Object.keys(T).length) return;
+        fetch(FH_API.url("/api/tournament-signups?config=1"), { cache: "no-store" })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok || !Array.isArray(j.records)) return;
+            j.records.forEach(function (rec) {
+              var f = (rec && rec.fields) || {};
+              var key = String(f.Tournament || "").trim();
+              if (!key || !T[key]) return;
+              var m = T[key];
+              // Team Cap of 0 = unlimited (Format tab convention); anything
+              // > 0 replaces the hardcoded cap.
+              var cap = Number(f["Team Cap"]);
+              if (isFinite(cap) && cap > 0) m.cap = cap;
+              // Display Name overrides the "Player Name → date parsed name"
+              // that splitName() derives from the KEY string.
+              if (typeof f["Name"] === "string" && f["Name"].trim()) m.displayName = f["Name"].trim();
+              // Play Style is the human "3-man scramble" / "2-lady scramble"
+              // text; when Format sets it we prefer that over m.format so
+              // the card reflects what the operator picked.
+              if (typeof f["Play Style"] === "string" && f["Play Style"].trim()) m.format = f["Play Style"].trim();
+              // Players Per Team drives the team-size line under the card.
+              var ppt = Number(f["Players Per Team"]);
+              if (isFinite(ppt) && ppt > 0) m.team = ppt;
+            });
+            try { if (typeof loadTournaments === "function") loadTournaments(); else buildManager([]); } catch (e) {}
+          })
+          .catch(function () {});
+      }
+
       // ---- Course carts (shared across every tournament) --------------
       // Stored server-side as a Tournament Config row named "__course__" so
       // we can reuse the existing config-write endpoint. Every tournament
@@ -641,7 +682,7 @@
         gate.hidden = authed;
         panel.hidden = !authed;
         if (logout) logout.hidden = !authed;
-        if (authed) { buildManager([]); loadNominations(); loadTournaments(); loadCourseCarts(); }
+        if (authed) { buildManager([]); loadNominations(); loadTournaments(); loadCourseCarts(); loadTournamentConfigs(); }
       }
       show(_readAuth(FLAG) === "1");
 
