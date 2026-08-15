@@ -206,6 +206,7 @@
             <span class="ci-load-status" id="twLoadStatus" hidden aria-live="polite"></span>
             <button class="btn btn--primary" type="button" id="ciAddTeamBtn" title="Open the walk-up add-team form and focus the first name field">+ Add team</button>
             <button class="btn btn--solid" type="button" id="ciBulkPay" title="Mark every unpaid player paid with a chosen method">Mark all paid</button>
+            <button class="btn btn--solid" type="button" id="ciEmailAllLinks" title="Email every captain with an address on file their live-scoring link">Email scoring links</button>
             <button class="btn btn--solid" type="button" id="twRefresh">Refresh</button>
           </div>
 
@@ -2364,6 +2365,7 @@
           + '<div class="ci-card__acts">'
           + '<button type="button" class="ci__update" title="Recalculate + save this team’s payment state">Take Payment</button>'
           + '<button type="button" class="ci__merge" title="Merge this team with another (e.g. two couples arrived as separate signups)">Merge</button>'
+          + '<button type="button" class="ci__live" title="Mint this team’s live-scoring link; auto-emails the captain if we have their address">Scoring link</button>'
           + '<button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + '</button>'
           + '<button type="button" class="ci__remove" title="Remove team">&times;</button>'
           + '</div>'
@@ -2614,6 +2616,8 @@
           });
           var mergeBtn = card.querySelector(".ci__merge");
           if (mergeBtn) mergeBtn.addEventListener("click", function () { openTeamMerge(id); });
+          var liveBtn = card.querySelector(".ci__live");
+          if (liveBtn) liveBtn.addEventListener("click", function () { mintScoringLink(id, statusEl); });
 
           // Name = link opens Player Card. ✎ pencil = inline rename in place.
           Array.prototype.forEach.call(card.querySelectorAll(".ci-name"), function (link) {
@@ -3885,6 +3889,68 @@
           else if (s === "payout") renderPayout(all);
           else if (s === "flights") renderBoard(all);
         } catch (e) {}
+      }
+
+      // Mint a live-scoring magic link for one team. If the signup has an
+      // Email on file, the captain is auto-emailed (best-effort — copy-to-
+      // clipboard fallback either way so staff can text the link too).
+      function mintScoringLink(id, statusEl) {
+        if (statusEl) { statusEl.textContent = "Minting scoring link…"; statusEl.className = "ci__status"; }
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "live-mint", signupId: id, origin: location.origin.indexOf("vercel") >= 0 ? "https://fandhgolf.com" : location.origin }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            var j = res.j || {};
+            if (!j.ok) {
+              if (statusEl) { statusEl.textContent = j.error || "Couldn't mint link."; statusEl.className = "ci__status is-error"; }
+              return;
+            }
+            // Always drop the URL on the clipboard so staff can paste it into
+            // a text if the auto-email didn't fire or the captain has no
+            // email on file.
+            var url = j.url || "";
+            try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url); } catch (e) {}
+            var msg;
+            if (j.emailed) msg = "Emailed captain (" + (j.captainEmail || "") + ") · link copied";
+            else if (j.captainEmail && !j.emailed) msg = "Copied link · email to " + j.captainEmail + " failed, text it instead";
+            else msg = "No captain email on file — link copied, paste into a text";
+            if (statusEl) { statusEl.textContent = msg; statusEl.className = "ci__status"; }
+            // Also prompt so the operator can eyeball / re-copy the URL from
+            // an older browser without clipboard permission.
+            if (!navigator.clipboard) window.prompt("Captain's scoring link (copy and send):", url);
+          })
+          .catch(function () { if (statusEl) { statusEl.textContent = "Network error minting link."; statusEl.className = "ci__status is-error"; } });
+      }
+      // Bulk: email every team in this tournament that has a captain Email
+      // on file. Sequential to stay under Resend + Airtable rate limits.
+      function emailAllScoringLinks() {
+        var teams = (scAllCache || []).filter(function (r) {
+          var f = r.fields || {};
+          return f["Tournament"] === KEY && !f["Alternate"] && String(f["Email"] || "").trim();
+        });
+        if (!teams.length) { alert("No captains in this tournament have an email on file yet."); return; }
+        if (!confirm("Email " + teams.length + " captain" + (teams.length === 1 ? "" : "s") + " their live-scoring link now?")) return;
+        var origin = location.origin.indexOf("vercel") >= 0 ? "https://fandhgolf.com" : location.origin;
+        (function next(i, sent, failed) {
+          if (i >= teams.length) {
+            alert("Done. Sent " + sent + " · " + failed + " failed." + (failed ? " Check the console for details." : ""));
+            return;
+          }
+          fetch(FH_API.url("/api/tournament-signups"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify({ action: "live-mint", signupId: teams[i].id, origin: origin }),
+          })
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+              var ok = j && j.ok && j.emailed;
+              setTimeout(function () { next(i + 1, sent + (ok ? 1 : 0), failed + (ok ? 0 : 1)); }, 120);
+            })
+            .catch(function () { setTimeout(function () { next(i + 1, sent, failed + 1); }, 120); });
+        })(0, 0, 0);
       }
 
       function removeTeam(id, statusEl, btn) {
@@ -8930,6 +8996,8 @@
         }
         var ciBulkPayBtn = document.getElementById("ciBulkPay");
         if (ciBulkPayBtn) ciBulkPayBtn.addEventListener("click", openCiBulkPay);
+        var ciEmailAllBtn = document.getElementById("ciEmailAllLinks");
+        if (ciEmailAllBtn) ciEmailAllBtn.addEventListener("click", emailAllScoringLinks);
         if (ciBulkModal) {
           Array.prototype.forEach.call(ciBulkModal.querySelectorAll("[data-close], #cbpClose, #cbpCancel"), function (el) {
             el.addEventListener("click", closeCiBulkPay);

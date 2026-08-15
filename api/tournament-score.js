@@ -23,16 +23,37 @@ module.exports = async (req, res) => {
   if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) {
     return res.status(500).json({ ok: false, error: "Scoring isn't configured yet." });
   }
-  const key = req.headers["x-admin-key"] || "";
-  if (!ADMIN_KEY || key !== ADMIN_KEY) {
-    return res.status(401).json({ ok: false, error: "Unauthorized" });
-  }
 
   let body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { body = {}; } }
   body = body || {};
 
-  const id = typeof body.id === "string" ? body.id : "";
+  // Auth: staff use the admin key, captains use a magic-link token.
+  // Token path looks up the signup by "Live Token" and forces the write
+  // to that signup's id — the client's body.id is ignored so a leaked
+  // token can only score its own team.
+  const bodyToken = typeof body.token === "string" ? body.token.trim() : "";
+  let id = typeof body.id === "string" ? body.id : "";
+  if (bodyToken) {
+    if (!/^[a-f0-9]{16,64}$/i.test(bodyToken)) {
+      return res.status(401).json({ ok: false, error: "Invalid link." });
+    }
+    const filter = "?filterByFormula=" + encodeURIComponent(`{Live Token}='${bodyToken.replace(/'/g, "\\'")}'`) + "&maxRecords=1";
+    const lr = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}${filter}`, {
+      headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+    });
+    if (!lr.ok) return res.status(502).json({ ok: false, error: "Could not verify the link." });
+    const lj = await lr.json();
+    const rec = (lj.records || [])[0];
+    if (!rec) return res.status(401).json({ ok: false, error: "This link is no longer valid." });
+    id = rec.id;
+  } else {
+    const key = req.headers["x-admin-key"] || "";
+    if (!ADMIN_KEY || key !== ADMIN_KEY) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+  }
+
   const day = Number(body.day);
   if (!id) return res.status(400).json({ ok: false, error: "Missing record id." });
   if (day !== 1 && day !== 2) return res.status(400).json({ ok: false, error: "Day must be 1 or 2." });

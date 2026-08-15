@@ -487,10 +487,179 @@ module.exports = async (req, res) => {
       }
     }
 
+    if (body.action === "live-mint") {
+      // Admin only. Body: { signupId, rotate?: boolean, email?: boolean, origin?: string }
+      // Generates a random token (16 bytes hex) and writes it to the
+      // Signup's "Live Token" field. Returns the shareable URL for the
+      // captain. If a token already exists and rotate=false, reuses it —
+      // the captain can text the same link across two days. Rotate=true
+      // invalidates the old one (staff use if a phone is lost).
+      // When email=true (default) and the signup has an Email on file, the
+      // captain is auto-emailed the scoring link. Set email=false to just
+      // mint the URL (staff copy/text manually).
+      const signupId = typeof body.signupId === "string" ? body.signupId.trim() : "";
+      if (!signupId) return res.status(400).json({ ok: false, error: "Missing signup id." });
+      const rotate = !!body.rotate;
+      const sendEmail = body.email !== false; // default true
+      // Public origin so the emailed link points at fandhgolf.com, not the
+      // internal Vercel URL. Falls back to a hard-coded value if the caller
+      // doesn't hand one over.
+      const origin = (typeof body.origin === "string" && /^https?:\/\//.test(body.origin))
+        ? body.origin.replace(/\/$/, "")
+        : "https://fandhgolf.com";
+      const sigUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}/${signupId}`;
+      try {
+        // Read the signup so we have the captain's email + team + tournament
+        // even when we're reusing an existing token.
+        const gr = await fetch(sigUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        if (!gr.ok) return res.status(502).json({ ok: false, error: "Could not read the signup." });
+        const rec = await gr.json();
+        const f = (rec && rec.fields) || {};
+        const captainEmail = String(f["Email"] || "").trim();
+        const captainName = String(f["Player Name"] || "").trim();
+        const tournamentName = String(f["Tournament"] || "").trim();
+        let token = rotate ? "" : String(f["Live Token"] || "").trim();
+        if (!token) {
+          token = require("crypto").randomBytes(16).toString("hex");
+          const wr = await fetch(sigUrl, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ fields: { "Live Token": token }, typecast: true }),
+          });
+          if (!wr.ok) {
+            const detail = await wr.text();
+            console.error("live-mint write error", wr.status, detail);
+            const msg = /Unknown field/i.test(detail)
+              ? "Airtable is missing the 'Live Token' single-line-text field on Tournament Signups. Add it and try again."
+              : "Could not mint the captain link.";
+            return res.status(502).json({ ok: false, error: msg });
+          }
+        }
+        const url = `${origin}/live.html?t=${token}`;
+        // Best-effort email delivery. Failure to send doesn't fail the mint —
+        // staff still has the URL to text/copy manually.
+        let emailed = false;
+        let emailError = null;
+        if (sendEmail && captainEmail) {
+          const key = process.env.RESEND_API_KEY;
+          if (key) {
+            const from = process.env.RESEND_FROM || "F&H Golf <noreply@fandhgolf.com>";
+            const first = captainName.split(/\s+/)[0] || "there";
+            const escHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+            const subject = `Your scoring link — ${tournamentName || "F&H tournament"}`;
+            const html = `
+<p>Hi ${escHtml(first)},</p>
+<p>Here's your live scoring link for <strong>${escHtml(tournamentName || "the tournament")}</strong>. Tap it on your phone at the first tee and it will open your team's scorecard. No password.</p>
+<p><a href="${escHtml(url)}" style="display:inline-block;background:#17472A;color:#f6f2e8;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Open my scorecard</a></p>
+<p style="font-size:0.85rem;color:#666">Or paste this into your browser:<br><code>${escHtml(url)}</code></p>
+<p style="font-size:0.85rem;color:#666">Add it to your home screen once it opens for one-tap access all round. Scores auto-save as you tap.</p>
+<p>— F&amp;H Golf</p>`;
+            try {
+              const er = await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ from, to: [captainEmail], subject, html }),
+              });
+              if (er.ok) { emailed = true; }
+              else { emailError = await er.text().catch(() => ""); console.error("live-mint email failed", er.status, emailError); }
+            } catch (e) {
+              emailError = String(e && e.message || e);
+              console.error("live-mint email error", e);
+            }
+          } else {
+            emailError = "no-resend-key";
+          }
+        }
+        return res.status(200).json({
+          ok: true,
+          token,
+          url,
+          captainEmail: captainEmail || null,
+          emailed,
+          emailError,
+        });
+      } catch (e) {
+        console.error("live-mint exception", e);
+        return res.status(500).json({ ok: false, error: "Something went wrong minting the link." });
+      }
+    }
+
     return res.status(400).json({ ok: false, error: "Unknown action." });
   }
 
   const q = req.query || {};
+
+  // GET ?live=<token> — public read for a captain's phone. Returns the
+  // captain's team, the tournament's par + config, and the current flight
+  // leaderboard (stripped, non-Alt). No admin key required — the token
+  // itself is the auth. Missing/expired tokens 401 so the phone page can
+  // show a "link is no longer valid, ask the pro shop for a fresh one".
+  if (q.live !== undefined && q.live !== "") {
+    const token = String(q.live).trim().slice(0, 100);
+    if (!/^[a-f0-9]{16,64}$/i.test(token)) {
+      return res.status(401).json({ ok: false, error: "Invalid link." });
+    }
+    const cfgTable = process.env.CONFIG_TABLE || "Tournament Config";
+    try {
+      // Look up the signup that owns this token.
+      const filter = "?filterByFormula=" + encodeURIComponent(`{Live Token}='${token.replace(/'/g, "\\'")}'`) + "&maxRecords=1";
+      const listUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}${filter}`;
+      const lr = await fetch(listUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+      if (!lr.ok) {
+        const detail = await lr.text();
+        if (/Unknown field/i.test(detail)) {
+          return res.status(500).json({ ok: false, error: "Live scoring isn't set up on Airtable yet — add a 'Live Token' single-line-text field on Tournament Signups." });
+        }
+        return res.status(502).json({ ok: false, error: "Could not verify the link." });
+      }
+      const lj = await lr.json();
+      const me = (lj.records || [])[0];
+      if (!me) return res.status(401).json({ ok: false, error: "This link is no longer valid. Ask the pro shop for a fresh one." });
+      const tournament = String((me.fields && me.fields.Tournament) || "");
+      // Fetch the tournament's config (pars, name, rounds) and its full
+      // leaderboard-eligible field in parallel.
+      const [cfgRes, fieldRes] = await Promise.all([
+        fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}?filterByFormula=${encodeURIComponent(`{Tournament}='${tournament.replace(/'/g, "\\'")}'`)}&maxRecords=1`,
+          { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+        fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}?filterByFormula=${encodeURIComponent(`AND({Tournament}='${tournament.replace(/'/g, "\\'")}', NOT({Alternate}))`)}&pageSize=100`,
+          { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+      ]);
+      const cfg = cfgRes.ok ? ((await cfgRes.json()).records || [])[0] : null;
+      const fieldRows = fieldRes.ok ? ((await fieldRes.json()).records || []) : [];
+      const stripField = (rec) => {
+        const f = rec.fields || {};
+        return {
+          id: rec.id,
+          teamName: f["Player Name"] || "",
+          partners: f["Team / Partners"] || "",
+          flight: f["Flight"] || null,
+          // Shotgun start hole (1..9). Comes from Pairings; used by the phone
+          // app to land the captain on their tee hole instead of hole 1, and
+          // to navigate holes in play order (H, H+1, …, wrap to H-1).
+          hole: (typeof f["Hole"] === "number") ? f["Hole"] : null,
+          start: f["Start"] || "", // "8 AM" / "1 PM"
+          day1: f["Day1 Scores"] || "",
+          day2: f["Day2 Scores"] || "",
+          day1Gross: f["Day1 Gross"] || null,
+          day2Gross: f["Day2 Gross"] || null,
+        };
+      };
+      return res.status(200).json({
+        ok: true,
+        team: stripField(me),
+        tournament,
+        config: cfg ? {
+          name: cfg.fields["Name"] || tournament,
+          rounds: cfg.fields["Rounds"] || 1,
+          playersPerTeam: cfg.fields["Players Per Team"] || 2,
+        } : { name: tournament, rounds: 1, playersPerTeam: 2 },
+        field: fieldRows.map(stripField),
+      });
+    } catch (e) {
+      console.error("live read exception", e);
+      return res.status(500).json({ ok: false, error: "Something went wrong loading your scorecard." });
+    }
+  }
 
   // GET ?config=<tournament name> returns a single Tournament Config row.
   // GET ?config=1 returns every config row. Public — this feeds the
