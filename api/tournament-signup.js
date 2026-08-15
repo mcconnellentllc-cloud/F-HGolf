@@ -201,6 +201,16 @@ module.exports = async (req, res) => {
         // knows their address / phone / email.
         sendConfirmationEmail({ email, name, tournament, alternate }).catch(() => {});
         upsertPlayerCard({ name, email, phone }, { AIRTABLE_TOKEN, AIRTABLE_BASE_ID }).catch(() => {});
+        // Partners (players 2..N from the Team / Partners field) also get
+        // their own Players table row — name only, since the walk-up form
+        // doesn't capture per-partner contact info. Existing rows are
+        // untouched. Duplicates across similar names (Jay Harris vs. Jay
+        // Harris Jr.) are rare enough that a manual rider on the second
+        // name is easier than a fuzzy-match rule. Fire-and-forget: none of
+        // these upserts block the signup response.
+        String(team || "").split(/\s*\/\s*/).map(function (n) { return String(n || "").trim(); }).filter(Boolean).forEach(function (partnerName) {
+          upsertPlayerCard({ name: partnerName }, { AIRTABLE_TOKEN, AIRTABLE_BASE_ID }).catch(function () {});
+        });
         return res.status(200).json({ ok: true, alternate });
       }
       const detail = await r.text();
