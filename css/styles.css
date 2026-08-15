@@ -909,7 +909,7 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .sc-tbl th, .sc-tbl td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 0.3rem 0.35rem; text-align: center; white-space: nowrap; background: #fff; }
 .sc-tbl thead th { position: sticky; top: 0; z-index: 3; background: var(--paper-2); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--primary-green); padding: 0.35rem 0.25rem; }
 .sc-tbl thead th small { display: block; color: var(--muted); font-weight: 400; font-size: 0.62rem; text-transform: none; letter-spacing: 0; }
-.sc-tbl th.sc-tbl__team, .sc-tbl td.sc-tbl__team { position: sticky; left: 0; z-index: 2; text-align: left; min-width: 11rem; max-width: 13rem; font-weight: 700; background: var(--paper-2); }
+.sc-tbl th.sc-tbl__team, .sc-tbl td.sc-tbl__team { position: sticky; left: 0; z-index: 2; text-align: left; min-width: 11rem; max-width: 13rem; font-weight: 700; background: var(--paper-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-tbl thead th.sc-tbl__team { z-index: 4; }
 .sc-tbl__h { min-width: 2.6rem; }
 .sc-tbl__loop { font-weight: 800; color: var(--primary-green); background: var(--paper-2) !important; min-width: 2.8rem; }
