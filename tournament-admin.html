@@ -271,10 +271,10 @@
               <button class="btn btn--primary" type="button" id="prAutofillD2" hidden title="Populate Day 2 pairings from Day 1 gross scores — lowest score to Hole 1 A, highest to Hole 9 B, within each wave.">Autofill Day 2 from Day 1 scores</button>
               <button class="btn btn--solid pr-tee-btn" type="button" id="prPrintTeeD1" data-prday="d1">Print Day 1 Tee Sheet</button>
               <button class="btn btn--solid pr-tee-btn" type="button" id="prPrintTeeD2" data-prday="d2" hidden>Print Day 2 Tee Sheet</button>
-              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsAmD1" data-prday="d1" title="Day 1 A.M. wave scorecards only">Print Day 1 AM Score Cards</button>
-              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsPmD1" data-prday="d1" title="Day 1 P.M. wave scorecards only">Print Day 1 PM Score Cards</button>
-              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsAmD2" data-prday="d2" hidden title="Day 2 A.M. wave scorecards — pairs ordered by ascending Day 1 gross within flight">Print Day 2 AM Score Cards</button>
-              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsPmD2" data-prday="d2" hidden title="Day 2 P.M. wave scorecards — pairs ordered by ascending Day 1 gross within flight">Print Day 2 PM Score Cards</button>
+              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsAmD1" data-prday="d1" data-wave="am" title="Day 1 A.M. wave scorecards only"><span class="pr-btn-label">Print Day 1 AM Score Cards</span></button>
+              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsPmD1" data-prday="d1" data-wave="pm" title="Day 1 P.M. wave scorecards only"><span class="pr-btn-label">Print Day 1 PM Score Cards</span></button>
+              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsAmD2" data-prday="d2" data-wave="am" hidden title="Day 2 A.M. wave scorecards — pairs ordered by ascending Day 1 gross within flight"><span class="pr-btn-label">Print Day 2 AM Score Cards</span></button>
+              <button class="btn btn--solid pr-cards-btn" type="button" id="prPrintCardsPmD2" data-prday="d2" data-wave="pm" hidden title="Day 2 P.M. wave scorecards — pairs ordered by ascending Day 1 gross within flight"><span class="pr-btn-label">Print Day 2 PM Score Cards</span></button>
               <select id="prPaperSize" class="pr-print-which" aria-label="Paper size for scorecard prints" title="Match what your printer can actually feed">
                 <option value="12in 5.875in" selected>Paper: F&amp;H card landscape (12 × 5.875)</option>
                 <option value="5.875in 12in">Paper: F&amp;H card portrait (5.875 × 12)</option>
@@ -3288,7 +3288,24 @@
           PR_DAY = "d1";
           try { localStorage.setItem("fh:prDay:" + KEY, PR_DAY); } catch (e) {}
         }
+        // Wave count — 1 = shotgun everyone at once (no AM/PM split), 2 = AM+PM
+        // shotguns. When single, hide the print-which dropdown + PM score-card
+        // button, and relabel the AM button to just "Print Day X Score Cards".
+        var waves = _tcWaveCount(cfg);
+        pair.classList.toggle("pr--single-wave", waves <= 1);
         try { _syncPrCardsButtons(); } catch (e) {}
+      }
+      // How many shotgun waves this tournament runs (1 or 2). Reads
+      // Format's Waves JSON; defaults to 2 so pre-config tournaments keep
+      // their AM+PM buttons.
+      function _tcWaveCount(cfg) {
+        try {
+          var raw = (cfg && cfg["Waves JSON"]) || "";
+          if (!raw) return 2;
+          var arr = JSON.parse(raw);
+          if (!Array.isArray(arr) || arr.length === 0) return 2;
+          return arr.length >= 2 ? 2 : 1;
+        } catch (e) { return 2; }
       }
       function ensureConfigCache(cb) {
         if (_tcConfigCache) { if (cb) cb(_tcConfigCache); return; }
@@ -4364,12 +4381,34 @@
       // display:none at equal specificity, so we force display via inline
       // style rather than relying on the hidden attribute alone.
       function _syncPrCardsButtons() {
+        var pair = document.getElementById("twPairings");
+        var singleWave = !!(pair && pair.classList.contains("pr--single-wave"));
         var sels = ".pr-cards-btn, .pr-tee-btn";
         Array.prototype.forEach.call(document.querySelectorAll(sels), function (b) {
-          var match = b.getAttribute("data-prday") === PR_DAY;
-          b.hidden = !match;
-          b.style.display = match ? "" : "none";
+          var dayMatch = b.getAttribute("data-prday") === PR_DAY;
+          // Single-wave tournaments hide every PM score-card button since
+          // everyone shotguns at once — there's no separate PM field.
+          var wave = b.getAttribute("data-wave");
+          var waveMatch = !singleWave || wave !== "pm";
+          var show = dayMatch && waveMatch;
+          b.hidden = !show;
+          b.style.display = show ? "" : "none";
+          // Relabel the AM button in single-wave mode: "Print Day 1 Score
+          // Cards" instead of "Print Day 1 AM Score Cards".
+          if (wave === "am") {
+            var lbl = b.querySelector(".pr-btn-label");
+            if (lbl) {
+              var d = b.getAttribute("data-prday") === "d2" ? "Day 2" : "Day 1";
+              lbl.textContent = singleWave
+                ? ("Print " + d + " Score Cards")
+                : ("Print " + d + " AM Score Cards");
+            }
+          }
         });
+        // Force the wave dropdown to "both" when single-wave so the tee
+        // sheet prints the sole wave (the AM/PM options are meaningless).
+        var sel = document.getElementById("prPrintWhich");
+        if (sel && singleWave && sel.value !== "both") sel.value = "both";
       }
 
       // Auto-assign a stable Team number per wave, sorted by created time (so a
