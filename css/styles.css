@@ -2206,3 +2206,8 @@ body.modal-open { overflow: hidden; }
 .fmt-cart__ft { display: flex; justify-content: flex-end; margin-top: 0.4rem; }
 .fmt-cart__rm { font-size: 0.82rem; padding: 0.35rem 0.75rem; }
 @media (max-width: 640px) { .fmt-cart__grid { grid-template-columns: 1fr 1fr; } }
+
+/* Check-In cart-assignment row (per team). Sits just below the ½/Full/Need
+   Rental line so the operator can see billing + physical cart together. */
+.ci-cartline--assign { margin-top: 0.35rem; }
+.ci-cartline--assign .ci-cart-assign { padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: #fff; min-width: 15rem; }

@@ -1470,7 +1470,17 @@
         })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { _fmtSetStatus("Saved ✓", "ok"); if (res.j.fields) _fmtApplyRecord({ fields: res.j.fields }); return; }
+            if (res.j && res.j.ok) {
+              _fmtSetStatus("Saved ✓", "ok");
+              if (res.j.fields) {
+                _fmtApplyRecord({ fields: res.j.fields });
+                // Refresh the Check-In config cache so the cart-assignment
+                // dropdown picks up rental-count / member-cart edits
+                // without waiting for a full page reload.
+                _tcConfigCache = res.j.fields;
+              }
+              return;
+            }
             _fmtSetStatus((res.j && res.j.error) || ("Save failed (" + res.status + ")"), "error");
           })
           .catch(function () { _fmtSetStatus("Network error saving.", "error"); });
@@ -2169,6 +2179,16 @@
           + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-full"' + (p1Cart === 1 || p2Cart === 1 ? " checked" : "") + ' /><span>Full <small>' + money(cartFee) + '</small></span></label>'
           + '<label class="ci-check ci-check--cart ci-check--need"><input type="checkbox" class="ci-cart-need"' + (needRental ? " checked" : "") + ' /><span>Need rental</span></label>'
           + '</div>';
+        // Assignment dropdown — separate line so it doesn't crowd the
+        // half/full/need row. Populated from Tournament Config: Rental N
+        // options first, then any Member Carts entries (labeled trusted).
+        var currentAssign = String(f["Cart Assignment"] || "").trim();
+        var cartAssignLine = '<div class="ci-cartline ci-cartline--assign">'
+          + '<span class="ci-cartline__lbl">Assigned cart</span>'
+          + '<select class="ci-cart-assign" title="Pick a specific cart for this team">'
+          + _cartOptionsFor(currentAssign)
+          + '</select>'
+          + '</div>';
 
         return '<article class="ci-card' + (isAlt ? " is-alt" : "") + (totalPaid >= totalOwed && totalOwed > 0 ? " is-fully-paid" : "") + '" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
           + '<header class="ci-card__hd">'
@@ -2178,6 +2198,7 @@
           + '</header>'
           + '<div class="ci-card__players">' + playerRows + '</div>'
           + cartLine
+          + cartAssignLine
           + '<footer class="ci-card__ft">'
           + '<div class="ci-tots">'
           + '<span class="ci-tot"><small>Total</small><b class="ci-tot__total">' + money(totalOwed) + '</b></span>'
@@ -2370,6 +2391,20 @@
               break;
             }
             try { renderPL(); } catch (e) {}
+          });
+
+          // Cart assignment dropdown — pick a specific cart for this team.
+          // Value is the display label ("Rental 3", "Borrowed: Chris Fuesz")
+          // stored on the "Cart Assignment" field. Empty clears it.
+          var cartAssignSel = card.querySelector(".ci-cart-assign");
+          if (cartAssignSel) cartAssignSel.addEventListener("change", function () {
+            var v = String(cartAssignSel.value || "");
+            saveCheckin(id, { cartAssignment: v }, statusEl, cartAssignSel);
+            for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
+              scAllCache[i].fields = scAllCache[i].fields || {};
+              scAllCache[i].fields["Cart Assignment"] = v;
+              break;
+            }
           });
 
           // Update button — recompute totals in-place from current state.
@@ -2949,6 +2984,70 @@
         lHcpB:  [6, 16, 12, 10, 14, 8, 18, 2, 4]
       };
       function parseScores(str) { try { var a = JSON.parse(str); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+
+      // Tournament Config cache — read once from ?config=<KEY>, refreshed
+      // when the Format tab saves. Feeds the Check-In cart-assignment
+      // dropdown (needs Rental Carts + Member Carts JSON).
+      var _tcConfigCache = null;
+      function _tcRentalCount() { var n = Number((_tcConfigCache && _tcConfigCache["Rental Carts"]) || 0); return n > 0 ? n : 0; }
+      function _tcMemberCarts() {
+        try {
+          var raw = _tcConfigCache && _tcConfigCache["Member Carts JSON"];
+          var arr = JSON.parse(raw || "[]");
+          if (!Array.isArray(arr)) return [];
+          return arr.map(function (e) {
+            if (typeof e === "string") return { name: e };
+            return e || {};
+          }).filter(function (e) { return e.name; });
+        } catch (x) { return []; }
+      }
+      function ensureConfigCache(cb) {
+        if (_tcConfigCache) { if (cb) cb(_tcConfigCache); return; }
+        fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(KEY)))
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            _tcConfigCache = (j && j.record && j.record.fields) || {};
+            if (cb) cb(_tcConfigCache);
+            // Re-render check-in so the cart dropdowns pick up the config
+            // once it arrives (initial roster render fires before this GET).
+            if (window.__fhActive === "check" && typeof renderCheckin === "function") {
+              try { renderCheckin(scAllCache); } catch (e) {}
+            }
+          })
+          .catch(function () { _tcConfigCache = {}; if (cb) cb(_tcConfigCache); });
+      }
+      // Build the <option> list for one team's cart dropdown. Current
+      // assignment stays selected even if it no longer matches the pool
+      // (e.g., someone renamed a member cart after assignment).
+      function _cartOptionsFor(current) {
+        var opts = ['<option value="">— no cart</option>'];
+        var rentals = _tcRentalCount();
+        for (var i = 1; i <= rentals; i++) {
+          var label = "Rental " + i;
+          opts.push('<option value="' + esc(label) + '"' + (current === label ? " selected" : "") + '>' + esc(label) + "</option>");
+        }
+        var members = _tcMemberCarts();
+        if (members.length) {
+          opts.push('<option disabled>——— Member carts (trusted) ———</option>');
+          members.forEach(function (m) {
+            var label = "Borrowed: " + m.name;
+            var meta = [];
+            if (m.shed) meta.push("shed " + m.shed);
+            if (m.spot) meta.push("spot " + m.spot);
+            if (m.power) meta.push(m.power);
+            var tip = meta.join(" · ");
+            opts.push('<option value="' + esc(label) + '"' + (current === label ? " selected" : "") + (tip ? ' title="' + esc(tip) + '"' : "") + '>' + esc(label) + (tip ? " (" + esc(tip) + ")" : "") + "</option>");
+          });
+        }
+        // If the current stored value doesn't match any option (renamed
+        // member, changed rental count), preserve it as a selected
+        // fallback so we don't accidentally wipe the assignment on save.
+        var known = opts.some(function (o) { return o.indexOf('value="' + esc(current) + '"') !== -1; });
+        if (current && !known) {
+          opts.push('<option value="' + esc(current) + '" selected>' + esc(current) + " (stale)</option>");
+        }
+        return opts.join("");
+      }
 
       // ---- Scores — spreadsheet grid + CSV import ----
       var scRecs = [], scAllCache = [];
@@ -7926,6 +8025,7 @@
           if (s === "history") loadHistory();
           if (s === "recap") loadRecap();
           if (s === "format") loadFormat();
+          if (s === "check") ensureConfigCache();
           // Lazy-render the freshly-opened tab from the shared cache so
           // switching tabs shows current data without a network round-trip.
           // (Check-In already renders on every roster load — it's the
