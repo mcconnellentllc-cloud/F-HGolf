@@ -2268,3 +2268,12 @@ body.modal-open { overflow: hidden; }
 #twPairings.pr--single-day #prPrintTeeD2,
 #twPairings.pr--single-day #prPrintCardsAmD2,
 #twPairings.pr--single-day #prPrintCardsPmD2 { display: none !important; }
+
+/* Hero cart-demand summary — sits under the subtitle when Check-In has
+   real rental demand or borrowed member carts to plan. */
+.hero__cartdemand { margin: 0.3rem 0 0; font-size: 0.95rem; font-weight: 600; color: #f4e4b8; letter-spacing: 0.01em; }
+.hero__cartdemand b { color: #ffe28a; font-weight: 800; }
+
+/* Check-In Rentals-needed dropdown — reuse the pill look of Need Rental
+   but with a compact select control. */
+.ci-check--need select.ci-cart-need { padding: 0.2rem 0.35rem; border: 1px solid var(--line); border-radius: 5px; font: inherit; font-size: 0.82rem; background: #fff; }

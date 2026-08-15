@@ -54,6 +54,12 @@ module.exports = async (req, res) => {
   // Specific cart assignment (e.g. "Rental 3" or "Borrowed: Chris Fuesz").
   // Needs a "Cart Assignment" single-line text field. Empty string clears it.
   if (typeof body.cartAssignment === "string") fields["Cart Assignment"] = body.cartAssignment ? body.cartAssignment.slice(0, 120) : null;
+  // How many rental carts this team needs (0/1/2). Powers the workbook
+  // hero's cart-demand summary. Needs a "Rentals Needed" Number field.
+  if (body.rentalsNeeded !== undefined) {
+    if (body.rentalsNeeded === "" || body.rentalsNeeded === null) fields["Rentals Needed"] = 0;
+    else { const n = Number(body.rentalsNeeded); if (isFinite(n) && n >= 0 && n <= 4) fields["Rentals Needed"] = Math.floor(n); }
+  }
   // Per-player payment (Cash/Check/Card) — needs "Player 1 Paid" / "Player 2 Paid" fields.
   if (typeof body.player1Paid === "string") fields["Player 1 Paid"] = body.player1Paid ? body.player1Paid.slice(0, 20) : null;
   if (typeof body.player2Paid === "string") fields["Player 2 Paid"] = body.player2Paid ? body.player2Paid.slice(0, 20) : null;

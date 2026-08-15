@@ -43,6 +43,7 @@
         <p class="hero__kicker" id="twKicker">Tournament Workspace</p>
         <h1 class="hero__title" id="twName">Tournament</h1>
         <p class="hero__subtitle" id="twSub"></p>
+        <p class="hero__cartdemand" id="twCartDemand" hidden></p>
       </div>
     </div>
   </section>
@@ -1530,6 +1531,9 @@
                 try { _applyCheckinFeatureFlags(_tcConfigCache); } catch (e) {}
                 // Rounds may have flipped 1↔2 — refresh Day 2 UI visibility.
                 try { _applyPairingsMultiDay(_tcConfigCache); } catch (e) {}
+                // Rental Carts inventory may have changed — recompute the
+                // hero cart-demand summary.
+                try { _renderCartDemand(); } catch (e) {}
               }
               return;
             }
@@ -2223,9 +2227,15 @@
         var p1Name = (players[0] && players[0].name) || "P1";
         var p2Name = (players[1] && players[1].name) || "P2";
         var shortLabel = function (n) { n = String(n || "").trim().split(/\s+/); return n[0] || ""; };
-        var needRental = String(f["Cart Type"] || "").trim().toLowerCase() === "rental";
-        // Compact P1 / P2 labels so long partner names never bump Need rental
-        // onto its own line.
+        var teamSize = Math.max(1, Math.min(4, pp && pp.length ? pp.length : 2));
+        // "Rentals Needed" is the new numeric field (0/1/2). Legacy rows
+        // may only have the old "Cart Type"=Rental checkbox — those count
+        // as 1 until the operator edits the dropdown.
+        var storedRentals = f["Rentals Needed"];
+        var rentalsNeeded = (typeof storedRentals === "number")
+          ? Math.max(0, Math.floor(storedRentals))
+          : (String(f["Cart Type"] || "").trim().toLowerCase() === "rental" ? 1 : 0);
+        var maxRentals = Math.max(2, Math.ceil(teamSize / 2));
         // Cart line — one ½-share checkbox per player, plus a "Full" one-
         // player-pays-for-both toggle when the team is a pair.
         // 2-player teams: P1 ½ / P2 ½ / Full  (existing Founders shape).
@@ -2233,7 +2243,6 @@
         // 3+ riders "one player pays for the cart" doesn't map cleanly.
         // Billing math on the money tab sums whichever shares are set,
         // so 4 half-shares = 2 carts = 2 × cartFee.
-        var teamSize = Math.max(1, Math.min(4, pp && pp.length ? pp.length : 2));
         var cartHalfCells = ''
           + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p1"' + (p1Cart === 0.5 ? " checked" : "") + ' /><span>P1 ½ <small>' + money(cartFee / 2) + '</small></span></label>'
           + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p2"' + (p2Cart === 0.5 ? " checked" : "") + ' /><span>P2 ½ <small>' + money(cartFee / 2) + '</small></span></label>';
@@ -2246,11 +2255,15 @@
         var fullCell = teamSize <= 2
           ? '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-full"' + (p1Cart === 1 || p2Cart === 1 ? " checked" : "") + ' /><span>Full <small>' + money(cartFee) + '</small></span></label>'
           : '';
+        var rentalOpts = "";
+        for (var _r = 0; _r <= maxRentals; _r++) {
+          rentalOpts += '<option value="' + _r + '"' + (rentalsNeeded === _r ? " selected" : "") + '>' + (_r === 0 ? "no rental" : (_r + " rental" + (_r === 1 ? "" : "s"))) + "</option>";
+        }
         var cartLine = '<div class="ci-cartline">'
           + '<span class="ci-cartline__lbl">Cart</span>'
           + cartHalfCells
           + fullCell
-          + '<label class="ci-check ci-check--cart ci-check--need"><input type="checkbox" class="ci-cart-need"' + (needRental ? " checked" : "") + ' /><span>Need rental</span></label>'
+          + '<label class="ci-check ci-check--cart ci-check--need"><span>Rentals needed</span><select class="ci-cart-need">' + rentalOpts + '</select></label>'
           + '</div>';
         // Assignment dropdown — separate line so it doesn't crowd the
         // half/full/need row. Populated from Tournament Config: Rental N
@@ -2455,18 +2468,24 @@
             });
           });
 
-          // Need Rental checkbox — writes "Rental" or "" to Cart Type. Purely
-          // informational (course inventory planning); billing stays on ½/Full.
-          var needBox = card.querySelector(".ci-cart-need");
-          if (needBox) needBox.addEventListener("change", function () {
-            var v = needBox.checked ? "Rental" : "";
-            saveCheckin(id, { cartType: v }, statusEl, needBox);
+          // Rentals-needed dropdown — writes the count (0/1/2) to the new
+          // "Rentals Needed" numeric field AND keeps "Cart Type" in sync
+          // ("Rental" when >0, "" when 0) so any legacy code paths that
+          // still key off Cart Type keep working. Refreshes the hero
+          // cart-demand summary and the P&L sum.
+          var needSel = card.querySelector(".ci-cart-need");
+          if (needSel) needSel.addEventListener("change", function () {
+            var n = Math.max(0, Math.floor(Number(needSel.value) || 0));
+            var v = n > 0 ? "Rental" : "";
+            saveCheckin(id, { rentalsNeeded: n, cartType: v }, statusEl, needSel);
             for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
               scAllCache[i].fields = scAllCache[i].fields || {};
+              scAllCache[i].fields["Rentals Needed"] = n;
               scAllCache[i].fields["Cart Type"] = v;
               break;
             }
             try { renderPL(); } catch (e) {}
+            try { _renderCartDemand(); } catch (e) {}
           });
 
           // Cart assignment dropdown — pick a specific cart for this team.
@@ -3092,6 +3111,51 @@
         var mealsOn = !!(cfg && cfg["Extra Meals Enabled"]);
         sec.classList.toggle("ci--no-meals", !mealsOn);
       }
+      // Cart-demand summary in the hero. Sums "Rentals Needed" across the
+      // current tournament's live signups, compares against the course's
+      // Rental Carts inventory from Format, and lists any Borrowed member
+      // carts that have already been assigned on Check-In cards. Hidden
+      // when total demand is zero — quiet by default, only visible when
+      // the pro shop actually needs to plan carts.
+      function _renderCartDemand() {
+        var host = document.getElementById("twCartDemand"); if (!host) return;
+        var recs = (scAllCache || []).filter(function (r) {
+          var f = r.fields || {};
+          return f["Tournament"] === KEY && !f["Alternate"];
+        });
+        var total = 0;
+        var borrowed = {};
+        recs.forEach(function (r) {
+          var f = r.fields || {};
+          var n = typeof f["Rentals Needed"] === "number"
+            ? f["Rentals Needed"]
+            : (String(f["Cart Type"] || "").toLowerCase() === "rental" ? 1 : 0);
+          if (n > 0) total += n;
+          var assign = String(f["Cart Assignment"] || "").trim();
+          if (assign.toLowerCase().indexOf("borrowed:") === 0) {
+            var name = assign.slice("borrowed:".length).trim();
+            if (name) borrowed[name] = true;
+          }
+        });
+        if (!total && !Object.keys(borrowed).length) { host.hidden = true; host.textContent = ""; return; }
+        var inv = Number((_tcConfigCache && _tcConfigCache["Rental Carts"]) || 0);
+        var club = Math.min(total, inv > 0 ? inv : total);
+        var overflow = Math.max(0, total - club);
+        var borrowedNames = Object.keys(borrowed).sort();
+        var borrowedCount = borrowedNames.length;
+        var bits = [];
+        bits.push("Need <b>" + club + "</b> club cart" + (club === 1 ? "" : "s"));
+        if (overflow > 0 || borrowedCount > 0) {
+          var memCount = Math.max(borrowedCount, overflow);
+          bits.push("<b>" + memCount + "</b> member cart" + (memCount === 1 ? "" : "s"));
+        }
+        var text = bits.join(" + ");
+        if (borrowedNames.length) {
+          text += " (" + borrowedNames.join(", ") + ")";
+        }
+        host.innerHTML = "🛺 " + text;
+        host.hidden = false;
+      }
       // Multi-day flag: Format tab's Rounds field drives every Day-2 UI
       // element on the Pairings tab. Rounds === 2 → show Day 1/Day 2
       // tabs + Day 2 autofill + Day 2 print buttons. Anything else
@@ -3118,6 +3182,7 @@
             try { _rebuildWalkupInputs(_tcConfigCache["Players Per Team"]); } catch (e) {}
             try { _applyCheckinFeatureFlags(_tcConfigCache); } catch (e) {}
             try { _applyPairingsMultiDay(_tcConfigCache); } catch (e) {}
+            try { _renderCartDemand(); } catch (e) {}
             if (cb) cb(_tcConfigCache);
             // Re-render check-in so the cart dropdowns pick up the config
             // once it arrives (initial roster render fires before this GET).
@@ -3671,6 +3736,7 @@
       function renderSheetsForActive(all) {
         var s = window.__fhActive || "check";
         try { renderRoster(all); } catch (e) {}
+        try { _renderCartDemand(); } catch (e) {}
         try {
           if (s === "scores") renderScores(all);
           else if (s === "pairings") { try { _wirePrDayControls(); } catch (e) {} renderPairings(all); }
