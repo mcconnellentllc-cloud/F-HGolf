@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Live Scoring — F&amp;H Golf</title>
+  <meta name="theme-color" content="#17472A" />
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="apple-touch-icon" href="images/logo.png" />
+  <link rel="manifest" href="site.webmanifest" />
+  <style>
+    :root {
+      --paper: #f6f2e8;
+      --paper-2: #ede7d6;
+      --card: #ffffff;
+      --line: #d8d1bd;
+      --ink: #1b2618;
+      --ink-2: #3a4732;
+      --muted: #7a7663;
+      --green: #17472A;
+      --green-strong: #17472A;
+      --green-soft: #dfe7dc;
+      --brass: #a37f30;
+      --brass-soft: #f4e6c1;
+      --danger: #b11e2d;
+      --danger-soft: #f5d6d9;
+      --live: #d43a2d;
+      --you: #fff8e1;
+      --shadow: 0 1px 2px rgba(23,71,42,0.06), 0 4px 12px rgba(23,71,42,0.05);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --paper: #10160e;
+        --paper-2: #171e13;
+        --card: #1e2618;
+        --line: #2d3722;
+        --ink: #e9e3cd;
+        --ink-2: #c8c2a9;
+        --muted: #8f8a76;
+        --green: #7db997;
+        --green-strong: #7db997;
+        --green-soft: #223122;
+        --brass: #d0ac66;
+        --brass-soft: #3a2e18;
+        --danger: #ea919a;
+        --danger-soft: #3b1e21;
+        --live: #ef7069;
+        --you: #2f2a15;
+        --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 20px rgba(0,0,0,0.35);
+      }
+    }
+    :root[data-theme="dark"] {
+      --paper: #10160e;
+      --paper-2: #171e13;
+      --card: #1e2618;
+      --line: #2d3722;
+      --ink: #e9e3cd;
+      --ink-2: #c8c2a9;
+      --muted: #8f8a76;
+      --green: #7db997;
+      --green-strong: #7db997;
+      --green-soft: #223122;
+      --brass: #d0ac66;
+      --brass-soft: #3a2e18;
+      --danger: #ea919a;
+      --danger-soft: #3b1e21;
+      --live: #ef7069;
+      --you: #2f2a15;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 20px rgba(0,0,0,0.35);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    #app { max-width: 560px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; }
+
+    /* App header — F&H logo + tournament name */
+    .app-hd {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.85rem 1rem 0.75rem;
+      padding-top: calc(0.85rem + env(safe-area-inset-top));
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .app-logo { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: inset 0 0 0 1.5px var(--brass); }
+    .app-title { flex: 1; min-width: 0; }
+    .app-title .t { font: 500 0.98rem/1.15 Georgia, "Iowan Old Style", serif; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .app-title .sub { font: 400 0.75rem/1.3 system-ui, sans-serif; color: var(--muted); margin-top: 0.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .live {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--live);
+      white-space: nowrap;
+    }
+    .live::before {
+      content: ""; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--live);
+      box-shadow: 0 0 0 3px rgba(212,58,45,0.18);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    .live.saving::before { background: var(--brass); box-shadow: 0 0 0 3px rgba(163,127,48,0.2); }
+    .live.saved::before { background: var(--green-strong); box-shadow: 0 0 0 3px rgba(23,71,42,0.15); animation: none; }
+    .live.err::before { background: var(--danger); animation: none; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
+    @media (prefers-reduced-motion: reduce) { .live::before { animation: none; } }
+
+    /* Tabs */
+    .tabs {
+      display: grid; grid-template-columns: 1fr 1fr;
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+    }
+    .tab {
+      padding: 0.85rem 0.5rem;
+      font: 600 0.9rem/1 system-ui, sans-serif;
+      text-align: center;
+      color: var(--muted);
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      cursor: pointer;
+    }
+    .tab.on { color: var(--green); border-bottom-color: var(--green-strong); }
+
+    .body { flex: 1; padding: 0.95rem 0.95rem 1.5rem; }
+
+    /* Hole card */
+    .hole-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0.9rem 1rem 1rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 0.85rem;
+    }
+    .hole-nav {
+      display: grid; grid-template-columns: auto 1fr auto;
+      align-items: center; gap: 0.4rem;
+    }
+    .hole-arrow {
+      width: 42px; height: 42px; border-radius: 50%;
+      border: 1px solid var(--line); background: var(--card);
+      color: var(--ink);
+      display: grid; place-items: center;
+      font-size: 1.4rem; cursor: pointer;
+    }
+    .hole-arrow:disabled { opacity: 0.3; cursor: default; }
+    .hole-big { text-align: center; line-height: 1; }
+    .hole-big .lbl { font: 700 0.68rem/1 system-ui, sans-serif; letter-spacing: 0.16em; color: var(--muted); text-transform: uppercase; }
+    .hole-big .num { font: 400 3rem/1 Georgia, serif; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: 0.2rem; }
+    .hole-meta { text-align: center; margin-top: 0.45rem; font-size: 0.8rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+
+    /* Dots strip */
+    .dots-wrap { margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px dashed var(--line); }
+    .dots { display: grid; grid-template-columns: repeat(9, 1fr); gap: 0.25rem; }
+    .dot {
+      text-align: center;
+      padding: 0.3rem 0;
+      border-radius: 6px;
+      cursor: pointer; border: none; background: transparent;
+      font: 600 0.62rem/1 system-ui, sans-serif;
+      color: var(--muted);
+    }
+    .dot .n { display: block; font-size: 0.6rem; color: var(--muted); margin-bottom: 0.2rem; }
+    .dot .v { display: block; font: 500 0.95rem/1 Georgia, serif; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .dot.done { background: var(--green-soft); }
+    .dot.done .v { color: var(--green); }
+    .dot.now { background: var(--brass-soft); }
+    .dot.now .v { color: var(--brass); }
+    .dot.empty .v { color: var(--muted); opacity: 0.4; }
+
+    /* Team score row */
+    .team {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1rem 1rem 1.15rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 0.7rem;
+    }
+    .team-hd {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 0.5rem; margin-bottom: 0.7rem;
+    }
+    .team-nm { font: 600 0.98rem/1.15 system-ui, sans-serif; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .team-nm small { display: block; font: 400 0.72rem/1.3 system-ui, sans-serif; color: var(--muted); margin-top: 0.15rem; }
+    .team-row {
+      display: grid; grid-template-columns: 56px 1fr 56px;
+      align-items: center; gap: 0.7rem;
+    }
+    .sc-btn {
+      width: 56px; height: 56px; border-radius: 50%;
+      border: 1px solid var(--line); background: var(--card);
+      color: var(--ink); cursor: pointer;
+      font: 500 1.9rem/1 system-ui, sans-serif;
+      display: grid; place-items: center;
+      touch-action: manipulation;
+    }
+    .sc-btn:active { transform: scale(0.94); }
+    .sc-num {
+      text-align: center;
+      font: 400 3rem/1 Georgia, serif;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .sc-num.empty { color: var(--muted); opacity: 0.3; }
+    .sc-label {
+      text-align: center; margin-top: 0.3rem;
+      font: 700 0.7rem/1 system-ui, sans-serif;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      min-height: 0.8rem;
+    }
+    .sc-label.par { color: var(--muted); }
+    .sc-label.birdie, .sc-label.eagle { color: var(--green); }
+    .sc-label.bogey { color: var(--brass); }
+    .sc-label.dbl, .sc-label.trip { color: var(--danger); }
+
+    /* Totals */
+    .totals {
+      display: flex; gap: 0.6rem;
+      padding: 0.75rem 0.85rem;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--green-strong);
+      border-radius: 10px;
+      margin-top: 0.5rem;
+    }
+    .tot { flex: 1; text-align: center; }
+    .tot .k { font: 700 0.62rem/1 system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+    .tot .v { font: 500 1.2rem/1 Georgia, serif; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: 0.28rem; display: block; }
+    .tot.pos .v { color: var(--brass); }
+    .tot.neg .v { color: var(--green); }
+
+    /* Leaderboard */
+    .lb-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      padding: 0.15rem 0.15rem 0.6rem; gap: 0.5rem;
+    }
+    .lb-flight { font: 500 1.1rem/1.15 Georgia, serif; color: var(--ink); }
+    .lb-flight small { display: block; font: 400 0.72rem/1.3 system-ui, sans-serif; color: var(--muted); }
+    .lb-seg { display: inline-flex; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 2px; gap: 2px; }
+    .lb-seg button {
+      border: none; background: transparent;
+      padding: 0.32rem 0.6rem;
+      font: 600 0.75rem/1 system-ui, sans-serif;
+      color: var(--muted);
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .lb-seg button.on { background: var(--green-strong); color: var(--paper); }
+    .lb-list { background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+    .lb-row {
+      display: grid; grid-template-columns: 28px 1fr auto auto;
+      gap: 0.65rem; align-items: center;
+      padding: 0.7rem 0.8rem;
+      border-top: 1px solid var(--line);
+      font-size: 0.9rem;
+    }
+    .lb-row:first-child { border-top: none; }
+    .lb-row.you { background: var(--you); }
+    .lb-pos { font: 600 0.9rem/1 Georgia, serif; color: var(--muted); font-variant-numeric: tabular-nums; text-align: center; }
+    .lb-row.top .lb-pos { color: var(--brass); }
+    .lb-name { color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-name small { display: block; font: 400 0.72rem/1.3 system-ui, sans-serif; color: var(--muted); margin-top: 0.15rem; overflow: hidden; text-overflow: ellipsis; }
+    .lb-score {
+      font: 500 1.05rem/1 Georgia, serif;
+      font-variant-numeric: tabular-nums;
+      min-width: 2.6rem; text-align: right;
+      color: var(--ink);
+    }
+    .lb-score.under { color: var(--green); }
+    .lb-score.over { color: var(--brass); }
+    .lb-thru { font: 600 0.7rem/1 system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .lb-empty { padding: 1.4rem 1rem; text-align: center; color: var(--muted); font-size: 0.9rem; }
+
+    .footer-tip { margin-top: 1.2rem; padding: 0.75rem 0.9rem; background: var(--paper-2); border: 1px dashed var(--line); border-radius: 10px; font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+
+    /* Loading / error states */
+    .fill { flex: 1; display: grid; place-items: center; padding: 2rem 1.5rem; text-align: center; }
+    .fill h2 { font: 400 1.35rem/1.2 Georgia, serif; color: var(--ink); margin: 0 0 0.5rem; }
+    .fill p { color: var(--muted); margin: 0; max-width: 30ch; }
+
+    /* Day switcher (only when 2-round tournament) */
+    .day-switch { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; }
+    .day-btn {
+      flex: 1;
+      padding: 0.55rem 0.5rem;
+      font: 600 0.85rem/1 system-ui, sans-serif;
+      color: var(--muted);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .day-btn.on { background: var(--green-strong); color: var(--paper); border-color: var(--green-strong); }
+
+    :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="fill" id="loading">
+      <div>
+        <h2>Loading your scorecard…</h2>
+        <p>One moment.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    (function () {
+      "use strict";
+      var q = new URLSearchParams(location.search);
+      var TOKEN = q.get("t") || "";
+      var app = document.getElementById("app");
+
+      // Standard 9-hole par set for F&H. Server config can override in
+      // future via a pars array on the Tournament Config.
+      var PARS = [4, 3, 4, 4, 5, 4, 4, 3, 5];
+
+      var STATE = {
+        team: null,       // { id, teamName, partners, hole, ... }
+        tournament: "",
+        config: {},
+        field: [],
+        day: 1,           // 1 or 2
+        hole: 1,          // 1..9 — the hole currently displayed
+        scores: { 1: [], 2: [] },
+        tab: "score",     // "score" | "lb"
+        lbFilter: "mine", // "mine" | "all"
+        saveTimer: null,
+        savingCount: 0,
+      };
+
+      // Shotgun play order starting from H: [H, H+1, …, 9, 1, …, H-1]. Used to
+      // decide the "next hole" and to find the first blank in play order after
+      // a mid-round refresh so the captain always lands where they left off.
+      function playOrder(startHole) {
+        var start = (Number(startHole) >= 1 && Number(startHole) <= 9) ? Number(startHole) : 1;
+        var out = [];
+        for (var i = 0; i < 9; i++) out.push(((start - 1 + i) % 9) + 1);
+        return out;
+      }
+      function teamStartHole() {
+        return (STATE.team && Number(STATE.team.hole) >= 1 && Number(STATE.team.hole) <= 9)
+          ? Number(STATE.team.hole) : 1;
+      }
+
+      function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+      function showError(msg) {
+        app.innerHTML = '<div class="fill"><div><h2>' + esc(msg) + '</h2><p>Ask the pro shop for a fresh link — they can text a new one from the Check-In tab.</p></div></div>';
+      }
+
+      function load() {
+        if (!TOKEN) { showError("This page needs a scoring link."); return; }
+        fetch(FH_API.url("/api/tournament-signups?live=" + encodeURIComponent(TOKEN)), { cache: "no-store" })
+          .then(function (r) { return r.json().catch(function () { return { ok: false, error: "Bad response." }; }); })
+          .then(function (j) {
+            if (!j || !j.ok) { showError((j && j.error) || "Couldn't load your scorecard."); return; }
+            STATE.team = j.team;
+            STATE.tournament = j.tournament || "";
+            STATE.config = j.config || {};
+            STATE.field = j.field || [];
+            STATE.scores[1] = parseScores(j.team.day1);
+            STATE.scores[2] = parseScores(j.team.day2);
+            // If day 1 is done and day 2 has room, jump to day 2.
+            if (isDayFull(1) && !isDayFull(2) && (STATE.config.rounds || 1) >= 2) STATE.day = 2;
+            // Land on the first blank hole IN SHOTGUN ORDER so a captain
+            // starting on hole 5 opens straight to hole 5 (not 1), and a
+            // mid-round refresh drops them back at whichever hole they're
+            // playing next, not the front of the card.
+            STATE.hole = firstBlankInPlayOrder(STATE.day) || teamStartHole();
+            render();
+          })
+          .catch(function () { showError("Network error loading your scorecard."); });
+      }
+
+      function parseScores(raw) {
+        try {
+          var arr = JSON.parse(raw || "[]");
+          if (!Array.isArray(arr)) return new Array(9).fill(null);
+          // Pad/clip to 9. Legacy 18-hole arrays get truncated to the front
+          // nine — F&H is a 9-hole course.
+          var out = new Array(9).fill(null);
+          for (var i = 0; i < 9; i++) {
+            var n = Math.round(Number(arr[i]));
+            out[i] = (isFinite(n) && n >= 1 && n <= 40) ? n : null;
+          }
+          return out;
+        } catch (e) { return new Array(9).fill(null); }
+      }
+      function isDayFull(d) {
+        var s = STATE.scores[d] || [];
+        for (var i = 0; i < 9; i++) if (s[i] == null) return false;
+        return true;
+      }
+      function firstBlankHole(d) {
+        var s = STATE.scores[d] || [];
+        for (var i = 0; i < 9; i++) if (s[i] == null) return i + 1;
+        return 9;
+      }
+      function firstBlankInPlayOrder(d) {
+        var s = STATE.scores[d] || [];
+        var order = playOrder(teamStartHole());
+        for (var i = 0; i < order.length; i++) {
+          if (s[order[i] - 1] == null) return order[i];
+        }
+        return order[order.length - 1];
+      }
+      // Advance/retreat in shotgun order — H → H+1 → … → wrap.
+      function stepHole(dir) {
+        var order = playOrder(teamStartHole());
+        var idx = order.indexOf(STATE.hole);
+        if (idx < 0) idx = 0;
+        var next = idx + dir;
+        if (next < 0 || next >= order.length) return; // clamp at first/last in order
+        STATE.hole = order[next];
+      }
+      function holeStepIndex() {
+        var order = playOrder(teamStartHole());
+        var idx = order.indexOf(STATE.hole);
+        return idx < 0 ? 0 : idx;
+      }
+      function currentPar() { return PARS[STATE.hole - 1] || 4; }
+      function currentScore() { return STATE.scores[STATE.day][STATE.hole - 1]; }
+      function grossThru(d) {
+        var s = STATE.scores[d] || [], t = 0, has = 0;
+        for (var i = 0; i < 9; i++) if (s[i] != null) { t += s[i]; has++; }
+        return { total: t, holes: has };
+      }
+      function pplThru(d) {
+        var g = grossThru(d), par = 0;
+        for (var i = 0; i < g.holes; i++) par += PARS[i] || 4;
+        return g.total - par;
+      }
+      function labelForScore(v, par) {
+        if (v == null) return "";
+        var d = v - par;
+        if (v === 1) return "Ace";
+        if (d <= -2) return "Eagle";
+        if (d === -1) return "Birdie";
+        if (d === 0) return "Par";
+        if (d === 1) return "Bogey";
+        if (d === 2) return "Double";
+        if (d >= 3) return d + " over";
+        return "";
+      }
+      function labelClass(v, par) {
+        if (v == null) return "";
+        var d = v - par;
+        if (d < 0) return "birdie";
+        if (d === 0) return "par";
+        if (d === 1) return "bogey";
+        return "dbl";
+      }
+      function formatToPar(n) {
+        if (n === 0) return "E";
+        return n > 0 ? "+" + n : String(n);
+      }
+
+      function render() {
+        var t = STATE.team;
+        var tourn = STATE.config.name || STATE.tournament || "F&H Tournament";
+        var partners = (t.partners || "").split(/\s*\/\s*/).filter(Boolean);
+        var names = [t.teamName].concat(partners).filter(Boolean).join(" · ");
+        var multiDay = (STATE.config.rounds || 1) >= 2;
+
+        var html = ""
+          + '<header class="app-hd">'
+          +   '<img class="app-logo" src="images/logo.png" alt="F&amp;H" />'
+          +   '<div class="app-title">'
+          +     '<div class="t">' + esc(tourn) + '</div>'
+          +     '<div class="sub">' + esc(names || "Your team") + '</div>'
+          +   '</div>'
+          +   '<span class="live" id="liveDot" title="Live-syncing to the leaderboard">Live</span>'
+          + '</header>'
+          + '<div class="tabs" role="tablist">'
+          +   '<button class="tab ' + (STATE.tab === "score" ? "on" : "") + '" type="button" data-tab="score">Scorecard</button>'
+          +   '<button class="tab ' + (STATE.tab === "lb" ? "on" : "") + '" type="button" data-tab="lb">Leaderboard</button>'
+          + '</div>'
+          + '<main class="body">'
+          + (STATE.tab === "score" ? renderScorecard(multiDay) : renderLeaderboard())
+          + '</main>';
+        app.innerHTML = html;
+        wire();
+      }
+
+      function renderScorecard(multiDay) {
+        var scores = STATE.scores[STATE.day];
+        var par = currentPar();
+        var cur = currentScore();
+        var g = grossThru(STATE.day);
+        var toPar = pplThru(STATE.day);
+        var order = playOrder(teamStartHole());
+        var stepIdx = holeStepIndex();
+        // Dots strip walks the shotgun play order (start hole first) instead
+        // of always 1→9, so the captain reads their card left-to-right in
+        // the order they actually play. The number under each dot is still
+        // the real hole number.
+        var dots = "";
+        for (var i = 0; i < order.length; i++) {
+          var holeN = order[i];
+          var arrIdx = holeN - 1;
+          var cls = "empty";
+          if (scores[arrIdx] != null) cls = (holeN === STATE.hole) ? "now" : "done";
+          else if (holeN === STATE.hole) cls = "now";
+          dots += '<button type="button" class="dot ' + cls + '" data-jump="' + holeN + '"><span class="n">' + holeN + '</span><span class="v">' + (scores[arrIdx] == null ? "–" : scores[arrIdx]) + '</span></button>';
+        }
+        var lbl = labelForScore(cur, par);
+        var lblCls = labelClass(cur, par);
+        var startHole = teamStartHole();
+        var startBadge = (STATE.team && STATE.team.hole)
+          ? ('Started on Hole ' + startHole + (STATE.team.start ? (' · ' + esc(STATE.team.start)) : ''))
+          : 'No tee assigned yet';
+        return ''
+          + (multiDay ? renderDaySwitch() : "")
+          + '<div class="hole-card">'
+          +   '<div class="hole-nav">'
+          +     '<button class="hole-arrow" type="button" id="prevHole"' + (stepIdx === 0 ? " disabled" : "") + ' aria-label="Previous hole">&lsaquo;</button>'
+          +     '<div class="hole-big"><div class="lbl">Hole</div><div class="num">' + STATE.hole + '</div></div>'
+          +     '<button class="hole-arrow" type="button" id="nextHole"' + (stepIdx === order.length - 1 ? " disabled" : "") + ' aria-label="Next hole">&rsaquo;</button>'
+          +   '</div>'
+          +   '<div class="hole-meta">Par ' + par + ' &middot; ' + startBadge + '</div>'
+          +   '<div class="dots-wrap"><div class="dots">' + dots + '</div></div>'
+          + '</div>'
+          + '<div class="team">'
+          +   '<div class="team-hd">'
+          +     '<div class="team-nm">Team score<small>Tap +/– for this hole</small></div>'
+          +   '</div>'
+          +   '<div class="team-row">'
+          +     '<button class="sc-btn" type="button" id="scDown" aria-label="Decrease score">&minus;</button>'
+          +     '<div><div class="sc-num' + (cur == null ? " empty" : "") + '">' + (cur == null ? "–" : cur) + '</div><div class="sc-label ' + lblCls + '">' + lbl + '</div></div>'
+          +     '<button class="sc-btn" type="button" id="scUp" aria-label="Increase score">+</button>'
+          +   '</div>'
+          + '</div>'
+          + '<div class="totals">'
+          +   '<div class="tot"><span class="k">Thru</span><span class="v">' + g.holes + '</span></div>'
+          +   '<div class="tot"><span class="k">Gross</span><span class="v">' + (g.holes ? g.total : "–") + '</span></div>'
+          +   '<div class="tot ' + (toPar > 0 ? "pos" : toPar < 0 ? "neg" : "") + '"><span class="k">To par</span><span class="v">' + (g.holes ? formatToPar(toPar) : "–") + '</span></div>'
+          + '</div>'
+          + '<p class="footer-tip">Scores auto-save as you tap. A green dot means saved; a brass one means saving. If cell signal drops mid-round, your scores queue and post as soon as it&rsquo;s back.</p>';
+      }
+
+      function renderDaySwitch() {
+        return '<div class="day-switch">'
+          + '<button class="day-btn ' + (STATE.day === 1 ? "on" : "") + '" type="button" data-day="1">Day 1</button>'
+          + '<button class="day-btn ' + (STATE.day === 2 ? "on" : "") + '" type="button" data-day="2">Day 2</button>'
+          + '</div>';
+      }
+
+      function renderLeaderboard() {
+        // Build team-with-progress rows from the field, then rank by
+        // completed gross first, in-progress by to-par + holes.
+        var mineFlight = STATE.team.flight;
+        var rows = STATE.field.map(function (t) {
+          var s = parseScores(t.day1);
+          var g = 0, holes = 0;
+          for (var i = 0; i < 9; i++) if (s[i] != null) { g += s[i]; holes++; }
+          var par = 0; for (var j = 0; j < holes; j++) par += PARS[j] || 4;
+          return { id: t.id, name: t.teamName, partners: t.partners, flight: t.flight, gross: g, holes: holes, toPar: holes ? (g - par) : null };
+        });
+        var showFlight = (STATE.lbFilter === "mine" && mineFlight != null);
+        var visible = showFlight
+          ? rows.filter(function (r) { return r.flight === mineFlight; })
+          : rows;
+        // Rank: teams with any score first (ranked by toPar), untouched last.
+        visible.sort(function (a, b) {
+          if (a.holes && !b.holes) return -1;
+          if (!a.holes && b.holes) return 1;
+          if (!a.holes && !b.holes) return 0;
+          return a.toPar - b.toPar;
+        });
+        var body = "";
+        if (!visible.length) {
+          body = '<div class="lb-empty">No scores posted yet. Once teams start entering, they&rsquo;ll show up here.</div>';
+        } else {
+          body = visible.map(function (r, i) {
+            var rank = i + 1;
+            var isYou = r.id === STATE.team.id;
+            var isTop = rank <= 3;
+            var scoreClass = r.holes == null || r.holes === 0 ? "" : (r.toPar < 0 ? "under" : r.toPar > 0 ? "over" : "");
+            var scoreText = r.holes ? formatToPar(r.toPar) : "–";
+            var thru = r.holes ? ("Thru " + r.holes) : "Not started";
+            return '<div class="lb-row ' + (isYou ? "you " : "") + (isTop ? "top" : "") + '">'
+              + '<div class="lb-pos">' + rank + '</div>'
+              + '<div class="lb-name">' + esc(r.name || "Team") + (isYou ? " <small>You · " + esc(r.partners || "") + "</small>" : (r.partners ? "<small>" + esc(r.partners) + "</small>" : "")) + '</div>'
+              + '<div class="lb-score ' + scoreClass + '">' + scoreText + '</div>'
+              + '<div class="lb-thru">' + thru + '</div>'
+              + '</div>';
+          }).join("");
+        }
+        return ''
+          + '<div class="lb-head">'
+          +   '<div class="lb-flight">' + (showFlight ? ("Flight " + mineFlight) : "Whole field") + '<small>' + (showFlight ? "Your flight" : "All teams") + ' · updated just now</small></div>'
+          +   '<div class="lb-seg" role="tablist">'
+          +     '<button type="button" data-lb="all" class="' + (STATE.lbFilter === "all" ? "on" : "") + '">All</button>'
+          +     '<button type="button" data-lb="mine" class="' + (STATE.lbFilter === "mine" ? "on" : "") + '"' + (mineFlight == null ? " disabled" : "") + '>Mine</button>'
+          +   '</div>'
+          + '</div>'
+          + '<div class="lb-list">' + body + '</div>'
+          + '<p class="footer-tip">Ranks by day-one gross so far. Ties split by hole count. The staff-set flight cut on the workbook decides who&rsquo;s in your flight; your position moves as scores come in.</p>';
+      }
+
+      function setLive(kind) {
+        var el = document.getElementById("liveDot"); if (!el) return;
+        el.className = "live" + (kind ? " " + kind : "");
+        el.textContent = kind === "saving" ? "Saving" : kind === "saved" ? "Saved" : kind === "err" ? "Retry" : "Live";
+      }
+
+      function bumpScore(dir) {
+        var i = STATE.hole - 1;
+        var cur = STATE.scores[STATE.day][i];
+        var par = currentPar();
+        var next;
+        if (cur == null) next = par;                 // first tap = par
+        else next = Math.max(1, Math.min(15, cur + dir));
+        STATE.scores[STATE.day][i] = next;
+        render();
+        queueSave();
+      }
+      function setScoreFromKeypad(v) {
+        var i = STATE.hole - 1;
+        STATE.scores[STATE.day][i] = v;
+        render();
+        queueSave();
+      }
+
+      function queueSave() {
+        clearTimeout(STATE.saveTimer);
+        setLive("saving");
+        STATE.saveTimer = setTimeout(saveNow, 350);
+      }
+      function saveNow() {
+        var day = STATE.day;
+        // Server expects up to 18. We're a 9-hole course, so pad with nulls
+        // to keep the endpoint happy without pretending we played 18.
+        var scores = STATE.scores[day].slice();
+        while (scores.length < 18) scores.push(null);
+        STATE.savingCount++;
+        fetch(FH_API.url("/api/tournament-score"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: TOKEN, day: day, scores: scores }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            STATE.savingCount--;
+            if (!j || !j.ok) { setLive("err"); return; }
+            setLive("saved");
+            setTimeout(function () { if (!STATE.savingCount) setLive(""); }, 1200);
+          })
+          .catch(function () { STATE.savingCount--; setLive("err"); });
+      }
+
+      function wire() {
+        Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function (b) {
+          b.addEventListener("click", function () { STATE.tab = b.getAttribute("data-tab"); render(); });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll("[data-day]"), function (b) {
+          b.addEventListener("click", function () {
+            STATE.day = Number(b.getAttribute("data-day")) || 1;
+            STATE.hole = firstBlankHole(STATE.day) || 1;
+            render();
+          });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll("[data-jump]"), function (b) {
+          b.addEventListener("click", function () { STATE.hole = Number(b.getAttribute("data-jump")); render(); });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll("[data-lb]"), function (b) {
+          b.addEventListener("click", function () { STATE.lbFilter = b.getAttribute("data-lb"); render(); });
+        });
+        var prev = document.getElementById("prevHole");
+        if (prev) prev.addEventListener("click", function () { stepHole(-1); render(); });
+        var next = document.getElementById("nextHole");
+        if (next) next.addEventListener("click", function () { stepHole(1); render(); });
+        var down = document.getElementById("scDown");
+        if (down) down.addEventListener("click", function () { bumpScore(-1); });
+        var up = document.getElementById("scUp");
+        if (up) up.addEventListener("click", function () { bumpScore(1); });
+      }
+
+      // Refresh the leaderboard periodically (so other teams' scores show up
+      // without the captain needing to reload). Only when the leaderboard tab
+      // is open, to be gentle on battery + data.
+      setInterval(function () {
+        if (STATE.tab !== "lb" || !STATE.team) return;
+        fetch(FH_API.url("/api/tournament-signups?live=" + encodeURIComponent(TOKEN)), { cache: "no-store" })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) return;
+            STATE.field = j.field || [];
+            // Also refresh our own scores in case staff overrode from the workbook.
+            STATE.scores[1] = parseScores(j.team.day1);
+            STATE.scores[2] = parseScores(j.team.day2);
+            render();
+          })
+          .catch(function () {});
+      }, 20000);
+
+      load();
+    })();
+  </script>
+</body>
+</html>
