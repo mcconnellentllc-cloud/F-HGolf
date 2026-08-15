@@ -60,9 +60,13 @@ module.exports = async (req, res) => {
     if (body.rentalsNeeded === "" || body.rentalsNeeded === null) fields["Rentals Needed"] = 0;
     else { const n = Number(body.rentalsNeeded); if (isFinite(n) && n >= 0 && n <= 4) fields["Rentals Needed"] = Math.floor(n); }
   }
-  // Per-player payment (Cash/Check/Card) — needs "Player 1 Paid" / "Player 2 Paid" fields.
+  // Per-player payment (Cash/Check/Card) — needs "Player 1 Paid" / "Player 2 Paid" /
+  // "Player 3 Paid" / "Player 4 Paid" fields. p3/p4 are optional (4-player teams
+  // only); the auto-strip fallback drops missing columns quietly.
   if (typeof body.player1Paid === "string") fields["Player 1 Paid"] = body.player1Paid ? body.player1Paid.slice(0, 20) : null;
   if (typeof body.player2Paid === "string") fields["Player 2 Paid"] = body.player2Paid ? body.player2Paid.slice(0, 20) : null;
+  if (typeof body.player3Paid === "string") fields["Player 3 Paid"] = body.player3Paid ? body.player3Paid.slice(0, 20) : null;
+  if (typeof body.player4Paid === "string") fields["Player 4 Paid"] = body.player4Paid ? body.player4Paid.slice(0, 20) : null;
   // Inline rename from Check-In roster.
   // Extra meals — sold at check-in to guests/spouses so the kitchen can plan.
   if (body.extraMeals !== undefined && body.extraMeals !== null && body.extraMeals !== "") {
