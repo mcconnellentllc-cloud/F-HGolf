@@ -64,9 +64,12 @@ module.exports = async (req, res) => {
     if (!isNaN(em) && em >= 0) fields["Extra Meals"] = em;
   }
   // Per-player extras: cart share (0 / 0.5 / 1) + extra meal (bool).
-  ["p1CartShare", "p2CartShare"].forEach((k, i) => {
+  // p3 and p4 shares are optional — only 4-player tournaments (couples,
+  // adult+child) send them. The auto-strip fallback below quietly drops
+  // them if the base hasn't grown the Player 3/4 Cart Share columns yet.
+  ["p1CartShare", "p2CartShare", "p3CartShare", "p4CartShare"].forEach((k, i) => {
     if (body[k] === undefined) return;
-    const target = i === 0 ? "Player 1 Cart Share" : "Player 2 Cart Share";
+    const target = ["Player 1 Cart Share", "Player 2 Cart Share", "Player 3 Cart Share", "Player 4 Cart Share"][i];
     if (body[k] === "" || body[k] === null) { fields[target] = null; return; }
     const n = Number(body[k]);
     if (!isNaN(n) && n >= 0 && n <= 1) fields[target] = n;
