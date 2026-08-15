@@ -103,6 +103,27 @@
           </div>
           <p class="tm__intro">One card per tournament, grouped by year. Open a tournament to manage its roster, flights, scorecards &amp; leaderboard, and to email everyone signed up. Formats carry over year to year, so each event can be reused season after season.</p>
           <div id="tmYears"><p class="noms__msg">Loading tournaments…</p></div>
+
+          <!-- Course-wide cart pool. Lives on the tournaments page (not on
+               individual tournament workbooks) because the course only has
+               one physical set of rental carts and one shared list of
+               members who lend their carts. Each tournament workbook's
+               Check-In cart-assignment dropdown pulls from this pool. -->
+          <div class="courseCarts" id="courseCarts" aria-label="Course-wide cart pool">
+            <div class="noms__bar" style="margin-top:1.5rem;">
+              <h3 class="noms__title">Course carts <span class="noms__count" id="courseCartsStatus" role="status" aria-live="polite"></span></h3>
+              <button class="btn btn--primary" type="button" id="ccSave">Save carts</button>
+            </div>
+            <p class="tm__intro">The course's physical fleet + the members who lend a cart when the club rentals run out. Every tournament pulls from this list; edit here, not on the tournament workbook. Each cart card holds the shed / spot / power / special instructions so the pro shop can find it fast.</p>
+            <div class="fmt-grid">
+              <label class="fmt-row"><span>Rental carts on-site</span><input type="number" id="ccRentalCount" min="0" step="1" placeholder="12" /></label>
+            </div>
+            <p class="fmt-note" style="margin-top:0.75rem;">Member cart pool — folks who've offered to lend their cart once the on-site rentals run out. The Check-In cart-assignment dropdown on every tournament will list these entries after the rental threshold is hit.</p>
+            <div id="ccMemberList" class="fmt-cart-list" role="list"></div>
+            <div class="fmt-actions" style="justify-content:flex-start;">
+              <button type="button" class="btn btn--solid" id="ccAddCart">+ Add member cart</button>
+            </div>
+          </div>
         </section>
 
         <section class="noms scaffold" id="sec-fundraisers" aria-label="Fund raisers">
@@ -447,6 +468,107 @@
           .catch(function () { touList.innerHTML = '<p class="noms__msg">Network error loading sign-ups.</p>'; buildManager([]); });
       }
 
+      // ---- Course carts (shared across every tournament) --------------
+      // Stored server-side as a Tournament Config row named "__course__" so
+      // we can reuse the existing config-write endpoint. Every tournament
+      // workbook's Check-In cart dropdown reads from the same row.
+      var COURSE_CONFIG_KEY = "__course__";
+      function ccStatus(msg, kind) {
+        var s = document.getElementById("courseCartsStatus"); if (!s) return;
+        s.textContent = msg || "";
+        s.style.color = kind === "error" ? "var(--red-deep)" : kind === "ok" ? "var(--primary-green)" : "var(--muted)";
+      }
+      function ccBuildCartCard(c) {
+        c = c || {};
+        var card = document.createElement("div");
+        card.className = "fmt-cart";
+        card.setAttribute("role", "listitem");
+        card.innerHTML = ''
+          + '<div class="fmt-cart__grid">'
+          +   '<label class="fmt-row"><span>Member name</span><input type="text" data-k="name" maxlength="120" /></label>'
+          +   '<label class="fmt-row"><span>Shed #</span><input type="text" data-k="shed" maxlength="20" /></label>'
+          +   '<label class="fmt-row"><span>Spot #</span><input type="text" data-k="spot" maxlength="20" /></label>'
+          +   '<label class="fmt-row"><span>Power</span><select data-k="power"><option value="">—</option><option>Electric</option><option>Gas</option></select></label>'
+          + '</div>'
+          + '<label class="fmt-row"><span>Special instructions</span><textarea data-k="notes" rows="2" placeholder="Key in the console. Charger in the shed."></textarea></label>'
+          + '<div class="fmt-cart__ft"><button type="button" class="btn btn--solid fmt-cart__rm" title="Remove this member cart">Remove</button></div>';
+        var set = function (k, v) { var el = card.querySelector('[data-k="' + k + '"]'); if (el) el.value = v || ""; };
+        set("name", c.name); set("shed", c.shed); set("spot", c.spot); set("power", c.power); set("notes", c.notes);
+        card.querySelector(".fmt-cart__rm").addEventListener("click", function () {
+          if (card.parentNode) card.parentNode.removeChild(card);
+        });
+        return card;
+      }
+      function ccRenderCarts(carts) {
+        var list = document.getElementById("ccMemberList"); if (!list) return;
+        list.innerHTML = "";
+        (carts || []).forEach(function (c) { list.appendChild(ccBuildCartCard(c)); });
+      }
+      function ccCollectCarts() {
+        var list = document.getElementById("ccMemberList");
+        if (!list) return [];
+        var out = [];
+        Array.prototype.forEach.call(list.querySelectorAll(".fmt-cart"), function (card) {
+          var pick = function (k) { var el = card.querySelector('[data-k="' + k + '"]'); return el ? String(el.value || "").trim() : ""; };
+          var entry = { name: pick("name"), shed: pick("shed"), spot: pick("spot"), power: pick("power"), notes: pick("notes") };
+          // Drop entries where every field is blank — leftover from an
+          // accidental "+ Add" click.
+          if (entry.name || entry.shed || entry.spot || entry.power || entry.notes) out.push(entry);
+        });
+        return out;
+      }
+      function loadCourseCarts() {
+        var rc = document.getElementById("ccRentalCount"); if (!rc) return;
+        ccStatus("Loading…");
+        fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(COURSE_CONFIG_KEY)))
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var fields = (j && j.record && j.record.fields) || {};
+            rc.value = fields["Rental Carts"] != null ? String(fields["Rental Carts"]) : "";
+            var arr = [];
+            try { arr = JSON.parse(fields["Member Carts JSON"] || "[]"); if (!Array.isArray(arr)) arr = []; } catch (e) { arr = []; }
+            // Legacy string entries (from before the structured card) parse
+            // to {name, notes} so nobody loses data across the schema bump.
+            var carts = arr.map(function (entry) {
+              if (typeof entry === "string") {
+                var parts = entry.split(/\s+[—-]\s+/);
+                return { name: (parts[0] || "").trim(), shed: "", spot: "", power: "", notes: (parts.slice(1).join(" — ") || "").trim() };
+              }
+              entry = entry || {};
+              var pw = String(entry.power || "").toLowerCase();
+              return {
+                name: String(entry.name || "").trim(),
+                shed: String(entry.shed || "").trim(),
+                spot: String(entry.spot || "").trim(),
+                power: pw === "gas" ? "Gas" : (pw === "electric" ? "Electric" : ""),
+                notes: String(entry.notes || "").trim(),
+              };
+            });
+            ccRenderCarts(carts);
+            ccStatus(j && j.record ? "Loaded ✓" : "No course carts saved yet — add some below.", "ok");
+          })
+          .catch(function () { ccStatus("Couldn't load course carts.", "error"); });
+      }
+      function saveCourseCarts() {
+        var rc = document.getElementById("ccRentalCount"); if (!rc) return;
+        var payload = {};
+        var raw = String(rc.value || "").trim();
+        if (raw !== "") { var n = Number(raw); if (isFinite(n) && n >= 0) payload["Rental Carts"] = Math.floor(n); }
+        payload["Member Carts JSON"] = JSON.stringify(ccCollectCarts());
+        ccStatus("Saving…");
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "config-write", tournament: COURSE_CONFIG_KEY, fields: payload }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            if (res.j && res.j.ok) { ccStatus("Saved ✓ — every tournament will pick up the new pool.", "ok"); }
+            else { ccStatus((res.j && res.j.error) || "Save failed.", "error"); }
+          })
+          .catch(function () { ccStatus("Network error saving.", "error"); });
+      }
+
       // ---- Tournament Manager: one card per tournament, grouped by year ----
       var tmYears = document.getElementById("tmYears");
       var tmCount = document.getElementById("tmCount");
@@ -519,7 +641,7 @@
         gate.hidden = authed;
         panel.hidden = !authed;
         if (logout) logout.hidden = !authed;
-        if (authed) { buildManager([]); loadNominations(); loadTournaments(); }
+        if (authed) { buildManager([]); loadNominations(); loadTournaments(); loadCourseCarts(); }
       }
       show(_readAuth(FLAG) === "1");
 
@@ -539,6 +661,16 @@
       if (refresh) refresh.addEventListener("click", loadNominations);
       if (touRefresh) touRefresh.addEventListener("click", loadTournaments);
       if (tmRefresh) tmRefresh.addEventListener("click", loadTournaments);
+
+      var ccSave = document.getElementById("ccSave");
+      if (ccSave) ccSave.addEventListener("click", saveCourseCarts);
+      var ccAddCart = document.getElementById("ccAddCart");
+      if (ccAddCart) ccAddCart.addEventListener("click", function () {
+        var list = document.getElementById("ccMemberList"); if (!list) return;
+        var card = ccBuildCartCard({});
+        list.appendChild(card);
+        var firstInput = card.querySelector('[data-k="name"]'); if (firstInput) firstInput.focus();
+      });
 
       if (logout) logout.addEventListener("click", function (e) {
         e.preventDefault();

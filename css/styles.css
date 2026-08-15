@@ -2208,6 +2208,12 @@ body.modal-open { overflow: hidden; }
 .fmt-calcutta-toggle > span { text-transform: none; letter-spacing: 0; font-size: 0.9rem; font-weight: 600; color: var(--ink); }
 .fmt-calcutta-toggle select { flex: 1 1 auto; max-width: 26rem; }
 
+/* Course-wide cart pool on the Staff Portal (admin.html). Reuses the
+   .fmt-cart / .fmt-cart-list widgets from the tournament Format tab so
+   the two views look identical. */
+.courseCarts { margin-top: 1.6rem; padding-top: 1rem; border-top: 1px dashed var(--line); }
+.courseCarts .fmt-grid { max-width: 28rem; }
+
 /* Format tab — Member cart pool (repeating card widget). */
 .fmt-cart-list { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.4rem; }
 .fmt-cart { border: 1px solid var(--line); border-left: 3px solid var(--primary-green); border-radius: 8px; padding: 0.7rem 0.8rem 0.5rem; background: #fafaf7; }

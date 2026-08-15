@@ -513,7 +513,11 @@ module.exports = async (req, res) => {
         return res.status(502).json({ ok: false, error: "Could not load the config.", detail });
       }
       const data = await r.json();
-      const rows = (data.records || []).map((rec) => ({ id: rec.id, fields: rec.fields || {} }));
+      let rows = (data.records || []).map((rec) => ({ id: rec.id, fields: rec.fields || {} }));
+      // Course-wide settings live in a "__course__" sentinel row (edited
+      // from the Staff Portal's Tournaments page). Hide it from the
+      // config=all listing so it never shows up as a phantom tournament.
+      if (wantAll) rows = rows.filter((r) => (r.fields && r.fields.Tournament) !== "__course__");
       if (wantAll) return res.status(200).json({ ok: true, count: rows.length, records: rows });
       return res.status(200).json({ ok: true, record: rows[0] || null });
     } catch (e) {
