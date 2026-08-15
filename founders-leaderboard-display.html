@@ -113,8 +113,8 @@
       <img class="disp__logo" src="images/logo.png" alt="F&H Golf Course" />
       <div class="disp__hero__title">
         <div class="disp__eyebrow">Live Leaderboard</div>
-        <h1 class="disp__title">2026 Founders</h1>
-        <p class="disp__sub">F&amp;H Golf Course · Aug 8&ndash;9</p>
+        <h1 class="disp__title" id="dispTitle">2026 Founders</h1>
+        <p class="disp__sub" id="dispSub">F&amp;H Golf Course · Aug 8&ndash;9</p>
       </div>
       <img class="disp__logo disp__logo--r" src="images/logo.png" alt="" aria-hidden="true" />
       <button class="disp__qrbtn" type="button" id="qrShowBtn">Show QR</button>
@@ -205,7 +205,35 @@
     })();
 
     (function () {
-      var KEY = "Founder's Tournament (Aug 8–9)";
+      // Which tournament to show. Defaults to the Founders (page originally
+      // built for it), but accepts ?t=<name> so the same page powers every
+      // tournament's public leaderboard — the workbook's Leaderboard Disp
+      // tab always appends the current tournament to the URL.
+      var _tParam = "";
+      try { _tParam = (new URLSearchParams(location.search)).get("t") || ""; } catch (e) {}
+      var KEY = _tParam || "Founder's Tournament (Aug 8–9)";
+      // Two-day flag drives the D2 column visibility. Defaults to true so
+      // the Founders (page's original tournament) keeps its Day 1 / Day 2
+      // columns even if config fetch fails. Refreshed on tournament-config
+      // load below.
+      var IS_TWO_DAY = true;
+      // Fetch the tournament's Format config once so the h1 + Day 2 column
+      // reflect what Format tab said (Display Name + Rounds).
+      (function loadTournamentConfig() {
+        fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(KEY)), { cache: "no-store" })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var f = (j && j.record && j.record.fields) || {};
+            var name = String(f["Name"] || "").trim();
+            var rounds = Number(f["Rounds"] || 0);
+            if (name) {
+              var t = document.getElementById("dispTitle"); if (t) t.textContent = name;
+              document.title = name + " — Live Leaderboard";
+            }
+            if (rounds) IS_TWO_DAY = rounds >= 2;
+          })
+          .catch(function () {});
+      })();
       // Flight labels grow past the fixed four if staff cut more on the Calc tab.
       function flightName(n) {
         var names = ["Champ", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh"];
@@ -289,11 +317,11 @@
           var teamCards = recs.map(function (r) {
             var f = r.fields || {};
             var tn = teamNumbers[r.id];
-            return '<tr><td class="lbd__place"></td><td class="lbd__team">' + esc(teamShortNames(f)) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+            return '<tr><td class="lbd__place"></td><td class="lbd__team">' + esc(teamShortNames(f)) + '</td><td>&mdash;</td>' + (IS_TWO_DAY ? '<td>&mdash;</td>' : '') + '<td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
           }).join("");
           body.innerHTML = '<div class="lbd">'
             + '<div class="lbd__hdr"><h2 class="lbd__name">Field</h2><span class="lbd__meta">' + recs.length + ' teams · tournament begins Day 1</span></div>'
-            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
             + teamCards + '</tbody></table></div>';
           return;
         }
@@ -302,7 +330,11 @@
           var rows = arr.map(function (r) {
             var f = r.fields || {};
             var d1 = d1g(r), d2 = d2g(r);
-            var gross = (d1 != null && d2 != null) ? (d1 + d2) : null;
+            // Single-round tournaments only play Day 1; gross = D1 as soon
+            // as Day 1 is complete. Two-round events wait for both days.
+            var gross = IS_TWO_DAY
+              ? ((d1 != null && d2 != null) ? (d1 + d2) : null)
+              : d1;
             return {
               id: r.id, name: teamShortNames(f),
               tnum: teamNumbers[r.id] || null,
@@ -351,11 +383,15 @@
               chips.push('<span class="lbd__flag lbd__flag--calc">' + (netTies > 1 ? 'T' : '') + ordinal(row.netPlace) + ' Calcutta</span>');
             }
             var placeCell = chips.length ? '<span class="lbd__place-stack">' + chips.join('') + '</span>' : '';
+            // On a 1-round tournament, the "Gross" column IS the day-1 gross
+            // so the D2 cell + the redundant "d1" cell would just clutter
+            // the row. Drop D2 (and rely on Gross = D1 for the single-round
+            // case).
             return '<tr>'
               + '<td class="lbd__place">' + placeCell + '</td>'
               + '<td class="lbd__team">' + esc(row.name) + '</td>'
               + '<td>' + (row.d1 == null ? '&mdash;' : row.d1) + '</td>'
-              + '<td>' + (row.d2 == null ? '&mdash;' : row.d2) + '</td>'
+              + (IS_TWO_DAY ? '<td>' + (row.d2 == null ? '&mdash;' : row.d2) + '</td>' : '')
               + '<td><b>' + (row.gross == null ? '&mdash;' : row.gross) + '</b></td>'
               + '<td>' + (row.hcp == null ? '&mdash;' : row.hcp) + '</td>'
               + '<td><b>' + (row.net == null ? '&mdash;' : row.net) + '</b></td>'
@@ -365,7 +401,7 @@
           if (fl.leader != null) metaBits.push('leader ' + fl.leader);
           return '<div class="lbd">'
             + '<div class="lbd__hdr"><h2 class="lbd__name">' + esc(fl.name) + ' Flight</h2><span class="lbd__meta">' + metaBits.join(' · ') + '</span></div>'
-            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
             + trs + '</tbody></table></div>';
         }).join("");
 
@@ -376,10 +412,10 @@
           var utrs = una.map(function (r) {
             var f = r.fields || {};
             var tn = teamNumbers[r.id];
-            return '<tr><td class="lbd__place"></td><td class="lbd__team">' + esc(teamShortNames(f)) + '</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+            return '<tr><td class="lbd__place"></td><td class="lbd__team">' + esc(teamShortNames(f)) + '</td><td>&mdash;</td>' + (IS_TWO_DAY ? '<td>&mdash;</td>' : '') + '<td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
           }).join("");
           html += '<div class="lbd"><div class="lbd__hdr"><h2 class="lbd__name">Unassigned</h2><span class="lbd__meta">' + una.length + ' teams · flights not cut yet</span></div>'
-            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th><th>D2</th><th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
             + utrs + '</tbody></table></div>';
         }
 
