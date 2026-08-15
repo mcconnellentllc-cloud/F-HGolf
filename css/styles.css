@@ -2251,3 +2251,11 @@ body.modal-open { overflow: hidden; }
 .ci-merge-preview__list li { padding: 0.25rem 0.55rem; background: #fafaf3; border: 1px solid var(--line); border-radius: 6px; font-size: 0.88rem; font-weight: 600; }
 .ci__merge { padding: 0.25rem 0.55rem; font-size: 0.82rem; background: #fff; border: 1px solid var(--primary-green); color: var(--primary-green); border-radius: 6px; cursor: pointer; }
 .ci__merge:hover { background: var(--primary-green); color: #fff; }
+
+/* Check-In: hide per-player Meals input + extra-meals summary bits when
+   Format's "Extra Meals Enabled" checkbox is off. Toggled by a
+   container class on the check-in sheet, not per-card, so the render
+   path stays identical. */
+.wb-sheet[data-sheet="check"].ci--no-meals .ci-meal { display: none; }
+.wb-sheet[data-sheet="check"].ci--no-meals .ci-extra-meals-line,
+.wb-sheet[data-sheet="check"].ci--no-meals .ci-cartline--meal { display: none; }

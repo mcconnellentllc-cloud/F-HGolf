@@ -43,6 +43,10 @@
 //   Team Cap          (Number, integer; 0 = unlimited)
 //   Alternates Allowed (Checkbox)
 //   Calcutta Enabled  (Checkbox)
+//   Extra Meals Enabled (Checkbox)         – off by default; when on
+//                                            the Check-In team cards
+//                                            show per-player "Meals"
+//                                            inputs (Founders only).
 //   Flights           (Number, integer 0-6)
 //   Start Type        (Single select)        – Shotgun / Tee time
 //   Waves JSON        (Long text)            – e.g. [{"label":"AM","time":"8:00"}]
