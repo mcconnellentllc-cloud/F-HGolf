@@ -2284,6 +2284,12 @@ body.modal-open { overflow: hidden; }
 #twPairings.pr--single-day #prPrintCardsAmD2,
 #twPairings.pr--single-day #prPrintCardsPmD2 { display: none !important; }
 
+/* Single-wave tournaments (1 shotgun, everyone at once) — the AM/PM print
+   dropdown has no meaning, so hide it. _syncPrCardsButtons also hides
+   the PM score-card buttons and relabels the AM one to plain
+   "Print Score Cards". */
+#twPairings.pr--single-wave #prPrintWhich { display: none !important; }
+
 /* Hero cart-demand summary — sits under the subtitle when Check-In has
    real rental demand or borrowed member carts to plan. */
 .hero__cartdemand { margin: 0.3rem 0 0; font-size: 0.95rem; font-weight: 600; color: #f4e4b8; letter-spacing: 0.01em; }
