@@ -927,6 +927,17 @@
         if (META && META.cap) bits.push(META.cap + " " + (META.unit || "spots") + " max");
         document.getElementById("twSub").textContent = bits.join(" · ");
       }
+      // Once the Tournament Config row loads (or the operator saves a new
+      // Display Name on the Format tab), swap the hero title to that name
+      // instead of the KEY-derived fallback. Falls back to the KEY when the
+      // Name field is blank so brand-new tournaments still show something.
+      function _applyHeroFromConfig(cfg) {
+        var el = document.getElementById("twName"); if (!el) return;
+        var name = String((cfg && cfg["Name"]) || "").trim();
+        if (name) { el.textContent = name; document.title = name + " · F&H Golf Course"; return; }
+        var info = splitName(KEY);
+        el.textContent = info.name || "Tournament";
+      }
 
       function actions(records) {
         var box = document.getElementById("twActions");
@@ -1478,6 +1489,9 @@
                 // dropdown picks up rental-count / member-cart edits
                 // without waiting for a full page reload.
                 _tcConfigCache = res.j.fields;
+                // Re-sync the hero title so a Display Name edit shows
+                // immediately (no need to hit Reload).
+                try { _applyHeroFromConfig(_tcConfigCache); } catch (e) {}
               }
               return;
             }
@@ -3007,6 +3021,7 @@
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
             _tcConfigCache = (j && j.record && j.record.fields) || {};
+            try { _applyHeroFromConfig(_tcConfigCache); } catch (e) {}
             if (cb) cb(_tcConfigCache);
             // Re-render check-in so the cart dropdowns pick up the config
             // once it arrives (initial roster render fires before this GET).
@@ -8011,6 +8026,10 @@
         header();
         if (!authed()) { gate.hidden = false; panel.hidden = true; return; }
         gate.hidden = true; panel.hidden = false;
+        // Kick off the Tournament Config fetch immediately so the hero
+        // title reflects the operator's Display Name on load, not just
+        // after the first tab switch to Check-In.
+        try { ensureConfigCache(); } catch (e) {}
 
         // Workbook tabs — show one sheet at a time.
         function showSheet(s) {
