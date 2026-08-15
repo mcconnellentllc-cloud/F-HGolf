@@ -51,6 +51,13 @@
 //   Highlights        (Long text)            – JSON array of short advertising
 //                                              strings for the public card,
 //                                              e.g. ["Lunch Included","Trophies awarded"]
+//   Rental Carts      (Number)               – how many carts the course owns,
+//                                              default 12. Cart dropdown on
+//                                              Check-In uses this as the
+//                                              rental-vs-borrowed threshold.
+//   Member Carts JSON (Long text)            – JSON array of freeform strings,
+//                                              one member cart per entry,
+//                                              e.g. ["Chris Fuesz — navy Yamaha"]
 //   Registration Cost (Currency or Number)  – per TEAM
 //   Cart Cost         (Currency or Number)  – per ROUND
 //   Card Fee Pct      (Number)               – default 4
