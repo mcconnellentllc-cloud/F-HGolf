@@ -2259,3 +2259,12 @@ body.modal-open { overflow: hidden; }
 .wb-sheet[data-sheet="check"].ci--no-meals .ci-meal { display: none; }
 .wb-sheet[data-sheet="check"].ci--no-meals .ci-extra-meals-line,
 .wb-sheet[data-sheet="check"].ci--no-meals .ci-cartline--meal { display: none; }
+
+/* Pairings single-day mode: driven by Format's Rounds field. Hide every
+   Day 2 control so operators of one-day tournaments never see a Day 2
+   tab, autofill, or print button they'd have to ignore. */
+#twPairings.pr--single-day .pr-day-tabs { display: none; }
+#twPairings.pr--single-day #prAutofillD2,
+#twPairings.pr--single-day #prPrintTeeD2,
+#twPairings.pr--single-day #prPrintCardsAmD2,
+#twPairings.pr--single-day #prPrintCardsPmD2 { display: none !important; }

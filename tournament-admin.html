@@ -1526,6 +1526,8 @@
                 try { _rebuildWalkupInputs(_tcConfigCache["Players Per Team"]); } catch (e) {}
                 // Reapply check-in feature flags (Extra Meals visibility).
                 try { _applyCheckinFeatureFlags(_tcConfigCache); } catch (e) {}
+                // Rounds may have flipped 1↔2 — refresh Day 2 UI visibility.
+                try { _applyPairingsMultiDay(_tcConfigCache); } catch (e) {}
               }
               return;
             }
@@ -3060,6 +3062,22 @@
         var mealsOn = !!(cfg && cfg["Extra Meals Enabled"]);
         sec.classList.toggle("ci--no-meals", !mealsOn);
       }
+      // Multi-day flag: Format tab's Rounds field drives every Day-2 UI
+      // element on the Pairings tab. Rounds === 2 → show Day 1/Day 2
+      // tabs + Day 2 autofill + Day 2 print buttons. Anything else
+      // (Rounds unset, 1, blank) hides those and pins PR_DAY to "d1"
+      // so Founders stays the only tournament with a Day 2 flow.
+      function _applyPairingsMultiDay(cfg) {
+        var rounds = Number((cfg && cfg["Rounds"]) || 1);
+        var isTwoDay = rounds >= 2;
+        var pair = document.getElementById("twPairings"); if (!pair) return;
+        pair.classList.toggle("pr--single-day", !isTwoDay);
+        if (!isTwoDay && PR_DAY !== "d1") {
+          PR_DAY = "d1";
+          try { localStorage.setItem("fh:prDay:" + KEY, PR_DAY); } catch (e) {}
+        }
+        try { _syncPrCardsButtons(); } catch (e) {}
+      }
       function ensureConfigCache(cb) {
         if (_tcConfigCache) { if (cb) cb(_tcConfigCache); return; }
         fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(KEY)))
@@ -3069,6 +3087,7 @@
             try { _applyHeroFromConfig(_tcConfigCache); } catch (e) {}
             try { _rebuildWalkupInputs(_tcConfigCache["Players Per Team"]); } catch (e) {}
             try { _applyCheckinFeatureFlags(_tcConfigCache); } catch (e) {}
+            try { _applyPairingsMultiDay(_tcConfigCache); } catch (e) {}
             if (cb) cb(_tcConfigCache);
             // Re-render check-in so the cart dropdowns pick up the config
             // once it arrives (initial roster render fires before this GET).
@@ -4374,6 +4393,22 @@
             var cfg = loadSlotCfg(w);
             var oldState = cfg[h] || "off";
             var newState = cycleState(oldState);
+            // Guard: never unplace a placed A-slot team via the cycle
+            // button. A teams are the anchor of the tee — accidental
+            // taps that wipe them (and then require re-placement) were
+            // the top pairings-page complaint. If the natural next state
+            // would evict a placed A team, reroute the cycle:
+            //   AB → off  becomes  AB → A   (drop B team only, keep A)
+            //   A  → off  becomes  A  → AB  (skip off, re-add B slot)
+            // Dropping a B team on AB → A is still allowed — user
+            // explicitly said "unplacing the B team is fine".
+            var _aTeamHere = (prRecs || []).some(function (r) {
+              var f = r.fields || {};
+              return String(f.Start || "") === w && Number(f.Hole) === h && String(f.Slot || "").toUpperCase() === "A";
+            });
+            if (_aTeamHere && newState === "off") {
+              newState = oldState === "AB" ? "A" : "AB";
+            }
             // Snapshot BEFORE the cycle: was the wave in "initial setup" mode
             // (no teams placed anywhere)? Once the operator has placed even
             // one team, cycling a hole is a manual configuration change and
