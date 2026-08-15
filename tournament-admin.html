@@ -213,9 +213,12 @@
 
           <details class="checkin-add">
             <summary>+ Add a walk-up team</summary>
-            <div class="checkin-add__row">
-              <input type="text" id="waName" maxlength="120" placeholder="Player 1 name" />
-              <input type="text" id="waPartner" maxlength="120" placeholder="Partner name" />
+            <div class="checkin-add__row" id="waRow">
+              <!-- Inputs are rebuilt from the Format tab's Players Per Team
+                   setting so a couples scramble gets 4 name fields, a solo
+                   stroke event gets 1. Defaults to 2 until config loads. -->
+              <input type="text" class="wa-player" data-idx="1" maxlength="120" placeholder="Player 1 name" />
+              <input type="text" class="wa-player" data-idx="2" maxlength="120" placeholder="Player 2 name" />
               <input type="tel" id="waPhone" maxlength="60" placeholder="Phone (optional)" />
               <button class="btn btn--primary" type="button" id="waAdd">Add team</button>
             </div>
@@ -1492,6 +1495,8 @@
                 // Re-sync the hero title so a Display Name edit shows
                 // immediately (no need to hit Reload).
                 try { _applyHeroFromConfig(_tcConfigCache); } catch (e) {}
+                // If Players Per Team changed, rebuild the walk-up form.
+                try { _rebuildWalkupInputs(_tcConfigCache["Players Per Team"]); } catch (e) {}
               }
               return;
             }
@@ -3022,6 +3027,7 @@
           .then(function (j) {
             _tcConfigCache = (j && j.record && j.record.fields) || {};
             try { _applyHeroFromConfig(_tcConfigCache); } catch (e) {}
+            try { _rebuildWalkupInputs(_tcConfigCache["Players Per Team"]); } catch (e) {}
             if (cb) cb(_tcConfigCache);
             // Re-render check-in so the cart dropdowns pick up the config
             // once it arrives (initial roster render fires before this GET).
@@ -3602,22 +3608,65 @@
           .catch(function () { if (btn) btn.disabled = false; if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
       }
 
+      // Rebuild the walk-up name inputs to match Format's Players Per Team.
+      // Called after Tournament Config loads and again after any Format save.
+      // Preserves values already typed in fields that carry over.
+      function _rebuildWalkupInputs(count) {
+        var row = document.getElementById("waRow"); if (!row) return;
+        var n = Math.max(1, Math.min(4, Number(count) || 2));
+        // Preserve any names already typed so a mid-input config change
+        // doesn't wipe the operator's work.
+        var existing = {};
+        Array.prototype.forEach.call(row.querySelectorAll(".wa-player"), function (el) {
+          existing[el.getAttribute("data-idx")] = el.value || "";
+        });
+        var phoneVal = "";
+        var phoneEl = row.querySelector("#waPhone"); if (phoneEl) phoneVal = phoneEl.value || "";
+        var html = "";
+        for (var i = 1; i <= n; i++) {
+          var v = esc(existing[String(i)] || "");
+          html += '<input type="text" class="wa-player" data-idx="' + i + '" maxlength="120" placeholder="Player ' + i + ' name" value="' + v + '" />';
+        }
+        html += '<input type="tel" id="waPhone" maxlength="60" placeholder="Phone (optional)" value="' + esc(phoneVal) + '" />';
+        html += '<button class="btn btn--primary" type="button" id="waAdd">Add team</button>';
+        row.innerHTML = html;
+        // Re-attach the click handler since we replaced the button.
+        var add = document.getElementById("waAdd"); if (add) add.addEventListener("click", addWalkup);
+      }
       function addWalkup() {
-        var name = document.getElementById("waName"), partner = document.getElementById("waPartner"),
-            phone = document.getElementById("waPhone"), msg = document.getElementById("waMsg"), btn = document.getElementById("waAdd");
-        if (!name.value.trim()) { msg.textContent = "Enter at least a name."; return; }
-        msg.textContent = "Adding…"; btn.disabled = true;
-        var data = { tournament: KEY, name: name.value.trim(), team: partner.value.trim(), phone: phone.value.trim() };
+        var row = document.getElementById("waRow"); if (!row) return;
+        var players = Array.prototype.map.call(row.querySelectorAll(".wa-player"), function (el) { return String(el.value || "").trim(); });
+        var msg = document.getElementById("waMsg");
+        var btn = document.getElementById("waAdd");
+        var phoneEl = document.getElementById("waPhone");
+        var phone = phoneEl ? phoneEl.value.trim() : "";
+        var firstName = players[0] || "";
+        if (!firstName) { if (msg) msg.textContent = "Enter at least Player 1's name."; return; }
+        // Player 1 → name; remaining non-blank players → "Team / Partners"
+        // joined with " / " (matches how existing Founders records are
+        // stored and how downstream tabs split partners out).
+        var partners = players.slice(1).filter(Boolean);
+        var teamStr = partners.join(" / ");
+        if (msg) msg.textContent = "Adding…";
+        if (btn) btn.disabled = true;
+        var data = { tournament: KEY, name: firstName, team: teamStr, phone: phone };
         fetch(FH_API.url("/api/tournament-signup"), {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
         })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
-            btn.disabled = false;
-            if (j && j.ok) { name.value = ""; partner.value = ""; phone.value = ""; msg.textContent = "Added ✓"; loadRoster(); }
-            else { msg.textContent = (j && j.error) || "Couldn't add team."; }
+            if (btn) btn.disabled = false;
+            if (j && j.ok) {
+              Array.prototype.forEach.call(row.querySelectorAll(".wa-player"), function (el) { el.value = ""; });
+              if (phoneEl) phoneEl.value = "";
+              if (msg) msg.textContent = "Added ✓";
+              loadRoster();
+              // Return focus to Player 1 so the operator can immediately
+              // add another walk-up team without hunting for the input.
+              var first = row.querySelector('.wa-player[data-idx="1"]'); if (first) first.focus();
+            } else { if (msg) msg.textContent = (j && j.error) || "Couldn't add team."; }
           })
-          .catch(function () { btn.disabled = false; msg.textContent = "Network error."; });
+          .catch(function () { if (btn) btn.disabled = false; if (msg) msg.textContent = "Network error."; });
       }
 
       // ---- Pairings: tee sheet (A/B slots per hole, autofill, drag-and-drop) ----
@@ -8199,17 +8248,21 @@
           var d = document.querySelector(".checkin-add"); if (!d) return;
           d.open = true;
           try { d.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) { d.scrollIntoView(); }
-          var name = document.getElementById("waName"); if (name) setTimeout(function () { try { name.focus({ preventScroll: true }); } catch (e) { name.focus(); } }, 200);
+          var row = document.getElementById("waRow");
+          var name = row && row.querySelector('.wa-player[data-idx="1"]');
+          if (name) setTimeout(function () { try { name.focus({ preventScroll: true }); } catch (e) { name.focus(); } }, 200);
         });
         // Enter in any walk-up field submits the row (and cancels the
         // browser default, which was blanking the tab as if the page had
-        // form-submitted).
-        ["waName", "waPartner", "waPhone"].forEach(function (id) {
-          var el = document.getElementById(id);
-          if (!el) return;
-          el.addEventListener("keydown", function (e) {
-            if (e.key === "Enter") { e.preventDefault(); addWalkup(); }
-          });
+        // form-submitted). Delegated on the row so dynamically-added
+        // inputs from _rebuildWalkupInputs are covered too.
+        var waRow = document.getElementById("waRow");
+        if (waRow) waRow.addEventListener("keydown", function (e) {
+          if (e.key !== "Enter") return;
+          var t = e.target;
+          if (!t || (t.tagName !== "INPUT" && t.tagName !== "SELECT")) return;
+          e.preventDefault();
+          addWalkup();
         });
         var er = document.getElementById("expRefresh");
         if (er) er.addEventListener("click", loadExpenses);
