@@ -3868,33 +3868,29 @@
               // Keep the shared record cache fresh so lazy renders on tab
               // switch have current data.
               scAllCache = res.j.records || [];
-              // Stripped-payload guard. Server returns { sold: bool } on
-              // each record instead of Buyer/Buy Amount when the admin key
-              // is missing or the server considers it invalid.
-              //   • No stored key → clearly signed out; open the gate.
-              //   • Key stored + first stripped response → likely transient
-              //     (edge/rate/proxy hiccup). Show the banner, render what
-              //     came back, retry once shortly.
-              //   • Key stored + a SECOND stripped response in a row → the
-              //     key is bad. Clear it and open the gate so the operator
-              //     re-signs in and buyer data actually loads.
+              // Stripped-payload guard (non-destructive). The API returns
+              // { sold: bool } instead of Buyer/Buy Amount when the admin
+              // key is missing OR when a transient hiccup (proxy blip,
+              // edge cache, cross-origin ITP quirk on iOS Safari) drops the
+              // header. We used to auto-clear the stored key after two
+              // stripped responses in a row — that was booting operators
+              // mid-session on transient errors. New rule: never touch the
+              // stored key here. Show the banner + retry with backoff.
+              // The operator can manually sign in from the "Sign in at
+              // the Staff Portal" link on the banner if they need to.
+              // Only an explicit HTTP 401 (below) clears the session.
               var strip = _isStrippedPayload(scAllCache);
               var haveKey = !!getKey();
               if (strip && !haveKey) { _renderAuthWarning(true); _showSignInGate(); return; }
               if (strip && haveKey) {
                 _stripRetryCount += 1;
-                if (_stripRetryCount >= 2) {
-                  try { localStorage.removeItem("fh_admin_key"); localStorage.removeItem("fh_admin_ok"); } catch (e) {}
-                  try { sessionStorage.removeItem("fh_admin_key"); sessionStorage.removeItem("fh_admin_ok"); } catch (e) {}
-                  _renderAuthWarning(true);
-                  _showSignInGate();
-                  _stripRetryCount = 0;
-                  return;
-                }
                 _renderAuthWarning(true);
                 renderSheetsForActive(scAllCache);
-                flashLoadStatus("Buyer data hidden — retrying…");
-                setTimeout(function () { _doLoadRoster(); }, 1500);
+                // Exponential backoff, capped at 30s. Keeps the operator's
+                // in-progress work on screen through a spotty connection.
+                var delay = Math.min(1500 * Math.pow(2, Math.max(0, _stripRetryCount - 1)), 30000);
+                flashLoadStatus("Buyer data hidden — retrying in " + Math.round(delay / 1000) + "s…");
+                setTimeout(function () { _doLoadRoster(); }, delay);
                 return;
               }
               _stripRetryCount = 0;
