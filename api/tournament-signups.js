@@ -212,6 +212,121 @@ module.exports = async (req, res) => {
       }
     }
 
+    if (body.action === "team-merge") {
+      // Merge two Signups rows (same tournament) into one 4-player team.
+      // The "keep" row's Player Name stays the captain (checks continue to
+      // be written to them). Every other player name (keep partners + drop
+      // captain + drop partners) is concatenated into the keep row's
+      // Team / Partners field with " / " separators. Money fields sum,
+      // Player linked fields merge, notes concatenate. The drop row is
+      // deleted last so a partial failure never orphans data.
+      const keepId = typeof body.keepId === "string" ? body.keepId : "";
+      const dropId = typeof body.dropId === "string" ? body.dropId : "";
+      if (!keepId || !dropId) return res.status(400).json({ ok: false, error: "Missing keepId or dropId." });
+      if (keepId === dropId) return res.status(400).json({ ok: false, error: "keepId and dropId are the same record." });
+      try {
+        const [keepRes, dropRes] = await Promise.all([
+          fetch(`${listUrl}/${keepId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+          fetch(`${listUrl}/${dropId}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+        ]);
+        if (!keepRes.ok || !dropRes.ok) {
+          console.error("team-merge fetch error", keepRes.status, dropRes.status);
+          return res.status(502).json({ ok: false, error: "Could not read one of the team signups." });
+        }
+        const keep = await keepRes.json();
+        const drop = await dropRes.json();
+        const kf = keep.fields || {}, df = drop.fields || {};
+        if (kf.Tournament && df.Tournament && kf.Tournament !== df.Tournament) {
+          return res.status(400).json({ ok: false, error: "Both teams must belong to the same tournament." });
+        }
+        // Build the merged player roster. Player Name of keep stays as the
+        // captain; everyone else (keep partners + drop captain + drop
+        // partners) becomes the new Team / Partners list, deduped by
+        // case-insensitive full-name match.
+        const captain = String(kf["Player Name"] || "").trim();
+        const partnersFromKeep = String(kf["Team / Partners"] || "").split(/\s*\/\s*/).map(s => s.trim()).filter(Boolean);
+        const dropCaptain = String(df["Player Name"] || "").trim();
+        const partnersFromDrop = String(df["Team / Partners"] || "").split(/\s*\/\s*/).map(s => s.trim()).filter(Boolean);
+        const seen = new Set();
+        function pushUnique(bucket, name) {
+          const key = name.toLowerCase();
+          if (!name || seen.has(key)) return;
+          seen.add(key);
+          bucket.push(name);
+        }
+        if (captain) seen.add(captain.toLowerCase());
+        const mergedPartners = [];
+        partnersFromKeep.forEach(n => pushUnique(mergedPartners, n));
+        if (dropCaptain) pushUnique(mergedPartners, dropCaptain);
+        partnersFromDrop.forEach(n => pushUnique(mergedPartners, n));
+        const fields = { "Team / Partners": mergedPartners.join(" / ") };
+        // Money + counts sum. Only include the field on the PATCH if at
+        // least one side had a real value — avoids nulling out an empty
+        // field on Airtable when neither side set it.
+        const sumFields = ["Amount Paid", "Extra Meals", "Player 1 Cart Share", "Player 2 Cart Share", "Player 1 Extra Meal", "Player 2 Extra Meal", "Buy Amount"];
+        sumFields.forEach((f) => {
+          const kv = typeof kf[f] === "number" ? kf[f] : (kf[f] ? Number(kf[f]) : 0);
+          const dv = typeof df[f] === "number" ? df[f] : (df[f] ? Number(df[f]) : 0);
+          if (kv || dv) fields[f] = (kv || 0) + (dv || 0);
+        });
+        // Player linked records — union.
+        const kLinks = Array.isArray(kf.Player) ? kf.Player : [];
+        const dLinks = Array.isArray(df.Player) ? df.Player : [];
+        const linkSet = new Set([...kLinks, ...dLinks]);
+        if (linkSet.size) fields.Player = [...linkSet];
+        // Notes concatenate with a divider so nothing gets lost.
+        const kNotes = String(kf.Notes || "").trim();
+        const dNotes = String(df.Notes || "").trim();
+        if (kNotes || dNotes) fields.Notes = [kNotes, dNotes].filter(Boolean).join("\n---\n");
+        // Preserve Checked In if either side was already checked in.
+        if (kf["Checked In"] || df["Checked In"]) fields["Checked In"] = true;
+        // Preserve Buyer / Buyer Email — prefer keep, fall back to drop.
+        if (!kf["Buyer"] && df["Buyer"]) fields["Buyer"] = df["Buyer"];
+        if (!kf["Buyer Email"] && df["Buyer Email"]) fields["Buyer Email"] = df["Buyer Email"];
+        // Auto-strip missing fields (same pattern as tournament-checkin)
+        // so a base that hasn't grown a specific column yet still saves
+        // the safe subset.
+        let working = { ...fields };
+        const stripped = new Set();
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const pr = await fetch(`${listUrl}/${keepId}`, {
+            method: "PATCH",
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ fields: working, typecast: true }),
+          });
+          if (pr.ok) break;
+          const detail = await pr.text();
+          let missing = null;
+          try {
+            const parsed = JSON.parse(detail);
+            const emsg = parsed && parsed.error && parsed.error.message;
+            const m = /Unknown field name[s]?:\s*"([^"]+)"/i.exec(emsg || "");
+            if (m) missing = m[1];
+          } catch (e) {}
+          if (!missing) {
+            console.error("team-merge PATCH keep error", pr.status, detail);
+            return res.status(502).json({ ok: false, error: "Could not save the merged team.", detail });
+          }
+          stripped.add(missing);
+          delete working[missing];
+          if (!Object.keys(working).length) break;
+        }
+        // Delete the drop row.
+        const del = await fetch(`${listUrl}/${dropId}`, { method: "DELETE", headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        if (!del.ok) {
+          const detail = await del.text();
+          console.error("team-merge delete error", del.status, detail);
+          return res.status(502).json({ ok: false, error: "Merged fields saved on the surviving team, but the duplicate team row could not be deleted — remove it manually in Airtable." });
+        }
+        const payload = { ok: true, keepId, dropId, players: [captain].concat(mergedPartners).filter(Boolean) };
+        if (stripped.size) payload.warning = "Merged without " + [...stripped].join(", ") + " (fields not on the base).";
+        return res.status(200).json(payload);
+      } catch (e) {
+        console.error("team-merge exception", e);
+        return res.status(500).json({ ok: false, error: "Something went wrong merging the teams." });
+      }
+    }
+
     if (body.action === "player-merge") {
       // Merge two Players table rows: the "keep" row survives with the
       // caller-supplied merged fields; the "drop" row's signups are
