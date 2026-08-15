@@ -52,7 +52,7 @@ module.exports = async (req, res) => {
     if (body.action === "getConfig") {
       const t = clean(body.tournament, 200);
       if (!t) return res.status(400).json({ ok: false, error: "tournament required." });
-      const q = `?filterByFormula=${encodeURIComponent(`{Tournament}='${t.replace(/'/g, "\\'")}'`)}&maxRecords=1`;
+      const q = `?filterByFormula=${encodeURIComponent(`{Tournament}="${t.replace(/"/g, '\\"')}"`)}&maxRecords=1`;
       const r = await fetch(cfgUrl + q, { headers: { Authorization: auth.Authorization } });
       if (!r.ok) {
         if (r.status === 404) return res.status(200).json({ ok: true, config: {}, auctionState: {} });
@@ -86,7 +86,7 @@ module.exports = async (req, res) => {
       const aState = (body.auctionState && typeof body.auctionState === "object") ? body.auctionState : null;
       const recap = (typeof body.recap === "string") ? body.recap : null;
       if (!cfg && !aState && recap === null) return res.status(400).json({ ok: false, error: "config, auctionState, or recap required." });
-      const q = `?filterByFormula=${encodeURIComponent(`{Tournament}='${t.replace(/'/g, "\\'")}'`)}&maxRecords=1`;
+      const q = `?filterByFormula=${encodeURIComponent(`{Tournament}="${t.replace(/"/g, '\\"')}"`)}&maxRecords=1`;
       const findR = await fetch(cfgUrl + q, { headers: { Authorization: auth.Authorization } });
       if (!findR.ok) {
         const d = await findR.text(); console.error("saveConfig find", findR.status, d);

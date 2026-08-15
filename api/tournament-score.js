@@ -38,7 +38,7 @@ module.exports = async (req, res) => {
     if (!/^[a-f0-9]{16,64}$/i.test(bodyToken)) {
       return res.status(401).json({ ok: false, error: "Invalid link." });
     }
-    const filter = "?filterByFormula=" + encodeURIComponent(`{Live Token}='${bodyToken.replace(/'/g, "\\'")}'`) + "&maxRecords=1";
+    const filter = "?filterByFormula=" + encodeURIComponent(`{Live Token}="${bodyToken.replace(/"/g, '\\"')}"`) + "&maxRecords=1";
     const lr = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}${filter}`, {
       headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
     });
