@@ -165,6 +165,16 @@
             </fieldset>
 
             <fieldset class="fmt-set">
+              <legend>Carts</legend>
+              <div class="fmt-grid">
+                <label class="fmt-row"><span>Rental carts on-site</span><input type="number" name="Rental Carts" min="0" step="1" placeholder="12" /></label>
+              </div>
+              <label class="fmt-row"><span>Member cart pool (one per line)</span><textarea id="fmtMemberCartsText" rows="4" placeholder="Chris Fuesz — navy Yamaha, 2-seater&#10;Adam Tempel — Club Car, blue&#10;Kyle McConnell — EZ-Go w/ cooler"></textarea></label>
+              <p class="fmt-note">Members who've offered to lend their cart when we run out of rentals. One member per line — freeform "Name — description" is fine. The Check-In cart-assignment dropdown will list these once the rental threshold is hit.</p>
+              <input type="hidden" name="Member Carts JSON" id="fmtMemberCartsJson" />
+            </fieldset>
+
+            <fieldset class="fmt-set">
               <legend>Public link</legend>
               <label class="fmt-row"><span>Public slug</span><input type="text" name="Public Slug" placeholder="august-22-2026-couples-scramble" /></label>
               <p class="fmt-note">
@@ -1284,6 +1294,20 @@
         });
         _fmtHydrateShotgun(f["Waves JSON"]);
         _fmtHydrateHighlights(f["Highlights"]);
+        _fmtHydrateMemberCarts(f["Member Carts JSON"]);
+      }
+      function _fmtHydrateMemberCarts(raw) {
+        var ta = document.getElementById("fmtMemberCartsText"); if (!ta) return;
+        var arr = [];
+        try { arr = JSON.parse(raw || "[]"); if (!Array.isArray(arr)) arr = []; } catch (e) { arr = []; }
+        ta.value = arr.map(function (s) { return String(s || "").trim(); }).filter(Boolean).join("\n");
+      }
+      function _fmtWriteMemberCartsToHidden() {
+        var ta = document.getElementById("fmtMemberCartsText");
+        var hidden = document.getElementById("fmtMemberCartsJson");
+        if (!ta || !hidden) return;
+        var lines = String(ta.value || "").split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+        hidden.value = JSON.stringify(lines);
       }
       // Parse the stored JSON array of strings into the textarea (one per line).
       // Missing or invalid JSON falls back to empty.
@@ -1376,6 +1400,7 @@
       function saveFormat() {
         _fmtWriteShotgunToHidden();
         _fmtWriteHighlightsToHidden();
+        _fmtWriteMemberCartsToHidden();
         var payload = _fmtCollectPayload();
         _fmtSetStatus("Saving…");
         fetch(FH_API.url("/api/tournament-signups"), {
