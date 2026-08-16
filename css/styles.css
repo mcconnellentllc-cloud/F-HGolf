@@ -2076,16 +2076,32 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 
 .ci-card__players { padding: 0.5rem 0.85rem 0.35rem; display: flex; flex-direction: column; gap: 0.35rem; }
 .ci-p { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(8.5rem, 11rem); align-items: center; gap: 0.4rem 0.5rem; padding: 0.3rem 0; border-bottom: 1px dashed var(--line); }
+/* Pin each child to an explicit grid column so hiding one (.ci-meal
+   on non-Founders, empty .ci-p__extras) doesn't auto-shift the method
+   dropdown into an earlier `auto` column and shrink it to icon width.
+   Without this, a couples tournament with meals hidden + no extras
+   yet loaded ends up with the method in column 2's auto slot. */
+.ci-p > .ci-p__name   { grid-column: 1; }
+.ci-p > .ci-p__cap    { grid-column: 2; }
+.ci-p > .ci-meal      { grid-column: 3; }
+.ci-p > .ci-p__extras { grid-column: 4; }
+.ci-p > .ci-p__method { grid-column: 5; }
 /* On narrow cards the extras strip drops to its own full-width row so it
    doesn't crush the meals / method columns. */
-@media (max-width: 720px) { .ci-p { grid-template-columns: minmax(6.5rem, 1fr) auto auto minmax(8.5rem, 11rem); } .ci-p__extras { grid-column: 1 / -1; justify-self: start; } }
-/* Small right-aligned "Method" label above the first player row so the
-   operator sees what the dropdown column IS before they touch it. Uses
-   the same grid template as .ci-p so it lines up with the dropdown
-   column below. Empty cells reserve space for name / cap / meal / extras. */
+@media (max-width: 720px) {
+  .ci-p { grid-template-columns: minmax(6.5rem, 1fr) auto auto minmax(8.5rem, 11rem); }
+  .ci-p > .ci-p__method { grid-column: 4; }
+  .ci-p > .ci-p__extras { grid-column: 1 / -1; justify-self: start; }
+}
+/* Small "Payment method" header row above the first player row so the
+   operator sees what the dropdown column IS before they touch it. Same
+   grid template as .ci-p so the label lines up over column 5. */
 .ci-p-hdr { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(8.5rem, 11rem); gap: 0.4rem 0.5rem; padding: 0 0 0.25rem; font: 800 0.66rem/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 0.15rem; }
-.ci-p-hdr__method { text-align: left; }
-@media (max-width: 720px) { .ci-p-hdr { grid-template-columns: minmax(6.5rem, 1fr) auto auto minmax(8.5rem, 11rem); } }
+.ci-p-hdr__method { text-align: left; grid-column: 5; }
+@media (max-width: 720px) {
+  .ci-p-hdr { grid-template-columns: minmax(6.5rem, 1fr) auto auto minmax(8.5rem, 11rem); }
+  .ci-p-hdr__method { grid-column: 4; }
+}
 .ci-p:last-child { border-bottom: none; }
 .ci-p__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 /* Captain marker. .ci-p__cap--is = current captain (gold pill, non-clickable);
