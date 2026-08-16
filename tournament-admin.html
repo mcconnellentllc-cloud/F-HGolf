@@ -2552,7 +2552,6 @@
           }).join("");
         };
         var playerRows = players.map(function (t) {
-          var paidCk = t.method ? " checked" : "";
           var base = playerBase(t);
           var _srPct = Math.round(surchargeRate() * 1000) / 10;
           var surchargeHint = isSurchargeMethod(t.method) && base > 0
@@ -2562,12 +2561,14 @@
           // ★ button — click to promote that player, which swaps their name
           // into Player Name and moves the old captain into Team / Partners
           // (and refreshes the signup's Email from the Players table).
+          // Star-only (no "Captain" label) — the star alone is the whole
+          // symbol; tooltips carry the meaning for anyone hovering.
           var isCaptain = t.role === "p1";
           var capCell = isCaptain
-            ? '<span class="ci-p__cap ci-p__cap--is" title="Team captain — scoring link + check go to this player">&#9733; Captain</span>'
+            ? '<span class="ci-p__cap ci-p__cap--is" title="Team captain — scoring link + check go to this player" aria-label="Team captain">&#9733;</span>'
             : (t.name
-                ? '<button type="button" class="ci-p__cap ci-p__cap--set" data-role="' + esc(t.role) + '" title="Make ' + esc(t.name) + ' the captain (scoring link + check)">&#9734; Captain</button>'
-                : '<span class="ci-p__cap ci-p__cap--empty" title="Add a name first">&#9734;</span>');
+                ? '<button type="button" class="ci-p__cap ci-p__cap--set" data-role="' + esc(t.role) + '" title="Make ' + esc(t.name) + ' the captain (scoring link + check)" aria-label="Make ' + esc(t.name) + ' captain">&#9734;</button>'
+                : '<span class="ci-p__cap ci-p__cap--empty" title="Add a name first" aria-label="No captain — add a name first">&#9734;</span>');
           // Per-player extras checkboxes — one pill per Format-configured
           // extra, showing the price so the operator sees what it adds.
           // Always emit the wrapper (even empty) so the .ci-p grid keeps
@@ -2582,13 +2583,17 @@
               + '</label>';
           }).join("");
           var extrasCells = '<div class="ci-p__extras">' + xInner + '</div>';
+          // The method dropdown IS the paid indicator now — no separate
+          // Entry checkbox. Picking Cash/Check/Card/Online marks the
+          // player paid; picking the blank "method" option clears it.
+          // This forces the operator to record HOW they paid, not just
+          // that they did — no ambiguous "checked but no method" state.
           return '<div class="ci-p" data-role="' + esc(t.role) + '">'
             + '<div class="ci-p__name">' + nameCell(t.role, t.name) + '</div>'
             + capCell
-            + '<label class="ci-check" title="Charge entry to this player"><input type="checkbox" class="ci-paid-box" data-role="' + esc(t.role) + '"' + paidCk + ' /><span>Entry</span></label>'
             + '<label class="ci-meal" title="Extra meals × ' + money(extraMealFee) + '"><input type="number" min="0" max="10" step="1" class="ci__extra-meal" data-role="' + esc(t.role) + '" value="' + (Number(t.meal) || 0) + '" /><span>Meals</span></label>'
             + extrasCells
-            + '<select class="ci-p__method" data-role="' + esc(t.role) + '">' + methodOpts(t.method) + '</select>'
+            + '<select class="ci-p__method" data-role="' + esc(t.role) + '" title="Choose a method to mark entry paid">' + methodOpts(t.method) + '</select>'
             + surchargeHint
             + '</div>';
         }).join("");
@@ -2820,20 +2825,8 @@
             var i = { p1: 1, p2: 2, p3: 3, p4: 4 }[role]; return i ? "Player " + i + " Extra Meal" : "";
           }
 
-          // Per-player Paid checkbox. Checked = default to "Cash" if method is
-          // empty; unchecked = method cleared. Method dropdown mirrors this.
-          Array.prototype.forEach.call(card.querySelectorAll(".ci-paid-box"), function (box) {
-            var role = box.getAttribute("data-role");
-            var payload = _paidPayloadKey(role); if (!payload) return;
-            var meth = card.querySelector('.ci-p__method[data-role="' + role + '"]');
-            box.addEventListener("change", function () {
-              var v = box.checked ? (meth && meth.value ? meth.value : "Cash") : "";
-              if (meth) meth.value = v;
-              var p = {}; p[payload] = v;
-              saveCheckin(id, p, statusEl, box);
-              refreshCardTotals(card);
-            });
-          });
+          // (Entry checkbox removed — the method dropdown alone marks the
+          // player paid. See the method dropdown handler below.)
 
           // Per-player extras checkboxes. Each toggle rebuilds the whole
           // "Extras Purchased" map from the card's current DOM state and
@@ -3009,7 +3002,6 @@
           var role = pRow.getAttribute("data-role");
           var meth = pRow.querySelector(".ci-p__method");
           var mealBox = pRow.querySelector(".ci__extra-meal");
-          var paidBox = pRow.querySelector(".ci-paid-box");
           var mealCount = mealBox && mealBox.value ? Math.max(0, Number(mealBox.value) || 0) : 0;
           var cart = cartByRole[role] || 0;
           var pBase = entryPP + cart * cartFee + mealCount * extraMealFee + _extrasCostFor(role);
@@ -3017,7 +3009,6 @@
           var pOwed = pBase + surchargeAmount(pBase, methodVal);
           owed += pOwed;
           if (methodVal) paid += pOwed;
-          if (paidBox) paidBox.checked = !!methodVal;
           // Small "+4%" hint next to the method dropdown so the pro shop can
           // see the fee at a glance. Removed as soon as method flips back to
           // Cash / Check / empty.
