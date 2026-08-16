@@ -284,9 +284,32 @@
     if (!hasSchedule && !sel && !hasNext) return;
 
     if (hasSchedule || hasNext) {
-      fetch(FH_API.url("/api/tournament-counts")).then(function (r) { return r.json(); })
-        .then(function (res) { render(res && res.counts); renderNext(res && res.counts); })
-        .catch(function () { render({}); renderNext({}); });
+      // Fetch live counts + Format-tab configs in parallel. Configs let
+      // us override the hardcoded caps in TMETA with whatever the
+      // operator set on the Format tab (e.g. Aug 22 Couples: Team Cap
+      // moved 24 → 18). The public site was rendering stale caps
+      // because it only knew the seed values.
+      Promise.all([
+        fetch(FH_API.url("/api/tournament-counts")).then(function (r) { return r.json(); }).catch(function () { return { counts: {} }; }),
+        fetch(FH_API.url("/api/tournament-signups?config=1")).then(function (r) { return r.json(); }).catch(function () { return { records: [] }; }),
+      ]).then(function (results) {
+        var countsRes = results[0] || {};
+        var cfgRes = results[1] || {};
+        var configs = (cfgRes && cfgRes.records) || [];
+        configs.forEach(function (rec) {
+          var f = (rec && rec.fields) || {};
+          var key = String(f.Tournament || "").trim();
+          if (!key || !TMETA[key]) return;
+          var m = TMETA[key];
+          var cap = Number(f["Team Cap"]);
+          if (isFinite(cap) && cap > 0) m.cap = cap;
+          if (typeof f["Play Style"] === "string" && f["Play Style"].trim()) m.format = f["Play Style"].trim();
+          var ppt = Number(f["Players Per Team"]);
+          if (isFinite(ppt) && ppt > 0) m.team = ppt;
+        });
+        render(countsRes.counts);
+        renderNext(countsRes.counts);
+      });
     }
 
     if (sel) {
