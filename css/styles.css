@@ -2112,11 +2112,14 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-tot--paid b { color: var(--primary-green); }
 .ci-tot--owe b { color: var(--red-deep); }
 .ci-card.is-fully-paid .ci-tot--owe b { color: var(--primary-green); }
-.ci-card__acts { display: inline-flex; gap: 0.3rem; align-self: end; justify-self: end; }
+.ci-card__acts { display: flex; flex-wrap: wrap; gap: 0.3rem; align-self: end; justify-self: end; justify-content: flex-end; }
 .ci-card__acts .ci__update { padding: 0.35rem 0.7rem; font-size: 0.78rem; border-radius: 6px; border: 1px solid var(--primary-green); color: var(--primary-green); background: #fff; cursor: pointer; font-weight: 700; }
 .ci-card__acts .ci__update:hover { background: var(--primary-green); color: #fff; }
 .ci-card__acts .ci__alt { padding: 0.35rem 0.55rem; font-size: 0.78rem; border-radius: 6px; }
-.ci-card__acts .ci__remove { padding: 0.35rem 0.55rem; font-size: 1rem; }
+/* Remove is destructive — border + red text so it reads as "danger" and
+   stays inline instead of vanishing off the right edge of a busy card. */
+.ci-card__acts .ci__remove { padding: 0.35rem 0.65rem; font-size: 0.78rem; text-decoration: none; border: 1px solid var(--red-deep); border-radius: 6px; color: var(--red-deep); background: #fff; font-weight: 700; }
+.ci-card__acts .ci__remove:hover { background: var(--red-deep); color: #fff; }
 
 /* ---- Check-In name cell: clickable Player Card link + ✎ inline rename ---- */
 .ci-name-wrap { display: inline-flex; align-items: center; gap: 0.3rem; }
