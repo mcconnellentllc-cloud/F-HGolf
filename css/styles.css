@@ -2303,6 +2303,11 @@ body.tw-single-wave .fmt-grid--shot { display: none; }
    anything — the runtime ignores the field for non-Founders. */
 body.tw-single-wave #fmtExtraMealsRow { display: none; }
 
+/* Single-round tournaments (every F&H event except Founders) don't need a
+   Day 2 tab on the Scores page — one round, one day. Hide it so operators
+   can't enter Day 2 scores by mistake. Founders keeps both. */
+body.tw-single-wave #scTabD2 { display: none; }
+
 /* Pairings single-day mode: driven by Format's Rounds field. Hide every
    Day 2 control so operators of one-day tournaments never see a Day 2
    tab, autofill, or print button they'd have to ignore. */
