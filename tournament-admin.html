@@ -729,6 +729,29 @@
     </div>
   </div>
 
+  <!-- ==================== FORMAT SAVED (info) MODAL ==================== -->
+  <!-- Definitive confirmation after Save format. The small "Saved ✓" pill
+       next to the tab title is easy to miss when the operator has just
+       tapped Save and is glancing away, so this modal blocks with a
+       checkmark + summary of what changed until they acknowledge. -->
+  <div class="pm-modal cd-modal" id="fmtSavedModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="fmtSavedTitle">
+    <div class="pm-modal__backdrop" data-close="1"></div>
+    <div class="pm-modal__panel cd-panel rs-panel">
+      <div class="pm-modal__head">
+        <h3 id="fmtSavedTitle">Format saved &nbsp;&check;</h3>
+        <button type="button" class="pm-modal__close" id="fmtSavedClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="pm-modal__body">
+        <p class="cd-body"><b id="fmtSavedSummary">Your changes are live for this tournament.</b></p>
+        <p class="cd-body rs-note">The Check-In, Pairings, Leaderboard, and public tabs will pick up the new values on their next load. If a second device is already open on this tournament, refresh it to see the change.</p>
+        <p class="cd-body rs-warn" id="fmtSavedWarn" hidden></p>
+      </div>
+      <div class="pm-modal__foot">
+        <button type="button" class="btn btn--primary" id="fmtSavedOk">Got it</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== RECAP SAVED (info) MODAL ==================== -->
   <div class="pm-modal cd-modal" id="recapSavedModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="rsmTitle">
     <div class="pm-modal__backdrop" data-close="1"></div>
@@ -1586,11 +1609,38 @@
                 // Calcutta toggle may have flipped — re-hide/show tabs.
                 try { _applyCalcuttaVisibility(_tcConfigCache["Calcutta Enabled"] !== false); } catch (e) {}
               }
+              // Definitive confirmation modal — the tiny "Saved ✓" pill next
+              // to the tab title is too easy to miss when the operator is
+              // glancing away after tapping Save.
+              try { openFmtSavedModal(res.j && (res.j.warning || "")); } catch (e) {}
               return;
             }
             _fmtSetStatus((res.j && res.j.error) || ("Save failed (" + res.status + ")"), "error");
           })
           .catch(function () { _fmtSetStatus("Network error saving.", "error"); });
+      }
+
+      // Format-saved confirmation modal. Mirrors the recap-saved pattern.
+      // Summary line pulls the tournament name so the operator can see
+      // which tournament's config just landed.
+      function openFmtSavedModal(warning) {
+        var modal = document.getElementById("fmtSavedModal"); if (!modal) return;
+        var sum = document.getElementById("fmtSavedSummary");
+        var name = (_tcConfigCache && (_tcConfigCache["Name"] || _tcConfigCache["Tournament"])) || KEY || "this tournament";
+        if (sum) sum.textContent = "Your changes for " + name + " are live.";
+        var warnEl = document.getElementById("fmtSavedWarn");
+        if (warnEl) {
+          if (warning) { warnEl.hidden = false; warnEl.textContent = String(warning); }
+          else { warnEl.hidden = true; warnEl.textContent = ""; }
+        }
+        modal.hidden = false; modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("modal-open");
+        var ok = document.getElementById("fmtSavedOk"); if (ok) ok.focus();
+      }
+      function closeFmtSavedModal() {
+        var modal = document.getElementById("fmtSavedModal"); if (!modal) return;
+        modal.hidden = true; modal.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("modal-open");
       }
 
       // ---- Tournament History (archived years) ----
@@ -1657,6 +1707,15 @@
         if (ok) ok.addEventListener("click", closeRecapSavedModal);
         modal.addEventListener("click", function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute("data-close") === "1") closeRecapSavedModal(); });
         document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal && !modal.hidden) closeRecapSavedModal(); });
+      })();
+      (function wireFmtSavedModal() {
+        var modal = document.getElementById("fmtSavedModal"); if (!modal) return;
+        var close = document.getElementById("fmtSavedClose");
+        var ok = document.getElementById("fmtSavedOk");
+        if (close) close.addEventListener("click", closeFmtSavedModal);
+        if (ok) ok.addEventListener("click", closeFmtSavedModal);
+        modal.addEventListener("click", function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute("data-close") === "1") closeFmtSavedModal(); });
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal && !modal.hidden) closeFmtSavedModal(); });
       })();
 
       function saveRecap() {
