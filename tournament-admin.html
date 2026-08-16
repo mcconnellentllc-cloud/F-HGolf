@@ -1371,13 +1371,15 @@
         });
         _fmtHydrateShotgun(f["Waves JSON"]);
         _fmtHydrateHighlights(f["Highlights"]);
-        // Calcutta Enabled is a select on the form (id fmtCalcuttaEnabled)
-        // but stored as boolean. DEFAULTS TO ON: every pre-existing
-        // tournament in Airtable (Founders included) predates this field,
-        // so an undefined value means "the operator hasn't explicitly
-        // opted out". Only an explicit false hides the Calcutta tabs.
+        // Calcutta is Founders-only at F&H (same pattern as waves and
+        // meals). Every other tournament hides the Calcutta tabs +
+        // Format dropdown unconditionally regardless of what the
+        // "Calcutta Enabled" field says. When (if) another F&H event
+        // ever runs a Calcutta, add its key to the regex in
+        // _applyCalcuttaVisibility below — one place.
         var ce = document.getElementById("fmtCalcuttaEnabled");
-        var caOn = (f["Calcutta Enabled"] === false) ? false : true;
+        var isFoundersCA = typeof KEY === "string" && /^Founder/i.test(KEY);
+        var caOn = isFoundersCA ? ((f["Calcutta Enabled"] === false) ? false : true) : false;
         if (ce) ce.value = caOn ? "on" : "off";
         _applyCalcuttaVisibility(caOn);
       }
@@ -1607,7 +1609,7 @@
                 // hero cart-demand summary.
                 try { _renderCartDemand(); } catch (e) {}
                 // Calcutta toggle may have flipped — re-hide/show tabs.
-                try { _applyCalcuttaVisibility(_tcConfigCache["Calcutta Enabled"] !== false); } catch (e) {}
+                try { _applyCalcuttaVisibility((/^Founder/i.test(String(KEY || ""))) && (_tcConfigCache["Calcutta Enabled"] !== false)); } catch (e) {}
               }
               // Definitive confirmation modal — the tiny "Saved ✓" pill next
               // to the tab title is too easy to miss when the operator is
