@@ -2075,10 +2075,17 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-card__status.is-error { color: var(--red-deep); }
 
 .ci-card__players { padding: 0.5rem 0.85rem 0.35rem; display: flex; flex-direction: column; gap: 0.35rem; }
-.ci-p { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(6rem, 8rem); align-items: center; gap: 0.4rem 0.5rem; padding: 0.3rem 0; border-bottom: 1px dashed var(--line); }
+.ci-p { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(8.5rem, 11rem); align-items: center; gap: 0.4rem 0.5rem; padding: 0.3rem 0; border-bottom: 1px dashed var(--line); }
 /* On narrow cards the extras strip drops to its own full-width row so it
    doesn't crush the meals / method columns. */
-@media (max-width: 720px) { .ci-p { grid-template-columns: minmax(6.5rem, 1fr) auto auto minmax(6rem, 8rem); } .ci-p__extras { grid-column: 1 / -1; justify-self: start; } }
+@media (max-width: 720px) { .ci-p { grid-template-columns: minmax(6.5rem, 1fr) auto auto minmax(8.5rem, 11rem); } .ci-p__extras { grid-column: 1 / -1; justify-self: start; } }
+/* Small right-aligned "Method" label above the first player row so the
+   operator sees what the dropdown column IS before they touch it. Uses
+   the same grid template as .ci-p so it lines up with the dropdown
+   column below. Empty cells reserve space for name / cap / meal / extras. */
+.ci-p-hdr { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(8.5rem, 11rem); gap: 0.4rem 0.5rem; padding: 0 0 0.25rem; font: 800 0.66rem/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 0.15rem; }
+.ci-p-hdr__method { text-align: left; }
+@media (max-width: 720px) { .ci-p-hdr { grid-template-columns: minmax(6.5rem, 1fr) auto auto minmax(8.5rem, 11rem); } }
 .ci-p:last-child { border-bottom: none; }
 .ci-p__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 /* Captain marker. .ci-p__cap--is = current captain (gold pill, non-clickable);
@@ -2089,7 +2096,8 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-p__cap--set { color: var(--muted); cursor: pointer; }
 .ci-p__cap--set:hover { background: var(--brass-soft, #f4e6c1); color: var(--brass, #8a6a26); border-color: var(--brass, #b28a3a); }
 .ci-p__cap--empty { color: var(--muted); opacity: 0.35; }
-.ci-p__method { padding: 0.3rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; font-weight: 600; width: 100%; }
+.ci-p__method { padding: 0.4rem 0.55rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.9rem; background: #fff; font-weight: 700; width: 100%; min-width: 0; color: var(--ink); }
+.ci-p__method:focus { border-color: var(--primary-green); outline: none; box-shadow: 0 0 0 2px rgba(27,94,32,0.15); }
 .ci-p__method:disabled { background: var(--paper-2); color: var(--muted); }
 .ci-p__surcharge { grid-column: 1 / -1; justify-self: end; display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; background: rgba(139, 28, 37, 0.1); color: #7d1218; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; }
 

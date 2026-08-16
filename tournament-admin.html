@@ -2716,7 +2716,12 @@
           + '<select class="ci__start ci-card__start" title="Wave">' + startOptions(esc(f["Start"] || "")) + '</select>'
           + '<span class="ci__status ci-card__status"></span>'
           + '</header>'
-          + '<div class="ci-card__players">' + playerRows + '</div>'
+          + '<div class="ci-card__players">'
+          +   '<div class="ci-p-hdr" aria-hidden="true">'
+          +     '<span></span><span></span><span></span><span></span><span class="ci-p-hdr__method">Payment method</span>'
+          +   '</div>'
+          +   playerRows
+          + '</div>'
           + cartLine
           + cartAssignLine
           + '<footer class="ci-card__ft">'
@@ -3623,8 +3628,13 @@
             // Refresh check-in dropdowns + hero demand now that we know
             // the real fleet size.
             try { _renderCartDemand(); } catch (e) {}
-            if (window.__fhActive === "check" && typeof renderCheckin === "function") {
-              try { renderCheckin(scAllCache); } catch (e) {}
+            // Re-render the Check-In roster now that fresh config is in.
+            // Was previously calling a nonexistent renderCheckin() — the
+            // typeof guard silently swallowed the call, so on first
+            // page load the roster rendered with an empty config cache
+            // (no extras checkboxes, no cart-assignment options, etc.).
+            if (window.__fhActive === "check" && typeof renderRoster === "function" && scAllCache) {
+              try { renderRoster(scAllCache); } catch (e) {}
             }
           })
           .catch(function () { _courseCartsCache = {}; if (cb) cb(_courseCartsCache); });
@@ -3756,8 +3766,13 @@
             if (cb) cb(_tcConfigCache);
             // Re-render check-in so the cart dropdowns pick up the config
             // once it arrives (initial roster render fires before this GET).
-            if (window.__fhActive === "check" && typeof renderCheckin === "function") {
-              try { renderCheckin(scAllCache); } catch (e) {}
+            // Re-render the Check-In roster now that fresh config is in.
+            // Was previously calling a nonexistent renderCheckin() — the
+            // typeof guard silently swallowed the call, so on first
+            // page load the roster rendered with an empty config cache
+            // (no extras checkboxes, no cart-assignment options, etc.).
+            if (window.__fhActive === "check" && typeof renderRoster === "function" && scAllCache) {
+              try { renderRoster(scAllCache); } catch (e) {}
             }
           })
           .catch(function () { _tcConfigCache = {}; if (cb) cb(_tcConfigCache); });
