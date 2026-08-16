@@ -2722,7 +2722,7 @@
             + capCell
             + '<label class="ci-meal" title="Extra meals × ' + money(extraMealFee) + '"><input type="number" min="0" max="10" step="1" class="ci__extra-meal" data-role="' + esc(t.role) + '" value="' + (Number(t.meal) || 0) + '" /><span>Meals</span></label>'
             + extrasCells
-            + '<select class="ci-p__method" data-role="' + esc(t.role) + '" title="Choose a method to mark entry paid">' + methodOpts(t.method) + '</select>'
+            + '<select class="ci-p__method' + (t.method ? " is-paid" : "") + '" data-role="' + esc(t.role) + '" title="Choose a method to mark entry paid">' + methodOpts(t.method) + '</select>'
             + surchargeHint
             + '</div>';
         }).join("");
@@ -2803,11 +2803,13 @@
           + '<span class="ci-tot ci-tot--owe"><small>Still owes</small><b class="ci-tot__owe">' + money(remaining) + '</b></span>'
           + '</div>'
           + '<div class="ci-card__acts">'
-          + '<button type="button" class="ci__update" title="Recalculate + save this team’s payment state">Take Payment</button>'
-          + '<button type="button" class="ci__merge" title="Merge this team with another (e.g. two couples arrived as separate signups)">Merge</button>'
-          + '<button type="button" class="ci__live" title="Mint this team’s live-scoring link; auto-emails the captain if we have their address">Scoring link</button>'
-          + '<button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + '</button>'
-          + '<button type="button" class="ci__remove" title="Remove team (no-show, cancellation, duplicate)">Remove</button>'
+          +   '<button type="button" class="ci__update" title="Recalculate + save this team’s payment state">Take Payment</button>'
+          +   '<div class="ci-card__acts-sec">'
+          +     '<button type="button" class="ci__merge" title="Merge this team with another (e.g. two couples arrived as separate signups)">Merge</button>'
+          +     '<button type="button" class="ci__live" title="Mint this team’s live-scoring link; auto-emails the captain if we have their address">Scoring link</button>'
+          +     '<button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + '</button>'
+          +     '<button type="button" class="ci__remove" title="Remove team (no-show, cancellation, duplicate)">Remove</button>'
+          +   '</div>'
           + '</div>'
           + '</footer>'
           + '</article>';
@@ -3052,11 +3054,14 @@
 
 
           // Per-player payment method dropdown — empty = not paid.
+          // Toggle the .is-paid class on change so the dropdown flips
+          // from amber (unpaid, action needed) → green (paid) visually.
           Array.prototype.forEach.call(card.querySelectorAll(".ci-p"), function (pRow) {
             var role = pRow.getAttribute("data-role");
             var payload = _paidPayloadKey(role); if (!payload) return;
             var meth = pRow.querySelector(".ci-p__method");
             if (meth) meth.addEventListener("change", function () {
+              meth.classList.toggle("is-paid", !!meth.value);
               var p = {}; p[payload] = meth.value;
               saveCheckin(id, p, statusEl, meth);
               refreshCardTotals(card);
@@ -3143,6 +3148,10 @@
           var pOwed = pBase + surchargeAmount(pBase, methodVal);
           owed += pOwed;
           if (methodVal) paid += pOwed;
+          // Keep the paid/unpaid color swap in sync with the actual
+          // method value (bulk-pay, promotedToCaptain, etc. can change
+          // meth.value without going through the change handler).
+          if (meth) meth.classList.toggle("is-paid", !!methodVal);
           // Small "+4%" hint next to the method dropdown so the pro shop can
           // see the fee at a glance. Removed as soon as method flips back to
           // Cash / Check / empty.
