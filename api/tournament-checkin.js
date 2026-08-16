@@ -96,6 +96,13 @@ module.exports = async (req, res) => {
   });
   if (typeof body.playerName === "string") fields["Player Name"] = body.playerName.slice(0, 200);
   if (typeof body.teamPartners === "string") fields["Team / Partners"] = body.teamPartners.slice(0, 500);
+  // Per-player extras purchased (Mulligans, String, etc.). Stored as a
+  // JSON string on the "Extras Purchased" Long text field. Shape:
+  //   {"Mulligans":["p1","p3"],"String":["p2"]}
+  // Sparse — extras with no players aren't included. Empty object "{}"
+  // clears every extra for this team. The auto-strip fallback drops the
+  // field silently if the Airtable column hasn't been created yet.
+  if (typeof body.extrasPurchased === "string") fields["Extras Purchased"] = body.extrasPurchased.slice(0, 4000);
   // Email — set when the captain changes so the scoring-link email routes
   // to the new captain's inbox. Empty string clears it.
   if (typeof body.email === "string") fields["Email"] = body.email ? body.email.slice(0, 200) : null;

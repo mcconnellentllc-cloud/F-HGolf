@@ -162,6 +162,16 @@
               <input type="hidden" name="Highlights" id="fmtHighlightsJson" />
             </fieldset>
 
+            <fieldset class="fmt-set" id="fmtExtrasSet">
+              <legend>Extras (per-player add-ons)</legend>
+              <p class="fmt-note">Chargeable extras the pro shop sells at check-in — mulligans, string, skins, ball drop, etc. Configure each option here; on the Check-In tab every player row shows a checkbox per extra. Sold quantities roll into the team's total and appear on the $ Summary as separate revenue lines.</p>
+              <div id="fmtExtrasList" class="fmt-extras" role="list"></div>
+              <div class="fmt-actions" style="justify-content:flex-start; gap:0.5rem;">
+                <button type="button" class="btn btn--solid" id="fmtExtrasAdd" title="Add another extra line item">+ Add extra</button>
+              </div>
+              <input type="hidden" name="Extras JSON" id="fmtExtrasJson" />
+            </fieldset>
+
             <fieldset class="fmt-set">
               <legend>Flight payout calculator</legend>
               <p class="fmt-note">Flight count, prize split, and any custom adjustments (sponsorships, skins pot, range balls). Live formulas below show exactly how the pool becomes each place's check.</p>
@@ -1106,6 +1116,28 @@
           return s + t;
         }, 0);
         var extraMealsRevenue = extraMealsCount * extraMealFee;
+        // Extras (Mulligans / String / etc.) — per-player checkboxes on
+        // team cards. For each configured extra, count the players across
+        // the field who bought it × price. Returns both the per-name
+        // breakdown (for the $ Summary lines) and the summed revenue
+        // (for the ledger totals).
+        var extrasDefs = _tcExtrasList();
+        var extrasByName = {};
+        extrasDefs.forEach(function (def) { extrasByName[def.name] = { name: def.name, price: def.price, count: 0, revenue: 0 }; });
+        teams.forEach(function (r) {
+          var pur = _parseExtrasPurchased((r.fields || {})["Extras Purchased"]);
+          Object.keys(pur).forEach(function (name) {
+            var slot = extrasByName[name];
+            if (!slot) return; // extra was removed from Format after purchase — ignored, no revenue counted
+            slot.count += pur[name].length;
+          });
+        });
+        var extrasBreakdown = extrasDefs.map(function (def) {
+          var slot = extrasByName[def.name];
+          slot.revenue = slot.count * slot.price;
+          return slot;
+        });
+        var extrasRevenue = extrasBreakdown.reduce(function (s, x) { return s + x.revenue; }, 0);
         // Cart rental revenue = sum of per-player cart shares × cartFee.
         var cartSharesTotal = teams.reduce(function (s, r) {
           var f = r.fields || {};
@@ -1117,7 +1149,7 @@
         }, 0);
         var cartRentalRevenue = cartSharesTotal * cartFee;
         var cartRentalsCount = Math.round(cartSharesTotal); // whole carts (fractional halves add up)
-        var totalIncome = entryIncome + calcuttaPool + extraMealsRevenue + cartRentalRevenue;
+        var totalIncome = entryIncome + calcuttaPool + extraMealsRevenue + cartRentalRevenue + extrasRevenue;
 
         // Entry fees are the source of green + meal + other + prize pool. Each
         // dollar coming into the course is tied to a paid entry, so revenue
@@ -1126,7 +1158,7 @@
         var meals = paidPlayers * mealPP;
         var otherRevenue = paidPlayers * otherPP;
         var calcuttaCommission = calcuttaPool * comm;
-        var courseRevenue = greenFees + meals + extraMealsRevenue + cartRentalRevenue + otherRevenue + calcuttaCommission;
+        var courseRevenue = greenFees + meals + extraMealsRevenue + cartRentalRevenue + extrasRevenue + otherRevenue + calcuttaCommission;
 
         // Flight prize pool:
         //   base = (entry - green - meal - other) × paid players
@@ -1167,6 +1199,7 @@
           paidPlayers: paidPlayers, entryCollected: entryCollected, fullyPaid: fullyPaid,
           extraMealsCount: extraMealsCount, extraMealsRevenue: extraMealsRevenue,
           cartRentalsCount: cartRentalsCount, cartRentalRevenue: cartRentalRevenue,
+          extrasBreakdown: extrasBreakdown, extrasRevenue: extrasRevenue,
           entryPP: entryPP, greenPP: greenPP, mealPP: mealPP, otherPP: otherPP,
           cartFee: cartFee, extraMealFee: extraMealFee,
           customLines: customLines, customIncome: customIncome, customExpense: customExpense,
@@ -1234,6 +1267,11 @@
           + row("Calcutta pool (from buyers)", calcuttaPool)
           + row("Extra meals (" + m.extraMealsCount + " × " + money(m.extraMealFee) + ")", m.extraMealsRevenue)
           + row("Cart rentals (" + m.cartRentalsCount + " × " + money(m.cartFee) + ")", m.cartRentalRevenue)
+          // Extras (Mulligans, String, etc.) — one line per configured
+          // extra. Skipped entirely when no extras are configured.
+          + (m.extrasBreakdown || []).map(function (x) {
+              return row("Extras — " + x.name + " (" + x.count + " × " + money(x.price) + ")", x.revenue);
+            }).join("")
           + subtotal("Total income (expected)", totalIn)
           + '</div>'
 
@@ -1255,17 +1293,23 @@
               var mealC = cents(meals);
               var xMealC = cents(m.extraMealsRevenue);
               var cartC = cents(m.cartRentalRevenue);
+              var extrasC = cents(m.extrasRevenue || 0);
               var otherC = cents(otherPerPlayer);
               var commC = cents(calcuttaCommission);
-              var courseC = cents(greenC + mealC + xMealC + cartC + otherC + commC);
+              var courseC = cents(greenC + mealC + xMealC + cartC + extrasC + otherC + commC);
+              var extrasLines = (m.extrasBreakdown || []).map(function (x) {
+                var v = cents(x.revenue);
+                return '<div class="pl__check-line"><span>' + x.name + ' (' + x.count + ' × ' + money2(x.price) + ')</span><b>' + money2(v) + '</b></div>';
+              }).join("");
               return '<div class="pl__section pl__section--course">'
                 + '<h4 class="pl__hdr">Check to write to the course</h4>'
-                + '<p class="pl__note">Everything the course is owed for hosting -- green fees, meals, extra meals, cart rentals, and the calcutta commission the course keeps. Tournament money (entries, prize pool, calcutta buys) is separate and stays in the tournament account below.</p>'
+                + '<p class="pl__note">Everything the course is owed for hosting -- green fees, meals, extra meals, cart rentals, extras (mulligans/string/etc.), and the calcutta commission the course keeps. Tournament money (entries, prize pool, calcutta buys) is separate and stays in the tournament account below.</p>'
                 + '<div class="pl__check">'
                 +   '<div class="pl__check-line"><span>Green fees (' + m.paidPlayers + ' paid × ' + money2(greenPP) + ')</span><b>' + money2(greenC) + '</b></div>'
                 +   '<div class="pl__check-line"><span>Meals (' + m.paidPlayers + ' paid × ' + money2(mealPP) + ')</span><b>' + money2(mealC) + '</b></div>'
                 +   '<div class="pl__check-line"><span>Extra meals (' + m.extraMealsCount + ' × ' + money2(m.extraMealFee) + ')</span><b>' + money2(xMealC) + '</b></div>'
                 +   '<div class="pl__check-line"><span>Cart rentals (' + m.cartRentalsCount + ' × ' + money2(m.cartFee) + ')</span><b>' + money2(cartC) + '</b></div>'
+                +   extrasLines
                 +   (otherPerPlayer ? '<div class="pl__check-line"><span>Other (' + m.paidPlayers + ' × ' + money2(otherPP) + ')</span><b>' + money2(otherC) + '</b></div>' : "")
                 +   '<div class="pl__check-line"><span>Calcutta commission (' + m.calcuttaCommissionPct + '% of ' + money2(calcuttaPool) + ')</span><b>' + money2(commC) + '</b></div>'
                 +   '<div class="pl__check-total"><span>Check to course' + (m.fullyPaid ? '' : ' <em class="pl__proj">(projected — awaiting all paid)</em>') + '</span><strong>' + money2(courseC) + '</strong></div>'
@@ -1284,10 +1328,11 @@
               var calPoolC = cents(calcuttaPool);
               var xMealC = cents(m.extraMealsRevenue);
               var cartC = cents(m.cartRentalRevenue);
+              var extrasInC = cents(m.extrasRevenue || 0);
               var addC = cents(addFlight);
               var customInC = cents(customIncome);
-              var totalInC = cents(entryC + calPoolC + xMealC + cartC + addC + customInC);
-              var courseC = cents(greenFees + meals + m.extraMealsRevenue + m.cartRentalRevenue + otherPerPlayer + calcuttaCommission);
+              var totalInC = cents(entryC + calPoolC + xMealC + cartC + extrasInC + addC + customInC);
+              var courseC = cents(greenFees + meals + m.extraMealsRevenue + m.cartRentalRevenue + (m.extrasRevenue || 0) + otherPerPlayer + calcuttaCommission);
               var manualExpC = cents(manualExp);
               var customExpC = cents(customExpense);
               var prizeC = cents(flightPrizePool);
@@ -1303,6 +1348,7 @@
                 +   '<div class="pl__check-line pl__check-line--in"><span>+ Calcutta pool (buyer amounts)</span><b>+ ' + money2(calPoolC) + '</b></div>'
                 +   (xMealC > 0 ? '<div class="pl__check-line pl__check-line--in"><span>+ Extra meals collected (passes through to course)</span><b>+ ' + money2(xMealC) + '</b></div>' : "")
                 +   (cartC > 0 ? '<div class="pl__check-line pl__check-line--in"><span>+ Cart rentals collected (passes through to course)</span><b>+ ' + money2(cartC) + '</b></div>' : "")
+                +   (extrasInC > 0 ? '<div class="pl__check-line pl__check-line--in"><span>+ Extras collected (mulligans / string / etc. — passes to course)</span><b>+ ' + money2(extrasInC) + '</b></div>' : "")
                 +   (addC > 0 ? '<div class="pl__check-line pl__check-line--in"><span>+ Additional flight $ (added by operator)</span><b>+ ' + money2(addC) + '</b></div>' : "")
                 +   (customInC > 0 ? '<div class="pl__check-line pl__check-line--in"><span>+ Custom income (Calc tab lines)</span><b>+ ' + money2(customInC) + '</b></div>' : "")
                 +   '<div class="pl__check-line pl__check-line--sub"><span>Total money IN</span><b>' + money2(totalInC) + '</b></div>'
@@ -1326,6 +1372,9 @@
           + '<div class="pl__pl-line"><span>Meals kept (' + m.paidPlayers + ' paid × ' + money2(mealPP) + ')</span><b>' + money2(meals) + '</b></div>'
           + '<div class="pl__pl-line"><span>Extra meals kept (' + m.extraMealsCount + ' × ' + money2(m.extraMealFee) + ')</span><b>' + money2(m.extraMealsRevenue) + '</b></div>'
           + '<div class="pl__pl-line"><span>Cart rentals kept (' + m.cartRentalsCount + ' × ' + money2(m.cartFee) + ')</span><b>' + money2(m.cartRentalRevenue) + '</b></div>'
+          + (m.extrasBreakdown || []).map(function (x) {
+              return '<div class="pl__pl-line"><span>' + x.name + ' kept (' + x.count + ' × ' + money2(x.price) + ')</span><b>' + money2(x.revenue) + '</b></div>';
+            }).join("")
           + (otherPerPlayer ? '<div class="pl__pl-line"><span>Other (' + m.paidPlayers + ' × ' + money2(otherPP) + ')</span><b>' + money2(otherPerPlayer) + '</b></div>' : "")
           + '<div class="pl__pl-line"><span>Calcutta commission</span><b>' + money2(calcuttaCommission) + '</b></div>'
           + '<div class="pl__pl-line pl__pl-line--neg"><span>Less: expenses paid out</span><b>&minus; ' + money2(manualExp) + '</b></div>'
@@ -1371,6 +1420,7 @@
         });
         _fmtHydrateShotgun(f["Waves JSON"]);
         _fmtHydrateHighlights(f["Highlights"]);
+        _fmtHydrateExtras(f["Extras JSON"]);
         // Calcutta is Founders-only at F&H (same pattern as waves and
         // meals). Every other tournament hides the Calcutta tabs +
         // Format dropdown unconditionally regardless of what the
@@ -1481,6 +1531,61 @@
         });
         hidden.value = JSON.stringify(carts);
       }
+      // ---- Extras editor (Format tab) --------------------------------
+      // Stored on Tournament Config as "Extras JSON" (a JSON array):
+      //   [{"name":"Mulligans","price":5},{"name":"String","price":10}]
+      // Rendered as a stacked list of name+price rows with a Remove button.
+      // The Check-In tab reads this list to render per-player checkboxes;
+      // computeMoney sums (count of players who bought × price) into the
+      // team's owed and per-extra revenue on the $ Summary.
+      function _fmtHydrateExtras(raw) {
+        var arr = [];
+        try { arr = JSON.parse(raw || "[]"); if (!Array.isArray(arr)) arr = []; } catch (e) { arr = []; }
+        var extras = arr.map(function (e) {
+          e = e || {};
+          return { name: String(e.name || "").trim(), price: Number(e.price) || 0 };
+        });
+        _fmtRenderExtras(extras);
+      }
+      function _fmtRenderExtras(extras) {
+        var list = document.getElementById("fmtExtrasList"); if (!list) return;
+        list.innerHTML = "";
+        extras.forEach(function (e) { list.appendChild(_fmtBuildExtraRow(e)); });
+      }
+      function _fmtBuildExtraRow(e) {
+        e = e || {};
+        var row = document.createElement("div");
+        row.className = "fmt-extra";
+        row.setAttribute("role", "listitem");
+        row.innerHTML = ''
+          + '<label class="fmt-row fmt-extra__name"><span>Name</span><input type="text" data-k="name" maxlength="60" placeholder="Mulligans" /></label>'
+          + '<label class="fmt-row fmt-extra__price"><span>Price / player</span><input type="number" data-k="price" min="0" step="1" placeholder="5" /></label>'
+          + '<button type="button" class="btn btn--solid fmt-extra__rm" title="Remove this extra">Remove</button>';
+        var nameEl = row.querySelector('[data-k="name"]'); if (nameEl) nameEl.value = e.name || "";
+        var priceEl = row.querySelector('[data-k="price"]'); if (priceEl && e.price) priceEl.value = String(e.price);
+        row.querySelector(".fmt-extra__rm").addEventListener("click", function () {
+          if (row.parentNode) row.parentNode.removeChild(row);
+        });
+        return row;
+      }
+      // List DOM → hidden JSON just before save. Blank rows (no name AND
+      // no price) are dropped so an accidental "+ Add extra" click doesn't
+      // create phantom checkboxes on every team card.
+      function _fmtWriteExtrasToHidden() {
+        var list = document.getElementById("fmtExtrasList");
+        var hidden = document.getElementById("fmtExtrasJson");
+        if (!list || !hidden) return;
+        var out = [];
+        Array.prototype.forEach.call(list.querySelectorAll(".fmt-extra"), function (row) {
+          var name = String((row.querySelector('[data-k="name"]') || {}).value || "").trim();
+          var price = Number((row.querySelector('[data-k="price"]') || {}).value) || 0;
+          if (!name && !price) return;
+          out.push({ name: name.slice(0, 60), price: Math.max(0, price) });
+        });
+        // Always write an array (even []) so clearing every extra actually
+        // wipes the stored value on Airtable.
+        hidden.value = JSON.stringify(out);
+      }
       // Parse the stored JSON array of strings into the textarea (one per line).
       // Missing or invalid JSON falls back to empty.
       function _fmtHydrateHighlights(raw) {
@@ -1579,6 +1684,7 @@
       function saveFormat() {
         _fmtWriteShotgunToHidden();
         _fmtWriteHighlightsToHidden();
+        _fmtWriteExtrasToHidden();
         var payload = _fmtCollectPayload();
         _fmtSetStatus("Saving…");
         fetch(FH_API.url("/api/tournament-signups"), {
@@ -1610,6 +1716,12 @@
                 try { _renderCartDemand(); } catch (e) {}
                 // Calcutta toggle may have flipped — re-hide/show tabs.
                 try { _applyCalcuttaVisibility((/^Founder/i.test(String(KEY || ""))) && (_tcConfigCache["Calcutta Enabled"] !== false)); } catch (e) {}
+                // Extras editor may have added / removed a line — re-render
+                // the Check-In roster so the per-player checkboxes match
+                // the new config immediately. renderPL also picks up any
+                // extras revenue lines in the $ Summary.
+                try { if (scAllCache && scAllCache.length) renderRoster(scAllCache); } catch (e) {}
+                try { renderPL(); } catch (e) {}
               }
               // Definitive confirmation modal — the tiny "Saved ✓" pill next
               // to the tab title is too easy to miss when the operator is
@@ -2294,6 +2406,49 @@
       function _partnerSlotIdx(role) {
         return role === "p2" ? 0 : role === "p3" ? 1 : role === "p4" ? 2 : -1;
       }
+      // Read the tournament's configured extras from _tcConfigCache
+      // (populated by loadFormat on tab open). Returns [] until Format
+      // loads, which means Check-In won't render extras checkboxes on
+      // the first paint after a hard refresh — the roster re-render
+      // fired at the end of loadFormat picks up the config on the next
+      // paint. Each entry: { name, price }.
+      function _tcExtrasList() {
+        var raw = (_tcConfigCache && _tcConfigCache["Extras JSON"]) || "";
+        if (!raw) return [];
+        try {
+          var arr = JSON.parse(raw);
+          if (!Array.isArray(arr)) return [];
+          return arr.map(function (e) { return { name: String((e && e.name) || "").trim(), price: Number(e && e.price) || 0 }; })
+                    .filter(function (e) { return e.name; });
+        } catch (err) { return []; }
+      }
+      // Parse a signup's "Extras Purchased" JSON into a sparse map:
+      //   { "Mulligans": ["p1","p3"], "String": ["p2"] }
+      // Missing / invalid returns {} so the render + math paths always
+      // see a plain object.
+      function _parseExtrasPurchased(raw) {
+        if (!raw) return {};
+        try {
+          var obj = JSON.parse(raw);
+          if (!obj || typeof obj !== "object" || Array.isArray(obj)) return {};
+          var out = {};
+          Object.keys(obj).forEach(function (k) {
+            var v = obj[k];
+            if (Array.isArray(v)) out[k] = v.filter(function (s) { return /^p[1-4]$/.test(s); });
+          });
+          return out;
+        } catch (err) { return {}; }
+      }
+      // { "Mulligans": ["p1","p3"] } → JSON string. Drops extras with no
+      // players + empty arrays so the stored value stays compact.
+      function _serializeExtrasPurchased(map) {
+        var out = {};
+        Object.keys(map || {}).forEach(function (k) {
+          var arr = (map[k] || []).filter(function (s) { return /^p[1-4]$/.test(s); });
+          if (arr.length) out[k] = arr.slice().sort();
+        });
+        return JSON.stringify(out);
+      }
       // Splice a new name into a signup's slash-joined "Team / Partners"
       // string at the correct slot. Reads the current raw string from
       // scAllCache (source of truth between renders). Pads short lists so
@@ -2361,10 +2516,27 @@
             meal: meals[_pi],
           });
         }
+        // Configured extras + this team's per-player purchases. Extras are
+        // Format-tab driven — the checkbox row on each player is empty
+        // until the operator adds Mulligans / String / etc. on Format.
+        var extrasDefs = _tcExtrasList();
+        var extrasPurchased = _parseExtrasPurchased(f["Extras Purchased"]);
+        // Cost of a given player's extras (sum of prices for every extra
+        // they bought). Zero when no extras configured or none bought.
+        var playerExtrasCost = function (t) {
+          if (!extrasDefs.length) return 0;
+          var c = 0;
+          for (var _e = 0; _e < extrasDefs.length; _e++) {
+            var def = extrasDefs[_e];
+            var list = extrasPurchased[def.name] || [];
+            if (list.indexOf(t.role) !== -1) c += def.price;
+          }
+          return c;
+        };
         // Card and Online (QR) pay a 4% processing surcharge on top of the
         // player's base amount. Kept in one place so a rate change touches
         // every path (initial render, live recalc, downstream ledger).
-        var playerBase = function (t) { return entryPP + (t.cart * cartFee) + (Number(t.meal) || 0) * extraMealFee; };
+        var playerBase = function (t) { return entryPP + (t.cart * cartFee) + (Number(t.meal) || 0) * extraMealFee + playerExtrasCost(t); };
         var playerOwed = function (t) { var b = playerBase(t); return b + surchargeAmount(b, t.method); };
         var playerPaid = function (t) { return t.method ? playerOwed(t) : 0; };
         var totalOwed = players.reduce(function (s, t) { return s + playerOwed(t); }, 0);
@@ -2393,11 +2565,26 @@
             : (t.name
                 ? '<button type="button" class="ci-p__cap ci-p__cap--set" data-role="' + esc(t.role) + '" title="Make ' + esc(t.name) + ' the captain (scoring link + check)">&#9734; Captain</button>'
                 : '<span class="ci-p__cap ci-p__cap--empty" title="Add a name first">&#9734;</span>');
+          // Per-player extras checkboxes — one pill per Format-configured
+          // extra, showing the price so the operator sees what it adds.
+          // Always emit the wrapper (even empty) so the .ci-p grid keeps
+          // a consistent column count; CSS :empty hides the wrapper so
+          // rows with no extras still lay out cleanly with method in the
+          // final column.
+          var xInner = extrasDefs.map(function (def) {
+            var bought = (extrasPurchased[def.name] || []).indexOf(t.role) !== -1;
+            return '<label class="ci-extra" title="' + esc(def.name) + ' — ' + money(def.price) + ' per player">'
+              + '<input type="checkbox" class="ci-extra-box" data-role="' + esc(t.role) + '" data-extra="' + esc(def.name) + '"' + (bought ? " checked" : "") + ' />'
+              + '<span>' + esc(def.name) + ' <small>' + money(def.price) + '</small></span>'
+              + '</label>';
+          }).join("");
+          var extrasCells = '<div class="ci-p__extras">' + xInner + '</div>';
           return '<div class="ci-p" data-role="' + esc(t.role) + '">'
             + '<div class="ci-p__name">' + nameCell(t.role, t.name) + '</div>'
             + capCell
             + '<label class="ci-check" title="Charge entry to this player"><input type="checkbox" class="ci-paid-box" data-role="' + esc(t.role) + '"' + paidCk + ' /><span>Entry</span></label>'
             + '<label class="ci-meal" title="Extra meals × ' + money(extraMealFee) + '"><input type="number" min="0" max="10" step="1" class="ci__extra-meal" data-role="' + esc(t.role) + '" value="' + (Number(t.meal) || 0) + '" /><span>Meals</span></label>'
+            + extrasCells
             + '<select class="ci-p__method" data-role="' + esc(t.role) + '">' + methodOpts(t.method) + '</select>'
             + surchargeHint
             + '</div>';
@@ -2645,6 +2832,33 @@
             });
           });
 
+          // Per-player extras checkboxes. Each toggle rebuilds the whole
+          // "Extras Purchased" map from the card's current DOM state and
+          // POSTs the serialized JSON — same shape write path so a stale
+          // in-memory copy can't fight a concurrent toggle on another
+          // slot. Team totals recompute in-place; renderPL keeps $ Summary
+          // live if the operator has that tab open.
+          Array.prototype.forEach.call(card.querySelectorAll(".ci-extra-box"), function (box) {
+            box.addEventListener("change", function () {
+              var map = {};
+              Array.prototype.forEach.call(card.querySelectorAll(".ci-extra-box"), function (b) {
+                if (!b.checked) return;
+                var name = b.getAttribute("data-extra"); var role = b.getAttribute("data-role");
+                if (!name || !role) return;
+                (map[name] = map[name] || []).push(role);
+              });
+              var json = _serializeExtrasPurchased(map);
+              saveCheckin(id, { extrasPurchased: json }, statusEl, box);
+              for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
+                scAllCache[i].fields = scAllCache[i].fields || {};
+                scAllCache[i].fields["Extras Purchased"] = json;
+                break;
+              }
+              refreshCardTotals(card);
+              try { renderPL(); } catch (e) {}
+            });
+          });
+
           // Per-player extra meal count (number input — 0..N).
           Array.prototype.forEach.call(card.querySelectorAll(".ci__extra-meal"), function (box) {
             var role = box.getAttribute("data-role");
@@ -2773,6 +2987,20 @@
         var p3Cart = p3HalfBox && p3HalfBox.checked ? 0.5 : 0;
         var p4Cart = p4HalfBox && p4HalfBox.checked ? 0.5 : 0;
         var cartByRole = { p1: p1Cart, p2: p2Cart, p3: p3Cart, p4: p4Cart };
+        // Cost of the currently-checked extras for a given player role.
+        // Read live from the card DOM so a toggle registers before any
+        // scAllCache write lands.
+        var extrasDefsMap = {};
+        _tcExtrasList().forEach(function (def) { extrasDefsMap[def.name] = def.price; });
+        var _extrasCostFor = function (role) {
+          var c = 0;
+          Array.prototype.forEach.call(card.querySelectorAll('.ci-extra-box[data-role="' + role + '"]'), function (b) {
+            if (!b.checked) return;
+            var name = b.getAttribute("data-extra");
+            if (name in extrasDefsMap) c += extrasDefsMap[name];
+          });
+          return c;
+        };
         var owed = 0, paid = 0;
         Array.prototype.forEach.call(card.querySelectorAll(".ci-p"), function (pRow) {
           var role = pRow.getAttribute("data-role");
@@ -2781,7 +3009,7 @@
           var paidBox = pRow.querySelector(".ci-paid-box");
           var mealCount = mealBox && mealBox.value ? Math.max(0, Number(mealBox.value) || 0) : 0;
           var cart = cartByRole[role] || 0;
-          var pBase = entryPP + cart * cartFee + mealCount * extraMealFee;
+          var pBase = entryPP + cart * cartFee + mealCount * extraMealFee + _extrasCostFor(role);
           var methodVal = meth ? meth.value : "";
           var pOwed = pBase + surchargeAmount(pBase, methodVal);
           owed += pOwed;
@@ -8189,7 +8417,7 @@
       function printCourseCheck() {
         if (!scAllCache) { alert("Data still loading. Try again in a moment."); return; }
         var m = computeMoney(scAllCache);
-        var courseTotal = (m.greenFees || 0) + (m.meals || 0) + (m.extraMealsRevenue || 0) + (m.cartRentalRevenue || 0) + (m.otherRevenue || 0) + (m.calcuttaCommission || 0);
+        var courseTotal = (m.greenFees || 0) + (m.meals || 0) + (m.extraMealsRevenue || 0) + (m.cartRentalRevenue || 0) + (m.extrasRevenue || 0) + (m.otherRevenue || 0) + (m.calcuttaCommission || 0);
         if (courseTotal <= 0) { alert("Course total is $0 — nothing to pay yet."); return; }
         var checks = [{
           payee: "F&H Golf Course",
@@ -8197,7 +8425,7 @@
           memo: KEY + " — course hosting settlement",
           tournament: KEY,
           teamName: "",
-          note: "Green fees, meals, cart rentals, and Calcutta commission"
+          note: "Green fees, meals, cart rentals, extras, and Calcutta commission"
         }];
         _openCheckPrintWindow("F&H Founders — check to course", checks);
       }
@@ -9101,6 +9329,13 @@
         if (fmtReload) fmtReload.addEventListener("click", function () { loadFormat(true); });
         var fmtShotCount = document.getElementById("fmtShotCount");
         if (fmtShotCount) fmtShotCount.addEventListener("change", _fmtSyncShotgunUI);
+        // "+ Add extra" appends an empty row to the Extras editor. Blank
+        // rows are dropped on save so an accidental click is harmless.
+        var fmtExAdd = document.getElementById("fmtExtrasAdd");
+        if (fmtExAdd) fmtExAdd.addEventListener("click", function () {
+          var list = document.getElementById("fmtExtrasList");
+          if (list) { list.appendChild(_fmtBuildExtraRow({})); var n = list.querySelector(".fmt-extra:last-child input[data-k=\"name\"]"); if (n) n.focus(); }
+        });
         // Calcutta dropdown → live-toggle Calcutta workbook tabs. Payload
         // still writes on Save; this just gives immediate visual feedback.
         var fmtCE = document.getElementById("fmtCalcuttaEnabled");

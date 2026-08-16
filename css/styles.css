@@ -2067,7 +2067,10 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-card__status.is-error { color: var(--red-deep); }
 
 .ci-card__players { padding: 0.5rem 0.85rem 0.35rem; display: flex; flex-direction: column; gap: 0.35rem; }
-.ci-p { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(6rem, 8rem); align-items: center; gap: 0.4rem 0.5rem; padding: 0.3rem 0; border-bottom: 1px dashed var(--line); }
+.ci-p { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto auto minmax(6rem, 8rem); align-items: center; gap: 0.4rem 0.5rem; padding: 0.3rem 0; border-bottom: 1px dashed var(--line); }
+/* On narrow cards the extras strip drops to its own full-width row so it
+   doesn't crush the entry / meals / method columns. */
+@media (max-width: 720px) { .ci-p { grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(6rem, 8rem); } .ci-p__extras { grid-column: 1 / -1; justify-self: start; } }
 .ci-p:last-child { border-bottom: none; }
 .ci-p__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 /* Captain marker. .ci-p__cap--is = current captain (gold pill, non-clickable);
@@ -2237,6 +2240,27 @@ body.modal-open { overflow: hidden; }
    Rental line so the operator can see billing + physical cart together. */
 .ci-cartline--assign { margin-top: 0.35rem; }
 .ci-cartline--assign .ci-cart-assign { padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: #fff; min-width: 15rem; }
+
+/* Format tab — Extras editor. Each extra is a name+price row with a
+   Remove button on the right; layout mirrors .fmt-cart for visual
+   consistency but is a simpler two-column grid. */
+.fmt-extras { display: flex; flex-direction: column; gap: 0.55rem; margin: 0.4rem 0; }
+.fmt-extra { border: 1px solid var(--line); border-left: 3px solid var(--primary-green); border-radius: 8px; padding: 0.55rem 0.8rem; background: #fafaf7; display: grid; grid-template-columns: 2.4fr 1fr auto; gap: 0.7rem; align-items: end; }
+.fmt-extra .fmt-row { margin: 0; }
+.fmt-extra__rm { font-size: 0.82rem; padding: 0.35rem 0.75rem; }
+@media (max-width: 640px) { .fmt-extra { grid-template-columns: 1fr 1fr; } .fmt-extra__rm { grid-column: 1 / -1; justify-self: end; } }
+
+/* Check-In — per-player extras checkboxes. Same pill shape as .ci-meal;
+   wraps below the name if there are many extras on narrow cards. */
+.ci-p__extras { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+.ci-extra { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.55rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 0.78rem; font-weight: 700; color: var(--muted); cursor: pointer; user-select: none; }
+.ci-extra input { margin: 0; }
+.ci-extra:has(input:checked) { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
+.ci-extra small { font-weight: 500; opacity: 0.85; }
+/* Hide the per-player extras block when the tournament has no configured
+   extras — the render loop leaves the empty block out, but the CSS class
+   is here for the "no extras yet" empty-state hiding. */
+.ci-p__extras:empty { display: none; }
 
 /* People page — dense filterable table. */
 .ppl-bar { display: flex; flex-direction: column; gap: 0.6rem; margin: 0.4rem 0 0.8rem; }
