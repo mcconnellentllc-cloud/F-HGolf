@@ -2063,19 +2063,20 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 
 /* ---- Check-In team cards (Bulldog-style) ---- */
 .ci-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr)); gap: 0.9rem; align-items: start; }
-.ci-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.15s, box-shadow 0.15s; }
+.ci-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
+.ci-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
 .ci-card.is-fully-paid { border-color: var(--primary-green); box-shadow: 0 0 0 1px var(--primary-green) inset, var(--shadow-sm); background: #f6faf1; }
 .ci-card.is-alt { border-style: dashed; opacity: 0.85; }
 
-.ci-card__hd { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.85rem; background: var(--paper-2); border-bottom: 1px solid var(--line); }
-.ci-card__tnum { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; color: var(--primary-green); letter-spacing: 0.02em; }
+.ci-card__hd { display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 1rem; background: linear-gradient(180deg, var(--paper-2) 0%, #f7f4e7 100%); border-bottom: 1px solid var(--line); }
+.ci-card__tnum { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; color: var(--primary-green); letter-spacing: 0.02em; }
 .ci-card__start { padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; }
 .ci-card__status { margin-left: auto; font-size: 0.78rem; color: var(--muted); min-width: 4rem; text-align: right; }
 .ci-card__status.is-ok { color: var(--primary-green); font-weight: 700; }
 .ci-card__status.is-error { color: var(--red-deep); }
 
-.ci-card__players { padding: 0.5rem 0.85rem 0.35rem; display: flex; flex-direction: column; gap: 0.35rem; }
-.ci-p { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(8.5rem, 11rem); align-items: center; gap: 0.4rem 0.5rem; padding: 0.3rem 0; border-bottom: 1px dashed var(--line); }
+.ci-card__players { padding: 0.6rem 1rem 0.45rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.ci-p { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(8.5rem, 11rem); align-items: center; gap: 0.4rem 0.6rem; padding: 0.5rem 0; border-bottom: 1px dashed rgba(0,0,0,0.07); }
 /* Pin each child to an explicit grid column so hiding one (.ci-meal
    on non-Founders, empty .ci-p__extras) doesn't auto-shift the method
    dropdown into an earlier `auto` column and shrink it to icon width.
@@ -2096,25 +2097,32 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 /* Small "Payment method" header row above the first player row so the
    operator sees what the dropdown column IS before they touch it. Same
    grid template as .ci-p so the label lines up over column 5. */
-.ci-p-hdr { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(8.5rem, 11rem); gap: 0.4rem 0.5rem; padding: 0 0 0.25rem; font: 800 0.66rem/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 0.15rem; }
+.ci-p-hdr { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(8.5rem, 11rem); gap: 0.4rem 0.6rem; padding: 0 0 0.4rem; font: 800 0.68rem/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border-bottom: 1.5px solid var(--line); margin-bottom: 0.25rem; }
 .ci-p-hdr__method { text-align: left; grid-column: 5; }
 @media (max-width: 720px) {
   .ci-p-hdr { grid-template-columns: minmax(6.5rem, 1fr) auto auto minmax(8.5rem, 11rem); }
   .ci-p-hdr__method { grid-column: 4; }
 }
 .ci-p:last-child { border-bottom: none; }
-.ci-p__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.ci-p__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; font-size: 0.95rem; line-height: 1.25; }
 /* Captain marker. .ci-p__cap--is = current captain (gold pill, non-clickable);
    .ci-p__cap--set = button to promote another player; .ci-p__cap--empty =
    placeholder shown when a row has no name yet. */
-.ci-p__cap { display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; padding: 0; border-radius: 999px; font-size: 1rem; font-weight: 700; line-height: 1; white-space: nowrap; border: 1px solid var(--line); background: #fff; }
-.ci-p__cap--is { background: var(--brass-soft, #f4e6c1); color: var(--brass, #8a6a26); border-color: var(--brass, #b28a3a); cursor: default; }
+.ci-p__cap { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; border-radius: 999px; font-size: 1.15rem; font-weight: 700; line-height: 1; white-space: nowrap; border: 1.5px solid var(--line); background: #fff; transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.12s; }
+.ci-p__cap--is { background: var(--brass-soft, #f4e6c1); color: var(--brass, #8a6a26); border-color: var(--brass, #b28a3a); cursor: default; box-shadow: 0 1px 3px rgba(178,138,58,0.25); }
 .ci-p__cap--set { color: var(--muted); cursor: pointer; }
-.ci-p__cap--set:hover { background: var(--brass-soft, #f4e6c1); color: var(--brass, #8a6a26); border-color: var(--brass, #b28a3a); }
-.ci-p__cap--empty { color: var(--muted); opacity: 0.35; }
-.ci-p__method { padding: 0.4rem 0.55rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.9rem; background: #fff; font-weight: 700; width: 100%; min-width: 0; color: var(--ink); }
+.ci-p__cap--set:hover { background: var(--brass-soft, #f4e6c1); color: var(--brass, #8a6a26); border-color: var(--brass, #b28a3a); transform: scale(1.05); }
+.ci-p__cap--empty { color: var(--muted); opacity: 0.3; }
+/* Method dropdown drives the paid state — empty = amber "action needed"
+   look, any method picked = green "paid" look. Colors flip via JS on
+   change (see .ci-p__method.is-paid). This lets the operator glance
+   at a card and read paid/unpaid from color alone without hunting for
+   totals. */
+.ci-p__method { padding: 0.45rem 0.6rem; border: 1.5px solid #d4a017; border-radius: 8px; font: inherit; font-size: 0.9rem; background: #fff8e1; font-weight: 700; width: 100%; min-width: 0; color: #6b4d00; cursor: pointer; transition: background 0.12s, border-color 0.12s, color 0.12s; }
 .ci-p__method:focus { border-color: var(--primary-green); outline: none; box-shadow: 0 0 0 2px rgba(27,94,32,0.15); }
-.ci-p__method:disabled { background: var(--paper-2); color: var(--muted); }
+.ci-p__method:disabled { background: var(--paper-2); color: var(--muted); border-color: var(--line); }
+.ci-p__method.is-paid { background: var(--primary-green); border-color: var(--primary-green); color: #fff; }
+.ci-p__method.is-paid option { color: var(--ink); background: #fff; }
 .ci-p__surcharge { grid-column: 1 / -1; justify-self: end; display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; background: rgba(139, 28, 37, 0.1); color: #7d1218; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; }
 
 /* Inline paid / cart pill checkboxes on the player row + cart line. */
@@ -2135,26 +2143,41 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-check--need:has(input:checked) { background: #d19a00; color: #fff; border-color: #d19a00; }
 
 /* Cart line — three checkboxes across (P1 ½ · P2 ½ · Full). */
-.ci-cartline { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem; padding: 0.45rem 0.85rem; background: #fdfcf5; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.ci-cartline__lbl { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem; font-weight: 800; color: var(--muted); margin-right: 0.2rem; }
+.ci-cartline { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.7rem; padding: 0.6rem 1rem; background: #fbf9ee; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.ci-cartline__lbl { text-transform: uppercase; letter-spacing: 0.09em; font-size: 0.7rem; font-weight: 800; color: var(--muted); margin-right: 0.3rem; }
 .ci-check--cart { font-size: 0.75rem; padding: 0.22rem 0.55rem; }
 
-.ci-card__ft { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem 0.75rem; padding: 0.55rem 0.85rem; background: var(--paper-2); }
-.ci-tots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; }
+/* Footer redesigned for hierarchy — totals block on top, Take Payment
+   as a big primary button in the middle, secondary actions
+   (Merge / Scoring link / Alt / Remove) tucked into a compact row
+   below. Cleaner scan path: money → primary action → escape hatches. */
+.ci-card__ft { display: flex; flex-direction: column; gap: 0.55rem; padding: 0.7rem 1rem 0.85rem; background: var(--paper-2); }
+.ci-tots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; align-items: baseline; }
 .ci-tot { display: flex; flex-direction: column; align-items: flex-start; }
-.ci-tot small { color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.62rem; font-weight: 700; }
-.ci-tot b { font-family: var(--font-display); font-weight: 700; font-size: 0.98rem; }
+.ci-tot small { color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.62rem; font-weight: 800; margin-bottom: 0.1rem; }
+.ci-tot b { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; line-height: 1; }
 .ci-tot--paid b { color: var(--primary-green); }
 .ci-tot--owe b { color: var(--red-deep); }
 .ci-card.is-fully-paid .ci-tot--owe b { color: var(--primary-green); }
-.ci-card__acts { display: flex; flex-wrap: wrap; gap: 0.3rem; align-self: end; justify-self: end; justify-content: flex-end; }
-.ci-card__acts .ci__update { padding: 0.35rem 0.7rem; font-size: 0.78rem; border-radius: 6px; border: 1px solid var(--primary-green); color: var(--primary-green); background: #fff; cursor: pointer; font-weight: 700; }
-.ci-card__acts .ci__update:hover { background: var(--primary-green); color: #fff; }
-.ci-card__acts .ci__alt { padding: 0.35rem 0.55rem; font-size: 0.78rem; border-radius: 6px; }
-/* Remove is destructive — border + red text so it reads as "danger" and
-   stays inline instead of vanishing off the right edge of a busy card. */
-.ci-card__acts .ci__remove { padding: 0.35rem 0.65rem; font-size: 0.78rem; text-decoration: none; border: 1px solid var(--red-deep); border-radius: 6px; color: var(--red-deep); background: #fff; font-weight: 700; }
-.ci-card__acts .ci__remove:hover { background: var(--red-deep); color: #fff; }
+.ci-card__acts { display: grid; grid-template-columns: 1fr; gap: 0.4rem; }
+/* Take Payment = big primary; recomputes totals on click. Full width so
+   it's an unmissable target on both mouse + touch. */
+.ci-card__acts .ci__update { padding: 0.6rem 0.9rem; font-size: 0.95rem; border-radius: 8px; border: 0; color: #fff; background: var(--primary-green); cursor: pointer; font-weight: 800; letter-spacing: 0.02em; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: background 0.12s, transform 0.12s; }
+.ci-card__acts .ci__update:hover { background: #144a1e; }
+.ci-card__acts .ci__update:active { transform: translateY(1px); }
+/* Secondary action row — merge / scoring link / alt / remove. Smaller,
+   ghosted, wrapped so they never crowd the primary button. Remove sits
+   on the right as a destructive escape hatch. */
+.ci-card__acts-sec { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: flex-start; }
+.ci-card__acts-sec > * { padding: 0.32rem 0.65rem; font-size: 0.78rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.ci-card__acts-sec .ci__merge,
+.ci-card__acts-sec .ci__live,
+.ci-card__acts-sec .ci__alt { border: 1px solid var(--line); color: var(--ink); background: #fff; }
+.ci-card__acts-sec .ci__merge:hover,
+.ci-card__acts-sec .ci__live:hover,
+.ci-card__acts-sec .ci__alt:hover { border-color: var(--primary-green); color: var(--primary-green); }
+.ci-card__acts-sec .ci__remove { margin-left: auto; border: 1px solid rgba(178, 34, 41, 0.35); color: var(--red-deep); background: #fff; }
+.ci-card__acts-sec .ci__remove:hover { background: var(--red-deep); color: #fff; border-color: var(--red-deep); }
 
 /* ---- Check-In name cell: clickable Player Card link + ✎ inline rename ---- */
 .ci-name-wrap { display: inline-flex; align-items: center; gap: 0.3rem; }
