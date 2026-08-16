@@ -1193,6 +1193,14 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .lbd-flag--calc { background: #1e4c2b; color: #f2efd8; border-color: #143620; }
 .lbd-flag--playoff { background: #1a3a55; color: #fff; border-color: #10263a; }
 .lbd-name { min-width: 12rem; }
+/* Remaining-extras strip on the admin leaderboard. Small brass-tinted
+   chip per trackable extra with remaining > 0. One-letter name + N
+   stars so a mixed strip (mulligans + skins) stays legible at row
+   scale. Hidden entirely for teams with nothing outstanding. */
+.lbd-ex-wrap { display: inline-flex; align-items: center; gap: 0.25rem; margin-left: 0.35rem; vertical-align: middle; }
+.lbd-ex { display: inline-flex; align-items: center; gap: 0.1rem; padding: 0.05rem 0.35rem; border: 1px solid #b8860b; border-radius: 6px; color: #6b4d00; background: #fff7d6; font: 700 0.65rem/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; }
+.lbd-ex b { font-weight: 800; margin-right: 0.15rem; }
+.lbd-ex__stars { font-size: 0.75rem; letter-spacing: 0.05em; line-height: 1; color: #b8860b; }
 
 /* Payout tab */
 .po-summary { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; background: var(--paper-2); border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 1rem; }
@@ -2245,10 +2253,12 @@ body.modal-open { overflow: hidden; }
    Remove button on the right; layout mirrors .fmt-cart for visual
    consistency but is a simpler two-column grid. */
 .fmt-extras { display: flex; flex-direction: column; gap: 0.55rem; margin: 0.4rem 0; }
-.fmt-extra { border: 1px solid var(--line); border-left: 3px solid var(--primary-green); border-radius: 8px; padding: 0.55rem 0.8rem; background: #fafaf7; display: grid; grid-template-columns: 2.4fr 1fr auto; gap: 0.7rem; align-items: end; }
+.fmt-extra { border: 1px solid var(--line); border-left: 3px solid var(--primary-green); border-radius: 8px; padding: 0.55rem 0.8rem; background: #fafaf7; display: grid; grid-template-columns: 2fr 1fr auto auto; gap: 0.7rem; align-items: end; }
 .fmt-extra .fmt-row { margin: 0; }
+.fmt-extra__track { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.55rem; border: 1px solid var(--line); border-radius: 6px; background: #fff; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+.fmt-extra__track input { margin: 0; }
 .fmt-extra__rm { font-size: 0.82rem; padding: 0.35rem 0.75rem; }
-@media (max-width: 640px) { .fmt-extra { grid-template-columns: 1fr 1fr; } .fmt-extra__rm { grid-column: 1 / -1; justify-self: end; } }
+@media (max-width: 640px) { .fmt-extra { grid-template-columns: 1fr 1fr; } .fmt-extra__track { grid-column: 1 / -1; } .fmt-extra__rm { grid-column: 1 / -1; justify-self: end; } }
 
 /* Check-In — per-player extras checkboxes. Same pill shape as .ci-meal;
    wraps below the name if there are many extras on narrow cards. */

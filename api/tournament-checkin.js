@@ -103,6 +103,10 @@ module.exports = async (req, res) => {
   // clears every extra for this team. The auto-strip fallback drops the
   // field silently if the Airtable column hasn't been created yet.
   if (typeof body.extrasPurchased === "string") fields["Extras Purchased"] = body.extrasPurchased.slice(0, 4000);
+  // Per-team extras-used running count. Captain increments from live.html;
+  // the operator can override here if a captain forgets. Same shape as
+  // Extras Purchased but a plain count per name: {"Mulligans": 2}.
+  if (typeof body.extrasUsed === "string") fields["Extras Used"] = body.extrasUsed.slice(0, 4000);
   // Email — set when the captain changes so the scoring-link email routes
   // to the new captain's inbox. Empty string clears it.
   if (typeof body.email === "string") fields["Email"] = body.email ? body.email.slice(0, 200) : null;

@@ -1546,7 +1546,16 @@
         try { arr = JSON.parse(raw || "[]"); if (!Array.isArray(arr)) arr = []; } catch (e) { arr = []; }
         var extras = arr.map(function (e) {
           e = e || {};
-          return { name: String(e.name || "").trim(), price: Number(e.price) || 0 };
+          // "track" defaults to true so existing rows saved before this
+          // field existed still get the Use button + leaderboard stars.
+          // Set to false for physical add-ons (string, ball drop) where
+          // the captain can't tap "used one" mid-round — those are
+          // purely charged extras with no burn-down UI.
+          return {
+            name: String(e.name || "").trim(),
+            price: Number(e.price) || 0,
+            track: (e.track === false ? false : true),
+          };
         });
         _fmtRenderExtras(extras);
       }
@@ -1560,9 +1569,15 @@
         var row = document.createElement("div");
         row.className = "fmt-extra";
         row.setAttribute("role", "listitem");
+        // "Track uses on scoring page" checkbox: on for mulligans (the
+        // captain taps "Use one" mid-round, leaderboard shows remaining
+        // stars); off for physical items like String or a Ball Drop
+        // where you can't practically track consumption from the phone.
+        var trackChecked = (e.track === false) ? "" : " checked";
         row.innerHTML = ''
           + '<label class="fmt-row fmt-extra__name"><span>Name</span><input type="text" data-k="name" maxlength="60" placeholder="Mulligans" /></label>'
           + '<label class="fmt-row fmt-extra__price"><span>Price / player</span><input type="number" data-k="price" min="0" step="1" placeholder="5" /></label>'
+          + '<label class="fmt-row fmt-row--chk fmt-extra__track" title="If on, the captain gets a &quot;Use one&quot; button on the scoring page and the leaderboard shows how many remain. Turn OFF for physical items (String, ball drops) that can&#39;t be tracked mid-round."><input type="checkbox" data-k="track"' + trackChecked + ' /><span>Trackable</span></label>'
           + '<button type="button" class="btn btn--solid fmt-extra__rm" title="Remove this extra">Remove</button>';
         var nameEl = row.querySelector('[data-k="name"]'); if (nameEl) nameEl.value = e.name || "";
         var priceEl = row.querySelector('[data-k="price"]'); if (priceEl && e.price) priceEl.value = String(e.price);
@@ -1583,7 +1598,9 @@
           var name = String((row.querySelector('[data-k="name"]') || {}).value || "").trim();
           var price = Number((row.querySelector('[data-k="price"]') || {}).value) || 0;
           if (!name && !price) return;
-          out.push({ name: name.slice(0, 60), price: Math.max(0, price) });
+          var trackEl = row.querySelector('[data-k="track"]');
+          var track = trackEl ? !!trackEl.checked : true;
+          out.push({ name: name.slice(0, 60), price: Math.max(0, price), track: track });
         });
         // Always write an array (even []) so clearing every extra actually
         // wipes the stored value on Airtable.
@@ -2421,9 +2438,49 @@
         try {
           var arr = JSON.parse(raw);
           if (!Array.isArray(arr)) return [];
-          return arr.map(function (e) { return { name: String((e && e.name) || "").trim(), price: Number(e && e.price) || 0 }; })
+          return arr.map(function (e) { return {
+            name: String((e && e.name) || "").trim(),
+            price: Number(e && e.price) || 0,
+            track: (e && e.track === false) ? false : true,
+          }; })
                     .filter(function (e) { return e.name; });
         } catch (err) { return []; }
+      }
+      // Team-wide "used" count map from an Extras Used JSON string.
+      // Shape: {"Mulligans": 2}. Sparse — missing key = 0 used.
+      function _parseExtrasUsed(raw) {
+        if (!raw) return {};
+        try {
+          var obj = JSON.parse(raw);
+          if (!obj || typeof obj !== "object" || Array.isArray(obj)) return {};
+          var out = {};
+          Object.keys(obj).forEach(function (k) {
+            var n = Number(obj[k]);
+            if (isFinite(n) && n > 0) out[k] = Math.floor(n);
+          });
+          return out;
+        } catch (err) { return {}; }
+      }
+      // Compact star strip for the leaderboard — one chip per trackable
+      // extra type with remaining > 0. Same visual as the phone app so
+      // the two views feel like one thing. Empty string when nothing to
+      // show (no configured extras, or team burned them all).
+      function _renderLeaderboardExtrasStars(purchasedRaw, usedRaw) {
+        var defs = _tcExtrasList().filter(function (d) { return d.track; });
+        if (!defs.length) return "";
+        var pMap = _parseExtrasPurchased(purchasedRaw);
+        var uMap = _parseExtrasUsed(usedRaw);
+        var chips = defs.map(function (d) {
+          var bought = (pMap[d.name] || []).length;
+          var used = uMap[d.name] || 0;
+          var remain = Math.max(0, bought - used);
+          if (remain <= 0) return "";
+          var stars = "";
+          for (var i = 0; i < remain; i++) stars += "★";
+          return '<span class="lbd-ex" title="' + esc(d.name) + ' remaining: ' + remain + '"><b>' + esc(d.name.charAt(0).toUpperCase()) + '</b><span class="lbd-ex__stars">' + stars + '</span></span>';
+        }).filter(Boolean).join("");
+        if (!chips) return "";
+        return ' <span class="lbd-ex-wrap" aria-label="Unused extras">' + chips + '</span>';
       }
       // Parse a signup's "Extras Purchased" JSON into a sparse map:
       //   { "Mulligans": ["p1","p3"], "String": ["p2"] }
@@ -6985,7 +7042,9 @@
             hcp: null, net: null,
             grossPlace: null, netPlace: null,
             buyer: f.Buyer || "",
-            buyAmount: (typeof f["Buy Amount"] === "number") ? f["Buy Amount"] : 0
+            buyAmount: (typeof f["Buy Amount"] === "number") ? f["Buy Amount"] : 0,
+            extrasPurchased: f["Extras Purchased"] || "",
+            extrasUsed: f["Extras Used"] || "",
           };
           if (d1 != null && sortedScores.length) {
             var fnum = flightForScore(d1, cuts);
@@ -8004,7 +8063,7 @@
             var placeCell = chips.length ? '<span class="lbd-flags">' + chips.join("") + '</span>' : "";
             return "<tr>"
               + '<td class="lbd-place">' + placeCell + "</td>"
-              + '<td class="lbd-name">' + (row.teamNumber ? '<span class="lb-tnum">T-' + String(row.teamNumber).padStart(2, "0") + '</span> ' : '') + esc(row.name) + "</td>"
+              + '<td class="lbd-name">' + (row.teamNumber ? '<span class="lb-tnum">T-' + String(row.teamNumber).padStart(2, "0") + '</span> ' : '') + esc(row.name) + _renderLeaderboardExtrasStars(row.extrasPurchased, row.extrasUsed) + "</td>"
               + "<td>" + (row.d1 == null ? "—" : row.d1) + "</td>"
               + (isTwoDay ? "<td>" + (row.d2 == null ? "—" : row.d2) + "</td>" : "")
               + "<td><b>" + (row.gross == null ? "—" : row.gross) + "</b></td>"

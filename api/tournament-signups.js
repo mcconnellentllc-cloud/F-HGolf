@@ -670,6 +670,12 @@ module.exports = async (req, res) => {
           day2: f["Day2 Scores"] || "",
           day1Gross: f["Day1 Gross"] || null,
           day2Gross: f["Day2 Gross"] || null,
+          // Extras: purchased is a sparse per-player map (staff writes it
+          // on Check-In), used is a team-wide count per extra name that
+          // the captain increments from their phone. Both are Long text
+          // JSON strings; the phone app parses.
+          extrasPurchased: f["Extras Purchased"] || "",
+          extrasUsed: f["Extras Used"] || "",
         };
       };
       return res.status(200).json({
@@ -680,7 +686,11 @@ module.exports = async (req, res) => {
           name: cfg.fields["Name"] || tournament,
           rounds: cfg.fields["Rounds"] || 1,
           playersPerTeam: cfg.fields["Players Per Team"] || 2,
-        } : { name: tournament, rounds: 1, playersPerTeam: 2 },
+          // Extras list from Format tab. Phone app renders one button
+          // per configured extra so the captain can tap when a mulligan
+          // (or string, or whatever the operator added) gets used up.
+          extras: cfg.fields["Extras JSON"] || "",
+        } : { name: tournament, rounds: 1, playersPerTeam: 2, extras: "" },
         field: fieldRows.map(stripField),
       });
     } catch (e) {

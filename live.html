@@ -287,6 +287,32 @@
 
     .footer-tip { margin-top: 1.2rem; padding: 0.75rem 0.9rem; background: var(--paper-2); border: 1px dashed var(--line); border-radius: 10px; font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
 
+    /* Extras (mulligans, string, etc.) — one row per configured extra
+       your team bought at check-in. Remaining count shows as stars; tap
+       "Use one" to burn one. Once used, the star disappears here AND on
+       the leaderboard so nobody can quietly claim more than they paid
+       for. The card only renders extras where remaining > 0 so a
+       cleaned-out row falls off the screen. */
+    .extras-card { margin-top: 0.85rem; padding: 0.85rem 0.9rem; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+    .extras-card__hd { font: 700 0.75rem/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+    .extras-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0; border-top: 1px dashed var(--line); }
+    .extras-row:first-of-type { border-top: none; padding-top: 0; }
+    .extras-row__nm { font: 700 0.95rem/1.1 system-ui, sans-serif; color: var(--ink); min-width: 5rem; }
+    .extras-row__stars { flex: 1; display: flex; align-items: center; gap: 0.15rem; flex-wrap: wrap; color: var(--brass); font-size: 1.05rem; letter-spacing: 0.1em; }
+    .extras-row__stars--none { color: var(--muted); font: 600 0.78rem/1 system-ui, sans-serif; letter-spacing: 0.06em; opacity: 0.7; }
+    .extras-row__use { padding: 0.5rem 0.85rem; font: 700 0.85rem/1 system-ui, sans-serif; color: var(--paper); background: var(--green-strong); border: 0; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+    .extras-row__use:disabled { background: var(--paper-2); color: var(--muted); cursor: not-allowed; }
+    .extras-row__use.is-saving { opacity: 0.6; }
+
+    /* Leaderboard star strip — small brass stars sit next to team names
+       so anyone glancing at the leaderboard can see who has unused
+       mulligans / string / etc. remaining. Small size + tight spacing
+       so the row height stays the same. */
+    .lb-extras { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: 0.35rem; vertical-align: middle; }
+    .lb-extras__type { display: inline-flex; align-items: center; gap: 0.1rem; padding: 0.05rem 0.35rem; border: 1px solid var(--brass); border-radius: 6px; color: var(--brass); font: 700 0.62rem/1 system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; }
+    .lb-extras__type b { font-weight: 700; margin-right: 0.15rem; }
+    .lb-extras__stars { font-size: 0.75rem; letter-spacing: 0.04em; line-height: 1; }
+
     /* Loading / error states */
     .fill { flex: 1; display: grid; place-items: center; padding: 2rem 1.5rem; text-align: center; }
     .fill h2 { font: 400 1.35rem/1.2 Georgia, serif; color: var(--ink); margin: 0 0 0.5rem; }
@@ -404,6 +430,62 @@
             render();
           })
           .catch(function () { showError("Network error loading your scorecard."); });
+      }
+
+      // Configured extras from the tournament (Format tab → Extras
+      // JSON) that are TRACKABLE — i.e. the captain can tap "Use one"
+      // mid-round. Physical extras like String (track:false) don't
+      // render a button and don't show up on the leaderboard stars —
+      // there's no way to know from the phone when someone uses them,
+      // so pretending we can track them would be misleading.
+      function configExtras() {
+        var raw = (STATE.config && STATE.config.extras) || "";
+        if (!raw) return [];
+        try {
+          var arr = JSON.parse(raw);
+          if (!Array.isArray(arr)) return [];
+          return arr.map(function (e) { return {
+            name: String((e && e.name) || "").trim(),
+            price: Number(e && e.price) || 0,
+            track: (e && e.track === false) ? false : true,
+          }; })
+                    .filter(function (e) { return e.name && e.track; });
+        } catch (err) { return []; }
+      }
+      // Team's per-player extras purchases from Check-In:
+      //   {"Mulligans":["p1","p3"],"String":["p2"]}
+      // Returns a plain count-per-name map (["p1","p3"] → 2).
+      function purchasedCounts(raw) {
+        var out = {};
+        try {
+          var obj = JSON.parse(raw || "{}");
+          if (!obj || typeof obj !== "object" || Array.isArray(obj)) return out;
+          Object.keys(obj).forEach(function (k) {
+            if (Array.isArray(obj[k])) out[k] = obj[k].filter(function (s) { return /^p[1-4]$/.test(s); }).length;
+          });
+        } catch (e) {}
+        return out;
+      }
+      // Team-wide count of already-used extras — the captain increments
+      // this from their phone. Same shape read/write path so the number
+      // never drifts across screens.
+      function usedCounts(raw) {
+        var out = {};
+        try {
+          var obj = JSON.parse(raw || "{}");
+          if (!obj || typeof obj !== "object" || Array.isArray(obj)) return out;
+          Object.keys(obj).forEach(function (k) {
+            var n = Number(obj[k]);
+            if (isFinite(n) && n > 0) out[k] = Math.floor(n);
+          });
+        } catch (e) {}
+        return out;
+      }
+      // Purchased minus used for a given team + extra name. Never negative.
+      function remainingFor(purchasedRaw, usedRaw, name) {
+        var p = purchasedCounts(purchasedRaw)[name] || 0;
+        var u = usedCounts(usedRaw)[name] || 0;
+        return Math.max(0, p - u);
       }
 
       function parseScores(raw) {
@@ -585,7 +667,101 @@
           +   '<div class="tot"><span class="k">Gross</span><span class="v">' + (g.holes ? g.total : "–") + '</span></div>'
           +   '<div class="tot ' + (toPar > 0 ? "pos" : toPar < 0 ? "neg" : "") + '"><span class="k">To par</span><span class="v">' + (g.holes ? formatToPar(toPar) : "–") + '</span></div>'
           + '</div>'
+          + renderExtrasCard()
           + '<p class="footer-tip">Scores auto-save as you tap. A green dot means saved; a brass one means saving. If cell signal drops mid-round, your scores queue and post as soon as it&rsquo;s back.</p>';
+      }
+
+      // Extras card — one row per Format-configured extra your team
+      // has any purchases of. Star count = remaining. Tap "Use one"
+      // to burn one; row disappears when there are none left. Renders
+      // NOTHING when the tournament has no extras or the team bought
+      // nothing (no visual clutter for tournaments that don't use extras).
+      function renderExtrasCard() {
+        var defs = configExtras();
+        if (!defs.length) return "";
+        var t = STATE.team;
+        var pMap = purchasedCounts(t.extrasPurchased);
+        var uMap = usedCounts(t.extrasUsed);
+        var rows = defs.map(function (d) {
+          var bought = pMap[d.name] || 0;
+          var used = uMap[d.name] || 0;
+          if (!bought) return "";
+          var remain = Math.max(0, bought - used);
+          var stars = remain > 0
+            ? '<span class="extras-row__stars" title="' + remain + ' left of ' + bought + '">' + repeatStr('&#9733;', remain) + '</span>'
+            : '<span class="extras-row__stars extras-row__stars--none">All used</span>';
+          return '<div class="extras-row" data-extra="' + esc(d.name) + '">'
+            + '<div class="extras-row__nm">' + esc(d.name) + '</div>'
+            + stars
+            + '<button type="button" class="extras-row__use" data-use-extra="' + esc(d.name) + '"' + (remain <= 0 ? ' disabled' : '') + '>Use one</button>'
+            + '</div>';
+        }).filter(Boolean).join("");
+        if (!rows) return "";
+        return '<div class="extras-card"><div class="extras-card__hd">Extras — tap when you use one</div>' + rows + '</div>';
+      }
+      function repeatStr(s, n) { var out = ""; for (var i = 0; i < n; i++) out += s; return out; }
+
+      // Small brass-star strip drawn inline next to team names on the
+      // Leaderboard. One chip per configured extra with remaining > 0.
+      // Uses the extra name's first letter as a label so mixed-type
+      // strips (e.g. "M ★★★★  S ★★") stay readable at leaderboard scale.
+      // Returns "" for teams with nothing outstanding — no clutter.
+      function renderExtrasStars(purchasedRaw, usedRaw) {
+        var defs = configExtras();
+        if (!defs.length) return "";
+        var chips = defs.map(function (d) {
+          var remain = remainingFor(purchasedRaw, usedRaw, d.name);
+          if (remain <= 0) return "";
+          return '<span class="lb-extras__type" title="' + esc(d.name) + ' remaining: ' + remain + '">'
+            + '<b>' + esc(d.name.charAt(0).toUpperCase()) + '</b>'
+            + '<span class="lb-extras__stars">' + repeatStr('&#9733;', remain) + '</span>'
+            + '</span>';
+        }).filter(Boolean).join("");
+        if (!chips) return "";
+        return '<span class="lb-extras" aria-label="Unused extras">' + chips + '</span>';
+      }
+
+      // Optimistic increment of the team's Extras Used count for a
+      // given extra name. Bumps the in-memory state, re-renders, then
+      // POSTs the new JSON. Rolls back the number on server error so
+      // the button reflects reality.
+      function useExtra(name) {
+        var t = STATE.team;
+        var uMap = usedCounts(t.extrasUsed);
+        var pMap = purchasedCounts(t.extrasPurchased);
+        var remain = Math.max(0, (pMap[name] || 0) - (uMap[name] || 0));
+        if (remain <= 0) return;
+        uMap[name] = (uMap[name] || 0) + 1;
+        var newJson = JSON.stringify(uMap);
+        var prev = t.extrasUsed;
+        t.extrasUsed = newJson;
+        // Also update the row in STATE.field so the leaderboard reflects
+        // it immediately without waiting on a refetch.
+        for (var i = 0; i < STATE.field.length; i++) {
+          if (STATE.field[i].id === t.id) { STATE.field[i].extrasUsed = newJson; break; }
+        }
+        render();
+        setLive("saving");
+        fetch(FH_API.url("/api/tournament-score"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: TOKEN, extrasUsed: newJson }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) throw new Error((j && j.error) || "save failed");
+            setLive("saved");
+            setTimeout(function () { setLive(""); }, 900);
+          })
+          .catch(function () {
+            // Roll back — put the count back to what the server has.
+            t.extrasUsed = prev;
+            for (var i = 0; i < STATE.field.length; i++) {
+              if (STATE.field[i].id === t.id) { STATE.field[i].extrasUsed = prev; break; }
+            }
+            setLive("err");
+            render();
+          });
       }
 
       function renderDaySwitch() {
@@ -605,7 +781,7 @@
           for (var i = 0; i < s.length; i++) {
             if (s[i] != null) { g += s[i]; parSoFar += parAtIndex(i); holes++; }
           }
-          return { id: t.id, name: t.teamName, partners: t.partners, flight: t.flight, gross: g, holes: holes, toPar: holes ? (g - parSoFar) : null };
+          return { id: t.id, name: t.teamName, partners: t.partners, flight: t.flight, gross: g, holes: holes, toPar: holes ? (g - parSoFar) : null, extrasPurchased: t.extrasPurchased, extrasUsed: t.extrasUsed };
         });
         var showFlight = (STATE.lbFilter === "mine" && mineFlight != null);
         var visible = showFlight
@@ -631,7 +807,7 @@
             var thru = r.holes ? ("Thru " + r.holes) : "Not started";
             return '<div class="lb-row ' + (isYou ? "you " : "") + (isTop ? "top" : "") + '">'
               + '<div class="lb-pos">' + rank + '</div>'
-              + '<div class="lb-name">' + esc(r.name || "Team") + (isYou ? " <small>You · " + esc(r.partners || "") + "</small>" : (r.partners ? "<small>" + esc(r.partners) + "</small>" : "")) + '</div>'
+              + '<div class="lb-name">' + esc(r.name || "Team") + renderExtrasStars(r.extrasPurchased, r.extrasUsed) + (isYou ? " <small>You · " + esc(r.partners || "") + "</small>" : (r.partners ? "<small>" + esc(r.partners) + "</small>" : "")) + '</div>'
               + '<div class="lb-score ' + scoreClass + '">' + scoreText + '</div>'
               + '<div class="lb-thru">' + thru + '</div>'
               + '</div>';
@@ -725,6 +901,14 @@
         if (down) down.addEventListener("click", function () { bumpScore(-1); });
         var up = document.getElementById("scUp");
         if (up) up.addEventListener("click", function () { bumpScore(1); });
+        // "Use one" buttons on each extras row — data-use-extra names
+        // the extra to burn. useExtra() handles rollback on server error.
+        Array.prototype.forEach.call(document.querySelectorAll("[data-use-extra]"), function (b) {
+          b.addEventListener("click", function () {
+            b.classList.add("is-saving");
+            useExtra(b.getAttribute("data-use-extra"));
+          });
+        });
       }
 
       // Refresh the leaderboard periodically (so other teams' scores show up
