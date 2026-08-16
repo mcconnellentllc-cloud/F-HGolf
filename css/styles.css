@@ -2279,18 +2279,31 @@ body.modal-open { overflow: hidden; }
 .ci__merge:hover { background: var(--primary-green); color: #fff; }
 
 /* Check-In: hide per-player Meals input + extra-meals summary bits when
-   Format's "Extra Meals Enabled" checkbox is off. Toggled by a
-   container class on the check-in sheet, not per-card, so the render
-   path stays identical. */
-.wb-sheet[data-sheet="check"].ci--no-meals .ci-meal { display: none; }
-.wb-sheet[data-sheet="check"].ci--no-meals .ci-extra-meals-line,
-.wb-sheet[data-sheet="check"].ci--no-meals .ci-cartline--meal { display: none; }
+   Format's "Extra Meals Enabled" checkbox is off. See the double-gate
+   block below (near .ci-meal + body.tw-single-wave) — no duplicate
+   rules here; keep it in one place. */
 
 /* Single-wave tournaments (Format Waves = 1): no AM/PM chips, no per-team
    wave dropdown — there's only one shotgun so any of those controls just
-   confuses operators. Everything is driven by the Format tab. */
-.wb-sheet[data-sheet="check"].ci--single-wave #ciWaveFilterGroup { display: none; }
-.wb-sheet[data-sheet="check"].ci--single-wave .ci-card__start { display: none; }
+   confuses operators. Everything is driven by the Format tab.
+   Gated TWO ways for reliability:
+     .ci--single-wave — applied by _applyCheckinFeatureFlags after config
+     body.tw-single-wave — applied synchronously at page load
+   Body-class hides the UI IMMEDIATELY without waiting for the config fetch.
+   No flash of unwanted controls on slow networks. */
+.wb-sheet[data-sheet="check"].ci--single-wave #ciWaveFilterGroup,
+body.tw-single-wave #ciWaveFilterGroup { display: none !important; }
+.wb-sheet[data-sheet="check"].ci--single-wave .ci-card__start,
+body.tw-single-wave .ci-card__start { display: none !important; }
+
+/* Meals are Founders-only. Same double-gate — .ci--no-meals from JS +
+   body.tw-single-wave synchronously so per-team Meal inputs never flash. */
+.wb-sheet[data-sheet="check"].ci--no-meals .ci-meal,
+body.tw-single-wave .ci-meal { display: none !important; }
+.wb-sheet[data-sheet="check"].ci--no-meals .ci-extra-meals-line,
+.wb-sheet[data-sheet="check"].ci--no-meals .ci-cartline--meal,
+body.tw-single-wave .ci-extra-meals-line,
+body.tw-single-wave .ci-cartline--meal { display: none !important; }
 
 /* Founders is the only tournament that runs two shotgun waves. On every
    other workbook, hide the Shotgun starts picker + AM/PM time inputs on
