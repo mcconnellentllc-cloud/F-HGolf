@@ -2765,11 +2765,18 @@
         for (var _r = 0; _r <= maxRentals; _r++) {
           rentalOpts += '<option value="' + _r + '"' + (rentalsNeeded === _r ? " selected" : "") + '>' + (_r === 0 ? "no rental" : (_r + " rental" + (_r === 1 ? "" : "s"))) + "</option>";
         }
-        var cartLine = '<div class="ci-cartline">'
+        // Cart line — one row: label + N half-share pills (+ Full toggle
+        // on 2-player teams). Rentals-needed dropdown moved to its own
+        // line below so this row stays visually clean at "Cart P1 ½ P2 ½
+        // P3 ½ P4 ½".
+        var cartLine = '<div class="ci-cartline ci-cartline--halves">'
           + '<span class="ci-cartline__lbl">Cart</span>'
           + cartHalfCells
           + fullCell
-          + '<label class="ci-check ci-check--cart ci-check--need"><span>Rentals needed</span><select class="ci-cart-need">' + rentalOpts + '</select></label>'
+          + '</div>'
+          + '<div class="ci-cartline ci-cartline--need">'
+          + '<span class="ci-cartline__lbl">Rentals needed</span>'
+          + '<select class="ci-cart-need">' + rentalOpts + '</select>'
           + '</div>';
         // Assignment dropdown — separate line so it doesn't crowd the
         // half/full/need row. Populated from Tournament Config: Rental N

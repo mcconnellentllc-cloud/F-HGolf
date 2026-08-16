@@ -2144,6 +2144,19 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 
 /* Cart line — three checkboxes across (P1 ½ · P2 ½ · Full). */
 .ci-cartline { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.7rem; padding: 0.6rem 1rem; background: #fbf9ee; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+/* Halves row — Cart label + P1-P4 half-share pills in ONE line. Never
+   wraps; on narrow cards each pill shrinks to fit. Rentals-needed +
+   Assigned cart live on their own lines below so this row reads as
+   "which players cover which half of the cart" without noise. */
+.ci-cartline--halves { flex-wrap: nowrap; overflow-x: auto; }
+.ci-cartline--halves .ci-check--cart { flex: 0 0 auto; padding: 0.2rem 0.5rem; font-size: 0.72rem; }
+.ci-cartline--halves .ci-check--cart small { font-size: 0.66rem; }
+/* Rentals-needed sits on its own row, right below the halves. Yellow
+   accent border matches the amber "action needed" look used on the
+   unpaid method dropdown so operators recognize it as "set me". */
+.ci-cartline--need { padding-top: 0.5rem; padding-bottom: 0.5rem; border-top: none; background: #fdfbe8; }
+.ci-cartline--need .ci-cart-need { padding: 0.35rem 0.55rem; border: 1px solid #d4a017; border-radius: 6px; font: inherit; font-size: 0.85rem; font-weight: 700; background: #fff; color: #6b4d00; }
+.ci-cartline--need .ci-cart-need:focus { border-color: var(--primary-green); outline: none; box-shadow: 0 0 0 2px rgba(27,94,32,0.15); }
 .ci-cartline__lbl { text-transform: uppercase; letter-spacing: 0.09em; font-size: 0.7rem; font-weight: 800; color: var(--muted); margin-right: 0.3rem; }
 .ci-check--cart { font-size: 0.75rem; padding: 0.22rem 0.55rem; }
 
