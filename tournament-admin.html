@@ -2794,6 +2794,17 @@
           + '<span class="ci-card__tnum">Team ' + esc(tnBadge) + '</span>'
           + '<select class="ci__start ci-card__start" title="Wave">' + startOptions(esc(f["Start"] || "")) + '</select>'
           + '<span class="ci__status ci-card__status"></span>'
+          // Overflow menu — Merge / Alt / Remove tucked here (out of the
+          // footer) so a fast tap on Take Payment or Scoring link can't
+          // accidentally trigger Remove. Click ⋯ to reveal the menu.
+          + '<div class="ci-card__more">'
+          +   '<button type="button" class="ci-card__more-btn" aria-haspopup="true" aria-expanded="false" title="More actions">&#8942;</button>'
+          +   '<div class="ci-card__more-menu" hidden role="menu">'
+          +     '<button type="button" class="ci__merge" role="menuitem">Merge with another team&hellip;</button>'
+          +     '<button type="button" class="ci__alt" role="menuitem">' + (isAlt ? "Move to field" : "Move to alternates") + '</button>'
+          +     '<button type="button" class="ci__remove ci-card__more-danger" role="menuitem">Remove team&hellip;</button>'
+          +   '</div>'
+          + '</div>'
           + '</header>'
           + '<div class="ci-card__players">'
           +   '<div class="ci-p-hdr" aria-hidden="true">'
@@ -2813,11 +2824,6 @@
           +   '<div class="ci-card__acts-primary">'
           +     '<button type="button" class="ci__update" title="Recalculate + save this team’s payment state">Take Payment</button>'
           +     '<button type="button" class="ci__live" title="Mint this team’s live-scoring link; auto-emails the captain if we have their address">Scoring link</button>'
-          +   '</div>'
-          +   '<div class="ci-card__acts-sec">'
-          +     '<button type="button" class="ci__merge" title="Merge this team with another (e.g. two couples arrived as separate signups)">Merge</button>'
-          +     '<button type="button" class="ci__alt" title="Toggle alternate">' + (isAlt ? "→ Field" : "Alt") + '</button>'
-          +     '<button type="button" class="ci__remove" title="Remove team (no-show, cancellation, duplicate)">Remove</button>'
           +   '</div>'
           + '</div>'
           + '</footer>'
@@ -2896,6 +2902,30 @@
         list.innerHTML = html;
         attachRowFilter(list, { rowSelector: ".ci-card" });
 
+        // One-time global handlers to close any open overflow menu on
+        // outside click or Escape. Guard so re-renders don't stack
+        // duplicate listeners.
+        if (!window.__fhCiMoreDismissWired) {
+          document.addEventListener("click", function () {
+            Array.prototype.forEach.call(document.querySelectorAll(".ci-card__more-menu"), function (m) {
+              if (m.hidden) return;
+              m.hidden = true;
+              var b = m.parentNode && m.parentNode.querySelector(".ci-card__more-btn");
+              if (b) b.setAttribute("aria-expanded", "false");
+            });
+          });
+          document.addEventListener("keydown", function (e) {
+            if (e.key !== "Escape") return;
+            Array.prototype.forEach.call(document.querySelectorAll(".ci-card__more-menu"), function (m) {
+              if (m.hidden) return;
+              m.hidden = true;
+              var b = m.parentNode && m.parentNode.querySelector(".ci-card__more-btn");
+              if (b) { b.setAttribute("aria-expanded", "false"); b.focus(); }
+            });
+          });
+          window.__fhCiMoreDismissWired = true;
+        }
+
         // Wire per-team card controls.
         Array.prototype.forEach.call(list.querySelectorAll(".ci-card"), function (card) {
           var id = card.getAttribute("data-id");
@@ -2903,6 +2933,35 @@
           var startSel = card.querySelector(".ci__start");
           var altBtn = card.querySelector(".ci__alt");
           var remove = card.querySelector(".ci__remove");
+
+          // Header overflow menu (⋮) — holds destructive/less-common
+          // actions (Merge / Move to alternates / Remove) so a fast tap
+          // on Take Payment or Scoring link in the footer can't
+          // accidentally trigger them.
+          var moreBtn = card.querySelector(".ci-card__more-btn");
+          var moreMenu = card.querySelector(".ci-card__more-menu");
+          if (moreBtn && moreMenu) {
+            moreBtn.addEventListener("click", function (e) {
+              e.stopPropagation();
+              var opening = moreMenu.hidden;
+              // Close any other card's open menu first — only one open
+              // at a time keeps the layout sane on a dense grid.
+              Array.prototype.forEach.call(document.querySelectorAll(".ci-card__more-menu"), function (m) {
+                m.hidden = true;
+                var b = m.parentNode && m.parentNode.querySelector(".ci-card__more-btn");
+                if (b) b.setAttribute("aria-expanded", "false");
+              });
+              if (opening) {
+                moreMenu.hidden = false;
+                moreBtn.setAttribute("aria-expanded", "true");
+              }
+            });
+            // Any click inside the menu closes it once the action fires.
+            moreMenu.addEventListener("click", function () {
+              moreMenu.hidden = true;
+              moreBtn.setAttribute("aria-expanded", "false");
+            });
+          }
 
           if (startSel) startSel.addEventListener("change", function () { saveCheckin(id, { start: startSel.value }, statusEl, startSel); });
 

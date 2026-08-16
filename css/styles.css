@@ -2068,8 +2068,24 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-card.is-fully-paid { border-color: var(--primary-green); box-shadow: 0 0 0 1px var(--primary-green) inset, var(--shadow-sm); background: #f6faf1; }
 .ci-card.is-alt { border-style: dashed; opacity: 0.85; }
 
-.ci-card__hd { display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 1rem; background: linear-gradient(180deg, var(--paper-2) 0%, #f7f4e7 100%); border-bottom: 1px solid var(--line); }
+.ci-card__hd { display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 1rem; background: linear-gradient(180deg, var(--paper-2) 0%, #f7f4e7 100%); border-bottom: 1px solid var(--line); position: relative; }
 .ci-card__tnum { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; color: var(--primary-green); letter-spacing: 0.02em; }
+
+/* Header overflow ⋮ menu — holds Merge / Move-to-alt / Remove so the
+   destructive-ish actions live away from the footer's Take Payment
+   button. Menu is absolutely positioned so it hangs over the card body
+   without pushing anything down; parent .ci-card__hd is relative for
+   the anchor. */
+.ci-card__more { position: relative; margin-left: 0.25rem; }
+.ci-card__more-btn { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--muted); font-size: 1.35rem; line-height: 1; cursor: pointer; padding: 0; }
+.ci-card__more-btn:hover { background: #fff; border-color: var(--line); color: var(--ink); }
+.ci-card__more-btn[aria-expanded="true"] { background: #fff; border-color: var(--primary-green); color: var(--primary-green); }
+.ci-card__more-menu { position: absolute; top: calc(100% + 0.25rem); right: 0; z-index: 50; min-width: 12rem; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.14); padding: 0.25rem; display: flex; flex-direction: column; gap: 0.1rem; }
+.ci-card__more-menu[hidden] { display: none; }
+.ci-card__more-menu > button { padding: 0.55rem 0.7rem; font: inherit; font-size: 0.85rem; font-weight: 600; text-align: left; background: transparent; border: 0; border-radius: 6px; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.ci-card__more-menu > button:hover { background: var(--paper-2); }
+.ci-card__more-menu > .ci-card__more-danger { color: var(--red-deep); border-top: 1px solid var(--line); margin-top: 0.1rem; padding-top: 0.6rem; }
+.ci-card__more-menu > .ci-card__more-danger:hover { background: rgba(178,34,41,0.08); color: var(--red-deep); }
 .ci-card__start { padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 0.82rem; background: #fff; }
 .ci-card__status { margin-left: auto; font-size: 0.78rem; color: var(--muted); min-width: 4rem; text-align: right; }
 .ci-card__status.is-ok { color: var(--primary-green); font-weight: 700; }
