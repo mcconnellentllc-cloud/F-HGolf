@@ -2067,16 +2067,16 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-card__status.is-error { color: var(--red-deep); }
 
 .ci-card__players { padding: 0.5rem 0.85rem 0.35rem; display: flex; flex-direction: column; gap: 0.35rem; }
-.ci-p { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto auto minmax(6rem, 8rem); align-items: center; gap: 0.4rem 0.5rem; padding: 0.3rem 0; border-bottom: 1px dashed var(--line); }
+.ci-p { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(6rem, 8rem); align-items: center; gap: 0.4rem 0.5rem; padding: 0.3rem 0; border-bottom: 1px dashed var(--line); }
 /* On narrow cards the extras strip drops to its own full-width row so it
-   doesn't crush the entry / meals / method columns. */
-@media (max-width: 720px) { .ci-p { grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(6rem, 8rem); } .ci-p__extras { grid-column: 1 / -1; justify-self: start; } }
+   doesn't crush the meals / method columns. */
+@media (max-width: 720px) { .ci-p { grid-template-columns: minmax(6.5rem, 1fr) auto auto minmax(6rem, 8rem); } .ci-p__extras { grid-column: 1 / -1; justify-self: start; } }
 .ci-p:last-child { border-bottom: none; }
 .ci-p__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 /* Captain marker. .ci-p__cap--is = current captain (gold pill, non-clickable);
    .ci-p__cap--set = button to promote another player; .ci-p__cap--empty =
    placeholder shown when a row has no name yet. */
-.ci-p__cap { display: inline-flex; align-items: center; padding: 0.22rem 0.55rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; border: 1px solid var(--line); background: #fff; }
+.ci-p__cap { display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; padding: 0; border-radius: 999px; font-size: 1rem; font-weight: 700; line-height: 1; white-space: nowrap; border: 1px solid var(--line); background: #fff; }
 .ci-p__cap--is { background: var(--brass-soft, #f4e6c1); color: var(--brass, #8a6a26); border-color: var(--brass, #b28a3a); cursor: default; }
 .ci-p__cap--set { color: var(--muted); cursor: pointer; }
 .ci-p__cap--set:hover { background: var(--brass-soft, #f4e6c1); color: var(--brass, #8a6a26); border-color: var(--brass, #b28a3a); }
