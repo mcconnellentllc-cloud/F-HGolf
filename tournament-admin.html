@@ -132,6 +132,7 @@
                 <label class="fmt-row"><span>Flights</span><input type="number" name="Flights" min="0" max="6" /></label>
                 <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Alternates Allowed" /><span>Alternates allowed once cap is hit</span></label>
                 <label class="fmt-row fmt-row--chk" id="fmtExtraMealsRow"><input type="checkbox" name="Extra Meals Enabled" /><span>Track extra meals per player (kitchen head count)</span></label>
+                <label class="fmt-row fmt-row--chk" title="USGA-style scoring: teams mark opponents' cards. A→B, B→C, C→A. Individual teams can be flagged 'Scores whole group' on their Check-In card to have one captain score everyone on their tee."><input type="checkbox" name="Marker Scoring Enabled" /><span>Marker scoring &mdash; teams mark opponents' cards</span></label>
               </div>
               <div class="fmt-grid fmt-grid--shot">
                 <label class="fmt-row"><span>Shotgun starts</span>
@@ -2800,6 +2801,21 @@
           + _cartOptionsFor(currentAssign)
           + '</select>'
           + '</div>';
+        // Marker scoring — per-team "Scores whole group" toggle. Only
+        // rendered when the tournament has Marker Scoring Enabled on
+        // Format (default off means standard USGA pairing marks apply
+        // — A marks B, B marks A). Turning this ON for a team lets
+        // that captain score every team on their tee (both their own
+        // team AND the opponents), and switches everyone else on the
+        // tee into read-only spectator mode.
+        var _markerEnabled = !!(_tcConfigCache && _tcConfigCache["Marker Scoring Enabled"]);
+        var _isGroupScorer = !!f["Group Scorer"];
+        var markerLine = _markerEnabled
+          ? '<div class="ci-cartline ci-cartline--marker">'
+            +   '<span class="ci-cartline__lbl">Scorer</span>'
+            +   '<label class="ci-check ci-check--marker" title="If ON, this captain will score EVERY team on their tee (including their own). If OFF, they score only the opponent they\'re paired with, USGA-style."><input type="checkbox" class="ci-marker-group"' + (_isGroupScorer ? " checked" : "") + ' /><span>Scores whole group</span></label>'
+            + '</div>'
+          : '';
 
         return '<article class="ci-card' + (isAlt ? " is-alt" : "") + (totalPaid >= totalOwed && totalOwed > 0 ? " is-fully-paid" : "") + '" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
           + '<header class="ci-card__hd">'
@@ -2826,6 +2842,7 @@
           + '</div>'
           + cartLine
           + cartAssignLine
+          + markerLine
           + '<footer class="ci-card__ft">'
           + '<div class="ci-tots">'
           + '<span class="ci-tot"><small>Total</small><b class="ci-tot__total">' + money(totalOwed) + '</b></span>'
@@ -3112,6 +3129,22 @@
             }
             try { renderPL(); } catch (e) {}
             try { _renderCartDemand(); } catch (e) {}
+          });
+
+          // Group Scorer toggle (per-team). When checked, this captain's
+          // scoring link writes every team on their tee — self + others.
+          // Only shown when the tournament has Marker Scoring Enabled on
+          // Format. Optimistic UI + cache update so a re-render keeps
+          // the box in sync.
+          var groupChk = card.querySelector(".ci-marker-group");
+          if (groupChk) groupChk.addEventListener("change", function () {
+            var on = !!groupChk.checked;
+            saveCheckin(id, { groupScorer: on }, statusEl, groupChk);
+            for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
+              scAllCache[i].fields = scAllCache[i].fields || {};
+              scAllCache[i].fields["Group Scorer"] = on;
+              break;
+            }
           });
 
           // Cart assignment dropdown — pick a specific cart for this team.
