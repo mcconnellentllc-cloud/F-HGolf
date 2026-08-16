@@ -688,7 +688,7 @@
           if (!bought) return "";
           var remain = Math.max(0, bought - used);
           var stars = remain > 0
-            ? '<span class="extras-row__stars" title="' + remain + ' left of ' + bought + '">' + repeatStr('&#9733;', remain) + '</span>'
+            ? '<span class="extras-row__stars" title="' + remain + ' left of ' + bought + '">' + repeatStr('&#9679;', remain) + '</span>'
             : '<span class="extras-row__stars extras-row__stars--none">All used</span>';
           return '<div class="extras-row" data-extra="' + esc(d.name) + '">'
             + '<div class="extras-row__nm">' + esc(d.name) + '</div>'
@@ -714,7 +714,7 @@
           if (remain <= 0) return "";
           return '<span class="lb-extras__type" title="' + esc(d.name) + ' remaining: ' + remain + '">'
             + '<b>' + esc(d.name.charAt(0).toUpperCase()) + '</b>'
-            + '<span class="lb-extras__stars">' + repeatStr('&#9733;', remain) + '</span>'
+            + '<span class="lb-extras__stars">' + repeatStr('&#9679;', remain) + '</span>'
             + '</span>';
         }).filter(Boolean).join("");
         if (!chips) return "";

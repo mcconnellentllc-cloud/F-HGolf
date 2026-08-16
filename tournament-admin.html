@@ -2475,9 +2475,9 @@
           var used = uMap[d.name] || 0;
           var remain = Math.max(0, bought - used);
           if (remain <= 0) return "";
-          var stars = "";
-          for (var i = 0; i < remain; i++) stars += "★";
-          return '<span class="lbd-ex" title="' + esc(d.name) + ' remaining: ' + remain + '"><b>' + esc(d.name.charAt(0).toUpperCase()) + '</b><span class="lbd-ex__stars">' + stars + '</span></span>';
+          var dots = "";
+          for (var i = 0; i < remain; i++) dots += "●";
+          return '<span class="lbd-ex" title="' + esc(d.name) + ' remaining: ' + remain + '"><b>' + esc(d.name.charAt(0).toUpperCase()) + '</b><span class="lbd-ex__stars">' + dots + '</span></span>';
         }).filter(Boolean).join("");
         if (!chips) return "";
         return ' <span class="lbd-ex-wrap" aria-label="Unused extras">' + chips + '</span>';
