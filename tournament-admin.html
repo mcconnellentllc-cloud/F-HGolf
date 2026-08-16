@@ -2749,17 +2749,24 @@
         // 3+ riders "one player pays for the cart" doesn't map cleanly.
         // Billing math on the money tab sums whichever shares are set,
         // so 4 half-shares = 2 carts = 2 × cartFee.
+        // Cart half labels — no per-pill price. Fee is a known constant
+        // for the tournament (set in Format) and the total already lands
+        // in the team's OWES column, so repeating it four times is
+        // clutter that keeps the row from fitting on one line. Fee is
+        // still surfaced via the label's title tooltip if the operator
+        // wants a quick reminder.
+        var _halfTip = "½ cart share — " + money(cartFee / 2) + " per player";
         var cartHalfCells = ''
-          + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p1"' + (p1Cart === 0.5 ? " checked" : "") + ' /><span>P1 ½ <small>' + money(cartFee / 2) + '</small></span></label>'
-          + '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p2"' + (p2Cart === 0.5 ? " checked" : "") + ' /><span>P2 ½ <small>' + money(cartFee / 2) + '</small></span></label>';
+          + '<label class="ci-check ci-check--cart" title="' + esc(_halfTip) + '"><input type="checkbox" class="ci-cart-half" data-role="p1"' + (p1Cart === 0.5 ? " checked" : "") + ' /><span>P1 ½</span></label>'
+          + '<label class="ci-check ci-check--cart" title="' + esc(_halfTip) + '"><input type="checkbox" class="ci-cart-half" data-role="p2"' + (p2Cart === 0.5 ? " checked" : "") + ' /><span>P2 ½</span></label>';
         if (teamSize >= 3) {
-          cartHalfCells += '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p3"' + (p3Cart === 0.5 ? " checked" : "") + ' /><span>P3 ½ <small>' + money(cartFee / 2) + '</small></span></label>';
+          cartHalfCells += '<label class="ci-check ci-check--cart" title="' + esc(_halfTip) + '"><input type="checkbox" class="ci-cart-half" data-role="p3"' + (p3Cart === 0.5 ? " checked" : "") + ' /><span>P3 ½</span></label>';
         }
         if (teamSize >= 4) {
-          cartHalfCells += '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-half" data-role="p4"' + (p4Cart === 0.5 ? " checked" : "") + ' /><span>P4 ½ <small>' + money(cartFee / 2) + '</small></span></label>';
+          cartHalfCells += '<label class="ci-check ci-check--cart" title="' + esc(_halfTip) + '"><input type="checkbox" class="ci-cart-half" data-role="p4"' + (p4Cart === 0.5 ? " checked" : "") + ' /><span>P4 ½</span></label>';
         }
         var fullCell = teamSize <= 2
-          ? '<label class="ci-check ci-check--cart"><input type="checkbox" class="ci-cart-full"' + (p1Cart === 1 || p2Cart === 1 ? " checked" : "") + ' /><span>Full <small>' + money(cartFee) + '</small></span></label>'
+          ? '<label class="ci-check ci-check--cart" title="Full cart — ' + esc(money(cartFee)) + '"><input type="checkbox" class="ci-cart-full"' + (p1Cart === 1 || p2Cart === 1 ? " checked" : "") + ' /><span>Full</span></label>'
           : '';
         var rentalOpts = "";
         for (var _r = 0; _r <= maxRentals; _r++) {
@@ -3116,9 +3123,31 @@
             }
           });
 
-          // Update button — recompute totals in-place from current state.
+          // Take Payment — the "last stop" for a team's transaction.
+          // Each method dropdown auto-saves as it's picked, so this
+          // button's role is to (1) recompute totals from live DOM
+          // state, (2) briefly flash a green confirmation so the
+          // operator knows the round of taps is committed, and
+          // (3) pulse the card border. Especially useful when a team
+          // pays in pieces — the operator hits Take Payment when a
+          // batch of players is done, walks away, and comes back later
+          // to record the next batch.
           var upd = card.querySelector(".ci__update");
-          if (upd) upd.addEventListener("click", function () { refreshCardTotals(card); });
+          if (upd) upd.addEventListener("click", function () {
+            refreshCardTotals(card);
+            if (statusEl) {
+              statusEl.textContent = "Team saved ✓";
+              statusEl.className = "ci__status ci-card__status is-ok";
+              setTimeout(function () {
+                if (statusEl.textContent === "Team saved ✓") {
+                  statusEl.textContent = "";
+                  statusEl.className = "ci__status ci-card__status";
+                }
+              }, 1500);
+            }
+            card.classList.add("is-just-updated");
+            setTimeout(function () { card.classList.remove("is-just-updated"); }, 900);
+          });
 
 
           // Per-player payment method dropdown — empty = not paid.

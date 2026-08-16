@@ -2066,6 +2066,15 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
 .ci-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
 .ci-card.is-fully-paid { border-color: var(--primary-green); box-shadow: 0 0 0 1px var(--primary-green) inset, var(--shadow-sm); background: #f6faf1; }
+/* Brief green ring pulse after Take Payment click — gives the operator
+   a "yes, I committed it" moment when a team pays in pieces. */
+.ci-card.is-just-updated { animation: ciCardPulse 0.9s ease-out; }
+@keyframes ciCardPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(27,94,32,0.55), var(--shadow-sm); }
+  50%  { box-shadow: 0 0 0 6px rgba(27,94,32,0.15), var(--shadow-sm); }
+  100% { box-shadow: 0 0 0 0 rgba(27,94,32,0), var(--shadow-sm); }
+}
+@media (prefers-reduced-motion: reduce) { .ci-card.is-just-updated { animation: none; } }
 .ci-card.is-alt { border-style: dashed; opacity: 0.85; }
 
 .ci-card__hd { display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 1rem; background: linear-gradient(180deg, var(--paper-2) 0%, #f7f4e7 100%); border-bottom: 1px solid var(--line); position: relative; }
