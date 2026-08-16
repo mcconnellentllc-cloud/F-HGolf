@@ -54,6 +54,37 @@ module.exports = async (req, res) => {
     }
   }
 
+  // Extras-only update path: captain tapped a "used a mulligan" button.
+  // The body carries an "extrasUsed" JSON string (team-wide counts like
+  // {"Mulligans":2}) and no scores — write only that field and return.
+  // Same token auth as the score path (id is already resolved above).
+  if (!Array.isArray(body.scores) && typeof body.extrasUsed === "string") {
+    if (!id) return res.status(400).json({ ok: false, error: "Missing record id." });
+    try {
+      const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}/${id}`;
+      const r = await fetch(url, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: { "Extras Used": body.extrasUsed.slice(0, 4000) }, typecast: true }),
+      });
+      if (!r.ok) {
+        const detail = await r.text();
+        console.error("tournament-score extras update error", r.status, detail);
+        // If the "Extras Used" column doesn't exist yet, tell the caller
+        // clearly so they know to add it on Airtable.
+        if (/Unknown field/i.test(detail)) {
+          return res.status(502).json({ ok: false, error: "Airtable doesn't have an \"Extras Used\" field on Tournament Signups yet — ask the pro shop to add it." });
+        }
+        return res.status(502).json({ ok: false, error: "Could not save the extras update." });
+      }
+      const data = await r.json();
+      return res.status(200).json({ ok: true, id: data.id, extrasUsed: (data.fields || {})["Extras Used"] || "" });
+    } catch (e) {
+      console.error("tournament-score extras update exception", e);
+      return res.status(500).json({ ok: false, error: "Something went wrong saving the extras update." });
+    }
+  }
+
   const day = Number(body.day);
   if (!id) return res.status(400).json({ ok: false, error: "Missing record id." });
   if (day !== 1 && day !== 2) return res.status(400).json({ ok: false, error: "Day must be 1 or 2." });
