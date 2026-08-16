@@ -933,6 +933,14 @@
       var KEY = param("t");
       var TMETA = window.FH_TMETA || {};
       var META = TMETA[KEY] || null;
+      // Founders is the only 2-wave tournament at F&H. A body class carries
+      // that fact so CSS can show/hide founders-only controls (Shotgun
+      // starts picker, wave chip row, per-team wave dropdown, AM/PM print
+      // buttons — all Founders-only from here on).
+      try {
+        if (/^Founder/i.test(String(KEY || ""))) document.body.classList.add("tw-founders");
+        else document.body.classList.add("tw-single-wave");
+      } catch (e) {}
 
       function splitName(key) {
         var mm = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(key);
@@ -3339,23 +3347,15 @@
         pair.classList.toggle("pr--single-wave", waves <= 1);
         try { _syncPrCardsButtons(); } catch (e) {}
       }
-      // How many shotgun waves this tournament runs (1 or 2). Reads
-      // Format's Waves JSON. Single-shotgun is the common case at F&H
-      // (Couples, Fire, Bulldog, Cornfest, etc.) so the DEFAULT when
-      // Waves JSON is missing is 1 — otherwise the check-in tab keeps
-      // showing AM/PM chips and per-team wave dropdowns that mean nothing.
-      // Founders is hardcoded 2-wave regardless of what its config says
-      // (or doesn't) so its AM/PM UI can't regress if the config ever
-      // becomes malformed.
-      function _tcWaveCount(cfg) {
+      // Waves at F&H: Founders is the one 2-wave tournament (AM + PM
+      // shotgun). Every other event on the calendar is a single-shotgun.
+      // Hardcoded to that reality — the Waves JSON on Tournament Config
+      // is ignored for non-Founders on purpose. When (if) another
+      // tournament ever wants 2 waves, add its key to the regex; that's
+      // the only place to touch.
+      function _tcWaveCount(/* cfg */) {
         if (typeof KEY === "string" && /^Founder/i.test(KEY)) return 2;
-        try {
-          var raw = (cfg && cfg["Waves JSON"]) || "";
-          if (!raw) return 1;
-          var arr = JSON.parse(raw);
-          if (!Array.isArray(arr) || arr.length === 0) return 1;
-          return arr.length >= 2 ? 2 : 1;
-        } catch (e) { return 1; }
+        return 1;
       }
       function ensureConfigCache(cb) {
         if (_tcConfigCache) { if (cb) cb(_tcConfigCache); return; }

@@ -2292,6 +2292,12 @@ body.modal-open { overflow: hidden; }
 .wb-sheet[data-sheet="check"].ci--single-wave #ciWaveFilterGroup { display: none; }
 .wb-sheet[data-sheet="check"].ci--single-wave .ci-card__start { display: none; }
 
+/* Founders is the only tournament that runs two shotgun waves. On every
+   other workbook, hide the Shotgun starts picker + AM/PM time inputs on
+   the Format tab — those controls are dead there and just tempt operators
+   to touch settings that don't do anything. Founders keeps them. */
+body.tw-single-wave .fmt-grid--shot { display: none; }
+
 /* Pairings single-day mode: driven by Format's Rounds field. Hide every
    Day 2 control so operators of one-day tournaments never see a Day 2
    tab, autofill, or print button they'd have to ignore. */
