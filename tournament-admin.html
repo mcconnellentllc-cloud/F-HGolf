@@ -3404,6 +3404,32 @@
               });
           });
       }
+      // Push a Player's email out to every signup that links to that
+      // Player. Called from the Player Card modal save so the operator's
+      // workflow "add email at check-in via the Player Card" also
+      // populates the signup's denormalized Email field — which is what
+      // the bulk "Email scoring links" button filters on, and what the
+      // mint endpoint reads first. Empty email is a no-op.
+      function propagatePlayerEmail(playerId, email) {
+        if (!playerId || !email) return Promise.resolve();
+        return fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var recs = (j && j.records) || [];
+            var linked = recs.filter(function (r) {
+              var p = (r.fields || {}).Player;
+              return Array.isArray(p) && p.indexOf(playerId) !== -1;
+            });
+            if (!linked.length) return;
+            return Promise.all(linked.map(function (r) {
+              return fetch(FH_API.url("/api/tournament-checkin"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+                body: JSON.stringify({ id: r.id, email: email })
+              }).catch(function () {});
+            }));
+          });
+      }
 
       // Build a first-initial + last-name fingerprint from a full name.
       // "Marcus Sanchez" → "M. Sanchez". Team names on archived
@@ -3648,6 +3674,14 @@
                 // render will pull in the cascade when the operator moves
                 // on.
                 if (linkRole === "p1") { propagatePlayerName(j.id, name).catch(function () {}); }
+                // Email propagation — any player role. If the operator
+                // added an email on the Player Card, push it to every
+                // signup linked to this player so the bulk "Email
+                // scoring links" button (which filters on the signup's
+                // Email field) picks up captains whose email lives only
+                // on the Player Card.
+                var pmEmailNow = String((document.getElementById("pmEmail") || {}).value || "").trim();
+                if (pmEmailNow) { propagatePlayerEmail(j.id, pmEmailNow).catch(function () {}); }
               })
               .catch(function () {})
               .finally(function () { setTimeout(closePlayerCard, 500); });
