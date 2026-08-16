@@ -479,36 +479,67 @@ module.exports = async (req, res) => {
         // Always merge the Tournament key on writes so brand-new rows
         // still get their identifier.
         const merged = Object.assign({ Tournament: tournament }, fields);
-        // Airtable rejects unknown fields — surface a helpful error if
-        // the schema hasn't been extended yet. `typecast: true` lets
-        // Airtable coerce strings into single-select options / numbers.
-        const write = existing
-          ? {
-              method: "PATCH",
-              url: `${cfgUrl}/${existing.id}`,
-              body: JSON.stringify({ fields: merged, typecast: true }),
-            }
-          : {
-              method: "POST",
-              url: cfgUrl,
-              body: JSON.stringify({ records: [{ fields: merged }], typecast: true }),
-            };
-        const wr = await fetch(write.url, {
-          method: write.method,
-          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
-          body: write.body,
-        });
-        if (!wr.ok) {
-          const detail = await wr.text();
-          console.error("config write error", wr.status, detail);
-          const msg = /Unknown field/i.test(detail)
-            ? "Airtable rejected the write — a field name in the payload doesn't exist in the Tournament Config table."
-            : "Could not save the config.";
-          return res.status(502).json({ ok: false, error: msg, detail });
+        // Auto-strip unknown fields + retry — same pattern the
+        // tournament-checkin endpoint uses. Airtable's "Unknown field
+        // name" 422 used to hard-fail the WHOLE Format save; now the
+        // offender drops out and the rest lands so the operator's Team
+        // Cap / Extras / Slug edits all still persist even if e.g.
+        // "Extras JSON" hasn't been added to the base yet.
+        // Response payload includes a `warning` naming any dropped
+        // fields so the operator can add them to Airtable if needed.
+        const stripped = new Set();
+        let working = { ...merged };
+        let lastDetail = "";
+        let savedRec = null;
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const write = existing
+            ? { method: "PATCH", url: `${cfgUrl}/${existing.id}`, body: JSON.stringify({ fields: working, typecast: true }) }
+            : { method: "POST", url: cfgUrl, body: JSON.stringify({ records: [{ fields: working }], typecast: true }) };
+          const wr = await fetch(write.url, {
+            method: write.method,
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+            body: write.body,
+          });
+          if (wr.ok) {
+            const wjson = await wr.json();
+            savedRec = existing ? wjson : (wjson.records && wjson.records[0]);
+            break;
+          }
+          lastDetail = await wr.text();
+          let missing = null;
+          try {
+            const parsed = JSON.parse(lastDetail);
+            const emsg = parsed && parsed.error && parsed.error.message;
+            const m = /Unknown field name[s]?:\s*"([^"]+)"/i.exec(emsg || "");
+            if (m) missing = m[1];
+          } catch (e) {}
+          if (!missing) {
+            console.error("config write error", wr.status, lastDetail);
+            const msg = /Unknown field/i.test(lastDetail)
+              ? "Airtable rejected the write — a field name in the payload doesn't exist in the Tournament Config table."
+              : "Could not save the config.";
+            return res.status(502).json({ ok: false, error: msg, detail: lastDetail });
+          }
+          stripped.add(missing);
+          delete working[missing];
+          // Never strip the identifier — without Tournament we couldn't
+          // find the row on the next save either.
+          if (!Object.keys(working).length || !working.Tournament) {
+            return res.status(200).json({
+              ok: true,
+              id: null,
+              fields: {},
+              warning: "Nothing saved — every field in the update was missing on Airtable (" + [...stripped].join(", ") + "). Add them to the Tournament Config table.",
+            });
+          }
         }
-        const wjson = await wr.json();
-        const saved = existing ? wjson : (wjson.records && wjson.records[0]);
-        return res.status(200).json({ ok: true, id: saved && saved.id, fields: (saved && saved.fields) || merged });
+        if (!savedRec) {
+          console.error("config write exhausted retries", lastDetail);
+          return res.status(502).json({ ok: false, error: "Could not save the config after 8 retry attempts.", detail: lastDetail });
+        }
+        const payload = { ok: true, id: savedRec.id, fields: savedRec.fields || merged };
+        if (stripped.size) payload.warning = "Saved without " + [...stripped].join(", ") + " (add those fields on the Tournament Config table to store them).";
+        return res.status(200).json(payload);
       } catch (e) {
         console.error("config write exception", e);
         return res.status(500).json({ ok: false, error: "Something went wrong writing the config." });

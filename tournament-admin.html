@@ -742,6 +742,30 @@
     </div>
   </div>
 
+  <!-- ==================== FORMAT SAVE ERROR MODAL ==================== -->
+  <!-- Definitive error surface for Save format. Pop-up so the operator
+       cannot miss when the save silently fails (Airtable rejection,
+       502 gateway, network drop). Shows the server's message + the raw
+       detail so we can diagnose without asking for a screenshot of the
+       tiny red pill. -->
+  <div class="pm-modal cd-modal" id="fmtErrorModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="fmtErrorTitle">
+    <div class="pm-modal__backdrop" data-close-err="1"></div>
+    <div class="pm-modal__panel cd-panel rs-panel">
+      <div class="pm-modal__head">
+        <h3 id="fmtErrorTitle" style="color: var(--red-deep);">Save failed &nbsp;&#9888;&#65039;</h3>
+        <button type="button" class="pm-modal__close" id="fmtErrorClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="pm-modal__body">
+        <p class="cd-body"><b id="fmtErrorSummary">Your changes were not saved.</b></p>
+        <p class="cd-body rs-note" id="fmtErrorHelp">Try again in a moment. If it keeps failing, send this whole box to Claude so we can diagnose.</p>
+        <pre id="fmtErrorDetail" style="background:#fbeaeb;border:1px solid #d9a0a5;border-radius:6px;padding:0.6rem 0.8rem;font-size:0.78rem;color:#5b0a10;white-space:pre-wrap;word-break:break-all;max-height:12rem;overflow:auto;margin:0.4rem 0 0;" hidden></pre>
+      </div>
+      <div class="pm-modal__foot">
+        <button type="button" class="btn btn--primary" id="fmtErrorOk">Got it</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== FORMAT SAVED (info) MODAL ==================== -->
   <!-- Definitive confirmation after Save format. The small "Saved ✓" pill
        next to the tab title is easy to miss when the operator has just
@@ -1749,9 +1773,48 @@
               try { openFmtSavedModal(res.j && (res.j.warning || "")); } catch (e) {}
               return;
             }
-            _fmtSetStatus((res.j && res.j.error) || ("Save failed (" + res.status + ")"), "error");
+            // Bubble the failure up as a modal — a small red pill next
+            // to the tab title is easy to miss when the operator is
+            // glancing away. Show status code + server message + raw
+            // detail so we can diagnose without asking for a screenshot.
+            var errMsg = (res.j && res.j.error) || ("Save failed (HTTP " + res.status + ")");
+            var errDetail = (res.j && res.j.detail) || "";
+            try { console.error("saveFormat failed:", res.status, errMsg, errDetail); } catch (e) {}
+            _fmtSetStatus(errMsg, "error");
+            try { openFmtErrorModal(errMsg, errDetail, res.status); } catch (e) { alert("Save failed: " + errMsg); }
           })
-          .catch(function () { _fmtSetStatus("Network error saving.", "error"); });
+          .catch(function (e) {
+            var errMsg = "Network error saving — check your connection and try again.";
+            try { console.error("saveFormat network error:", e); } catch (_) {}
+            _fmtSetStatus(errMsg, "error");
+            try { openFmtErrorModal(errMsg, String(e && e.message || e || ""), 0); } catch (_) { alert(errMsg); }
+          });
+      }
+
+      // Error modal for Save format failures. Mirrors openFmtSavedModal —
+      // blocking dialog with the server's error message + the raw detail
+      // so the operator can copy it into a bug report.
+      function openFmtErrorModal(message, detail, status) {
+        var modal = document.getElementById("fmtErrorModal");
+        if (!modal) { alert("Save failed: " + (message || "unknown error")); return; }
+        var sum = document.getElementById("fmtErrorSummary");
+        if (sum) sum.textContent = message || "Your changes were not saved.";
+        var det = document.getElementById("fmtErrorDetail");
+        if (det) {
+          var combined = "";
+          if (status) combined += "HTTP " + status + "\n";
+          if (detail) combined += String(detail).slice(0, 4000);
+          if (combined) { det.hidden = false; det.textContent = combined; }
+          else { det.hidden = true; det.textContent = ""; }
+        }
+        modal.hidden = false; modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("modal-open");
+        var ok = document.getElementById("fmtErrorOk"); if (ok) ok.focus();
+      }
+      function closeFmtErrorModal() {
+        var modal = document.getElementById("fmtErrorModal"); if (!modal) return;
+        modal.hidden = true; modal.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("modal-open");
       }
 
       // Format-saved confirmation modal. Mirrors the recap-saved pattern.
@@ -1850,6 +1913,15 @@
         if (ok) ok.addEventListener("click", closeFmtSavedModal);
         modal.addEventListener("click", function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute("data-close") === "1") closeFmtSavedModal(); });
         document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal && !modal.hidden) closeFmtSavedModal(); });
+      })();
+      (function wireFmtErrorModal() {
+        var modal = document.getElementById("fmtErrorModal"); if (!modal) return;
+        var close = document.getElementById("fmtErrorClose");
+        var ok = document.getElementById("fmtErrorOk");
+        if (close) close.addEventListener("click", closeFmtErrorModal);
+        if (ok) ok.addEventListener("click", closeFmtErrorModal);
+        modal.addEventListener("click", function (e) { if (e.target && e.target.getAttribute && e.target.getAttribute("data-close-err") === "1") closeFmtErrorModal(); });
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal && !modal.hidden) closeFmtErrorModal(); });
       })();
 
       function saveRecap() {
