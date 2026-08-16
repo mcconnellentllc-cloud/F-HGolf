@@ -574,9 +574,41 @@ module.exports = async (req, res) => {
         if (!gr.ok) return res.status(502).json({ ok: false, error: "Could not read the signup." });
         const rec = await gr.json();
         const f = (rec && rec.fields) || {};
-        const captainEmail = String(f["Email"] || "").trim();
+        let captainEmail = String(f["Email"] || "").trim();
         const captainName = String(f["Player Name"] || "").trim();
         const tournamentName = String(f["Tournament"] || "").trim();
+        // Fallback: the signup's Email column is a denormalized copy that
+        // can lag behind the canonical Players row (operator sets an
+        // email via the Player Card modal but never re-syncs the
+        // signup). If it's blank AND this signup is linked to a Player,
+        // pull the email off the Player. If we find one, also write it
+        // back to the signup so subsequent mints don't re-fetch.
+        if (!captainEmail && Array.isArray(f["Player"]) && f["Player"][0]) {
+          const playerId = f["Player"][0];
+          const playersTable = process.env.PLAYERS_TABLE || "Players";
+          try {
+            const pr = await fetch(
+              `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(playersTable)}/${playerId}`,
+              { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }
+            );
+            if (pr.ok) {
+              const pj = await pr.json();
+              const pEmail = String((pj && pj.fields && pj.fields["Email"]) || "").trim();
+              if (pEmail) {
+                captainEmail = pEmail;
+                // Best-effort back-fill on the signup. Non-blocking on
+                // failure — we already have the email in memory.
+                fetch(sigUrl, {
+                  method: "PATCH",
+                  headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ fields: { "Email": pEmail }, typecast: true }),
+                }).catch((e) => console.error("live-mint email backfill failed", e));
+              }
+            }
+          } catch (e) {
+            console.error("live-mint player-lookup error", e);
+          }
+        }
         let token = rotate ? "" : String(f["Live Token"] || "").trim();
         if (!token) {
           token = require("crypto").randomBytes(16).toString("hex");
