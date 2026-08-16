@@ -2123,7 +2123,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
    operator sees what the dropdown column IS before they touch it. Same
    grid template as .ci-p so the label lines up over column 5. */
 .ci-p-hdr { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(6.5rem, 8.5rem); gap: 0.4rem 0.6rem; padding: 0 0 0.4rem; font: 800 0.68rem/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border-bottom: 1.5px solid var(--line); margin-bottom: 0.25rem; }
-.ci-p-hdr__method { text-align: left; grid-column: 5; }
+.ci-p-hdr__method { text-align: left; grid-column: 5; padding-left: 0.3in; }
 @media (max-width: 720px) {
   .ci-p-hdr { grid-template-columns: minmax(6.5rem, 1fr) auto auto minmax(6.5rem, 8.5rem); }
   .ci-p-hdr__method { grid-column: 4; }
@@ -2173,8 +2173,12 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
    wraps; on narrow cards each pill shrinks to fit. Rentals-needed +
    Assigned cart live on their own lines below so this row reads as
    "which players cover which half of the cart" without noise. */
-.ci-cartline--halves { flex-wrap: nowrap; overflow-x: auto; }
-.ci-cartline--halves .ci-check--cart { flex: 0 0 auto; padding: 0.2rem 0.5rem; font-size: 0.72rem; }
+/* Halves may wrap to a second visual row on truly narrow cards, but
+   there is no horizontal scrollbar — a slider under the cart line
+   looked like clutter and the operator asked for it gone. Pills are
+   tiny enough that 4 fit on one line at typical card widths. */
+.ci-cartline--halves { flex-wrap: wrap; }
+.ci-cartline--halves .ci-check--cart { flex: 0 0 auto; padding: 0.15rem 0.45rem; font-size: 0.72rem; }
 .ci-cartline--halves .ci-check--cart small { font-size: 0.66rem; }
 /* Rentals-needed sits on its own row, right below the halves. Yellow
    accent border matches the amber "action needed" look used on the
@@ -2350,7 +2354,7 @@ body.modal-open { overflow: hidden; }
 /* Check-In — per-player extras checkboxes. Same pill shape as .ci-meal;
    wraps below the name if there are many extras on narrow cards. */
 .ci-p__extras { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
-.ci-extra { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.55rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 0.78rem; font-weight: 700; color: var(--muted); cursor: pointer; user-select: none; }
+.ci-extra { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.45rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 0.72rem; font-weight: 700; color: var(--muted); cursor: pointer; user-select: none; }
 .ci-extra input { margin: 0; }
 .ci-extra:has(input:checked) { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
 .ci-extra small { font-weight: 500; opacity: 0.85; }

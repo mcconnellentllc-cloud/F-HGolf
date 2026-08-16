@@ -2704,11 +2704,16 @@
           // a consistent column count; CSS :empty hides the wrapper so
           // rows with no extras still lay out cleanly with method in the
           // final column.
+          // Extras pill uses a truncated 5-char label ("Mulligans" →
+          // "Mulli", "String" stays "Strin") so 4 player rows × 1-2
+          // extras don't push the pill against the method column. Full
+          // name still surfaces in the label's title tooltip.
           var xInner = extrasDefs.map(function (def) {
             var bought = (extrasPurchased[def.name] || []).indexOf(t.role) !== -1;
+            var shortName = def.name.length > 5 ? def.name.slice(0, 5) : def.name;
             return '<label class="ci-extra" title="' + esc(def.name) + ' — ' + money(def.price) + ' per player">'
               + '<input type="checkbox" class="ci-extra-box" data-role="' + esc(t.role) + '" data-extra="' + esc(def.name) + '"' + (bought ? " checked" : "") + ' />'
-              + '<span>' + esc(def.name) + ' <small>' + money(def.price) + '</small></span>'
+              + '<span>' + esc(shortName) + '</span>'
               + '</label>';
           }).join("");
           var extrasCells = '<div class="ci-p__extras">' + xInner + '</div>';
