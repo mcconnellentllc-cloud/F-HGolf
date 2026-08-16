@@ -728,7 +728,13 @@ module.exports = async (req, res) => {
           // app to land the captain on their tee hole instead of hole 1, and
           // to navigate holes in play order (H, H+1, …, wrap to H-1).
           hole: (typeof f["Hole"] === "number") ? f["Hole"] : null,
+          slot: f["Slot"] || "",
+          seat: (typeof f["Seat"] === "number") ? f["Seat"] : null,
           start: f["Start"] || "", // "8 AM" / "1 PM"
+          d2Hole: (typeof f["Day 2 Hole"] === "number") ? f["Day 2 Hole"] : null,
+          d2Slot: f["Day 2 Slot"] || "",
+          d2Seat: (typeof f["Day 2 Seat"] === "number") ? f["Day 2 Seat"] : null,
+          d2Start: f["Day 2 Start"] || "",
           day1: f["Day1 Scores"] || "",
           day2: f["Day2 Scores"] || "",
           day1Gross: f["Day1 Gross"] || null,
@@ -739,11 +745,77 @@ module.exports = async (req, res) => {
           // JSON strings; the phone app parses.
           extrasPurchased: f["Extras Purchased"] || "",
           extrasUsed: f["Extras Used"] || "",
+          // Per-team override from Check-In: this captain scores the
+          // whole group for their tee (both their team and everyone
+          // else paired with them). Default false = standard
+          // USGA-style marker pairing (A marks B, B marks A, etc.).
+          groupScorer: !!f["Group Scorer"],
         };
       };
+      const markerScoringEnabled = !!(cfg && cfg.fields && cfg.fields["Marker Scoring Enabled"]);
+      const meStripped = stripField(me);
+      const fieldStripped = fieldRows.map(stripField);
+      // Compute the marker assignment for THIS captain on Day 1 + Day 2.
+      // - "self" mode: marker scoring off for the tournament, or captain
+      //   is on a solo tee with nobody paired.
+      // - "group_scorer" mode: captain has Group Scorer flag → can write
+      //   every tee-mate (self + others).
+      // - "spectator" mode: another team on the tee is Group Scorer →
+      //   no write access; captain sees everyone read-only.
+      // - "marker" mode (default when marker scoring is on): captain
+      //   writes exactly one other team, cycling through the tee-mates
+      //   sorted by (Slot, Seat). A→B, B→C, C→A for trios.
+      const assign = (dayKey) => {
+        const holeKey = dayKey === "d1" ? "hole" : "d2Hole";
+        const slotKey = dayKey === "d1" ? "slot" : "d2Slot";
+        const seatKey = dayKey === "d1" ? "seat" : "d2Seat";
+        const startKey = dayKey === "d1" ? "start" : "d2Start";
+        const myHole = meStripped[holeKey];
+        const myStart = meStripped[startKey];
+        // Baseline shape returned when nothing matches or marker mode is off.
+        const base = { mode: "self", writeTargets: [meStripped.id], marking: null, teeMates: [], groupScorerName: null };
+        if (!markerScoringEnabled) return base;
+        if (myHole == null || !myStart) return base; // no pairing yet → self-score
+        const mates = fieldStripped
+          .filter((r) => r[holeKey] === myHole && r[startKey] === myStart)
+          .sort((a, b) => (String(a[slotKey]).localeCompare(String(b[slotKey])) || ((a[seatKey] || 0) - (b[seatKey] || 0)) || String(a.id).localeCompare(String(b.id))));
+        if (mates.length <= 1) return base; // solo tee → self-score fallback
+        const meIdx = mates.findIndex((r) => r.id === meStripped.id);
+        const groupScorer = mates.find((r) => r.groupScorer);
+        // Someone on this tee — including possibly me — is the group scorer.
+        if (groupScorer) {
+          if (groupScorer.id === meStripped.id) {
+            return {
+              mode: "group_scorer",
+              writeTargets: mates.map((r) => r.id),
+              marking: null,
+              teeMates: mates,
+              groupScorerName: groupScorer.teamName,
+            };
+          }
+          return {
+            mode: "spectator",
+            writeTargets: [],
+            marking: null,
+            teeMates: mates,
+            groupScorerName: groupScorer.teamName,
+          };
+        }
+        // Standard marker cycle — A→B, B→C, C→A.
+        const target = mates[(meIdx + 1) % mates.length];
+        return {
+          mode: "marker",
+          writeTargets: [target.id],
+          marking: target.id,
+          teeMates: mates,
+          groupScorerName: null,
+        };
+      };
+      const d1 = assign("d1");
+      const d2 = assign("d2");
       return res.status(200).json({
         ok: true,
-        team: stripField(me),
+        team: meStripped,
         tournament,
         config: cfg ? {
           name: cfg.fields["Name"] || tournament,
@@ -753,8 +825,13 @@ module.exports = async (req, res) => {
           // per configured extra so the captain can tap when a mulligan
           // (or string, or whatever the operator added) gets used up.
           extras: cfg.fields["Extras JSON"] || "",
-        } : { name: tournament, rounds: 1, playersPerTeam: 2, extras: "" },
-        field: fieldRows.map(stripField),
+          markerScoring: markerScoringEnabled,
+        } : { name: tournament, rounds: 1, playersPerTeam: 2, extras: "", markerScoring: false },
+        // Per-day marker assignment: which team(s) this captain can
+        // score, and which tee-mates to display read-only alongside.
+        // Empty writeTargets = spectator (all read-only).
+        markerAssignment: { d1: d1, d2: d2 },
+        field: fieldStripped,
       });
     } catch (e) {
       console.error("live read exception", e);

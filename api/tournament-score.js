@@ -29,11 +29,17 @@ module.exports = async (req, res) => {
   body = body || {};
 
   // Auth: staff use the admin key, captains use a magic-link token.
-  // Token path looks up the signup by "Live Token" and forces the write
-  // to that signup's id — the client's body.id is ignored so a leaked
-  // token can only score its own team.
+  // Token path looks up the captain's signup by "Live Token", then
+  // enforces marker-scoring permissions:
+  //   - Marker Scoring OFF for the tournament → token can only write
+  //     to the captain's OWN signup (default).
+  //   - Marker Scoring ON → server computes the marker assignment for
+  //     the target day and rejects writes to any signup outside the
+  //     captain's write-targets. Client passes `targetId` naming which
+  //     team to write; falls back to the captain's own id.
   const bodyToken = typeof body.token === "string" ? body.token.trim() : "";
   let id = typeof body.id === "string" ? body.id : "";
+  const rawTargetId = typeof body.targetId === "string" ? body.targetId : "";
   if (bodyToken) {
     if (!/^[a-f0-9]{16,64}$/i.test(bodyToken)) {
       return res.status(401).json({ ok: false, error: "Invalid link." });
@@ -44,9 +50,49 @@ module.exports = async (req, res) => {
     });
     if (!lr.ok) return res.status(502).json({ ok: false, error: "Could not verify the link." });
     const lj = await lr.json();
-    const rec = (lj.records || [])[0];
-    if (!rec) return res.status(401).json({ ok: false, error: "This link is no longer valid." });
-    id = rec.id;
+    const captainRec = (lj.records || [])[0];
+    if (!captainRec) return res.status(401).json({ ok: false, error: "This link is no longer valid." });
+    // Default target = captain's own signup.
+    id = captainRec.id;
+    // Marker scoring permission check. Only fires when the tournament's
+    // config has Marker Scoring Enabled = true AND the client asked to
+    // write to a different signup than the captain's own.
+    const wantsCrossWrite = rawTargetId && rawTargetId !== captainRec.id;
+    // The `day` we're writing determines which pairing to check. Extras-
+    // only updates don't have a day and always write to the captain's
+    // own signup (below); that path bypasses this cross-write logic.
+    const dayForAuth = Number(body.day) === 2 ? "d2" : "d1";
+    if (wantsCrossWrite) {
+      try {
+        const marker = require("./_marker.js");
+        const tournamentName = String((captainRec.fields || {}).Tournament || "");
+        const cfgTable = process.env.CONFIG_TABLE || "Tournament Config";
+        // Fetch the tournament config + the full non-alt field in parallel
+        // so we can rerun the marker assignment on the server.
+        const [cfgR, fieldR] = await Promise.all([
+          fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}?filterByFormula=${encodeURIComponent(`{Tournament}="${tournamentName.replace(/"/g, '\\"')}"`)}&maxRecords=1`,
+            { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+          fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}?filterByFormula=${encodeURIComponent(`AND({Tournament}="${tournamentName.replace(/"/g, '\\"')}", NOT({Alternate}))`)}&pageSize=100`,
+            { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+        ]);
+        const cfgRec = cfgR.ok ? ((await cfgR.json()).records || [])[0] : null;
+        const fieldRecs = fieldR.ok ? ((await fieldR.json()).records || []) : [];
+        const markerScoringEnabled = !!(cfgRec && cfgRec.fields && cfgRec.fields["Marker Scoring Enabled"]);
+        const me = marker.stripSignupField(captainRec);
+        const stripped = fieldRecs.map(marker.stripSignupField);
+        const assignment = marker.computeMarkerAssignment(me, stripped, markerScoringEnabled, dayForAuth);
+        if (!assignment.writeTargets.includes(rawTargetId)) {
+          return res.status(403).json({
+            ok: false,
+            error: "This scoring link isn't authorized to score that team. Ask the pro shop if pairings changed mid-round.",
+          });
+        }
+        id = rawTargetId;
+      } catch (e) {
+        console.error("marker auth error", e);
+        return res.status(500).json({ ok: false, error: "Could not verify marker permissions." });
+      }
+    }
   } else {
     const key = req.headers["x-admin-key"] || "";
     if (!ADMIN_KEY || key !== ADMIN_KEY) {

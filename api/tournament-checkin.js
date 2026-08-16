@@ -107,6 +107,11 @@ module.exports = async (req, res) => {
   // the operator can override here if a captain forgets. Same shape as
   // Extras Purchased but a plain count per name: {"Mulligans": 2}.
   if (typeof body.extrasUsed === "string") fields["Extras Used"] = body.extrasUsed.slice(0, 4000);
+  // Marker scoring — per-team "this captain scores the whole group" flag.
+  // When true, the captain's live scoring token can write scores for
+  // every team paired with them on the same tee. Field is auto-stripped
+  // if the "Group Scorer" Checkbox column doesn't exist yet on Airtable.
+  if (typeof body.groupScorer === "boolean") fields["Group Scorer"] = body.groupScorer;
   // Email — set when the captain changes so the scoring-link email routes
   // to the new captain's inbox. Empty string clears it.
   if (typeof body.email === "string") fields["Email"] = body.email ? body.email.slice(0, 200) : null;
