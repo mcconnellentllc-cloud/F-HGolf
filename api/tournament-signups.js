@@ -424,15 +424,36 @@ module.exports = async (req, res) => {
         // config-write would then insert a duplicate row instead of
         // updating the real one, and the next load would surface the stale
         // number the operator thought they saved over.
+        // Fetch ALL matching rows (not maxRecords=1). The pre-PR-#286
+        // apostrophe bug quietly inserted a duplicate row every save
+        // attempt on tournaments whose names contain a ' (Couple's,
+        // Founder's, etc.). The result: reads returned a random duplicate,
+        // so a Team Cap = 18 save appeared to revert to whatever some
+        // OTHER duplicate happened to have. Dedup on write: keep the
+        // newest row, delete the older duplicates.
         const filter = "?filterByFormula=" + encodeURIComponent(`{Tournament}="${tournament.replace(/"/g, '\\"')}"`);
-        const findRes = await fetch(cfgUrl + filter + "&maxRecords=1", { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        const findRes = await fetch(cfgUrl + filter + "&pageSize=100", { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
         if (!findRes.ok) {
           const detail = await findRes.text();
           console.error("config lookup error", findRes.status, detail);
           return res.status(502).json({ ok: false, error: "Could not read the config table." });
         }
         const found = await findRes.json();
-        const existing = (found.records || [])[0] || null;
+        const matches = (found.records || []).slice().sort((a, b) => String(b.createdTime || "").localeCompare(String(a.createdTime || "")));
+        const existing = matches[0] || null;
+        const stragglers = matches.slice(1);
+        // Delete duplicates in parallel — best-effort, non-blocking. A
+        // failed delete doesn't fail the save; the next config-write on
+        // this tournament will retry the cleanup.
+        if (stragglers.length) {
+          console.log(`config-write: deduping ${stragglers.length} stale row(s) for "${tournament}"`);
+          await Promise.all(stragglers.map((rec) =>
+            fetch(`${cfgUrl}/${rec.id}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+            }).catch((e) => console.error("dedup delete failed for", rec.id, e))
+          ));
+        }
         // Uniqueness guard on Public Slug — reject the save if any OTHER
         // tournament already owns this slug. Same-tournament re-saves are
         // fine (the existing row keeps its slug). Empty/whitespace slugs
@@ -680,7 +701,12 @@ module.exports = async (req, res) => {
       let url = cfgUrl + "?pageSize=100";
       if (!wantAll) {
         const name = String(q.config).slice(0, 200);
-        url += "&filterByFormula=" + encodeURIComponent(`{Tournament}="${name.replace(/"/g, '\\"')}"`) + "&maxRecords=1";
+        // NOTE: no maxRecords=1 here. Duplicate rows still linger for
+        // tournaments whose names contain apostrophes (pre-PR-#286
+        // bug). If Airtable's default sort returns an older duplicate
+        // first, the operator sees stale data. Fetch all matches +
+        // pick the newest below.
+        url += "&filterByFormula=" + encodeURIComponent(`{Tournament}="${name.replace(/"/g, '\\"')}"`) + "&pageSize=100";
       }
       const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
       if (!r.ok) {
@@ -689,7 +715,10 @@ module.exports = async (req, res) => {
         return res.status(502).json({ ok: false, error: "Could not load the config.", detail });
       }
       const data = await r.json();
-      let rows = (data.records || []).map((rec) => ({ id: rec.id, fields: rec.fields || {} }));
+      let rows = (data.records || [])
+        .slice()
+        .sort((a, b) => String(b.createdTime || "").localeCompare(String(a.createdTime || "")))
+        .map((rec) => ({ id: rec.id, fields: rec.fields || {} }));
       // Course-wide settings live in a "__course__" sentinel row (edited
       // from the Staff Portal's Tournaments page). Hide it from the
       // config=all listing so it never shows up as a phantom tournament.
