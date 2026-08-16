@@ -2289,6 +2289,33 @@
         for (var i = 1; i <= slotCount; i++) { if (!f["Player " + i + " Paid"]) return false; }
         return true;
       }
+      // Role → partner-slot index. p2 is the first partner, p3 the second,
+      // p4 the third; p1 (Player Name) and any unknown role return -1.
+      function _partnerSlotIdx(role) {
+        return role === "p2" ? 0 : role === "p3" ? 1 : role === "p4" ? 2 : -1;
+      }
+      // Splice a new name into a signup's slash-joined "Team / Partners"
+      // string at the correct slot. Reads the current raw string from
+      // scAllCache (source of truth between renders). Pads short lists so
+      // setting P4 on a 2-player team works, and drops trailing blanks so
+      // the string doesn't grow forever. Returns the rebuilt full string.
+      // Callers use this for BOTH the inline-rename and Player Card modal
+      // save paths — anywhere a single P2/P3/P4 slot needs to change
+      // without wiping the other partners.
+      function _spliceTeamPartner(signupId, role, next) {
+        var idx = _partnerSlotIdx(role);
+        if (idx < 0) return "";
+        var raw = "";
+        for (var ri = 0; ri < scAllCache.length; ri++) if (scAllCache[ri].id === signupId) {
+          raw = String(((scAllCache[ri].fields || {})["Team / Partners"]) || "");
+          break;
+        }
+        var partners = raw ? raw.split(/\s*\/\s*/) : [];
+        while (partners.length <= idx) partners.push("");
+        partners[idx] = next;
+        while (partners.length && !String(partners[partners.length - 1] || "").trim()) partners.pop();
+        return partners.map(function (s) { return String(s || "").trim(); }).join(" / ");
+      }
       // Name cell: clickable link opens the Player Card modal; ✎ starts inline rename.
       function nameCell(role, name) {
         return '<span class="ci-name-wrap">' + nameCellInner(role, name) + "</span>";
@@ -2824,20 +2851,7 @@
           // P2/P3/P4. Renaming one slot must splice into that list, not
           // overwrite the whole string — otherwise renaming P3 on a 4-player
           // team wipes P2 and P4.
-          var partnerIdx = role === "p2" ? 0 : role === "p3" ? 1 : role === "p4" ? 2 : -1;
-          var newTeamPartners = "";
-          if (partnerIdx >= 0) {
-            var raw = "";
-            for (var ri = 0; ri < scAllCache.length; ri++) if (scAllCache[ri].id === signupId) {
-              raw = String(((scAllCache[ri].fields || {})["Team / Partners"]) || "");
-              break;
-            }
-            var partners = raw ? raw.split(/\s*\/\s*/) : [];
-            while (partners.length <= partnerIdx) partners.push("");
-            partners[partnerIdx] = next;
-            while (partners.length && !String(partners[partners.length - 1] || "").trim()) partners.pop();
-            newTeamPartners = partners.map(function (s) { return String(s || "").trim(); }).join(" / ");
-          }
+          var newTeamPartners = role === "p1" ? "" : _spliceTeamPartner(signupId, role, next);
           // Reflect the change in the in-memory cache so any subsequent
           // renders (tab switch, refresh) see the new name without a fetch.
           for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === signupId) {
@@ -3132,8 +3146,12 @@
             var link = { id: pmCurrent.signupId, playerId: j.id };
             var linkRole = pmCurrent.role;
             var linkSignupId = pmCurrent.signupId;
+            // For P2/P3/P4 the name goes into the slash-joined Team /
+            // Partners string — splice into the correct slot so we don't
+            // wipe the other partners (and so P3/P4 actually save at all).
+            var linkPartners = "";
             if (linkRole === "p1") link.playerName = name;
-            else if (linkRole === "p2") link.teamPartners = name;
+            else { linkPartners = _spliceTeamPartner(linkSignupId, linkRole, name); link.teamPartners = linkPartners; }
             fetch(FH_API.url("/api/tournament-checkin"), {
               method: "POST",
               headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
@@ -3145,7 +3163,7 @@
                 for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === linkSignupId) {
                   scAllCache[i].fields = scAllCache[i].fields || {};
                   if (linkRole === "p1") scAllCache[i].fields["Player Name"] = name;
-                  else if (linkRole === "p2") scAllCache[i].fields["Team / Partners"] = name;
+                  else scAllCache[i].fields["Team / Partners"] = linkPartners;
                   scAllCache[i].fields["Player"] = [j.id];
                   break;
                 }
