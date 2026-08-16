@@ -136,8 +136,8 @@
               <div class="fmt-grid fmt-grid--shot">
                 <label class="fmt-row"><span>Shotgun starts</span>
                   <select id="fmtShotCount">
-                    <option value="1">1 (one wave)</option>
-                    <option value="2" selected>2 (AM + PM)</option>
+                    <option value="1" selected>1 (one wave)</option>
+                    <option value="2">2 (AM + PM)</option>
                   </select>
                 </label>
                 <label class="fmt-row" id="fmtShotRowAm"><span id="fmtShotLabelAm">AM shotgun time</span><input type="time" id="fmtShotTimeAm" value="08:00" /></label>
@@ -1473,7 +1473,7 @@
       function _fmtHydrateShotgun(raw) {
         var waves = [];
         try { waves = JSON.parse(raw || "[]"); if (!Array.isArray(waves)) waves = []; } catch (e) { waves = []; }
-        var cnt = waves.length >= 2 ? 2 : (waves.length === 1 ? 1 : 2);
+        var cnt = waves.length >= 2 ? 2 : 1;
         var cntSel = document.getElementById("fmtShotCount"); if (cntSel) cntSel.value = String(cnt);
         var amTime = _fmt24hrFromWave(waves[0], "08:00");
         var pmTime = _fmt24hrFromWave(waves[1], "13:00");
@@ -3340,16 +3340,22 @@
         try { _syncPrCardsButtons(); } catch (e) {}
       }
       // How many shotgun waves this tournament runs (1 or 2). Reads
-      // Format's Waves JSON; defaults to 2 so pre-config tournaments keep
-      // their AM+PM buttons.
+      // Format's Waves JSON. Single-shotgun is the common case at F&H
+      // (Couples, Fire, Bulldog, Cornfest, etc.) so the DEFAULT when
+      // Waves JSON is missing is 1 — otherwise the check-in tab keeps
+      // showing AM/PM chips and per-team wave dropdowns that mean nothing.
+      // Founders is hardcoded 2-wave regardless of what its config says
+      // (or doesn't) so its AM/PM UI can't regress if the config ever
+      // becomes malformed.
       function _tcWaveCount(cfg) {
+        if (typeof KEY === "string" && /^Founder/i.test(KEY)) return 2;
         try {
           var raw = (cfg && cfg["Waves JSON"]) || "";
-          if (!raw) return 2;
+          if (!raw) return 1;
           var arr = JSON.parse(raw);
-          if (!Array.isArray(arr) || arr.length === 0) return 2;
+          if (!Array.isArray(arr) || arr.length === 0) return 1;
           return arr.length >= 2 ? 2 : 1;
-        } catch (e) { return 2; }
+        } catch (e) { return 1; }
       }
       function ensureConfigCache(cb) {
         if (_tcConfigCache) { if (cb) cb(_tcConfigCache); return; }
