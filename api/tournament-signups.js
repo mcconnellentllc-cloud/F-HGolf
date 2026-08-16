@@ -696,7 +696,11 @@ module.exports = async (req, res) => {
     const cfgTable = process.env.CONFIG_TABLE || "Tournament Config";
     const cfgUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}`;
     const wantAll = q.config === "1" || q.config === 1 || q.config === "all";
-    res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=120");
+    // Short CDN cache. Long enough to absorb a burst on tournament pages,
+    // short enough that a Format save shows up on fandhgolf.com in seconds
+    // — the last thing we want is "I saved Team Cap 18 but the public page
+    // is still showing 22" for two minutes.
+    res.setHeader("Cache-Control", "public, s-maxage=5, stale-while-revalidate=30");
     try {
       let url = cfgUrl + "?pageSize=100";
       if (!wantAll) {
@@ -723,6 +727,20 @@ module.exports = async (req, res) => {
       // from the Staff Portal's Tournaments page). Hide it from the
       // config=all listing so it never shows up as a phantom tournament.
       if (wantAll) rows = rows.filter((r) => (r.fields && r.fields.Tournament) !== "__course__");
+      // Dedup by Tournament name: the pre-PR-#286 apostrophe bug left
+      // multiple rows per tournament for Couple's / Founder's / etc.
+      // The public list has to pick ONE — always the newest. Same reason
+      // config-write cleans up on write; this covers reads that happen
+      // before the next write triggers a cleanup.
+      if (wantAll) {
+        const seen = Object.create(null);
+        rows = rows.filter((r) => {
+          const key = (r.fields && r.fields.Tournament) || "";
+          if (seen[key]) return false;
+          seen[key] = true;
+          return true;
+        });
+      }
       if (wantAll) return res.status(200).json({ ok: true, count: rows.length, records: rows });
       return res.status(200).json({ ok: true, record: rows[0] || null });
     } catch (e) {
