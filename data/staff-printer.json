@@ -1,0 +1,67 @@
+{
+  "device": {
+    "make": "Sharp",
+    "model": "MX-B476W",
+    "type": "Desktop monochrome MFP (copy/print/scan/fax)",
+    "location": "Clubhouse office",
+    "ipAddress": "TBD",
+    "connection": "Ethernet RJ-45, static IP",
+    "printPort": "Raw TCP 9100",
+    "wifiModule": "Silex SX-USBGN (FCC ID N6C-USBGN / IC 4908A-USBGN)"
+  },
+  "trays": [
+    {
+      "tray": "Tray 1",
+      "media": "Plain 20 lb bond, 8.5x11",
+      "capacity": "500 sheets",
+      "weightRange": "16-28 lb bond",
+      "notes": "Default tray for general printing"
+    },
+    {
+      "tray": "Tray 2",
+      "media": "Pre-printed checks",
+      "capacity": "600 sheets",
+      "weightRange": "16-28 lb bond",
+      "notes": "Set paper type to 'Pre-Printed'. Load in REVERSE orientation per Sharp manual — print side faces opposite from plain paper."
+    },
+    {
+      "tray": "Bypass Tray",
+      "media": "Scorecard stock (heavy)",
+      "capacity": "50 sheets max",
+      "weightRange": "28 lb bond to 80 lb cover (105-216 gsm) MAXIMUM",
+      "notes": "ONLY source rated for card stock. Paper drawers CANNOT feed scorecards. Set panel paper type to 'Heavy Paper' and register scorecard dimensions as a Custom size."
+    }
+  ],
+  "criticalLimits": [
+    "Paper drawers (Trays 1-4) are rated 16-28 lb bond ONLY. Card stock in a drawer will jam and may damage the feed rollers.",
+    "Bypass tray maximum is 80 lb cover / 216 gsm. Verify scorecard stock weight before ordering.",
+    "Drawer minimum sheet size is 5.5 x 8.5 in. Bypass accepts custom sizes down to approx. 3-5/8 in on the short edge.",
+    "Load one heavy sheet at a time if misfeeds occur."
+  ],
+  "driverLinks": [
+    {
+      "label": "Sharp Official Product Downloads (search MX-B476W)",
+      "url": "https://business.sharpusa.com/product-downloads",
+      "notes": "Select Windows 11 64-bit, PCL6 driver. Run setup.exe as Administrator."
+    },
+    {
+      "label": "MX-B376W / MX-B476W Full Specification Sheet (PDF)",
+      "url": "https://business.sharpusa.com/portals/0/downloads/Literature/MX-B376W_B476W_specification_sheets.pdf"
+    }
+  ],
+  "setupSteps": [
+    "Connect Ethernet from printer rear RJ-45 to clubhouse switch.",
+    "On the 7-inch touchscreen: Settings > Network Settings > confirm assigned IP. Set a static IP or create a DHCP reservation on the router.",
+    "Download the PCL6 driver from the Sharp link above. Extract the .zip. Run setup.exe as Administrator.",
+    "Choose 'Specify address' and enter the printer IP. Port should resolve to Raw TCP 9100.",
+    "After install: Printer Properties > Configuration tab > confirm installed paper drawers match the physical machine so tray selection works.",
+    "In driver Printing Preferences, create saved presets: 'Plain', 'Checks', and 'Scorecards' with the correct tray and paper type locked in."
+  ],
+  "scorecardPrinting": [
+    "Load max 50 sheets into the bypass tray, print side DOWN.",
+    "On the panel, set Bypass paper type = Heavy Paper, size = registered Custom scorecard size.",
+    "In the print dialog, set Paper Source = Bypass, Paper Type = Heavy Paper, and Output Size = the matching Custom Paper dimensions. Panel and driver settings must match or the job will hold.",
+    "Duplex is not recommended on heavy stock. Print single-sided.",
+    "Remove sheets from the output tray as they print to prevent curl."
+  ]
+}

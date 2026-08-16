@@ -295,6 +295,7 @@
               </select>
               <button class="btn btn--solid" type="button" id="prPrintTestCard" title="Print one card with dummy names + corner markers to calibrate alignment">Print test scorecard</button>
             </div>
+            <p class="pr-print-hint" role="note"><span aria-hidden="true">&#128424;&#65039;</span> <b>Scorecards use the BYPASS tray only.</b> Load ≤50 sheets print-side down. In the driver, pick the <b>Scorecards</b> preset (Bypass · Heavy Paper · registered custom size). Paper drawers can&rsquo;t feed card stock — see <a href="admin-printer.html" target="_blank" rel="noopener">Printer reference</a>.</p>
           </div>
           <p class="scaffold__desc">Workflow: <em>Unplace wave</em> to start clean &rarr; tap the hole buttons up top to set A/B slots until <b>seats = teams</b> &rarr; <em>Autofill this wave</em> &rarr; drag teams around or use a team's dropdown to swap (pick <em>Team 3</em> for a trio) &rarr; print cards. Drops onto a full tee are rejected on purpose &mdash; free a seat first or use the dropdown. <span id="prMsg" class="checkin-add__msg" role="status" aria-live="polite"></span></p>
           <div id="prBoard"><p class="noms__msg">Loading…</p></div>
@@ -304,9 +305,10 @@
         <section class="noms wb-sheet" data-sheet="money" id="twExpenses" aria-label="Expenses and P and L">
           <div class="noms__bar">
             <h3 class="noms__title">Expenses &amp; P&amp;L</h3>
-            <button class="btn btn--solid" type="button" id="plPrintCourseCheck" title="Print the check written to F&amp;H Golf Course on pre-printed check stock">Print check to course</button>
+            <button class="btn btn--solid" type="button" id="plPrintCourseCheck" title="Print the check written to F&H Golf Course on pre-printed check stock (Tray 2, Checks preset)">Print check to course</button>
             <button class="btn btn--solid" type="button" id="expRefresh">Refresh</button>
           </div>
+          <p class="pr-print-hint" role="note"><span aria-hidden="true">&#128424;&#65039;</span> <b>Checks print from Tray 2</b> — pre-printed stock, loaded in REVERSE orientation per the Sharp manual. Pick the <b>Checks</b> driver preset before printing. <a href="admin-printer.html" target="_blank" rel="noopener">Printer reference</a>.</p>
           <div class="pl" id="twPL"></div>
           <div class="checkin-add__row">
             <input type="text" id="expDesc" maxlength="200" placeholder="Expense (e.g. Steaks, Trophies)" />
@@ -441,6 +443,7 @@
             </div>
           </div>
           <p class="scaffold__desc">Every check to write, computed from Flights + Calcutta. Prize totals come from the Calc tab. Ties get split evenly. Total at the bottom.</p>
+          <p class="pr-print-hint" role="note"><span aria-hidden="true">&#128424;&#65039;</span> <b>Checks print from Tray 2</b> (pre-printed stock, REVERSED orientation). Pick the <b>Checks</b> driver preset. <a href="admin-printer.html" target="_blank" rel="noopener">Printer reference</a>.</p>
           <div id="poBody"><p class="noms__msg">Loading…</p></div>
         </section>
 
@@ -8181,6 +8184,25 @@
       // Open a print window populated with one page per check. Positions
       // target QuickBooks-standard business voucher check stock. Popup
       // blocker fallback: warns the operator and returns.
+      // Sticky screen-only banner reminding the operator which tray to
+      // load + which driver preset to pick. Hidden in the printed output
+      // via @media print so the printed page is unchanged. Kept in one
+      // place so every print window opened by the workbook can use the
+      // same wording — swap the printer or presets by editing this fn.
+      function _printerHintCss() {
+        return '@media print { .printer-hint { display: none !important; } }'
+             + ' @media screen { .printer-hint { position: sticky; top: 0; z-index: 10; background: #fff7d6; border-bottom: 3px solid #b8860b; padding: 0.7rem 1rem; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 12pt; color: #4a3300; text-align: center; margin: 0; line-height: 1.4; } .printer-hint b { color: #6b4d00; } .printer-hint em { color: #4a3300; font-style: normal; display: block; margin-top: 0.15rem; font-size: 10.5pt; font-weight: 600; } }';
+      }
+      function _printerHintBanner(preset, extra) {
+        var m = ({
+          plain: { tray: 'Tray 1 (Plain 20 lb bond)', preset: 'Plain' },
+          checks: { tray: 'Tray 2 (pre-printed checks — REVERSED orientation)', preset: 'Checks' },
+          scorecards: { tray: 'BYPASS TRAY (heavy stock only — NEVER a paper drawer)', preset: 'Scorecards' }
+        })[preset] || { tray: '', preset: '' };
+        if (!m.tray) return '';
+        return '<aside class="printer-hint" role="note"><b>Before you print:</b> load ' + m.tray + '. In the Sharp driver, pick the <b>' + m.preset + '</b> preset.' + (extra ? '<em>' + extra + '</em>' : '') + '</aside>';
+      }
+
       function _openCheckPrintWindow(title, checks) {
         if (!checks || !checks.length) {
           alert("No checks to print in this batch.");
@@ -8215,8 +8237,10 @@
           + '.stub__line { display: flex; justify-content: space-between; padding: 0.05in 0; border-bottom: 1px dotted #ddd; font-size: 10pt; }'
           + '.stub__line b { font-weight: 700; }'
           + '.stub__line--tot { margin-top: 0.1in; border-bottom: none; border-top: 2px solid #000; padding-top: 0.15in; font-size: 12pt; }'
-          + '@media screen { body { background: #eee; padding: 20px; } .check-page { background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.15); margin: 0 auto 20px; } }';
-        var doc = '<!doctype html><html><head><meta charset="utf-8"><title>' + title + '</title><style>' + css + '</style></head><body>' + pages + '<script>window.addEventListener("load",function(){setTimeout(function(){window.print();},250);});<\/script></body></html>';
+          + '@media screen { body { background: #eee; padding: 20px; } .check-page { background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.15); margin: 0 auto 20px; } }'
+          + _printerHintCss();
+        var hint = _printerHintBanner("checks", "Verify the top check number in the tray matches the starting number you just entered.");
+        var doc = '<!doctype html><html><head><meta charset="utf-8"><title>' + title + '</title><style>' + css + '</style></head><body>' + hint + pages + '<script>window.addEventListener("load",function(){setTimeout(function(){window.print();},250);});<\/script></body></html>';
         var w = window.open("", "_blank");
         if (!w) { alert("Enable popups for this site so the checks can open in a new window."); return; }
         w.document.open();
