@@ -2295,6 +2295,47 @@ body.modal-open { overflow: hidden; }
 .ppl-merge__opt { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.88rem; padding: 0.2rem 0.4rem; border-radius: 4px; background: #fafaf3; }
 .ppl-merge__opt input { margin: 0; }
 
+/* Staff-portal — Printer reference page (admin-printer.html). Reuses the
+   .ppl-status message pattern; everything else is prefixed .prtr-* so
+   there's no bleed into other admin pages. */
+/* Small in-UI hint that names the correct printer tray + driver preset
+   for a given print flow. Sits directly under the print toolbar so the
+   operator sees it before clicking Print. Amber left border matches the
+   printer-reference warning banner so the visual language is consistent
+   across the app: "amber = printer physical-world caution". */
+.pr-print-hint { margin: 0.35rem 0 0.65rem; padding: 0.45rem 0.7rem; background: #fff7d6; border: 1px solid #d4a017; border-left: 4px solid #b8860b; border-radius: 6px; font-size: 0.82rem; color: #4a3300; line-height: 1.4; }
+.pr-print-hint b { color: #6b4d00; }
+.pr-print-hint a { color: #6b4d00; text-decoration: underline; font-weight: 700; }
+.prtr-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem; margin: 0 0 1rem; padding: 0.75rem 1rem; background: #fbfaf3; border: 1px solid var(--line); border-left: 4px solid var(--primary-green); border-radius: 8px; }
+.prtr-actions__note { margin: 0; font-size: 0.82rem; color: var(--muted); }
+.prtr-warn { border: 1px solid #d4a017; background: #fff7d6; border-left: 5px solid #b8860b; border-radius: 8px; padding: 0.85rem 1rem; margin: 0 0 1.1rem; }
+.prtr-warn__hdr { margin: 0 0 0.4rem; color: #6b4d00; font-size: 1rem; letter-spacing: 0.02em; }
+.prtr-warn__list { margin: 0; padding-left: 1.2rem; }
+.prtr-warn__list li { color: #4a3300; font-weight: 600; line-height: 1.4; margin: 0.2rem 0; }
+.prtr-set { border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem 1rem; background: #fff; margin: 0 0 1rem; }
+.prtr-set--scorecards { border-left: 4px solid var(--primary-green); background: #fbfaf3; }
+.prtr-set__hdr { margin: 0 0 0.6rem; color: var(--primary-green); font-size: 1.02rem; letter-spacing: 0.02em; }
+.prtr-dev { display: grid; grid-template-columns: max-content 1fr; column-gap: 1.2rem; row-gap: 0.35rem; margin: 0; font-size: 0.92rem; }
+.prtr-dev dt { color: var(--muted); font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; align-self: center; }
+.prtr-dev dd { margin: 0; color: var(--ink); font-weight: 600; }
+.prtr-tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+.prtr-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.prtr-table th, .prtr-table td { padding: 0.55rem 0.75rem; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.06); vertical-align: top; }
+.prtr-table thead th { background: #f6f5ee; font-weight: 700; color: var(--primary-green); font-size: 0.78rem; letter-spacing: 0.03em; text-transform: uppercase; }
+.prtr-table tbody th { background: #fafaf3; color: var(--ink); font-weight: 700; }
+.prtr-table tr:last-child td, .prtr-table tr:last-child th { border-bottom: none; }
+.prtr-steps { margin: 0; padding-left: 1.3rem; }
+.prtr-steps li { line-height: 1.5; margin: 0.35rem 0; }
+.prtr-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+.prtr-links li { padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: 8px; background: #fafaf3; }
+.prtr-links a { font-weight: 700; color: var(--primary-green); text-decoration: underline; }
+.prtr-links__note { margin: 0.25rem 0 0; font-size: 0.82rem; color: var(--muted); }
+/* Muted "TBD" placeholder pill — makes unfilled JSON fields visually
+   obvious so the pro shop sees what still needs a value. */
+.prtr-tbd { display: inline-block; padding: 0.05rem 0.45rem; border: 1px dashed var(--muted); border-radius: 4px; font-size: 0.78rem; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.75; }
+.ppl-status.is-error { color: var(--red-deep); font-weight: 700; }
+@media (max-width: 540px) { .prtr-dev { grid-template-columns: 1fr; column-gap: 0; row-gap: 0.05rem; } .prtr-dev dt { margin-top: 0.4rem; } }
+
 /* Check-In: team-merge preview inside the merge modal. */
 .ci-merge-preview { margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px dashed rgba(0,0,0,0.1); }
 .ci-merge-preview__list { list-style: none; padding: 0; margin: 0.3rem 0 0.6rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }

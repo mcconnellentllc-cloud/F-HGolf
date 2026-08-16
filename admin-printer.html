@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Printer — F&amp;H Golf Course</title>
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1B5E20" />
+  <link rel="apple-touch-icon" href="images/icon-180.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <header class="nav" id="top">
+    <div class="nav__inner">
+      <a href="index.html" class="nav__brand" aria-label="F&H Golf Course home">
+        <img class="nav__mark" src="images/logo.png" alt="" aria-hidden="true" />
+        <span class="nav__wordmark">
+          <span class="nav__name">F&amp;H Golf Course</span>
+          <span class="nav__tagline">Staff Portal</span>
+        </span>
+      </a>
+      <nav class="nav__links">
+        <a href="admin.html">Tournaments</a>
+        <a href="admin-people.html">People</a>
+        <a href="index.html">View public site &rarr;</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero hero--strip">
+    <div class="hero__inner">
+      <div class="hero__content">
+        <p class="hero__kicker">Staff Only</p>
+        <h1 class="hero__title">Printer</h1>
+        <p class="hero__subtitle">Clubhouse printer reference — trays, driver, and what NOT to feed where.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--alt">
+    <div class="container admin">
+      <div class="admin-gate" id="printerGate" hidden>
+        <h2>Sign in first</h2>
+        <p>Open this page from the <a href="admin.html">Staff Portal</a> after signing in. Your session unlocks it automatically.</p>
+        <p><a class="btn btn--primary" href="admin.html">Go to Staff Portal &rarr;</a></p>
+      </div>
+
+      <div id="printerPanel">
+        <div id="prtrStatus" class="ppl-status" role="status" aria-live="polite">Loading printer reference…</div>
+        <div id="prtrContent" hidden>
+
+          <!-- Print button — opens a landscape 1-page cheat sheet built
+               from the same JSON so anyone can print + laminate + tape it
+               to the printer housing. Kept at the top so it's the first
+               thing an operator sees when they land here. -->
+          <div class="prtr-actions">
+            <button type="button" class="btn btn--primary" id="prtrPrintSheet" title="Open a print-ready one-page cheat sheet. Print it, laminate it, tape it on the printer.">&#128424;&#65039; Print laminate-friendly quick-reference sheet</button>
+            <p class="prtr-actions__note">Prints on a single landscape letter page. Laminate + tape to the printer housing so anyone using the machine can see the tray rules at a glance.</p>
+          </div>
+
+
+          <!-- Critical limits — bright warning banner up top so the operator
+               can't miss the "no card stock in the drawers" rule before they
+               yank the tray out to reload. -->
+          <section class="prtr-warn" aria-labelledby="prtrWarnHdr">
+            <h3 id="prtrWarnHdr" class="prtr-warn__hdr"><span aria-hidden="true">&#9888;&#65039;</span> Critical limits — read before loading paper</h3>
+            <ul class="prtr-warn__list" id="prtrLimits"></ul>
+          </section>
+
+          <!-- Device identity card. Every field is straight from
+               staff-printer.json so a model swap only touches the JSON. -->
+          <section class="prtr-set" aria-labelledby="prtrDevHdr">
+            <h3 id="prtrDevHdr" class="prtr-set__hdr">Device</h3>
+            <dl class="prtr-dev" id="prtrDevice"></dl>
+          </section>
+
+          <!-- Trays table — mirrors the physical machine. Colored left
+               border matches the ci-cartline / fmt-cart accent so the
+               staff portal feels like one thing. -->
+          <section class="prtr-set" aria-labelledby="prtrTrayHdr">
+            <h3 id="prtrTrayHdr" class="prtr-set__hdr">Trays</h3>
+            <div class="prtr-tablewrap">
+              <table class="prtr-table" id="prtrTrays">
+                <thead>
+                  <tr>
+                    <th>Tray</th>
+                    <th>Media</th>
+                    <th>Capacity</th>
+                    <th>Weight range</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- One-time setup checklist. Ordered so the pro shop can walk
+               through it top-to-bottom the first time the printer lands or
+               after a Windows re-image. -->
+          <section class="prtr-set" aria-labelledby="prtrSetupHdr">
+            <h3 id="prtrSetupHdr" class="prtr-set__hdr">First-time setup</h3>
+            <ol class="prtr-steps" id="prtrSetup"></ol>
+          </section>
+
+          <!-- Scorecard-specific run guide. Called out separately from
+               general setup because scorecards are the only workflow that
+               MUST use the bypass tray and where operator mistakes are
+               costly (paper jam or a scrap pile of misprinted cards). -->
+          <section class="prtr-set prtr-set--scorecards" aria-labelledby="prtrSCHdr">
+            <h3 id="prtrSCHdr" class="prtr-set__hdr">Scorecard printing (bypass tray only)</h3>
+            <ol class="prtr-steps" id="prtrScorecard"></ol>
+          </section>
+
+          <!-- Driver + documentation links. External links open in a new
+               tab; the notes field (when present) shows below the link. -->
+          <section class="prtr-set" aria-labelledby="prtrDrvHdr">
+            <h3 id="prtrDrvHdr" class="prtr-set__hdr">Driver &amp; documentation</h3>
+            <ul class="prtr-links" id="prtrDrivers"></ul>
+          </section>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <a href="index.html" class="site-footer__marklink"><img class="site-footer__mark" src="images/logo.png" alt="F&H Golf Course logo" /></a>
+        <div>
+          <div class="site-footer__name">F&amp;H Golf Course</div>
+          <p class="site-footer__tag">Staff Portal</p>
+        </div>
+      </div>
+      <div>
+        <h4>Go to</h4>
+        <ul>
+          <li><a href="admin.html">Staff Portal</a></li>
+          <li><a href="admin-people.html">People</a></li>
+          <li><a href="index.html">Public site</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="site-footer__bottom">
+      <span>&copy; 2026 F&amp;H Golf Course — F&amp;H Park &amp; Recreation District. Fleming, Colorado.</span>
+      <span>Staff Portal</span>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      // Auth: same shared flag as the rest of the staff portal
+      // (admin.html sets it on password unlock; admin-people.html reads it
+      // the same way). No key check needed — this page is read-only
+      // reference material, so the presence of the session flag is enough.
+      var FLAG = "fh_admin_ok";
+      function _readAuth(k) { try { var v = localStorage.getItem(k); if (v) return v; var s = sessionStorage.getItem(k); if (s) return s; } catch (e) {} return ""; }
+      function authed() { return _readAuth(FLAG) === "1"; }
+      function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
+
+      if (!authed()) {
+        document.getElementById("printerGate").hidden = false;
+        document.getElementById("printerPanel").hidden = true;
+        return;
+      }
+
+      // TBD values (an ipAddress the shop hasn't recorded yet, a driver
+      // notes line left blank on purpose) render with a muted, dashed
+      // pill so an operator can see at a glance which fields still need
+      // to be filled in by editing staff-printer.json.
+      function valueOr(val) {
+        var v = String(val == null ? "" : val).trim();
+        if (!v || v.toUpperCase() === "TBD") return '<span class="prtr-tbd">TBD</span>';
+        return esc(v);
+      }
+
+      function render(data) {
+        // Critical limits banner
+        var limits = (data && Array.isArray(data.criticalLimits)) ? data.criticalLimits : [];
+        document.getElementById("prtrLimits").innerHTML = limits
+          .map(function (t) { return '<li>' + esc(t) + '</li>'; })
+          .join("");
+
+        // Device dl — one term/definition pair per known field. Skips
+        // anything absent so a future JSON with fewer fields still renders.
+        var dev = (data && data.device) || {};
+        var devRows = [
+          ["Make", dev.make], ["Model", dev.model], ["Type", dev.type],
+          ["Location", dev.location], ["IP address", dev.ipAddress],
+          ["Connection", dev.connection], ["Print port", dev.printPort],
+          ["Wi-Fi module", dev.wifiModule],
+        ];
+        document.getElementById("prtrDevice").innerHTML = devRows
+          .filter(function (r) { return r[1] !== undefined; })
+          .map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + valueOr(r[1]) + '</dd>'; })
+          .join("");
+
+        // Trays table
+        var trays = (data && Array.isArray(data.trays)) ? data.trays : [];
+        document.querySelector("#prtrTrays tbody").innerHTML = trays.map(function (t) {
+          return '<tr>'
+            + '<th scope="row">' + valueOr(t.tray) + '</th>'
+            + '<td>' + valueOr(t.media) + '</td>'
+            + '<td>' + valueOr(t.capacity) + '</td>'
+            + '<td>' + valueOr(t.weightRange) + '</td>'
+            + '<td>' + valueOr(t.notes) + '</td>'
+            + '</tr>';
+        }).join("");
+
+        // Ordered lists — setup + scorecard steps
+        function stepsHTML(arr) {
+          return (arr || []).map(function (s) { return '<li>' + esc(s) + '</li>'; }).join("");
+        }
+        document.getElementById("prtrSetup").innerHTML = stepsHTML(data && data.setupSteps);
+        document.getElementById("prtrScorecard").innerHTML = stepsHTML(data && data.scorecardPrinting);
+
+        // Driver + documentation links
+        var links = (data && Array.isArray(data.driverLinks)) ? data.driverLinks : [];
+        document.getElementById("prtrDrivers").innerHTML = links.map(function (d) {
+          var url = String((d && d.url) || "");
+          var label = String((d && d.label) || url);
+          var note = String((d && d.notes) || "").trim();
+          return '<li>'
+            + '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + '</a>'
+            + (note ? '<p class="prtr-links__note">' + esc(note) + '</p>' : '')
+            + '</li>';
+        }).join("");
+
+        document.getElementById("prtrStatus").hidden = true;
+        document.getElementById("prtrContent").hidden = false;
+
+        // Wire the "Print laminate sheet" button once the data is in. The
+        // handler closes over `data` so the printed sheet is always built
+        // from what's currently rendered on screen (a JSON edit + refresh
+        // updates both at once).
+        var btn = document.getElementById("prtrPrintSheet");
+        if (btn) btn.addEventListener("click", function () { printQuickSheet(data); });
+      }
+
+      // Build a self-contained print window with a single-page landscape
+      // reference sheet. Everything is inline (no shared CSS) so the child
+      // window prints correctly even if the service worker hasn't cached
+      // the parent's stylesheet.
+      function printQuickSheet(data) {
+        var dev = (data && data.device) || {};
+        var trays = (data && Array.isArray(data.trays)) ? data.trays : [];
+        var limits = (data && Array.isArray(data.criticalLimits)) ? data.criticalLimits : [];
+        function E(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
+        function first(v) { return String(v == null ? "" : v).trim(); }
+        // Split the free-text "notes" from staff-printer.json into a couple of
+        // punchy bullets so the printed card doesn't turn into a wall of prose.
+        function splitBullets(s) {
+          return String(s || "").split(/\s*(?:\.|;)\s+/).map(function (b) { return b.replace(/[.;]$/, "").trim(); }).filter(Boolean);
+        }
+        var trayCells = trays.map(function (t, i) {
+          var bullets = splitBullets(t.notes);
+          return '<div class="qs-tray qs-tray--' + (i + 1) + '">'
+            + '<div class="qs-tray__hd"><span class="qs-tray__num">' + E(t.tray) + '</span></div>'
+            + '<div class="qs-tray__body">'
+            +   '<div class="qs-tray__media">' + E(t.media) + '</div>'
+            +   '<div class="qs-tray__cap">' + E(t.capacity) + ' &middot; ' + E(t.weightRange) + '</div>'
+            +   (bullets.length ? '<ul class="qs-tray__notes">' + bullets.map(function (b) { return '<li>' + E(b) + '</li>'; }).join("") + '</ul>' : '')
+            + '</div></div>';
+        }).join("");
+        var limitCells = limits.map(function (t) { return '<li>' + E(t) + '</li>'; }).join("");
+        var css = ''
+          + '@page { size: letter landscape; margin: 0.35in; }'
+          + 'html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif; }'
+          + '.qs { width: 100%; height: 7.4in; display: flex; flex-direction: column; }'
+          + '.qs__hd { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #1B5E20; padding-bottom: 0.15in; }'
+          + '.qs__brand { font-family: "Fraunces", Georgia, serif; font-size: 22pt; font-weight: 600; color: #1B5E20; }'
+          + '.qs__sub { font-size: 11pt; color: #333; font-weight: 600; margin-top: 0.05in; }'
+          + '.qs__id { text-align: right; font-size: 10pt; color: #333; line-height: 1.3; }'
+          + '.qs__id b { color: #000; }'
+          + '.qs__trays { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.15in; margin-top: 0.2in; flex: 0 0 auto; }'
+          + '.qs-tray { border: 2px solid #1B5E20; border-radius: 8pt; overflow: hidden; background: #fff; }'
+          + '.qs-tray--3 { border-color: #b8860b; }'
+          + '.qs-tray__hd { background: #1B5E20; color: #fff; padding: 0.06in 0.14in; font-size: 14pt; font-weight: 700; letter-spacing: 0.02em; }'
+          + '.qs-tray--3 .qs-tray__hd { background: #b8860b; }'
+          + '.qs-tray__body { padding: 0.09in 0.14in 0.12in; }'
+          + '.qs-tray__media { font-size: 12pt; font-weight: 700; color: #000; }'
+          + '.qs-tray__cap { font-size: 9pt; color: #555; margin-top: 0.03in; }'
+          + '.qs-tray__notes { margin: 0.08in 0 0; padding-left: 0.16in; font-size: 10pt; line-height: 1.35; }'
+          + '.qs-tray__notes li { margin: 0.02in 0; }'
+          + '.qs__limits { margin-top: 0.22in; border: 3px solid #b8860b; background: #fff7d6; border-radius: 8pt; padding: 0.12in 0.18in; flex: 1 1 auto; }'
+          + '.qs__limits h3 { margin: 0 0 0.06in; font-size: 12pt; color: #6b4d00; letter-spacing: 0.02em; }'
+          + '.qs__limits ul { margin: 0; padding-left: 0.22in; font-size: 10.5pt; line-height: 1.4; color: #000; }'
+          + '.qs__limits li { margin: 0.03in 0; font-weight: 600; }'
+          + '.qs__ft { margin-top: auto; padding-top: 0.12in; display: flex; justify-content: space-between; align-items: flex-end; font-size: 8.5pt; color: #555; }'
+          + '.qs__ft b { color: #000; }'
+          + '';
+        var body = ''
+          + '<div class="qs">'
+          +   '<div class="qs__hd">'
+          +     '<div>'
+          +       '<div class="qs__brand">F&amp;H Golf Course</div>'
+          +       '<div class="qs__sub">Printer quick reference &mdash; which tray for what</div>'
+          +     '</div>'
+          +     '<div class="qs__id">'
+          +       '<div><b>' + E(first(dev.make) || 'Sharp') + ' ' + E(first(dev.model) || 'MX-B476W') + '</b></div>'
+          +       '<div>' + E(first(dev.location) || 'Clubhouse office') + '</div>'
+          +       (first(dev.ipAddress) && first(dev.ipAddress).toUpperCase() !== 'TBD'
+                    ? '<div>IP: <b>' + E(dev.ipAddress) + '</b></div>'
+                    : '<div>IP: <b>(pending)</b></div>')
+          +     '</div>'
+          +   '</div>'
+          +   '<div class="qs__trays">' + trayCells + '</div>'
+          +   '<div class="qs__limits">'
+          +     '<h3>&#9888;&#65039; Do NOT put card stock in a drawer &mdash; only the bypass tray takes heavy paper</h3>'
+          +     '<ul>' + limitCells + '</ul>'
+          +   '</div>'
+          +   '<div class="qs__ft">'
+          +     '<span>Driver presets: <b>Plain</b> = Tray 1  &middot;  <b>Checks</b> = Tray 2 (reversed)  &middot;  <b>Scorecards</b> = Bypass, Heavy Paper</span>'
+          +     '<span>Trouble? Open the Staff Portal &rarr; Printer for the full guide.</span>'
+          +   '</div>'
+          + '</div>';
+        var html = '<!doctype html><html><head><meta charset="utf-8"><title>F&amp;H Printer Quick Reference</title><style>' + css + '</style></head><body>' + body + '<script>window.addEventListener("load",function(){setTimeout(function(){window.print();},250);});<\/script></body></html>';
+        var w = window.open("", "_blank");
+        if (!w) { alert("Popup blocked. Allow pop-ups for this site to print the quick-reference sheet."); return; }
+        w.document.open(); w.document.write(html); w.document.close();
+      }
+
+      // Cache-bust with a query string so a JSON edit lands next reload
+      // without waiting on service-worker cache eviction.
+      fetch("data/staff-printer.json?v=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+        .then(render)
+        .catch(function (e) {
+          var s = document.getElementById("prtrStatus");
+          s.textContent = "Couldn't load printer reference: " + (e && e.message ? e.message : "unknown error") + ". Check that data/staff-printer.json is present.";
+          s.className = "ppl-status is-error";
+        });
+    })();
+  </script>
+</body>
+</html>
