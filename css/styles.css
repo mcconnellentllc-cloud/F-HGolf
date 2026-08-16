@@ -2308,6 +2308,13 @@ body.tw-single-wave #fmtExtraMealsRow { display: none; }
    can't enter Day 2 scores by mistake. Founders keeps both. */
 body.tw-single-wave #scTabD2 { display: none; }
 
+/* Calcutta is Founders-only. Hide the entire Calcutta fieldset on the
+   Format tab for every other tournament — dead control otherwise. The
+   Calcutta / Calcutta Buyers / Calcutta Disp WORKBOOK tabs are hidden
+   via the JS _applyCalcuttaVisibility path, which is also Founders-
+   gated now. */
+body.tw-single-wave #fmtCalcuttaSet { display: none; }
+
 /* Pairings single-day mode: driven by Format's Rounds field. Hide every
    Day 2 control so operators of one-day tournaments never see a Day 2
    tab, autofill, or print button they'd have to ignore. */
