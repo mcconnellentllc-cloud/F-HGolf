@@ -2172,22 +2172,24 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-tot--paid b { color: var(--primary-green); }
 .ci-tot--owe b { color: var(--red-deep); }
 .ci-card.is-fully-paid .ci-tot--owe b { color: var(--primary-green); }
-.ci-card__acts { display: grid; grid-template-columns: 1fr; gap: 0.4rem; }
-/* Take Payment = big primary; recomputes totals on click. Full width so
-   it's an unmissable target on both mouse + touch. */
-.ci-card__acts .ci__update { padding: 0.6rem 0.9rem; font-size: 0.95rem; border-radius: 8px; border: 0; color: #fff; background: var(--primary-green); cursor: pointer; font-weight: 800; letter-spacing: 0.02em; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: background 0.12s, transform 0.12s; }
-.ci-card__acts .ci__update:hover { background: #144a1e; }
-.ci-card__acts .ci__update:active { transform: translateY(1px); }
-/* Secondary action row — merge / scoring link / alt / remove. Smaller,
-   ghosted, wrapped so they never crowd the primary button. Remove sits
-   on the right as a destructive escape hatch. */
+.ci-card__acts { display: flex; flex-direction: column; gap: 0.4rem; }
+/* Primary action row — Take Payment on the left (grows to fill so it
+   stays the visual anchor near the OWES column), Scoring link tucked
+   to the right of it as a secondary primary action. Both remain
+   noticeably bigger than the tertiary row below. */
+.ci-card__acts-primary { display: flex; gap: 0.5rem; align-items: stretch; }
+.ci-card__acts-primary .ci__update { flex: 1 1 auto; padding: 0.6rem 0.9rem; font-size: 0.95rem; border-radius: 8px; border: 0; color: #fff; background: var(--primary-green); cursor: pointer; font-weight: 800; letter-spacing: 0.02em; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: background 0.12s, transform 0.12s; }
+.ci-card__acts-primary .ci__update:hover { background: #144a1e; }
+.ci-card__acts-primary .ci__update:active { transform: translateY(1px); }
+.ci-card__acts-primary .ci__live { flex: 0 0 auto; padding: 0.6rem 0.9rem; font-size: 0.85rem; border-radius: 8px; border: 1.5px solid var(--primary-green); color: var(--primary-green); background: #fff; cursor: pointer; font-weight: 700; }
+.ci-card__acts-primary .ci__live:hover { background: var(--primary-green); color: #fff; }
+/* Secondary/tertiary action row — Merge / Alt / Remove. Smaller,
+   ghosted. Remove pinned to the right as the destructive escape hatch. */
 .ci-card__acts-sec { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: flex-start; }
 .ci-card__acts-sec > * { padding: 0.32rem 0.65rem; font-size: 0.78rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
 .ci-card__acts-sec .ci__merge,
-.ci-card__acts-sec .ci__live,
 .ci-card__acts-sec .ci__alt { border: 1px solid var(--line); color: var(--ink); background: #fff; }
 .ci-card__acts-sec .ci__merge:hover,
-.ci-card__acts-sec .ci__live:hover,
 .ci-card__acts-sec .ci__alt:hover { border-color: var(--primary-green); color: var(--primary-green); }
 .ci-card__acts-sec .ci__remove { margin-left: auto; border: 1px solid rgba(178, 34, 41, 0.35); color: var(--red-deep); background: #fff; }
 .ci-card__acts-sec .ci__remove:hover { background: var(--red-deep); color: #fff; border-color: var(--red-deep); }
