@@ -6426,8 +6426,8 @@
         cellH:    "0.38in",    // height of a single player row on the card
         nameSize: "13pt",      // fits two lines (first + last) inside one 0.38in cell
         teeMarkTop: "2.93in",  // ring row in HOLE
-        teeMarkStep: "0.2778in", // per-hole horizontal step. Measured on the physical F&H card: left edge of hole 1 to right edge of hole 9 = 2.5" exactly, so cell width = 2.5/9 = 0.2778in.
-        teeMarkFirst: "1.38in",// ring CENTER for hole 1 — sits AROUND the preprinted "1" digit
+        teeMarkStep: "0.28125in", // per-hole horizontal step = 9/32". Measured on the physical F&H card: hole 1 left @ 1.125in, hole 9 left @ 3.375in, so pitch = (3.375-1.125)/8 = 0.28125. (The 2.5" span across 9 cells includes 8 hairline gaps between cells; don't divide 2.5/9.)
+        teeMarkFirst: "1.25in",// ring CENTER for hole 1 — hole 1 spans 1.125-1.375in, center = 1.25in
         teeMarkDia: "0.28in"   // ring diameter — sized to fit the "1" cell
       };
       // Split "First M. Last" style names — first token is the first name,
