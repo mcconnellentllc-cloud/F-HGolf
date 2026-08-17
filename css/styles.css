@@ -2490,9 +2490,9 @@ body.tw-single-wave #scTabD2 { display: none; }
 /* Calcutta is Founders-only. Hide the entire Calcutta fieldset on the
    Format tab for every other tournament — dead control otherwise. The
    Calcutta / Calcutta Buyers / Calcutta Disp WORKBOOK tabs are hidden
-   via the JS _applyCalcuttaVisibility path, which is also Founders-
-   gated now. */
-body.tw-single-wave #fmtCalcuttaSet { display: none; }
+   via the JS _applyCalcuttaVisibility path. Format tab shows the
+   Calcutta fieldset for every tournament so operators can toggle it on/
+   off + tune the handicap math without a Founders-only workbook. */
 
 /* Payout tab wave-collapsed buttons. Founders (multi-wave) needs both
    AM and PM Print/Payout Calcutta buttons; single-shotgun tournaments

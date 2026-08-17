@@ -234,6 +234,10 @@
               document.title = name + " — Live Leaderboard";
             }
             if (rounds) IS_TWO_DAY = rounds >= 2;
+            var hm = Number(f["Handicap Multiplier"]);
+            if (isFinite(hm) && hm > 0) HCP_MULT = hm;
+            var hb = String(f["Handicap Basis"] || "").toLowerCase();
+            if (hb === "tournament") HCP_BASIS = "tournament";
           })
           .catch(function () {});
       })();
@@ -243,7 +247,12 @@
         return names[n - 1] || ("Flight " + n);
       }
       var REFRESH_MS = 15000;
-      var HCP_MULT = 0.8;      // matches Calc defaults
+      // Handicap math for Calcutta net scoring is driven by the workbook's
+      // Format tab. Defaults keep the Founders behavior (0.8 × D1 delta,
+      // HCP applied to Day 2 only) until the Tournament Config load
+      // overwrites them.
+      var HCP_MULT = 0.8;
+      var HCP_BASIS = "day1";  // "day1" or "tournament"
       var FLIGHT_PRIZES = 3;   // top-3 gross flagged per flight
       var CALCUTTA_PRIZES = 4; // top-4 net flagged per flight
 
@@ -345,17 +354,37 @@
               grossPlace: null, netPlace: null,
             };
           });
-          var leader = null;
-          rows.forEach(function (r) { if (r.d1 != null && (leader == null || r.d1 < leader)) leader = r.d1; });
-          rows.forEach(function (r) {
-            if (r.d1 != null && leader != null) {
-              r.hcp = Math.round((r.d1 - leader) * HCP_MULT);
-              // Net for Calcutta places = Day 2 gross − HCP only.
-              // Day 1 sets flights + handicaps; only Day 2 counts against
-              // the handicap. Net stays null until Day 2 is entered.
-              if (r.d2 != null) r.net = r.d2 - r.hcp;
-            }
-          });
+          // Handicap basis is driven by Format tab.
+          //   "day1"       — HCP = round((D1 − leader D1) × mult);
+          //                  Net = D2 − HCP (Day 1 sets flights + HCP,
+          //                  Day 2 counts against the handicap).
+          //   "tournament" — HCP = round((gross − leader gross) × mult);
+          //                  Net = gross − HCP.
+          // Math.round() covers the operator's stated rule: .1–.4 rounds
+          // down, .5–.9 rounds up (standard).
+          if (HCP_BASIS === "tournament") {
+            var leaderT = null;
+            rows.forEach(function (r) { if (r.gross != null && (leaderT == null || r.gross < leaderT)) leaderT = r.gross; });
+            rows.forEach(function (r) {
+              if (r.gross != null && leaderT != null) {
+                r.hcp = Math.round((r.gross - leaderT) * HCP_MULT);
+                r.net = r.gross - r.hcp;
+              }
+            });
+          } else {
+            var leader = null;
+            rows.forEach(function (r) { if (r.d1 != null && (leader == null || r.d1 < leader)) leader = r.d1; });
+            rows.forEach(function (r) {
+              if (r.d1 != null && leader != null) {
+                r.hcp = Math.round((r.d1 - leader) * HCP_MULT);
+                if (IS_TWO_DAY) {
+                  if (r.d2 != null) r.net = r.d2 - r.hcp;
+                } else if (r.gross != null) {
+                  r.net = r.gross - r.hcp;
+                }
+              }
+            });
+          }
           rankPlaces(rows, "gross", "grossPlace");
           rankPlaces(rows, "net", "netPlace");
           rows.sort(function (a, b) {
