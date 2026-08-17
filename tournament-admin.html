@@ -449,7 +449,6 @@
               <button class="btn btn--solid tw-single-wave-only" type="button" id="poPrintChecksAll" title="Print pre-printed checks for every team (flight winnings + Calcutta)">Print checks</button>
               <button class="btn btn--solid tw-multi-wave-only" type="button" id="poPayoutCalcuttaAm" title="Print ONLY Calcutta buyer payouts for teams in the Sunday A.M. shotgun">Payout AM Calcutta</button>
               <button class="btn btn--solid tw-multi-wave-only" type="button" id="poPayoutCalcuttaPm" title="Print ONLY Calcutta buyer payouts for teams in the Sunday P.M. shotgun">Payout PM Calcutta</button>
-              <button class="btn btn--solid tw-single-wave-only" type="button" id="poPayoutCalcuttaAll" title="Print ONLY Calcutta buyer payouts for every team">Payout Calcutta</button>
               <button class="btn btn--primary" type="button" id="poPrint">Print now</button>
             </div>
           </div>
@@ -10283,13 +10282,13 @@
         if (poAm) poAm.addEventListener("click", function () { printPayoutChecksForWave("AM"); });
         var poPm = document.getElementById("poPrintChecksPm");
         if (poPm) poPm.addEventListener("click", function () { printPayoutChecksForWave("PM"); });
-        // Single-wave collapsed buttons — print / payout every team in one
-        // pass. Hidden on Founders (multi-wave); the AM/PM buttons above
-        // stay wired for that path.
+        // Single-wave collapsed button — Print checks for every team in one
+        // pass. Hidden on Founders (multi-wave); the AM/PM Print buttons
+        // above stay wired for that path. No collapsed "Payout Calcutta"
+        // button: Calcutta is Founders-only at F&H and Founders is
+        // multi-wave, so a single-wave Calcutta payout has no audience.
         var poAll = document.getElementById("poPrintChecksAll");
         if (poAll) poAll.addEventListener("click", function () { printPayoutChecksForWave("all"); });
-        var poCaAll = document.getElementById("poPayoutCalcuttaAll");
-        if (poCaAll) poCaAll.addEventListener("click", function () { printCalcuttaChecksForWave("all"); });
         var plCk = document.getElementById("plPrintCourseCheck");
         if (plCk) plCk.addEventListener("click", printCourseCheck);
         function _printTeeSheet() {
