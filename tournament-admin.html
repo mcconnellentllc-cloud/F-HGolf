@@ -130,6 +130,13 @@
                   </select>
                 </label>
                 <label class="fmt-row"><span>Flights</span><input type="number" name="Flights" min="0" max="6" /></label>
+                <label class="fmt-row" id="fmtFlightFromRow" title="Single-day flighting basis. Coin-flip mid-round decides Out vs In; save whichever the coin picked and the leaderboard reflights + resorts off that 9. Ignored when Rounds is 2 — 36-hole tournaments always flight off the Day 1 gross."><span>Flight from</span>
+                  <select name="Flight From">
+                    <option value="Full 18">Full 18 (Day 1 total)</option>
+                    <option value="Out">Out — Front 9</option>
+                    <option value="In">In — Back 9</option>
+                  </select>
+                </label>
                 <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Alternates Allowed" /><span>Alternates allowed once cap is hit</span></label>
                 <label class="fmt-row fmt-row--chk" id="fmtExtraMealsRow"><input type="checkbox" name="Extra Meals Enabled" /><span>Track extra meals per player (kitchen head count)</span></label>
                 <label class="fmt-row fmt-row--chk" title="USGA-style scoring: teams mark opponents' cards. A→B, B→C, C→A. Individual teams can be flagged 'Scores whole group' on their Check-In card to have one captain score everyone on their tee."><input type="checkbox" name="Marker Scoring Enabled" /><span>Marker scoring &mdash; teams mark opponents' cards</span></label>
@@ -1449,6 +1456,10 @@
         _fmtHydrateShotgun(f["Waves JSON"]);
         _fmtHydrateHighlights(f["Highlights"]);
         _fmtHydrateExtras(f["Extras JSON"]);
+        // Flight From only matters on 1-day tournaments (coin-flip Out
+        // vs In). Hide the row on 2-day events so operators don't accidentally
+        // change the flight basis for a 36-hole tournament.
+        _applyFlightFromVisibility(Number(f["Rounds"] || 1));
         // Calcutta is Founders-only at F&H (same pattern as waves and
         // meals). Every other tournament hides the Calcutta tabs +
         // Format dropdown unconditionally regardless of what the
@@ -6804,6 +6815,27 @@
       // were in. A valid 18-hole gross is at least 18, so > 0 is safe.
       function d1g(r) { var f = r.fields || {}; return (f["Day1 Scores"] && typeof f["Day1 Gross"] === "number" && f["Day1 Gross"] > 0) ? f["Day1 Gross"] : null; }
       function d2g(r) { var f = r.fields || {}; return (f["Day2 Scores"] && typeof f["Day2 Gross"] === "number" && f["Day2 Gross"] > 0) ? f["Day2 Gross"] : null; }
+      // Flight-basis score. On 2-day tournaments this is always the Day 1
+      // gross (18 holes). On 1-day tournaments the operator can pick a
+      // 9-hole basis on Format ("Out" = front 9, "In" = back 9) — common
+      // when the round is flighted by a coin-flip mid-round. All 9 holes
+      // of the chosen nine must be posted before a team is flight-eligible.
+      function flightScore(r) {
+        var rounds = Number((_tcConfigCache && _tcConfigCache["Rounds"]) || 1);
+        var basis = (rounds >= 2) ? "Full 18" : String((_tcConfigCache && _tcConfigCache["Flight From"]) || "Full 18");
+        if (basis !== "Out" && basis !== "In") return d1g(r);
+        var raw = (r.fields || {})["Day1 Scores"]; if (!raw) return null;
+        var scores = parseScores(raw);
+        var from = basis === "In" ? 9 : 0, to = from + 9;
+        if (scores.length < to) return null;
+        var s = 0;
+        for (var i = from; i < to; i++) { if (scores[i] == null) return null; s += scores[i]; }
+        return s;
+      }
+      function _applyFlightFromVisibility(rounds) {
+        var row = document.getElementById("fmtFlightFromRow"); if (!row) return;
+        row.style.display = (Number(rounds) >= 2) ? "none" : "";
+      }
       function teamName(r) { return teamShortNames((r && r.fields) || {}); }
 
       var CUTK = "fh_cuts_" + KEY, boardSorted = [], lbFilteredRecs = [];
@@ -6843,7 +6875,11 @@
           return;
         }
         var mn = sortedScores[0], mx = sortedScores[sortedScores.length - 1];
-        var html = '<p class="lb-range__extent">Day-1 range: <b>' + mn + '</b> &rarr; <b>' + mx + '</b> (' + sortedScores.length + ' teams scored)</p>';
+        var basis = String((_tcConfigCache && _tcConfigCache["Flight From"]) || "Full 18");
+        var basisLbl = (Number((_tcConfigCache && _tcConfigCache["Rounds"]) || 1) < 2 && (basis === "Out" || basis === "In"))
+          ? (basis === "In" ? "Back-9 (In)" : "Front-9 (Out)")
+          : "Day-1";
+        var html = '<p class="lb-range__extent">' + basisLbl + ' range: <b>' + mn + '</b> &rarr; <b>' + mx + '</b> (' + sortedScores.length + ' teams scored)</p>';
         for (var i = 0; i < nF - 1; i++) {
           html += '<label class="lb-slider">' + flightName(i + 1) + ' ends at score '
             + '<input type="range" class="lb-range" data-i="' + i + '" min="' + mn + '" max="' + mx + '" value="' + cuts[i] + '" /> '
@@ -6885,10 +6921,10 @@
 
       function saveFlights() {
         var status = document.getElementById("lbCutStatus"), cfg = loadCalc(), nF = cfg.flights || 4;
-        var sortedScores = boardSorted.map(d1g).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
+        var sortedScores = boardSorted.map(flightScore).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
         var cuts = loadCuts(nF, sortedScores);
         var assignments = boardSorted.map(function (r) {
-          var s = d1g(r);
+          var s = flightScore(r);
           return { id: r.id, flight: s == null ? null : flightForScore(s, cuts) };
         }).filter(function (a) { return a.flight != null; });
         if (!assignments.length) { if (status) status.textContent = "No Day-1 scores yet."; return; }
@@ -6905,14 +6941,16 @@
         var mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
         // Preview grouping from current cut sliders so teams show up in flights
         // as soon as scores are entered — no need to click Save flights first.
-        var sortedScores = recs.map(d1g).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
+        // On 1-day tournaments Flight From on Format can switch this to Out /
+        // In (9-hole basis for the coin-flip flighting).
+        var sortedScores = recs.map(flightScore).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
         var cuts = loadCuts(nF, sortedScores);
         var scoreMin = sortedScores.length ? sortedScores[0] : null;
         var scoreMax = sortedScores.length ? sortedScores[sortedScores.length - 1] : null;
         var groups = {};
         var dirty = false;
         recs.forEach(function (r) {
-          var s = d1g(r);
+          var s = flightScore(r);
           var saved = (r.fields || {})["Flight"];
           var computed = (s != null && sortedScores.length) ? flightForScore(s, cuts) : null;
           var k;
@@ -6940,12 +6978,17 @@
         }
         var out = order.map(function (fl) {
           var arr = groups[fl]; if (!arr || !arr.length) return "";
+          // Leader within the flight = lowest flight-basis score (full 18
+          // by default; front 9 / back 9 when Format's Flight From is set).
+          // HCP is computed against the SAME basis so a 9-hole coin-flip
+          // flight doesn't compare 18s to 9s.
           var leader = null;
-          arr.forEach(function (r) { var v = d1g(r); if (v != null && (leader == null || v < leader)) leader = v; });
+          arr.forEach(function (r) { var v = flightScore(r); if (v != null && (leader == null || v < leader)) leader = v; });
           var lbTeamNumbers = computeTeamNumbers(recs);
           var rows = arr.map(function (r) {
             var a = d1g(r), b = d2g(r);
-            var hcp = (a != null && leader != null) ? Math.round((a - leader) * mult) : null;
+            var flt = flightScore(r);
+            var hcp = (flt != null && leader != null) ? Math.round((flt - leader) * mult) : null;
             var scores = parseScores((r.fields || {})["Day1 Scores"]);
             function loop(from, to) {
               if (!scores || scores.length < to) return null;
@@ -7072,13 +7115,17 @@
 
         var out = order.map(function (fl) {
           var arr = groups[fl]; if (!arr || !arr.length) return "";
-          // Handicap leader (min D1 gross in flight) for net computation.
+          // Handicap leader = lowest flight-basis score (full 18 by default;
+          // front 9 or back 9 when Format's Flight From is set). HCP is
+          // computed off the SAME basis so Calcutta nets stay consistent
+          // with the leaderboard nets.
           var leader = null;
-          arr.forEach(function (r) { var v = d1g(r); if (v != null && (leader == null || v < leader)) leader = v; });
+          arr.forEach(function (r) { var v = flightScore(r); if (v != null && (leader == null || v < leader)) leader = v; });
           var rows = arr.map(function (r) {
             var f = r.fields || {};
             var a = d1g(r), b = d2g(r);
-            var hcp = (a != null && leader != null) ? Math.round((a - leader) * mult) : null;
+            var flt = flightScore(r);
+            var hcp = (flt != null && leader != null) ? Math.round((flt - leader) * mult) : null;
             var gross = (a != null || b != null) ? ((a == null ? 0 : a) + (b == null ? 0 : b)) : null;
             // Calcutta net = Day 2 gross − HCP only (Day 1 sets flight/hcp).
             var net = (b != null && hcp != null) ? (b - hcp) : null;
@@ -7289,7 +7336,9 @@
       // Returns { flights:[{num,name,leader,rows:[{name,d1,d2,gross,hcp,net,buyer,buyAmount,grossPlace,netPlace}]}], unassigned:[...] }
       function computeLeaderboardData(recs, cfg) {
         var mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
-        var sortedScores = recs.map(d1g).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
+        // Flighting basis — full 18 by default; Out (front 9) or In (back 9)
+        // on single-day tournaments when Format's Flight From is set.
+        var sortedScores = recs.map(flightScore).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
         var cuts = loadCuts(nF, sortedScores);
         var teamNumbers = computeTeamNumbers(recs);
         var flights = [];
@@ -7298,11 +7347,12 @@
         recs.forEach(function (r) {
           var f = r.fields || {};
           var d1 = d1g(r), d2 = d2g(r);
+          var flt = flightScore(r);
           var row = {
             id: r.id, rec: r,
             teamNumber: teamNumbers[r.id] || null,
             name: teamShortNames(f),
-            d1: d1, d2: d2,
+            d1: d1, d2: d2, flt: flt,
             gross: (d1 != null || d2 != null) ? ((d1 == null ? 0 : d1) + (d2 == null ? 0 : d2)) : null,
             hcp: null, net: null,
             grossPlace: null, netPlace: null,
@@ -7311,21 +7361,23 @@
             extrasPurchased: f["Extras Purchased"] || "",
             extrasUsed: f["Extras Used"] || "",
           };
-          if (d1 != null && sortedScores.length) {
-            var fnum = flightForScore(d1, cuts);
+          if (flt != null && sortedScores.length) {
+            var fnum = flightForScore(flt, cuts);
             flights[fnum - 1].rows.push(row);
           } else {
             unassigned.push(row);
           }
         });
-        // For each flight: leader D1 = min D1 among that flight's teams.
+        // For each flight: leader = min flight-basis score (same basis used
+        // to assign the flight). HCP is computed off the SAME basis so a
+        // 9-hole coin-flip flight uses 9-hole leader-relative HCPs.
         flights.forEach(function (fl) {
           var leader = null;
-          fl.rows.forEach(function (r) { if (r.d1 != null && (leader == null || r.d1 < leader)) leader = r.d1; });
+          fl.rows.forEach(function (r) { if (r.flt != null && (leader == null || r.flt < leader)) leader = r.flt; });
           fl.leader = leader;
           fl.rows.forEach(function (row) {
-            if (row.d1 != null && leader != null) {
-              row.hcp = Math.round((row.d1 - leader) * mult);
+            if (row.flt != null && leader != null) {
+              row.hcp = Math.round((row.flt - leader) * mult);
               // Calcutta / leaderboard net = Day 2 gross − HCP only.
               // Handicaps are set from Day 1 flight standing, so Day 1
               // is treated as "gross-only" and doesn't count against
@@ -9069,8 +9121,8 @@
         lbFilteredRecs = recs;
         var cfg = loadCalc(), nF = cfg.flights || 4;
         var nEl = document.getElementById("lbFlNum"); if (nEl) nEl.textContent = nF;
-        boardSorted = recs.filter(function (r) { return d1g(r) != null; }).sort(function (a, b) { return d1g(a) - d1g(b); });
-        var sortedScores = boardSorted.map(d1g);
+        boardSorted = recs.filter(function (r) { return flightScore(r) != null; }).sort(function (a, b) { return flightScore(a) - flightScore(b); });
+        var sortedScores = boardSorted.map(flightScore);
         renderCutControls(sortedScores, nF, loadCuts(nF, sortedScores));
         renderStandings(recs, cfg);
       }
@@ -9668,6 +9720,13 @@
         if (fmtReload) fmtReload.addEventListener("click", function () { loadFormat(true); });
         var fmtShotCount = document.getElementById("fmtShotCount");
         if (fmtShotCount) fmtShotCount.addEventListener("change", _fmtSyncShotgunUI);
+        // Rounds input drives Flight From visibility — 1-day tournaments
+        // show the Out/In picker; 2-day tournaments hide it (36-hole
+        // events always flight off Day 1 gross).
+        var fmtRoundsInp = document.querySelector('#fmtForm [name="Rounds"]');
+        if (fmtRoundsInp) fmtRoundsInp.addEventListener("input", function () {
+          _applyFlightFromVisibility(Number(fmtRoundsInp.value || 1));
+        });
         // "+ Add extra" appends an empty row to the Extras editor. Blank
         // rows are dropped on save so an accidental click is harmless.
         var fmtExAdd = document.getElementById("fmtExtrasAdd");
