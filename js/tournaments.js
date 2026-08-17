@@ -29,7 +29,15 @@
       end: "2026-08-22", cap: 24, unit: "teams", team: 2,
       roles: ["Your name", "Partner's name"],
       format: "2-player couples (one entry = a team)",
-      card: { label: "Live leaderboard", href: "leaderboard.html?t=Couple%27s%20Tournament%20(Aug%2022)" }
+      // Public link row: same fan-out Founders has (Rules / Leaderboard /
+      // Recap / History) but pointed at the generic tournament pages that
+      // read ?t=<KEY>. Sign Up is rendered separately by signupControl().
+      links: [
+        { label: "Rules", href: "couples-rules.html" },
+        { label: "Live leaderboard", href: "leaderboard.html?t=Couple%27s%20Tournament%20(Aug%2022)" },
+        { label: "Recap", href: "recap.html?t=Couple%27s%20Tournament%20(Aug%2022)" },
+        { label: "Past events", href: "history.html?name=Couple%27s%20Tournament" }
+      ]
     },
     "Haxtun Fire (Sept 19)": { end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble" },
     "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)" },

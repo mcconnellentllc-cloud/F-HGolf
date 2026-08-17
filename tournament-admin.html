@@ -463,10 +463,10 @@
         <section class="noms wb-sheet" data-sheet="recap" id="twRecap" aria-label="Recap" hidden>
           <div class="noms__bar">
             <h3 class="noms__title">Tournament Recap <span class="noms__count" id="recapCount"></span></h3>
-            <a class="btn btn--solid" href="founders-recap.html" target="_blank" rel="noopener">Open public recap page &rarr;</a>
+            <a class="btn btn--solid" id="recapOpenBtn" href="founders-recap.html" target="_blank" rel="noopener">Open public recap page &rarr;</a>
             <button class="btn btn--primary" type="button" id="recapSave">Save recap</button>
           </div>
-          <p class="scaffold__desc">Freeform notes for the 2026 Founders recap page. Uses light markdown &mdash; <code>#</code> Heading, <code>##</code> Section, <code>###</code> Sub, <code>-</code> bullet, blank line = new paragraph, <code>**bold**</code>. Publishing is automatic: as soon as you save, the public <code>founders-recap.html</code> page shows the new text. See the &ldquo;How the recap comes back&rdquo; block on the right for the format to paste in.</p>
+          <p class="scaffold__desc">Freeform notes for this tournament&rsquo;s public recap page. Uses light markdown &mdash; <code>#</code> Heading, <code>##</code> Section, <code>###</code> Sub, <code>-</code> bullet, blank line = new paragraph, <code>**bold**</code>. Publishing is automatic: as soon as you save, the public recap page shows the new text. See the &ldquo;How the recap comes back&rdquo; block on the right for the format to paste in.</p>
           <div class="recap-wrap">
             <div class="recap__col">
               <label class="recap__lbl" for="recapText">Recap notes</label>
@@ -813,7 +813,7 @@
       </div>
       <div class="pm-modal__body">
         <p class="cd-body"><b>Your recap will be live momentarily.</b></p>
-        <p class="cd-body rs-note">The public recap page (<a href="founders-recap.html" target="_blank" rel="noopener"><code>founders-recap.html</code></a>) usually updates within a few seconds. Anyone already on that page may need to refresh once. If a viewer&rsquo;s device is caching the older service worker, they may see the old copy for up to a minute until the new cache activates.</p>
+        <p class="cd-body rs-note">The <a id="rsmRecapLink" href="founders-recap.html" target="_blank" rel="noopener">public recap page</a> usually updates within a few seconds. Anyone already on that page may need to refresh once. If a viewer&rsquo;s device is caching the older service worker, they may see the old copy for up to a minute until the new cache activates.</p>
         <p class="cd-body rs-warn" id="rsmWarn" hidden></p>
       </div>
       <div class="pm-modal__foot">
@@ -9688,9 +9688,12 @@
         // leaderboard.html which is the same score-rendering logic but
         // stripped to a generic Tournaments / Home nav.
         function _rewritePage(page) {
-          if (page !== "founders-leaderboard-display.html") return page;
           var isFounders = typeof KEY === "string" && /^Founder/i.test(KEY);
-          return isFounders ? page : "leaderboard.html";
+          if (isFounders) return page;
+          // Non-Founders workbooks get the generic parallels.
+          if (page === "founders-leaderboard-display.html") return "leaderboard.html";
+          if (page === "founders-recap.html") return "recap.html";
+          return page;
         }
         function publicUrl(page) {
           var effective = _rewritePage(page);
@@ -9861,6 +9864,15 @@
         if (rSave) rSave.addEventListener("click", saveRecap);
         var rTa = document.getElementById("recapText");
         if (rTa) rTa.addEventListener("input", recapUpdateCounts);
+        // Recap tab's "Open public recap page" button + save-confirm modal
+        // link route to founders-recap.html for the Founders workbook,
+        // recap.html?t=<KEY> for every other tournament.
+        try {
+          var rOpen = document.getElementById("recapOpenBtn");
+          if (rOpen) rOpen.href = publicUrl("founders-recap.html");
+          var rsmLink = document.getElementById("rsmRecapLink");
+          if (rsmLink) rsmLink.href = publicUrl("founders-recap.html");
+        } catch (e) {}
         var rCopy = document.getElementById("recapCopyBrief");
         if (rCopy) rCopy.addEventListener("click", function () {
           var code = document.getElementById("recapBriefCode");
