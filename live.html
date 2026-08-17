@@ -287,6 +287,46 @@
 
     .footer-tip { margin-top: 1.2rem; padding: 0.75rem 0.9rem; background: var(--paper-2); border: 1px dashed var(--line); border-radius: 10px; font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
 
+    /* Marker scoring — banner above the hole card telling the captain
+       whose card they're scoring (marker mode) or that someone else
+       has the pencil (spectator mode). Brass accent so it reads as
+       tournament-context, not chrome. */
+    .mkr-hdr { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.75rem 0.9rem; margin-bottom: 0.75rem; background: var(--brass-soft); border: 1px solid var(--brass); border-left: 4px solid var(--brass); border-radius: 10px; color: var(--ink); }
+    .mkr-hdr small { font: 700 0.7rem/1 system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
+    .mkr-hdr b { font: 700 1.1rem/1.2 system-ui, sans-serif; color: var(--brass); }
+    .mkr-hdr--spec { flex-direction: row; align-items: center; background: var(--paper-2); border-color: var(--line); color: var(--muted); font: 600 0.88rem/1.35 system-ui, sans-serif; }
+    .mkr-hdr--spec b { color: var(--ink); font-size: inherit; margin-right: 0.3rem; }
+
+    /* Card-switcher tabs (group scorer only) — small pills across the
+       top of the scorecard, one per tee-mate. Active card gets the
+       green pill; others are neutral. Wraps if 3 teams don't fit. */
+    .mkr-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.4rem; margin-bottom: 0.8rem; }
+    .mkr-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; padding: 0.55rem 0.75rem; border: 1.5px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); cursor: pointer; text-align: left; min-height: 0; }
+    .mkr-card small { font: 700 0.62rem/1 system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
+    .mkr-card span { font: 700 0.9rem/1.15 system-ui, sans-serif; word-break: break-word; }
+    .mkr-card em { font-style: normal; font-weight: 500; color: var(--muted); }
+    .mkr-card.on { background: var(--green-strong); border-color: var(--green-strong); color: var(--paper); }
+    .mkr-card.on small { color: rgba(255,255,255,0.75); }
+    .mkr-card.on em { color: rgba(255,255,255,0.8); }
+
+    /* Locked team score (spectator) — visually dims the +/– area so
+       the captain sees a live-updating number rather than blank space
+       where the buttons used to be. */
+    .team--locked .team-row { justify-content: center; opacity: 0.85; }
+
+    /* "Your team" read-only summary below the active card in marker /
+       group-scorer modes. Compact three-number strip: Thru / Gross /
+       To par — same shape as the main totals but muted and dimmer to
+       signal "this is a mirror, not editable here". */
+    .mkr-mine { margin-top: 0.85rem; padding: 0.7rem 0.9rem; background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px; }
+    .mkr-mine__hd { font: 700 0.72rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+    .mkr-mine__body { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+    .mkr-mine__tot { display: flex; flex-direction: column; align-items: flex-start; }
+    .mkr-mine__tot .k { font: 700 0.62rem/1 system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .mkr-mine__tot .v { font: 500 1.1rem/1 Georgia, serif; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: 0.15rem; }
+    .mkr-mine__tot.pos .v { color: var(--brass); }
+    .mkr-mine__tot.neg .v { color: var(--green); }
+
     /* Extras (mulligans, string, etc.) — one row per configured extra
        your team bought at check-in. Remaining count shows as stars; tap
        "Use one" to burn one. Once used, the star disappears here AND on
@@ -368,17 +408,23 @@
       function lapOf(idx) { return Math.floor(idx / 9) + 1; }
 
       var STATE = {
-        team: null,       // { id, teamName, partners, hole, ... }
+        team: null,       // { id, teamName, partners, hole, ... } — captain's OWN team
         tournament: "",
         config: {},
         field: [],
         day: 1,           // 1 or 2 (rounds — Founders is 2)
         holeIdx: 0,       // 0..17 — storage index of the hole currently displayed
-        scores: { 1: [], 2: [] },
+        scores: { 1: [], 2: [] },  // scores for the ACTIVE card (may be own team or a marker target)
         tab: "score",     // "score" | "lb"
         lbFilter: "mine", // "mine" | "all"
         saveTimer: null,
         savingCount: 0,
+        // Marker scoring state — set from server response on load().
+        // marker[day].mode ∈ {self, marker, group_scorer, spectator}.
+        // writeTargets = signup ids the captain's token can score.
+        // teeMates = full pairing group for display.
+        marker: { d1: null, d2: null },
+        activeCardId: null,  // signup id currently being scored (from writeTargets)
       };
 
       // Shotgun play order for one lap starting from H: [H, H+1, …, 9, 1, …, H-1].
@@ -403,8 +449,18 @@
         return out;
       }
       function teamStartHole() {
-        return (STATE.team && Number(STATE.team.hole) >= 1 && Number(STATE.team.hole) <= 9)
-          ? Number(STATE.team.hole) : 1;
+        // Start hole comes from the ACTIVE card's pairing for the
+        // current day. Different teams can start on different holes;
+        // a marker's screen should navigate the marker-target's course
+        // order, not their own. Falls back to hole 1 if unset.
+        var a = _active();
+        var holeKey = STATE.day === 2 ? "d2Hole" : "hole";
+        var h = a ? Number(a[holeKey]) : NaN;
+        if (!(h >= 1 && h <= 9)) {
+          // Own team's start as a secondary fallback.
+          h = STATE.team ? Number(STATE.team.hole) : NaN;
+        }
+        return (h >= 1 && h <= 9) ? h : 1;
       }
 
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -423,18 +479,58 @@
             STATE.tournament = j.tournament || "";
             STATE.config = j.config || {};
             STATE.field = j.field || [];
-            STATE.scores[1] = parseScores(j.team.day1);
-            STATE.scores[2] = parseScores(j.team.day2);
+            // Marker assignment (server-computed). Falls back to a
+            // self-mode baseline if the response predates PR #321.
+            STATE.marker = (j.markerAssignment && j.markerAssignment.d1)
+              ? j.markerAssignment
+              : { d1: { mode: "self", writeTargets: [j.team.id], marking: null, teeMates: [], groupScorerName: null },
+                  d2: { mode: "self", writeTargets: [j.team.id], marking: null, teeMates: [], groupScorerName: null } };
             // If day 1 is done and day 2 has room, jump to day 2.
             if (isDayFull(1) && !isDayFull(2) && (STATE.config.rounds || 1) >= 2) STATE.day = 2;
-            // Land on the first blank hole IN SHOTGUN ORDER so a captain
-            // starting on hole 5 opens straight to hole 5 (not 1), and a
-            // mid-round refresh drops them back at whichever hole they're
-            // playing next — including the back nine once the front is done.
+            // Pick the initial active card = first writable target for the
+            // current day. Spectator falls back to captain's own team so
+            // they see their scorecard read-only rather than nothing.
+            _syncActiveCardForDay();
+            // Land on the first blank hole IN SHOTGUN ORDER of the active
+            // card so a captain starting on hole 5 opens straight to hole 5.
             STATE.holeIdx = firstBlankInPlayOrder(STATE.day);
             render();
           })
           .catch(function () { showError("Network error loading your scorecard."); });
+      }
+
+      // Marker helpers — read the current-day assignment + which card
+      // is being scored. `_active()` returns the field row for the card
+      // being scored (may be the captain's own or a marker target).
+      function _dayKey() { return STATE.day === 2 ? "d2" : "d1"; }
+      function _dayAssignment() { return (STATE.marker && STATE.marker[_dayKey()]) || null; }
+      function _findTeam(id) {
+        if (!id) return null;
+        if (STATE.team && STATE.team.id === id) return STATE.team;
+        for (var i = 0; i < STATE.field.length; i++) if (STATE.field[i].id === id) return STATE.field[i];
+        return null;
+      }
+      function _active() {
+        return _findTeam(STATE.activeCardId) || STATE.team;
+      }
+      // After a day switch (or a fresh load) re-select which card the
+      // captain is scoring. Also reloads STATE.scores from that card's
+      // stored Day1/Day2 scores so +/- edits target the right team.
+      function _syncActiveCardForDay() {
+        var a = _dayAssignment();
+        var targets = (a && Array.isArray(a.writeTargets)) ? a.writeTargets : [];
+        // Pick the current activeCardId only if it's still a valid target
+        // for this day; otherwise reset to first target. Spectator (no
+        // targets) falls back to captain's own team for read-only display.
+        var pick = (STATE.activeCardId && targets.indexOf(STATE.activeCardId) !== -1)
+          ? STATE.activeCardId
+          : (targets[0] || (STATE.team && STATE.team.id) || null);
+        STATE.activeCardId = pick;
+        var active = _findTeam(pick);
+        if (active) {
+          STATE.scores[1] = parseScores(active.day1);
+          STATE.scores[2] = parseScores(active.day2);
+        }
       }
 
       // Configured extras from the tournament (Format tab → Extras
@@ -643,11 +739,35 @@
         var startHole = teamStartHole();
         var lap = lapOf(STATE.holeIdx);
         var lapBadge = (lapCount === 2 && lap === 2) ? ' &middot; 2nd time around' : '';
-        var startBadge = (STATE.team && STATE.team.hole)
-          ? ('Started on Hole ' + startHole + (STATE.team.start ? (' · ' + esc(STATE.team.start)) : ''))
+        // Marker context for this render — which team is currently the
+        // ACTIVE (scored) card, mode banner text, spectator lockout.
+        var assign = _dayAssignment() || { mode: "self" };
+        var active = _active();
+        var activeName = (active && active.teamName) || "Team";
+        var isSpectator = assign.mode === "spectator";
+        var isSelfScore = assign.mode === "self";
+        var startBadge = (active && active.hole)
+          ? ('Started on Hole ' + startHole + (active.start ? (' · ' + esc(active.start)) : ''))
           : 'No tee assigned yet';
+        // Big-and-obvious "who am I scoring right now" banner — captain
+        // name in caps so the operator can't accidentally tap the wrong
+        // team's +/-. Only shown when marker scoring flips this out of
+        // the simple self-score case; Founders self-score round looks
+        // the same as before.
+        var scoringWho = '';
+        if (!isSelfScore) {
+          if (assign.mode === "marker") {
+            scoringWho = '<div class="mkr-hdr"><small>You are marking</small><b>' + esc(activeName) + "'s team</b></div>";
+          } else if (assign.mode === "group_scorer") {
+            scoringWho = '<div class="mkr-hdr"><small>Scoring for</small><b>' + esc(activeName) + "'s team</b></div>";
+          } else if (isSpectator) {
+            scoringWho = '<div class="mkr-hdr mkr-hdr--spec"><b>' + esc(assign.groupScorerName || "Someone") + '</b> is scoring your group. Everyone sees the same card live &mdash; no taps needed here.</div>';
+          }
+        }
         return ''
           + (multiDay ? renderDaySwitch() : "")
+          + scoringWho
+          + renderCardSwitcher(assign)
           + '<div class="hole-card">'
           +   '<div class="hole-nav">'
           +     '<button class="hole-arrow" type="button" id="prevHole"' + (stepIdx === 0 ? " disabled" : "") + ' aria-label="Previous hole">&lsaquo;</button>'
@@ -657,14 +777,14 @@
           +   '<div class="hole-meta">Par ' + par + lapBadge + ' &middot; ' + startBadge + '</div>'
           +   '<div class="dots-wrap">' + dotsHtml + '</div>'
           + '</div>'
-          + '<div class="team">'
+          + '<div class="team' + (isSpectator ? ' team--locked' : '') + '">'
           +   '<div class="team-hd">'
-          +     '<div class="team-nm">Team score<small>Tap +/– for this hole</small></div>'
+          +     '<div class="team-nm">' + (isSelfScore ? 'Team score' : esc(activeName)) + '<small>' + (isSpectator ? 'Read-only — updates live' : 'Tap +/– for this hole') + '</small></div>'
           +   '</div>'
           +   '<div class="team-row">'
-          +     '<button class="sc-btn" type="button" id="scDown" aria-label="Decrease score">&minus;</button>'
+          +     (isSpectator ? '' : '<button class="sc-btn" type="button" id="scDown" aria-label="Decrease score">&minus;</button>')
           +     '<div><div class="sc-num' + (cur == null ? " empty" : "") + '">' + (cur == null ? "–" : cur) + '</div><div class="sc-label ' + lblCls + '">' + lbl + '</div></div>'
-          +     '<button class="sc-btn" type="button" id="scUp" aria-label="Increase score">+</button>'
+          +     (isSpectator ? '' : '<button class="sc-btn" type="button" id="scUp" aria-label="Increase score">+</button>')
           +   '</div>'
           + '</div>'
           + '<div class="totals">'
@@ -672,8 +792,56 @@
           +   '<div class="tot"><span class="k">Gross</span><span class="v">' + (g.holes ? g.total : "–") + '</span></div>'
           +   '<div class="tot ' + (toPar > 0 ? "pos" : toPar < 0 ? "neg" : "") + '"><span class="k">To par</span><span class="v">' + (g.holes ? formatToPar(toPar) : "–") + '</span></div>'
           + '</div>'
+          + renderOwnTeamReadOnly(assign)
           + renderExtrasCard()
           + '<p class="footer-tip">Scores auto-save as you tap. A green dot means saved; a brass one means saving. If cell signal drops mid-round, your scores queue and post as soon as it&rsquo;s back.</p>';
+      }
+
+      // Tap-to-switch card row (group scorer only). Small tabs across
+      // the top of the scorecard, one per tee-mate — active card is
+      // highlighted, others are tappable. Marker + spectator + self
+      // don't get a picker (their editable/read-only set is fixed).
+      function renderCardSwitcher(assign) {
+        if (!assign || assign.mode !== "group_scorer") return "";
+        var mates = Array.isArray(assign.teeMates) ? assign.teeMates : [];
+        if (mates.length <= 1) return "";
+        return '<div class="mkr-cards" role="tablist">'
+          + mates.map(function (m) {
+              var isActive = m.id === STATE.activeCardId;
+              var isMe = STATE.team && m.id === STATE.team.id;
+              // Two-line pill: "SCORING" (green) or "TAP TO SCORE" (muted)
+              // above the captain's name so the operator can't misread which
+              // team card they're about to edit. "(you)" tag pinned when it's
+              // their own team.
+              var badge = isActive ? "SCORING" : "Tap to score";
+              return '<button type="button" class="mkr-card' + (isActive ? " on" : "") + '" data-card="' + esc(m.id) + '">'
+                + '<small>' + badge + '</small>'
+                + '<span>' + esc(m.teamName || "Team") + (isMe ? ' <em>(you)</em>' : '') + '</span>'
+                + '</button>';
+            }).join("")
+          + '</div>';
+      }
+
+      // Read-only block for the CAPTAIN'S OWN TEAM — only rendered when
+      // the active card is NOT their own team (marker mode). Shows
+      // gross + to-par so the captain can see their marker's progress
+      // without leaving the tab. Updates via the leaderboard poll cycle.
+      function renderOwnTeamReadOnly(assign) {
+        if (!STATE.team) return "";
+        if (assign && assign.mode === "self") return "";
+        if (STATE.activeCardId === STATE.team.id) return ""; // active card IS own team → no extra block
+        var s = parseScores(STATE.day === 2 ? STATE.team.day2 : STATE.team.day1);
+        var g = 0, holes = 0, parSoFar = 0;
+        for (var i = 0; i < s.length; i++) if (s[i] != null) { g += s[i]; parSoFar += parAtIndex(i); holes++; }
+        var tp = holes ? (g - parSoFar) : 0;
+        return '<div class="mkr-mine">'
+          +   '<div class="mkr-mine__hd">Your team &middot; ' + esc(STATE.team.teamName || "") + '</div>'
+          +   '<div class="mkr-mine__body">'
+          +     '<div class="mkr-mine__tot"><span class="k">Thru</span><span class="v">' + holes + '</span></div>'
+          +     '<div class="mkr-mine__tot"><span class="k">Gross</span><span class="v">' + (holes ? g : "–") + '</span></div>'
+          +     '<div class="mkr-mine__tot ' + (tp > 0 ? "pos" : tp < 0 ? "neg" : "") + '"><span class="k">To par</span><span class="v">' + (holes ? formatToPar(tp) : "–") + '</span></div>'
+          +   '</div>'
+          + '</div>';
       }
 
       // Extras card — one row per Format-configured extra your team
@@ -873,16 +1041,30 @@
         var scores = STATE.scores[day].slice();
         while (scores.length < 18) scores.push(null);
         STATE.savingCount++;
+        // targetId names WHICH team we're scoring. Server validates it
+        // against the captain's writeTargets for this day and 403s if
+        // they aren't authorized to mark it (leak-safe token).
+        var body = { token: TOKEN, day: day, scores: scores, targetId: STATE.activeCardId };
         fetch(FH_API.url("/api/tournament-score"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: TOKEN, day: day, scores: scores }),
+          body: JSON.stringify(body),
         })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
             STATE.savingCount--;
             if (!j || !j.ok) { setLive("err"); return; }
             setLive("saved");
+            // Mirror the write into STATE.field so read-only views (own
+            // team block, tee-mate cards for group scorers) reflect the
+            // change without waiting on the next poll.
+            for (var i = 0; i < STATE.field.length; i++) {
+              if (STATE.field[i].id === STATE.activeCardId) {
+                var key = day === 2 ? "day2" : "day1";
+                STATE.field[i][key] = JSON.stringify(scores);
+                break;
+              }
+            }
             setTimeout(function () { if (!STATE.savingCount) setLive(""); }, 1200);
           })
           .catch(function () { STATE.savingCount--; setLive("err"); });
@@ -895,6 +1077,26 @@
         Array.prototype.forEach.call(document.querySelectorAll("[data-day]"), function (b) {
           b.addEventListener("click", function () {
             STATE.day = Number(b.getAttribute("data-day")) || 1;
+            // Marker assignment can differ per day (different pairing
+            // groups on Day 2), so re-select the active card + reload
+            // its scores before landing on the first blank hole.
+            _syncActiveCardForDay();
+            STATE.holeIdx = firstBlankInPlayOrder(STATE.day);
+            render();
+          });
+        });
+        // Card switcher (group scorer mode) — pick which tee-mate
+        // to score.
+        Array.prototype.forEach.call(document.querySelectorAll("[data-card]"), function (b) {
+          b.addEventListener("click", function () {
+            var id = b.getAttribute("data-card");
+            if (!id || id === STATE.activeCardId) return;
+            STATE.activeCardId = id;
+            var active = _findTeam(id);
+            if (active) {
+              STATE.scores[1] = parseScores(active.day1);
+              STATE.scores[2] = parseScores(active.day2);
+            }
             STATE.holeIdx = firstBlankInPlayOrder(STATE.day);
             render();
           });
@@ -923,19 +1125,39 @@
         });
       }
 
-      // Refresh the leaderboard periodically (so other teams' scores show up
-      // without the captain needing to reload). Only when the leaderboard tab
-      // is open, to be gentle on battery + data.
+      // Refresh periodically so:
+      //   - The Leaderboard tab shows other teams' scores as they come in
+      //   - Spectator / marker views see the group scorer's live updates
+      //     for the OWN team's read-only block
+      // Idle when there's nothing to refresh (self-score captain on the
+      // Scorecard tab has nothing to poll for) so we stay gentle on
+      // battery + data.
       setInterval(function () {
-        if (STATE.tab !== "lb" || !STATE.team) return;
+        if (!STATE.team) return;
+        var onLb = STATE.tab === "lb";
+        var assign = _dayAssignment() || { mode: "self" };
+        var needsLiveMirror = STATE.tab === "score" && assign.mode !== "self";
+        if (!onLb && !needsLiveMirror) return;
         fetch(FH_API.url("/api/tournament-signups?live=" + encodeURIComponent(TOKEN)), { cache: "no-store" })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
             if (!j || !j.ok) return;
+            STATE.team = j.team;
             STATE.field = j.field || [];
-            // Also refresh our own scores in case staff overrode from the workbook.
-            STATE.scores[1] = parseScores(j.team.day1);
-            STATE.scores[2] = parseScores(j.team.day2);
+            STATE.marker = (j.markerAssignment && j.markerAssignment.d1)
+              ? j.markerAssignment
+              : STATE.marker;
+            // Re-sync the ACTIVE card's scores from the fresh field
+            // (the group scorer may have written new holes since we
+            // last rendered). Skip when we have a pending local save
+            // to avoid overwriting the operator mid-edit.
+            if (!STATE.savingCount) {
+              var active = _findTeam(STATE.activeCardId);
+              if (active) {
+                STATE.scores[1] = parseScores(active.day1);
+                STATE.scores[2] = parseScores(active.day2);
+              }
+            }
             render();
           })
           .catch(function () {});
