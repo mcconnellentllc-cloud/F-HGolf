@@ -2494,6 +2494,14 @@ body.tw-single-wave #scTabD2 { display: none; }
    gated now. */
 body.tw-single-wave #fmtCalcuttaSet { display: none; }
 
+/* Payout tab wave-collapsed buttons. Founders (multi-wave) needs both
+   AM and PM Print/Payout Calcutta buttons; single-shotgun tournaments
+   fold them into one "Print checks" + "Payout Calcutta" pair. Class
+   pair mirrors tw-founders / tw-single-wave body classes so the swap
+   is pure CSS (no JS visibility rewrite each mount). */
+body.tw-single-wave .tw-multi-wave-only,
+body.tw-founders .tw-single-wave-only { display: none !important; }
+
 /* Pairings single-day mode: driven by Format's Rounds field. Hide every
    Day 2 control so operators of one-day tournaments never see a Day 2
    tab, autofill, or print button they'd have to ignore. */
