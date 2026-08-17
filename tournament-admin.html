@@ -6573,7 +6573,10 @@
           var slots = ["sc-nm--p1", "sc-nm--p2", "sc-nm--p3", "sc-nm--p4"];
           var cells = "";
           for (var i = 0; i < slots.length; i++) {
-            cells += renderNameCell(slots[i], players[i] || null, dense);
+            // Always render first + last per operator's ask ("fit all 4 names,
+            // print over lines if needed"). Dense mode shrinks the font via
+            // CSS so both lines fit in the half-height cell.
+            cells += renderNameCell(slots[i], players[i] || null, false);
           }
           return '<div class="sc-block ' + blockClass + (dense ? " sc-block--dense" : "") + '">'
             + cells
@@ -6697,6 +6700,7 @@
           // first/last block, but four last-name-only cells stacked at
           // half-step intervals. Only added when teamNameBlock detects a
           // 3+ player roster.
+          + " body.is-print-cards .sc-block--dense { font-size: 6pt; line-height: 0.98; }"
           + " body.is-print-cards .sc-block--dense .sc-nm { height: calc(" + step + " * 0.5); }"
           + " body.is-print-cards .sc-block--dense .sc-nm--p1 { top: 0; }"
           + " body.is-print-cards .sc-block--dense .sc-nm--p2 { top: calc(" + step + " * 0.5); }"
