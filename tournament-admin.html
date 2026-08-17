@@ -6418,13 +6418,13 @@
         // then update ONE number here and reprint — the whole batch shifts.
         headerTop: "0.10in",   // small verification tag at top-left corner
         headerLeft: "0.35in",
-        team1Top: "1.16in",    // Team 1 player 1 cell — top of upper score block
+        team1Top: "1.285in",   // Team 1 player 1 — dropped 1/8" from 1.16in (was printing high)
         team2Top: "3.17in",    // Team 2 player 1 cell — top of lower score block
         teamLeft: "0.30in",    // right of the row-label column — hugs the outer margin
-        rowStep:  "0.40in",    // one full 3/8"+ row between player 1 and player 2 lines
-        cellW:    "0.75in",    // width of the name cell (first-top-left / last-bottom-right)
-        cellH:    "0.38in",    // height of a single player row on the card
-        nameSize: "13pt",      // fits two lines (first + last) inside one 0.38in cell
+        rowStep:  "0.28125in", // per-player row height. Always 4 stacked slots (3 name cells × 0.375in = 1.125in / 4 = 0.28125in). Slot always renders first + last on 2 lines; blank rows print blank when a team has < 4 players.
+        cellW:    "0.75in",    // width of the name cell
+        nameSize: "10pt",      // fits first + last on 2 lines inside one 0.28125in slot at line-height 1.0
+        scoreStep: "0.40in",   // Day 2 score-circle position (unchanged 2-player+score layout for Founders Day 2)
         teeMarkTop: "2.93in",  // ring row in HOLE
         teeMarkStep: "0.28125in", // per-hole horizontal step = 9/32". Measured on the physical F&H card: hole 1 left @ 1.125in, hole 9 left @ 3.375in, so pitch = (3.375-1.125)/8 = 0.28125. (The 2.5" span across 9 cells includes 8 hairline gaps between cells; don't divide 2.5/9.)
         teeMarkFirst: "1.25in",// ring CENTER for hole 1 — hole 1 spans 1.125-1.375in, center = 1.25in
@@ -6562,25 +6562,13 @@
         function teamNameBlock(rec, blockClass) {
           if (!rec) return "";
           var names = fullPlayerNames(rec.fields || {});
-          // 3+ player teams (couples: 4 players per team) get compact
-          // last-name-only rows so all four names fit in the same block
-          // height as two first/last-split names. Same rule the single-
-          // team layout uses; extended here so 2-teams-per-card paths
-          // (couples scramble sharing a physical scorecard) don't drop
-          // players 3 + 4.
-          var dense = names.length >= 3;
           var players = names.slice(0, 4).map(splitFirstLast);
           var slots = ["sc-nm--p1", "sc-nm--p2", "sc-nm--p3", "sc-nm--p4"];
           var cells = "";
           for (var i = 0; i < slots.length; i++) {
-            // Always render first + last per operator's ask ("fit all 4 names,
-            // print over lines if needed"). Dense mode shrinks the font via
-            // CSS so both lines fit in the half-height cell.
             cells += renderNameCell(slots[i], players[i] || null, false);
           }
-          return '<div class="sc-block ' + blockClass + (dense ? " sc-block--dense" : "") + '">'
-            + cells
-            + '</div>';
+          return '<div class="sc-block ' + blockClass + '">' + cells + '</div>';
         }
         // One-team card with 3+ players. Spreads them across both blocks
         // per the rule above. Never called when two teams share a card.
@@ -6682,9 +6670,9 @@
       // in the LEFT-most column so the layout matches the pro-shop
       // handwritten example.
       function scorecardPrintCss(paper, pw, ph) {
-        var step = CARD_OFFSETS.rowStep || "0.42in";
+        var step = CARD_OFFSETS.rowStep || "0.28125in";
+        var scoreStep = CARD_OFFSETS.scoreStep || "0.40in";
         var cellW = CARD_OFFSETS.cellW || "0.75in";
-        var cellH = CARD_OFFSETS.cellH || "0.38in";
         var dia = CARD_OFFSETS.teeMarkDia || "0.44in";
         return "@page { size: " + paper + "; margin: 0; }"
           + " body.is-print-cards .sc-page { width: " + pw + "; height: " + ph + "; transform: rotate(180deg); transform-origin: center center; }"
@@ -6692,20 +6680,16 @@
           + " body.is-print-cards .sc-block { position: absolute; left: " + CARD_OFFSETS.teamLeft + "; font-size: " + CARD_OFFSETS.nameSize + "; font-family: 'Source Sans 3', -apple-system, system-ui, sans-serif; font-weight: 700; color: #000; line-height: 1; }"
           + " body.is-print-cards .sc-block--team1 { top: " + CARD_OFFSETS.team1Top + "; }"
           + " body.is-print-cards .sc-block--team2 { top: " + CARD_OFFSETS.team2Top + "; }"
-          + " body.is-print-cards .sc-nm { position: absolute; left: 0; width: " + cellW + "; height: " + cellH + "; }"
+          // Uniform 4-slot layout: always render 4 player rows. Each slot is
+          // one rowStep tall (0.28125in) so 4 stacked slots fit the 1.125in
+          // name-block region on the physical card (3 preprinted cells x
+          // 3/8in). Blank slots stay blank when a team has < 4 players.
+          + " body.is-print-cards .sc-nm { position: absolute; left: 0; width: " + cellW + "; height: " + step + "; }"
           + " body.is-print-cards .sc-nm--p1 { top: 0; }"
           + " body.is-print-cards .sc-nm--p2 { top: " + step + "; }"
-          + " body.is-print-cards .sc-nm--score { top: calc(" + step + " * 2); text-align: left; }"
-          // Dense 4-player layout: same total block height as the 2-player
-          // first/last block, but four last-name-only cells stacked at
-          // half-step intervals. Only added when teamNameBlock detects a
-          // 3+ player roster.
-          + " body.is-print-cards .sc-block--dense { font-size: 6pt; line-height: 0.98; }"
-          + " body.is-print-cards .sc-block--dense .sc-nm { height: calc(" + step + " * 0.5); }"
-          + " body.is-print-cards .sc-block--dense .sc-nm--p1 { top: 0; }"
-          + " body.is-print-cards .sc-block--dense .sc-nm--p2 { top: calc(" + step + " * 0.5); }"
-          + " body.is-print-cards .sc-block--dense .sc-nm--p3 { top: " + step + "; }"
-          + " body.is-print-cards .sc-block--dense .sc-nm--p4 { top: calc(" + step + " * 1.5); }"
+          + " body.is-print-cards .sc-nm--p3 { top: calc(" + step + " * 2); }"
+          + " body.is-print-cards .sc-nm--p4 { top: calc(" + step + " * 3); }"
+          + " body.is-print-cards .sc-nm--score { top: calc(" + scoreStep + " * 2); text-align: left; }"
           + " body.is-print-cards .sc-nm--score .d1-circle { position: absolute; top: 0; left: 0; display: inline-block; min-width: 1.5em; padding: 0.02in 0.10in; border: 1pt solid #1a6e35; border-radius: 999px; color: #1a6e35; font-weight: 800; font-size: 11pt; line-height: 1; }"
           + " body.is-print-cards .sc-nm__first { position: absolute; top: 0; left: 0; white-space: nowrap; }"
           + " body.is-print-cards .sc-nm__last  { position: absolute; bottom: 0; left: 0; white-space: nowrap; }"
