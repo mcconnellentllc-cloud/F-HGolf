@@ -444,10 +444,12 @@
           <div class="noms__bar">
             <h3 class="noms__title">Payout</h3>
             <div class="noms__bar-actions">
-              <button class="btn btn--solid" type="button" id="poPrintChecksAm" title="Print pre-printed checks for teams playing the Sunday A.M. shotgun (flight winnings + Calcutta)">Print AM checks</button>
-              <button class="btn btn--solid" type="button" id="poPrintChecksPm" title="Print pre-printed checks for teams playing the Sunday P.M. shotgun (flight winnings + Calcutta)">Print PM checks</button>
-              <button class="btn btn--solid" type="button" id="poPayoutCalcuttaAm" title="Print ONLY Calcutta buyer payouts for teams in the Sunday A.M. shotgun">Payout AM Calcutta</button>
-              <button class="btn btn--solid" type="button" id="poPayoutCalcuttaPm" title="Print ONLY Calcutta buyer payouts for teams in the Sunday P.M. shotgun">Payout PM Calcutta</button>
+              <button class="btn btn--solid tw-multi-wave-only" type="button" id="poPrintChecksAm" title="Print pre-printed checks for teams playing the Sunday A.M. shotgun (flight winnings + Calcutta)">Print AM checks</button>
+              <button class="btn btn--solid tw-multi-wave-only" type="button" id="poPrintChecksPm" title="Print pre-printed checks for teams playing the Sunday P.M. shotgun (flight winnings + Calcutta)">Print PM checks</button>
+              <button class="btn btn--solid tw-single-wave-only" type="button" id="poPrintChecksAll" title="Print pre-printed checks for every team (flight winnings + Calcutta)">Print checks</button>
+              <button class="btn btn--solid tw-multi-wave-only" type="button" id="poPayoutCalcuttaAm" title="Print ONLY Calcutta buyer payouts for teams in the Sunday A.M. shotgun">Payout AM Calcutta</button>
+              <button class="btn btn--solid tw-multi-wave-only" type="button" id="poPayoutCalcuttaPm" title="Print ONLY Calcutta buyer payouts for teams in the Sunday P.M. shotgun">Payout PM Calcutta</button>
+              <button class="btn btn--solid tw-single-wave-only" type="button" id="poPayoutCalcuttaAll" title="Print ONLY Calcutta buyer payouts for every team">Payout Calcutta</button>
               <button class="btn btn--primary" type="button" id="poPrint">Print now</button>
             </div>
           </div>
@@ -8717,7 +8719,7 @@
             for (var i = 0; i < teams.length; i++) { var rank = place - 1 + i; if (rank < flPrizes.length) combined += flPrizes[rank]; }
             var each = combined / teams.length;
             teams.forEach(function (t) {
-              if (_teamWave(t.rec) !== wave) return;
+              if (wave !== "all" && _teamWave(t.rec) !== wave) return;
               // Split the team's flight winnings evenly across every
               // player on the team — banks won't cash a check made out
               // to both names, so each player gets their own check.
@@ -8786,7 +8788,7 @@
             for (var i = 0; i < teams.length; i++) { var rankIdx = place - 1 + i; if (rankIdx < caPrizes.length) combined += caPrizes[rankIdx]; }
             var each = combined / teams.length;
             teams.forEach(function (t) {
-              if (_teamWave(t.rec) !== wave) return;
+              if (wave !== "all" && _teamWave(t.rec) !== wave) return;
               var buyer = (t.buyer && t.buyer.trim()) || "(no buyer)";
               checks.push({
                 payee: buyer,
@@ -8864,7 +8866,7 @@
             for (var i = 0; i < teams.length; i++) { var rankIdx = place - 1 + i; if (rankIdx < caPrizes.length) combined += caPrizes[rankIdx]; }
             var each = combined / teams.length;
             teams.forEach(function (t) {
-              if (_teamWave(t.rec) !== wave) return;
+              if (wave !== "all" && _teamWave(t.rec) !== wave) return;
               var buyer = (t.buyer && t.buyer.trim()) || "(no buyer)";
               checks.push({
                 payee: buyer,
@@ -10281,6 +10283,13 @@
         if (poAm) poAm.addEventListener("click", function () { printPayoutChecksForWave("AM"); });
         var poPm = document.getElementById("poPrintChecksPm");
         if (poPm) poPm.addEventListener("click", function () { printPayoutChecksForWave("PM"); });
+        // Single-wave collapsed buttons — print / payout every team in one
+        // pass. Hidden on Founders (multi-wave); the AM/PM buttons above
+        // stay wired for that path.
+        var poAll = document.getElementById("poPrintChecksAll");
+        if (poAll) poAll.addEventListener("click", function () { printPayoutChecksForWave("all"); });
+        var poCaAll = document.getElementById("poPayoutCalcuttaAll");
+        if (poCaAll) poCaAll.addEventListener("click", function () { printCalcuttaChecksForWave("all"); });
         var plCk = document.getElementById("plPrintCourseCheck");
         if (plCk) plCk.addEventListener("click", printCourseCheck);
         function _printTeeSheet() {
