@@ -39,10 +39,15 @@ Circle anchor for tee marks:
 - `teeMarkFirst = 1.25in` (center of hole 1's cell)
 - `teeMarkStep = 0.28125in`
 
-Team-name rendering:
-- Always render **first + last** for every player slot (up to 4).
-- 3+ players triggers `.sc-block--dense`: 6pt font, half-height rows,
-  fits 4 names in the 3-cell region (prints across horizontal lines).
+Team-name rendering (uniform for every tournament):
+- Always render **4 stacked slots** — blank slots stay blank for
+  teams with fewer than 4 players. No conditional layouts.
+- Each slot renders **first + last on two lines**.
+- Font: **10pt**, line-height 1.0. One size across all tournaments —
+  do not shrink for crowded teams.
+- Slot height (rowStep): **0.28125in** (1.125in name region / 4).
+- Top team (`team1Top`): **1.285in** (dropped 1/8" from the earlier
+  1.16in that printed too high).
 
 Printer preset the operator uses is **"F&H card"** on the HP LaserJet
 Pro MFP M227fdw. If a print prompt asks about paper size, that preset
