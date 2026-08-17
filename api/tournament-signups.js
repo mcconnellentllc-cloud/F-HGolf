@@ -752,7 +752,12 @@ module.exports = async (req, res) => {
           groupScorer: !!f["Group Scorer"],
         };
       };
-      const markerScoringEnabled = !!(cfg && cfg.fields && cfg.fields["Marker Scoring Enabled"]);
+      // Marker Scoring defaults to ON when the config field is undefined /
+      // null (missing on Airtable, new tournament, auto-stripped save).
+      // Matches the Format-tab default so a fresh tournament runs
+      // USGA-style marker scoring out of the box. Explicit false opts out.
+      const _msCfg = cfg && cfg.fields && cfg.fields["Marker Scoring Enabled"];
+      const markerScoringEnabled = (_msCfg === undefined || _msCfg === null) ? true : !!_msCfg;
       const meStripped = stripField(me);
       const fieldStripped = fieldRows.map(stripField);
       // Compute the marker assignment for THIS captain on Day 1 + Day 2.
