@@ -9612,9 +9612,20 @@
         // tournament (?t=<KEY>) so a Leaderboard Disp link opened from the
         // Aug 22 Couples workbook shows Aug 22 data, not the hard-coded
         // Founders default.
+        // Non-Founders workbooks get the generic leaderboard page instead
+        // of the Founders-branded one. Founders keeps its dedicated page
+        // (Flights / Calcutta / Recap chip nav intact). Everyone else gets
+        // leaderboard.html which is the same score-rendering logic but
+        // stripped to a generic Tournaments / Home nav.
+        function _rewritePage(page) {
+          if (page !== "founders-leaderboard-display.html") return page;
+          var isFounders = typeof KEY === "string" && /^Founder/i.test(KEY);
+          return isFounders ? page : "leaderboard.html";
+        }
         function publicUrl(page) {
-          var base = location.origin.replace(/\/$/, "") + "/" + page;
-          return KEY ? (base + (page.indexOf("?") >= 0 ? "&" : "?") + "t=" + encodeURIComponent(KEY)) : base;
+          var effective = _rewritePage(page);
+          var base = location.origin.replace(/\/$/, "") + "/" + effective;
+          return KEY ? (base + (effective.indexOf("?") >= 0 ? "&" : "?") + "t=" + encodeURIComponent(KEY)) : base;
         }
         function mountDisplayTab(sheet) {
           var host = document.querySelector('[data-sheet="' + sheet + '"]');
