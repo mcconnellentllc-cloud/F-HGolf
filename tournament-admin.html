@@ -1446,10 +1446,19 @@
       function _fmtApplyRecord(rec) {
         var form = document.getElementById("fmtForm"); if (!form) return;
         var f = (rec && rec.fields) || {};
+        // Checkboxes that default to ON when Airtable returns undefined /
+        // null (missing field, new tournament, auto-stripped save). Add a
+        // name here to make it opt-out instead of opt-in — the box shows
+        // checked on first load and only unchecks when Airtable explicitly
+        // returns false. Same value the API's config-write path sends.
+        var DEFAULT_ON = { "Marker Scoring Enabled": true };
         Array.prototype.forEach.call(form.querySelectorAll("input, select, textarea"), function (el) {
           var name = el.getAttribute("name"); if (!name) return;
           var v = f[name];
-          if (el.type === "checkbox") { el.checked = !!v; return; }
+          if (el.type === "checkbox") {
+            el.checked = (v === undefined || v === null) ? !!DEFAULT_ON[name] : !!v;
+            return;
+          }
           if (v === undefined || v === null) { el.value = ""; return; }
           el.value = String(v);
         });
@@ -2814,12 +2823,16 @@
           + '</div>';
         // Marker scoring — per-team "Scores whole group" toggle. Only
         // rendered when the tournament has Marker Scoring Enabled on
-        // Format (default off means standard USGA pairing marks apply
-        // — A marks B, B marks A). Turning this ON for a team lets
-        // that captain score every team on their tee (both their own
-        // team AND the opponents), and switches everyone else on the
-        // tee into read-only spectator mode.
-        var _markerEnabled = !!(_tcConfigCache && _tcConfigCache["Marker Scoring Enabled"]);
+        // Format. Defaults to ON when the config field is undefined /
+        // null (missing on Airtable, new tournament, or auto-stripped
+        // on save) — matches the Format-tab checkbox's default so a
+        // fresh tournament shows the toggle. Explicit false hides it.
+        // Turning this ON for a team lets that captain score every
+        // team on their tee (both their own team AND the opponents),
+        // and switches everyone else on the tee into read-only
+        // spectator mode.
+        var _msRaw = _tcConfigCache && _tcConfigCache["Marker Scoring Enabled"];
+        var _markerEnabled = (_msRaw === undefined || _msRaw === null) ? true : !!_msRaw;
         var _isGroupScorer = !!f["Group Scorer"];
         var markerLine = _markerEnabled
           ? '<div class="ci-cartline ci-cartline--marker">'

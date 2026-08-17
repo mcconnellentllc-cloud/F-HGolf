@@ -77,7 +77,12 @@ module.exports = async (req, res) => {
         ]);
         const cfgRec = cfgR.ok ? ((await cfgR.json()).records || [])[0] : null;
         const fieldRecs = fieldR.ok ? ((await fieldR.json()).records || []) : [];
-        const markerScoringEnabled = !!(cfgRec && cfgRec.fields && cfgRec.fields["Marker Scoring Enabled"]);
+        // Marker Scoring defaults to ON when the config field is undefined
+        // / null (missing on Airtable, new tournament, or auto-stripped
+        // save). Matches the tournament-signups live handler + the
+        // Format-tab checkbox default. Explicit false opts out.
+        const _msCfg = cfgRec && cfgRec.fields && cfgRec.fields["Marker Scoring Enabled"];
+        const markerScoringEnabled = (_msCfg === undefined || _msCfg === null) ? true : !!_msCfg;
         const me = marker.stripSignupField(captainRec);
         const stripped = fieldRecs.map(marker.stripSignupField);
         const assignment = marker.computeMarkerAssignment(me, stripped, markerScoringEnabled, dayForAuth);
