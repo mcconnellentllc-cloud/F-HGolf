@@ -6562,11 +6562,21 @@
         function teamNameBlock(rec, blockClass) {
           if (!rec) return "";
           var names = fullPlayerNames(rec.fields || {});
-          var s0 = splitFirstLast(names[0] || "");
-          var s1 = splitFirstLast(names[1] || "");
-          return '<div class="sc-block ' + blockClass + '">'
-            + renderNameCell("sc-nm--p1", s0, false)
-            + renderNameCell("sc-nm--p2", s1, false)
+          // 3+ player teams (couples: 4 players per team) get compact
+          // last-name-only rows so all four names fit in the same block
+          // height as two first/last-split names. Same rule the single-
+          // team layout uses; extended here so 2-teams-per-card paths
+          // (couples scramble sharing a physical scorecard) don't drop
+          // players 3 + 4.
+          var dense = names.length >= 3;
+          var players = names.slice(0, 4).map(splitFirstLast);
+          var slots = ["sc-nm--p1", "sc-nm--p2", "sc-nm--p3", "sc-nm--p4"];
+          var cells = "";
+          for (var i = 0; i < slots.length; i++) {
+            cells += renderNameCell(slots[i], players[i] || null, dense);
+          }
+          return '<div class="sc-block ' + blockClass + (dense ? " sc-block--dense" : "") + '">'
+            + cells
             + '</div>';
         }
         // One-team card with 3+ players. Spreads them across both blocks
@@ -6683,6 +6693,15 @@
           + " body.is-print-cards .sc-nm--p1 { top: 0; }"
           + " body.is-print-cards .sc-nm--p2 { top: " + step + "; }"
           + " body.is-print-cards .sc-nm--score { top: calc(" + step + " * 2); text-align: left; }"
+          // Dense 4-player layout: same total block height as the 2-player
+          // first/last block, but four last-name-only cells stacked at
+          // half-step intervals. Only added when teamNameBlock detects a
+          // 3+ player roster.
+          + " body.is-print-cards .sc-block--dense .sc-nm { height: calc(" + step + " * 0.5); }"
+          + " body.is-print-cards .sc-block--dense .sc-nm--p1 { top: 0; }"
+          + " body.is-print-cards .sc-block--dense .sc-nm--p2 { top: calc(" + step + " * 0.5); }"
+          + " body.is-print-cards .sc-block--dense .sc-nm--p3 { top: " + step + "; }"
+          + " body.is-print-cards .sc-block--dense .sc-nm--p4 { top: calc(" + step + " * 1.5); }"
           + " body.is-print-cards .sc-nm--score .d1-circle { position: absolute; top: 0; left: 0; display: inline-block; min-width: 1.5em; padding: 0.02in 0.10in; border: 1pt solid #1a6e35; border-radius: 999px; color: #1a6e35; font-weight: 800; font-size: 11pt; line-height: 1; }"
           + " body.is-print-cards .sc-nm__first { position: absolute; top: 0; left: 0; white-space: nowrap; }"
           + " body.is-print-cards .sc-nm__last  { position: absolute; bottom: 0; left: 0; white-space: nowrap; }"
