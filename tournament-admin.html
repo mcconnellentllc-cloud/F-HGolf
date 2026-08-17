@@ -197,6 +197,25 @@
                 </select>
               </label>
               <p class="fmt-note">When disabled, the Calcutta, Calcutta Buyers, and Calcutta Disp workbook tabs are hidden. Turn on for tournaments that auction teams (Founders, etc.).</p>
+
+              <label class="fmt-row">
+                <span>Handicap multiplier</span>
+                <input type="number" id="fmtHcpMultiplier" step="0.05" min="0" max="1" placeholder="0.8" />
+              </label>
+              <label class="fmt-row">
+                <span>Handicap basis</span>
+                <select id="fmtHcpBasis">
+                  <option value="day1">Day 1 gross − flight leader (HCP applied to Day 2 only)</option>
+                  <option value="tournament">Tournament gross − flight leader (HCP applied to full total)</option>
+                </select>
+              </label>
+              <p class="fmt-note">
+                <b>How Net is calculated for Calcutta places:</b><br />
+                <b>Day 1 basis</b> — HCP = (team Day-1 gross − flight-leader Day-1 gross) × multiplier. Net = Day 2 gross − HCP. Founders default.<br />
+                <b>Tournament basis</b> — HCP = (team 2-day gross − flight-leader 2-day gross) × multiplier. Net = 2-day gross − HCP.<br />
+                <b>Rounding:</b> fractional HCP rounds by standard rule — <b>.1–.4 rounds down</b>, <b>.5–.9 rounds up</b>.
+              </p>
+
               <div id="fmtCalcCalcuttaMount" class="fmt-calc-mount"></div>
             </fieldset>
 
@@ -1551,6 +1570,19 @@
         var caOn = _isCalcuttaEnabled();
         if (ce) ce.value = caOn ? "on" : "off";
         _applyCalcuttaVisibility(caOn);
+        // Handicap math for Calcutta net scoring. Multiplier defaults 0.8
+        // (Founders long-standing convention); basis defaults to Day 1
+        // gross - flight leader (HCP applied to Day 2 only).
+        var hm = document.getElementById("fmtHcpMultiplier");
+        if (hm) {
+          var hmv = f["Handicap Multiplier"];
+          hm.value = (hmv === undefined || hmv === null || hmv === "") ? "0.8" : String(hmv);
+        }
+        var hb = document.getElementById("fmtHcpBasis");
+        if (hb) {
+          var hbv = f["Handicap Basis"];
+          hb.value = (hbv === "tournament") ? "tournament" : "day1";
+        }
       }
       // Single source of truth for whether this workbook runs a Calcutta.
       // The Format tab checkbox drives everything — tabs, Payout sections,
@@ -1827,6 +1859,18 @@
         // so a toggle-off persists).
         var ce = document.getElementById("fmtCalcuttaEnabled");
         if (ce) out["Calcutta Enabled"] = (ce.value === "on");
+        // Handicap multiplier + basis for Calcutta net scoring. Both live
+        // on the Tournament Config record so leaderboard.html can read
+        // them alongside the score data.
+        var hm = document.getElementById("fmtHcpMultiplier");
+        if (hm) {
+          var hmn = Number(String(hm.value || "").trim());
+          if (isFinite(hmn) && hmn > 0) out["Handicap Multiplier"] = hmn;
+        }
+        var hb = document.getElementById("fmtHcpBasis");
+        if (hb) {
+          out["Handicap Basis"] = (hb.value === "tournament") ? "tournament" : "day1";
+        }
         return out;
       }
       function saveFormat() {
