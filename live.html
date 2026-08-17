@@ -326,6 +326,28 @@
     .mkr-mine__tot .v { font: 500 1.1rem/1 Georgia, serif; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: 0.15rem; }
     .mkr-mine__tot.pos .v { color: var(--brass); }
     .mkr-mine__tot.neg .v { color: var(--green); }
+    .mkr-mine__chip { display: block; width: 100%; margin-top: 0.7rem; padding: 0.6rem 0.75rem; border-radius: 10px; font: 700 0.85rem/1.2 system-ui, sans-serif; text-align: center; cursor: default; border: 1px solid var(--line); background: transparent; color: var(--ink); }
+    .mkr-mine__chip--btn { background: var(--green-strong); border-color: var(--green-strong); color: var(--paper); cursor: pointer; }
+    .mkr-mine__chip--btn:active { transform: translateY(1px); }
+    .mkr-mine__chip--done { background: var(--green-soft); border-color: var(--green-soft); color: var(--green); font-weight: 600; }
+
+    /* End-of-round attest panel — brass-outlined block below the totals
+       row. Two signature lines (Marker / Team); each shows a green check
+       + name + time once signed, a button when the current captain has
+       authority to sign, or a muted "waiting on ..." placeholder. Both
+       signed → panel fades to green to signal the card is closed. */
+    .atst { margin-top: 0.9rem; padding: 0.85rem 0.95rem 0.9rem; background: var(--brass-soft); border: 1px solid var(--brass); border-left: 4px solid var(--brass); border-radius: 12px; }
+    .atst--done { background: var(--green-soft); border-color: var(--green-strong); border-left-color: var(--green-strong); }
+    .atst-hd { font: 700 0.72rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.6rem; }
+    .atst--done .atst-hd { color: var(--green); }
+    .atst-line { display: grid; grid-template-columns: 4rem 1fr auto; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-top: 1px dashed var(--line); }
+    .atst-line:first-of-type { border-top: none; padding-top: 0; }
+    .atst-role { font: 700 0.72rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+    .atst-name { font: 700 0.95rem/1.2 system-ui, sans-serif; color: var(--green); }
+    .atst-name--wait { font-weight: 500; color: var(--muted); }
+    .atst-when { font: 500 0.75rem/1 system-ui, sans-serif; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .atst-btn { padding: 0.5rem 0.85rem; border-radius: 8px; border: 0; background: var(--green-strong); color: var(--paper); font: 700 0.85rem/1 system-ui, sans-serif; cursor: pointer; grid-column: 2 / -1; justify-self: end; }
+    .atst-btn:active { transform: translateY(1px); }
 
     /* Extras (mulligans, string, etc.) — one row per configured extra
        your team bought at check-in. Remaining count shows as stars; tap
@@ -792,9 +814,69 @@
           +   '<div class="tot"><span class="k">Gross</span><span class="v">' + (g.holes ? g.total : "–") + '</span></div>'
           +   '<div class="tot ' + (toPar > 0 ? "pos" : toPar < 0 ? "neg" : "") + '"><span class="k">To par</span><span class="v">' + (g.holes ? formatToPar(toPar) : "–") + '</span></div>'
           + '</div>'
+          + renderAttestPanel(assign)
           + renderOwnTeamReadOnly(assign)
           + renderExtrasCard()
           + '<p class="footer-tip">Scores auto-save as you tap. A green dot means saved; a brass one means saving. If cell signal drops mid-round, your scores queue and post as soon as it&rsquo;s back.</p>';
+      }
+
+      // Signature line — pretty-prints the "Kyle McConnell • 2026-08-17T18:30:00Z"
+      // shape the server writes onto Airtable. Empty string returns null so the
+      // caller can decide whether to show "not signed yet" text.
+      function _fmtAttest(raw) {
+        if (!raw) return null;
+        var parts = String(raw).split("•");
+        var name = (parts[0] || "").trim() || "Someone";
+        var when = (parts[1] || "").trim();
+        var pretty = when;
+        try {
+          var d = new Date(when);
+          if (!isNaN(d.getTime())) {
+            var h = d.getHours(), m = d.getMinutes();
+            var mer = h >= 12 ? "PM" : "AM";
+            var h12 = ((h + 11) % 12) + 1;
+            pretty = h12 + ":" + (m < 10 ? "0" + m : m) + " " + mer;
+          }
+        } catch (e) {}
+        return { name: name, when: pretty };
+      }
+      // End-of-round attest panel — appears once the active card has all 18
+      // holes filled. Two signature lines: Marker (scorer) + Team (scored).
+      // Buttons render only for the signatures THIS captain is authorized
+      // to give. Founders (self-score) sees both buttons for their own team;
+      // marker-mode captains see only marker for the card they mark; group
+      // scorers see marker for every card they score. Team sig only shows
+      // when the active card IS the captain's own team.
+      function renderAttestPanel(assign) {
+        if (!assign) return "";
+        var active = _active(); if (!active) return "";
+        var isDay2 = STATE.day === 2;
+        var scoresRaw = parseScores(isDay2 ? active.day2 : active.day1);
+        var full = scoresRaw.length >= 18 && scoresRaw.slice(0, 18).every(function (n) { return n != null; });
+        var markerRaw = isDay2 ? active.d2AttestMarker : active.d1AttestMarker;
+        var teamRaw   = isDay2 ? active.d2AttestTeam   : active.d1AttestTeam;
+        var canWriteThis = Array.isArray(assign.writeTargets) && assign.writeTargets.indexOf(active.id) !== -1;
+        var isOwnTeam = STATE.team && active.id === STATE.team.id;
+        var wantMarkerBtn = full && canWriteThis && !markerRaw;
+        var wantTeamBtn   = full && isOwnTeam && !teamRaw;
+        // Hide the panel entirely when nothing to show — the card isn't full
+        // yet AND nothing's been signed. Once anything is signed we keep the
+        // panel visible so the captain sees the sig even mid-round (rare
+        // pre-attest edge, but avoids the panel popping in and out).
+        if (!full && !markerRaw && !teamRaw) return "";
+        var markerSig = _fmtAttest(markerRaw);
+        var teamSig   = _fmtAttest(teamRaw);
+        function line(role, sig, wantBtn, actionKey) {
+          if (sig) return '<div class="atst-line atst-line--done"><span class="atst-role">' + role + '</span><span class="atst-name">&#10003; ' + esc(sig.name) + '</span><span class="atst-when">' + esc(sig.when) + '</span></div>';
+          if (wantBtn) return '<div class="atst-line"><span class="atst-role">' + role + '</span><button type="button" class="atst-btn" data-attest="' + actionKey + '">Sign as ' + role.toLowerCase() + '</button></div>';
+          return '<div class="atst-line atst-line--wait"><span class="atst-role">' + role + '</span><span class="atst-name atst-name--wait">' + (full ? 'Waiting on ' + (role === "Marker" ? "the scorer" : "the team") : 'Finish the round first') + '</span></div>';
+        }
+        var allDone = markerSig && teamSig;
+        return '<div class="atst' + (allDone ? " atst--done" : "") + '">'
+          + '<div class="atst-hd">' + (allDone ? "Card attested" : "End-of-round attestation") + '</div>'
+          + line("Marker", markerSig, wantMarkerBtn, "marker")
+          + line("Team",   teamSig,   wantTeamBtn,   "team")
+          + '</div>';
       }
 
       // Tap-to-switch card row (group scorer only). Small tabs across
@@ -834,6 +916,19 @@
         var g = 0, holes = 0, parSoFar = 0;
         for (var i = 0; i < s.length; i++) if (s[i] != null) { g += s[i]; parSoFar += parAtIndex(i); holes++; }
         var tp = holes ? (g - parSoFar) : 0;
+        // Own-team attest chip — lets the captain accept their team's scores
+        // without switching the active card away from whoever they're marking.
+        // Same "team" attestation the main panel uses; server always writes
+        // it to captainOwnId regardless of the client-sent targetId.
+        var full = holes === 18;
+        var teamRaw = STATE.day === 2 ? STATE.team.d2AttestTeam : STATE.team.d1AttestTeam;
+        var teamSig = _fmtAttest(teamRaw);
+        var chip = "";
+        if (teamSig) {
+          chip = '<div class="mkr-mine__chip mkr-mine__chip--done">&#10003; Attested &middot; ' + esc(teamSig.name) + ' &middot; ' + esc(teamSig.when) + '</div>';
+        } else if (full) {
+          chip = '<button type="button" class="mkr-mine__chip mkr-mine__chip--btn" data-attest="team-own">Accept your team&rsquo;s scores</button>';
+        }
         return '<div class="mkr-mine">'
           +   '<div class="mkr-mine__hd">Your team &middot; ' + esc(STATE.team.teamName || "") + '</div>'
           +   '<div class="mkr-mine__body">'
@@ -841,6 +936,7 @@
           +     '<div class="mkr-mine__tot"><span class="k">Gross</span><span class="v">' + (holes ? g : "–") + '</span></div>'
           +     '<div class="mkr-mine__tot ' + (tp > 0 ? "pos" : tp < 0 ? "neg" : "") + '"><span class="k">To par</span><span class="v">' + (holes ? formatToPar(tp) : "–") + '</span></div>'
           +   '</div>'
+          +   chip
           + '</div>';
       }
 
@@ -1070,6 +1166,47 @@
           .catch(function () { STATE.savingCount--; setLive("err"); });
       }
 
+      // Attest button click. `role` is one of "marker" | "team" | "team-own".
+      // "team-own" is the mirror-block chip that always attests the captain's
+      // own team regardless of active card. Client sends attestAs=team with
+      // no targetId — server forces write to captainOwnId. All three paths
+      // reload from the server on success so the sig lines paint the fresh
+      // signature + timestamp instead of a stale local view.
+      function attestClick(role) {
+        var target = _active(); if (!target) return;
+        var isTeamOwn = role === "team-own";
+        var attestAs = (role === "marker") ? "marker" : "team";
+        var targetName = isTeamOwn
+          ? (STATE.team && STATE.team.teamName) || "your team"
+          : (target.teamName || "this team");
+        var msg = attestAs === "marker"
+          ? "Certify these scores for " + targetName + "?\n\nDouble-check hole-by-hole before signing — an attested card locks the round."
+          : "Accept " + targetName + "'s scores as final?\n\nYou're signing off as team captain.";
+        if (!confirm(msg)) return;
+        setLive("saving");
+        var body = { token: TOKEN, day: STATE.day, attestAs: attestAs };
+        if (!isTeamOwn) body.targetId = target.id;
+        fetch(FH_API.url("/api/tournament-score"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) {
+              setLive("err");
+              alert((j && j.error) || "Could not save the attestation.");
+              return;
+            }
+            setLive("saved");
+            // Re-fetch the full payload so both signature lines paint
+            // from the server-of-truth (rather than a locally-guessed
+            // timestamp that might drift from Airtable's copy).
+            load();
+          })
+          .catch(function () { setLive("err"); alert("Network error saving the attestation."); });
+      }
+
       function wire() {
         Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function (b) {
           b.addEventListener("click", function () { STATE.tab = b.getAttribute("data-tab"); render(); });
@@ -1103,6 +1240,14 @@
         });
         Array.prototype.forEach.call(document.querySelectorAll("[data-jumpidx]"), function (b) {
           b.addEventListener("click", function () { STATE.holeIdx = Number(b.getAttribute("data-jumpidx")); render(); });
+        });
+        // End-of-round attestation buttons. Marker sign covers active card;
+        // team sign covers active card if it IS own team; team-own sign
+        // (from the mirror block) always attests the captain's own team
+        // regardless of which card is active. Client-side confirm keeps a
+        // stray tap from locking a card.
+        Array.prototype.forEach.call(document.querySelectorAll("[data-attest]"), function (b) {
+          b.addEventListener("click", function () { attestClick(b.getAttribute("data-attest")); });
         });
         Array.prototype.forEach.call(document.querySelectorAll("[data-lb]"), function (b) {
           b.addEventListener("click", function () { STATE.lbFilter = b.getAttribute("data-lb"); render(); });

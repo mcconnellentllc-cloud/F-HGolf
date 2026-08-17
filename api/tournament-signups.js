@@ -750,6 +750,15 @@ module.exports = async (req, res) => {
           // else paired with them). Default false = standard
           // USGA-style marker pairing (A marks B, B marks A, etc.).
           groupScorer: !!f["Group Scorer"],
+          // End-of-round attestation signatures. Each round needs both
+          // the marker (scorer) and the team (scored) to sign off. Value
+          // shape is "Kyle McConnell • 2026-08-17T18:30:00Z" — captain
+          // name + bullet + ISO timestamp. Empty string = not yet
+          // attested. Fields auto-strip if the base hasn't added them.
+          d1AttestMarker: f["Day1 Attested By Marker"] || "",
+          d1AttestTeam:   f["Day1 Attested By Team"]   || "",
+          d2AttestMarker: f["Day2 Attested By Marker"] || "",
+          d2AttestTeam:   f["Day2 Attested By Team"]   || "",
         };
       };
       // Marker Scoring defaults to ON when the config field is undefined /

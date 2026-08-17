@@ -40,6 +40,11 @@ module.exports = async (req, res) => {
   const bodyToken = typeof body.token === "string" ? body.token.trim() : "";
   let id = typeof body.id === "string" ? body.id : "";
   const rawTargetId = typeof body.targetId === "string" ? body.targetId : "";
+  // Captured for attestation — the id + name of the token's OWN captain.
+  // Team-attest always writes to the captain's own signup regardless of
+  // targetId; marker-attest reuses whatever writeTargets check resolves.
+  let captainOwnId = "";
+  let captainOwnName = "";
   if (bodyToken) {
     if (!/^[a-f0-9]{16,64}$/i.test(bodyToken)) {
       return res.status(401).json({ ok: false, error: "Invalid link." });
@@ -54,6 +59,8 @@ module.exports = async (req, res) => {
     if (!captainRec) return res.status(401).json({ ok: false, error: "This link is no longer valid." });
     // Default target = captain's own signup.
     id = captainRec.id;
+    captainOwnId = captainRec.id;
+    captainOwnName = String((captainRec.fields || {})["Player Name"] || "").trim();
     // Marker scoring permission check. Only fires when the tournament's
     // config has Marker Scoring Enabled = true AND the client asked to
     // write to a different signup than the captain's own.
@@ -133,6 +140,57 @@ module.exports = async (req, res) => {
     } catch (e) {
       console.error("tournament-score extras update exception", e);
       return res.status(500).json({ ok: false, error: "Something went wrong saving the extras update." });
+    }
+  }
+
+  // Attestation path — captain signs off end-of-round. Two roles:
+  //   attestAs=marker  — this captain kept the scores for `id` (the marker/
+  //                      group scorer for that card). Reuses the writeTargets
+  //                      check that already resolved `id` above, so a leaked
+  //                      link can't attest for a team it can't score.
+  //   attestAs=team    — this captain accepts their OWN team's scores. Always
+  //                      writes to captainOwnId regardless of what targetId
+  //                      the client sent — protects the "captain accepts"
+  //                      signature from being spoofed onto another team.
+  // Signature format on Airtable: "Kyle McConnell • 2026-08-17T18:30:00Z".
+  // Field is auto-stripped if the base hasn't added it yet; caller gets a
+  // clear message so the pro shop knows what to add.
+  if (typeof body.attestAs === "string" && (body.attestAs === "marker" || body.attestAs === "team")) {
+    const attestDay = Number(body.day);
+    if (attestDay !== 1 && attestDay !== 2) {
+      return res.status(400).json({ ok: false, error: "Day must be 1 or 2." });
+    }
+    let targetId = id;
+    if (body.attestAs === "team") {
+      if (!captainOwnId) return res.status(401).json({ ok: false, error: "Team attestation requires a captain scoring link." });
+      targetId = captainOwnId;
+    }
+    if (!targetId) return res.status(400).json({ ok: false, error: "Missing record id." });
+    // Signer name — bodyToken flow already captured captain's own name.
+    // Staff-key writes rarely attest but keep a working fallback: "Staff".
+    const signerName = captainOwnName || (typeof body.signerName === "string" ? body.signerName.trim().slice(0, 120) : "") || "Staff";
+    const signature = signerName + " • " + new Date().toISOString();
+    const fieldName = "Day" + attestDay + " Attested By " + (body.attestAs === "marker" ? "Marker" : "Team");
+    try {
+      const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}/${targetId}`;
+      const r = await fetch(url, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ fields: { [fieldName]: signature }, typecast: true }),
+      });
+      if (!r.ok) {
+        const detail = await r.text();
+        console.error("tournament-score attest error", r.status, detail);
+        if (/Unknown field/i.test(detail)) {
+          return res.status(502).json({ ok: false, error: `Airtable doesn't have a "${fieldName}" field on Tournament Signups yet — ask the pro shop to add it.` });
+        }
+        return res.status(502).json({ ok: false, error: "Could not save the attestation." });
+      }
+      const data = await r.json();
+      return res.status(200).json({ ok: true, id: data.id, field: fieldName, signature: signature });
+    } catch (e) {
+      console.error("tournament-score attest exception", e);
+      return res.status(500).json({ ok: false, error: "Something went wrong saving the attestation." });
     }
   }
 
