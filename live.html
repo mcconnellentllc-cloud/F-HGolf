@@ -326,6 +326,19 @@
     .mkr-mine__tot .v { font: 500 1.1rem/1 Georgia, serif; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: 0.15rem; }
     .mkr-mine__tot.pos .v { color: var(--brass); }
     .mkr-mine__tot.neg .v { color: var(--green); }
+    /* Read-only hole-by-hole strip inside the mirror block. Physical
+       holes 1-9 top, 10-18 bottom — scoreboard style. Smaller than the
+       main card's dots (0.55rem cell font vs 0.62/0.95) so the mirror
+       stays a summary rather than competing with the active card for
+       attention. Cells intentionally not tappable — this is view-only. */
+    .mkr-mine__lap { display: flex; align-items: baseline; margin: 0.75rem 0 0.25rem; }
+    .mkr-mine__lap:first-of-type { margin-top: 0.9rem; padding-top: 0.65rem; border-top: 1px dashed var(--line); }
+    .mkr-mine__lap-lbl { font: 700 0.58rem/1 system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+    .mkr-mine__dots { display: grid; grid-template-columns: repeat(9, 1fr); gap: 0.2rem; }
+    .mkr-mine__dot { text-align: center; padding: 0.22rem 0; border-radius: 5px; background: var(--paper); border: 1px solid var(--line); font: 600 0.55rem/1 system-ui, sans-serif; color: var(--muted); }
+    .mkr-mine__dot .n { display: block; font-size: 0.5rem; color: var(--muted); margin-bottom: 0.15rem; }
+    .mkr-mine__dot .v { display: block; font: 500 0.85rem/1 Georgia, serif; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .mkr-mine__dot--empty .v { color: var(--muted); opacity: 0.4; }
     .mkr-mine__chip { display: block; width: 100%; margin-top: 0.7rem; padding: 0.6rem 0.75rem; border-radius: 10px; font: 700 0.85rem/1.2 system-ui, sans-serif; text-align: center; cursor: default; border: 1px solid var(--line); background: transparent; color: var(--ink); }
     .mkr-mine__chip--btn { background: var(--green-strong); border-color: var(--green-strong); color: var(--paper); cursor: pointer; }
     .mkr-mine__chip--btn:active { transform: translateY(1px); }
@@ -929,6 +942,23 @@
         } else if (full) {
           chip = '<button type="button" class="mkr-mine__chip mkr-mine__chip--btn" data-attest="team-own">Accept your team&rsquo;s scores</button>';
         }
+        // Compact hole-by-hole strip — 9 holes per row, physical order
+        // 1-9 then 10-18 (scoreboard style). Purely read-only so the
+        // team captain can eyeball each hole their marker is entering
+        // and flag an off-by-one right when it happens. Empty holes
+        // show a dash. On single-lap 9-hole events HOLES_TOTAL < 18 so
+        // we only render the front row.
+        var dotsFront = "", dotsBack = "";
+        for (var h = 1; h <= 18; h++) {
+          var sc = s[h - 1];
+          var cell = '<span class="mkr-mine__dot' + (sc == null ? " mkr-mine__dot--empty" : "") + '"><span class="n">' + h + '</span><span class="v">' + (sc == null ? "–" : sc) + '</span></span>';
+          if (h <= 9) dotsFront += cell; else dotsBack += cell;
+        }
+        var hasBack = HOLES_TOTAL >= 18;
+        var dots = '<div class="mkr-mine__lap"><span class="mkr-mine__lap-lbl">' + (hasBack ? "Front 9" : "Holes") + '</span></div>'
+          + '<div class="mkr-mine__dots">' + dotsFront + '</div>'
+          + (hasBack ? ('<div class="mkr-mine__lap"><span class="mkr-mine__lap-lbl">Back 9</span></div>'
+            + '<div class="mkr-mine__dots">' + dotsBack + '</div>') : "");
         return '<div class="mkr-mine">'
           +   '<div class="mkr-mine__hd">Your team &middot; ' + esc(STATE.team.teamName || "") + '</div>'
           +   '<div class="mkr-mine__body">'
@@ -936,6 +966,7 @@
           +     '<div class="mkr-mine__tot"><span class="k">Gross</span><span class="v">' + (holes ? g : "–") + '</span></div>'
           +     '<div class="mkr-mine__tot ' + (tp > 0 ? "pos" : tp < 0 ? "neg" : "") + '"><span class="k">To par</span><span class="v">' + (holes ? formatToPar(tp) : "–") + '</span></div>'
           +   '</div>'
+          +   dots
           +   chip
           + '</div>';
       }
