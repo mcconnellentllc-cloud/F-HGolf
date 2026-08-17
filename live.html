@@ -291,17 +291,23 @@
        whose card they're scoring (marker mode) or that someone else
        has the pencil (spectator mode). Brass accent so it reads as
        tournament-context, not chrome. */
-    .mkr-hdr { padding: 0.7rem 0.85rem; margin-bottom: 0.75rem; background: var(--brass-soft); border: 1px solid var(--brass); border-left: 3px solid var(--brass); border-radius: 10px; font: 600 0.88rem/1.35 system-ui, sans-serif; color: var(--ink); }
-    .mkr-hdr b { color: var(--brass); }
-    .mkr-hdr--spec { background: var(--paper-2); border-color: var(--line); color: var(--muted); }
-    .mkr-hdr--spec b { color: var(--ink); }
+    .mkr-hdr { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.75rem 0.9rem; margin-bottom: 0.75rem; background: var(--brass-soft); border: 1px solid var(--brass); border-left: 4px solid var(--brass); border-radius: 10px; color: var(--ink); }
+    .mkr-hdr small { font: 700 0.7rem/1 system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
+    .mkr-hdr b { font: 700 1.1rem/1.2 system-ui, sans-serif; color: var(--brass); }
+    .mkr-hdr--spec { flex-direction: row; align-items: center; background: var(--paper-2); border-color: var(--line); color: var(--muted); font: 600 0.88rem/1.35 system-ui, sans-serif; }
+    .mkr-hdr--spec b { color: var(--ink); font-size: inherit; margin-right: 0.3rem; }
 
     /* Card-switcher tabs (group scorer only) — small pills across the
        top of the scorecard, one per tee-mate. Active card gets the
        green pill; others are neutral. Wraps if 3 teams don't fit. */
-    .mkr-cards { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.8rem; }
-    .mkr-card { padding: 0.5rem 0.75rem; font: 700 0.82rem/1 system-ui, sans-serif; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--muted); cursor: pointer; }
+    .mkr-cards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.4rem; margin-bottom: 0.8rem; }
+    .mkr-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; padding: 0.55rem 0.75rem; border: 1.5px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); cursor: pointer; text-align: left; min-height: 0; }
+    .mkr-card small { font: 700 0.62rem/1 system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
+    .mkr-card span { font: 700 0.9rem/1.15 system-ui, sans-serif; word-break: break-word; }
+    .mkr-card em { font-style: normal; font-weight: 500; color: var(--muted); }
     .mkr-card.on { background: var(--green-strong); border-color: var(--green-strong); color: var(--paper); }
+    .mkr-card.on small { color: rgba(255,255,255,0.75); }
+    .mkr-card.on em { color: rgba(255,255,255,0.8); }
 
     /* Locked team score (spectator) — visually dims the +/– area so
        the captain sees a live-updating number rather than blank space
@@ -743,15 +749,17 @@
         var startBadge = (active && active.hole)
           ? ('Started on Hole ' + startHole + (active.start ? (' · ' + esc(active.start)) : ''))
           : 'No tee assigned yet';
-        // Small "who am I scoring" label above the hole card. Only shown
-        // when marker scoring flips this out of the simple self-score
-        // case, so a Founders round looks the same as before.
+        // Big-and-obvious "who am I scoring right now" banner — captain
+        // name in caps so the operator can't accidentally tap the wrong
+        // team's +/-. Only shown when marker scoring flips this out of
+        // the simple self-score case; Founders self-score round looks
+        // the same as before.
         var scoringWho = '';
         if (!isSelfScore) {
           if (assign.mode === "marker") {
-            scoringWho = '<div class="mkr-hdr">You are marking <b>' + esc(activeName) + '</b></div>';
+            scoringWho = '<div class="mkr-hdr"><small>You are marking</small><b>' + esc(activeName) + "'s team</b></div>";
           } else if (assign.mode === "group_scorer") {
-            scoringWho = '<div class="mkr-hdr">Group scorer &middot; scoring <b>' + esc(activeName) + '</b></div>';
+            scoringWho = '<div class="mkr-hdr"><small>Scoring for</small><b>' + esc(activeName) + "'s team</b></div>";
           } else if (isSpectator) {
             scoringWho = '<div class="mkr-hdr mkr-hdr--spec"><b>' + esc(assign.groupScorerName || "Someone") + '</b> is scoring your group. Everyone sees the same card live &mdash; no taps needed here.</div>';
           }
@@ -801,8 +809,15 @@
           + mates.map(function (m) {
               var isActive = m.id === STATE.activeCardId;
               var isMe = STATE.team && m.id === STATE.team.id;
-              var label = m.teamName + (isMe ? " (you)" : "");
-              return '<button type="button" class="mkr-card' + (isActive ? " on" : "") + '" data-card="' + esc(m.id) + '">' + esc(label) + '</button>';
+              // Two-line pill: "SCORING" (green) or "TAP TO SCORE" (muted)
+              // above the captain's name so the operator can't misread which
+              // team card they're about to edit. "(you)" tag pinned when it's
+              // their own team.
+              var badge = isActive ? "SCORING" : "Tap to score";
+              return '<button type="button" class="mkr-card' + (isActive ? " on" : "") + '" data-card="' + esc(m.id) + '">'
+                + '<small>' + badge + '</small>'
+                + '<span>' + esc(m.teamName || "Team") + (isMe ? ' <em>(you)</em>' : '') + '</span>'
+                + '</button>';
             }).join("")
           + '</div>';
       }
