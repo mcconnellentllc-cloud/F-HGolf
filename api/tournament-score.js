@@ -81,8 +81,11 @@ module.exports = async (req, res) => {
         // / null (missing on Airtable, new tournament, or auto-stripped
         // save). Matches the tournament-signups live handler + the
         // Format-tab checkbox default. Explicit false opts out.
+        // FOUNDERS is exempt from the default so its pre-marker-scoring
+        // behavior stays intact — same guard as the live-mode handler.
         const _msCfg = cfgRec && cfgRec.fields && cfgRec.fields["Marker Scoring Enabled"];
-        const markerScoringEnabled = (_msCfg === undefined || _msCfg === null) ? true : !!_msCfg;
+        const _msIsFoundersAuth = /^Founder/i.test(String(tournamentName || ""));
+        const markerScoringEnabled = (_msCfg === undefined || _msCfg === null) ? !_msIsFoundersAuth : !!_msCfg;
         const me = marker.stripSignupField(captainRec);
         const stripped = fieldRecs.map(marker.stripSignupField);
         const assignment = marker.computeMarkerAssignment(me, stripped, markerScoringEnabled, dayForAuth);

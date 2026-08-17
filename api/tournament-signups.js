@@ -756,8 +756,13 @@ module.exports = async (req, res) => {
       // null (missing on Airtable, new tournament, auto-stripped save).
       // Matches the Format-tab default so a fresh tournament runs
       // USGA-style marker scoring out of the box. Explicit false opts out.
+      // FOUNDERS is exempt from the default (undefined = off there) so the
+      // Founders workbook keeps its pre-marker-scoring behavior until an
+      // operator explicitly checks the Format box. Same pattern waves /
+      // meals / calcutta use to keep Founders untouched.
       const _msCfg = cfg && cfg.fields && cfg.fields["Marker Scoring Enabled"];
-      const markerScoringEnabled = (_msCfg === undefined || _msCfg === null) ? true : !!_msCfg;
+      const _msIsFoundersLive = /^Founder/i.test(tournament);
+      const markerScoringEnabled = (_msCfg === undefined || _msCfg === null) ? !_msIsFoundersLive : !!_msCfg;
       const meStripped = stripField(me);
       const fieldStripped = fieldRows.map(stripField);
       // Compute the marker assignment for THIS captain on Day 1 + Day 2.
