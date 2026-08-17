@@ -495,14 +495,18 @@
           <div class="hist" id="histBody"><p class="noms__msg">Loading archived tournaments…</p></div>
         </section>
 
-        <!-- Rules — format + local rules. Public page is the source of truth. -->
+        <!-- Rules — format + local rules. Public page is the source of truth.
+             The "Open public rules page" link + the scaffold description +
+             the format section are swapped per-tournament by _applyRulesForTournament()
+             so the Couples workbook points to couples-rules.html and describes
+             the couples format instead of the Founders default. -->
         <section class="noms wb-sheet" data-sheet="rules" id="twRules" aria-label="Rules" hidden>
           <div class="noms__bar">
             <h3 class="noms__title">Rules &amp; Format</h3>
-            <a class="btn btn--solid" href="founders-rules.html" target="_blank" rel="noopener">Open public rules page &rarr;</a>
+            <a class="btn btn--solid" id="rulesOpenBtn" href="founders-rules.html" target="_blank" rel="noopener">Open public rules page &rarr;</a>
           </div>
-          <p class="scaffold__desc">Public-facing rules for the Founders. Same page is linked from the tournament card and the Rules chip on the public site. To edit, update <code>founders-rules.html</code>.</p>
-          <div class="rules-preview">
+          <p class="scaffold__desc" id="rulesDesc">Public-facing rules for the Founders. Same page is linked from the tournament card and the Rules chip on the public site. To edit, update <code>founders-rules.html</code>.</p>
+          <div class="rules-preview" id="rulesPreview">
             <h4>Format &amp; scramble mechanics</h4>
             <ul>
               <li><b>Two-man scramble.</b> Both tee off, team selects best drive, non-selected ball picked up.</li>
@@ -1011,6 +1015,64 @@
         if (/^Founder/i.test(String(KEY || ""))) document.body.classList.add("tw-founders");
         else document.body.classList.add("tw-single-wave");
       } catch (e) {}
+
+      // Per-tournament Rules-tab wiring. The workbook Rules tab defaults to
+      // the Founders preview + link (page originally built for Founders).
+      // Other tournaments swap the "Open public rules page" href + inline
+      // preview to match. Add new tournaments here as they get their own
+      // public rules file — one entry per tournament, keyed by the same
+      // string the schedule + workbook use.
+      var _RULES_BY_TOURNAMENT = {
+        "Couple's Tournament (Aug 22)": {
+          page: "couples-rules.html",
+          desc: 'Public-facing rules for the Aug&nbsp;22 Couples Scramble. Same page is linked from the tournament card and the Rules chip on the public site. To edit, update <code>couples-rules.html</code>.',
+          previewHtml:
+              '<h4>Format &amp; scramble mechanics</h4>'
+            + '<ul>'
+            +   '<li><b>Two-couple team scramble &mdash; four players per team.</b> All four tee off; the team selects the best of the four drives, non-selected balls are picked up.</li>'
+            +   '<li><b>All four players play from the same location &mdash; every shot.</b> After the drive is selected, all four hit their next shot from the spot of the selected ball. One team score per hole.</li>'
+            +   '<li><b>On the green:</b> mark the selected ball <b>1 putter-head length</b> from the ball. <b>All four players putt from the same placement</b> off the marker.</li>'
+            +   '<li>Full 18 &mdash; one-day tournament. Shotgun start at <b>8:00 AM</b>. Report 10 min early.</li>'
+            +   '<li><b>Flighting:</b> coin flip mid-round decides <b>front-9 (Out)</b> or <b>back-9 (In)</b>. That 9-hole gross places your team in a flight.</li>'
+            +   '<li><b>No Calcutta.</b> Flight prizes only.</li>'
+            + '</ul>'
+            + '<h4>Out of Bounds</h4>'
+            + '<ul>'
+            +   '<li><b>Hole #1</b> is OB on <b>both sides</b>. West side <b>white stakes</b> &mdash; OB line only runs as far north as the <b>northernmost stake</b>; further north (still to the west) is <b>in play</b>.</li>'
+            +   '<li>The <b>exterior fence</b> of the entire course is OB.</li>'
+            +   '<li>Penalty: <b>stroke and distance</b> (USGA R.18.2). Play a provisional when in doubt.</li>'
+            + '</ul>'
+            + '<h4>Penalty areas &mdash; local rule (no grounding)</h4>'
+            + '<ul>'
+            +   '<li>Penalty areas at: <b>between holes #3 &amp; #4</b>, <b>between holes #6 &amp; #7</b>, and the <b>hole west of the driving range</b>.</li>'
+            +   '<li><b>No grounding clubs</b> in these areas &mdash; enforced like a bunker (R.12.2b). Grounding = <b>+2 strokes</b>.</li>'
+            +   '<li>Relief options (all <b>+1 stroke</b>): stroke &amp; distance, back-on-line, or <b>2 club lengths</b> lateral from where the ball crossed the edge, no closer to hole (R.17).</li>'
+            + '</ul>'
+            + '<h4>Playing the ball</h4>'
+            + '<ul>'
+            +   '<li><b>Play it down.</b> No fluffing, no bumping. Improving lie/line = <b>+2 strokes</b> (R.8.1).</li>'
+            +   '<li><b>Drops:</b> from <b>higher than knee</b>, within <b>1 club length</b>, in the <b>same cut of grass</b> as the chosen point.</li>'
+            +   '<li><b>Tree relief (young trees):</b> trunk under <b>4&Prime; diameter</b> &rarr; <b>2 club lengths</b> relief, no closer to hole.</li>'
+            +   '<li><b>Unplayable</b> (outside penalty area): <b>+1 stroke</b>, then stroke &amp; distance / back-on-line / 2 club lengths lateral (R.19).</li>'
+            + '</ul>'
+            + '<h4>Ties (no Calcutta this tournament)</h4>'
+            + '<ul>'
+            +   '<li><b>Flight money 2nd &amp; 3rd &rarr; split the pot.</b> Only 1st is played off.</li>'
+            +   '<li><b>Flight money 1st &rarr; scorecard playoff (Men\'s Hdcp order).</b> Hole 11 hardest, then hole 2, then 15, down the list. First lower score wins. Committee chip-off if the whole card ties.</li>'
+            + '</ul>'
+            + '<p><a href="couples-rules.html" target="_blank" rel="noopener">Open the full public rules page &rarr;</a></p>'
+        }
+      };
+      function _applyRulesForTournament() {
+        var spec = _RULES_BY_TOURNAMENT[KEY]; if (!spec) return; // Founders default stays
+        var btn = document.getElementById("rulesOpenBtn");
+        if (btn) btn.setAttribute("href", spec.page);
+        var desc = document.getElementById("rulesDesc");
+        if (desc) desc.innerHTML = spec.desc;
+        var host = document.getElementById("rulesPreview");
+        if (host) host.innerHTML = spec.previewHtml;
+      }
+      try { _applyRulesForTournament(); } catch (e) {}
 
       function splitName(key) {
         var mm = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(key);
