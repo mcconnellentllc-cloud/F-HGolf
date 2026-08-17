@@ -25,7 +25,12 @@
       // so the schedule row only needs one "Open Founders card" button.
       card: { label: "Open Founders card", href: "founders-recap.html" }
     },
-    "Couple's Tournament (Aug 22)": { end: "2026-08-22", cap: 24, unit: "teams", team: 2, roles: ["Your name", "Partner's name"], format: "2-player couples (one entry = a team)" },
+    "Couple's Tournament (Aug 22)": {
+      end: "2026-08-22", cap: 24, unit: "teams", team: 2,
+      roles: ["Your name", "Partner's name"],
+      format: "2-player couples (one entry = a team)",
+      card: { label: "Live leaderboard", href: "leaderboard.html?t=Couple%27s%20Tournament%20(Aug%2022)" }
+    },
     "Haxtun Fire (Sept 19)": { end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble" },
     "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)" },
     "Hole 8 Raffle Contest": { team: 1, format: "tee shot into the circle on #8", fee: "$5/person · $20/team", note: "2 entries max · two winners" }
