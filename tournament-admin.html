@@ -6989,6 +6989,23 @@
             return '<span class="lb-strip__flight"><b>' + esc(flightName(fl)) + '</b> ' + arr.length + ' teams <span class="lb-strip__range">(' + rng + ')</span></span>';
           }).join('<span class="lb-strip__sep">&middot;</span>') + '</div>';
         }
+        // Flights tab table shape follows the Format-tab basis. When the
+        // operator flights off a single nine (coin-flip 1-day event), the
+        // other nine + the 18-hole DAY 1 column are hidden — no need to
+        // stare at cells that don't drive standings. Full 18 keeps the
+        // original 4-score-column layout. Founders is 2-day so basis
+        // resolves to Full 18 automatically inside flightScore() /
+        // flightBasis(); its Flights table stays exactly as it was.
+        var _lbBasisRounds = Number((_tcConfigCache && _tcConfigCache["Rounds"]) || 1);
+        var _lbBasis = (_lbBasisRounds >= 2) ? "Full 18" : String((_tcConfigCache && _tcConfigCache["Flight From"]) || "Full 18");
+        var _showFront = (_lbBasis !== "In");
+        var _showBack  = (_lbBasis !== "Out");
+        var _showD1    = (_lbBasis === "Full 18");
+        var _thHtml = "<tr><th>Team</th>"
+          + (_showFront ? "<th>Front 9</th>" : "")
+          + (_showBack  ? "<th>Back 9</th>"  : "")
+          + (_showD1    ? "<th>Day 1</th>"   : "")
+          + "<th>HCP</th></tr>";
         var out = order.map(function (fl) {
           var arr = groups[fl]; if (!arr || !arr.length) return "";
           // Leader within the flight = lowest flight-basis score (full 18
@@ -7010,22 +7027,34 @@
               return s;
             }
             var front = loop(0, 9), back = loop(9, 18);
-            return { name: teamName(r), teamNumber: lbTeamNumbers[r.id], front: front, back: back, a: a, b: b, hcp: hcp };
+            return { name: teamName(r), teamNumber: lbTeamNumbers[r.id], front: front, back: back, a: a, b: b, flt: flt, hcp: hcp };
           });
-          // Sort: lowest Day-1 gross at top of the flight, highest at the bottom.
-          rows.sort(function (x, y) { return (x.a == null ? 1e9 : x.a) - (y.a == null ? 1e9 : y.a); });
+          // Sort by the flight-basis score (front 9, back 9, or full 18) so
+          // the top of the flight is the actual current-leader within that
+          // basis. Falls back to null-last.
+          rows.sort(function (x, y) { return (x.flt == null ? 1e9 : x.flt) - (y.flt == null ? 1e9 : y.flt); });
           var trs = rows.map(function (x) {
             var tnB = x.teamNumber ? '<span class="lb-tnum">T-' + String(x.teamNumber).padStart(2, "0") + '</span> ' : '';
-            return "<tr><td>" + tnB + esc(x.name) + "</td>"
-              + "<td>" + (x.front == null ? "—" : x.front) + "</td>"
-              + "<td>" + (x.back == null ? "—" : x.back) + "</td>"
-              + "<td><b>" + (x.a == null ? "—" : x.a) + "</b></td>"
-              + "<td>" + (x.hcp == null ? "—" : x.hcp) + "</td></tr>";
+            var cells = "<td>" + tnB + esc(x.name) + "</td>";
+            // Bolden whichever column IS the flight basis — same visual
+            // weight the DAY 1 column had in the original Full-18 layout.
+            if (_showFront) cells += _lbBasis === "Out"
+              ? "<td><b>" + (x.front == null ? "—" : x.front) + "</b></td>"
+              : "<td>" + (x.front == null ? "—" : x.front) + "</td>";
+            if (_showBack)  cells += _lbBasis === "In"
+              ? "<td><b>" + (x.back == null ? "—" : x.back) + "</b></td>"
+              : "<td>" + (x.back == null ? "—" : x.back) + "</td>";
+            if (_showD1)    cells += "<td><b>" + (x.a == null ? "—" : x.a) + "</b></td>";
+            cells += "<td>" + (x.hcp == null ? "—" : x.hcp) + "</td>";
+            return "<tr>" + cells + "</tr>";
           }).join("");
-          var title = fl === 0 ? "Unassigned (no Day-1 score yet)" : (flightName(fl) + " Flight");
+          var _unassignedLbl = _lbBasis === "Out" ? "no Front-9 score yet"
+            : _lbBasis === "In" ? "no Back-9 score yet"
+            : "no Day-1 score yet";
+          var title = fl === 0 ? ("Unassigned (" + _unassignedLbl + ")") : (flightName(fl) + " Flight");
           var count = ' <span class="lb-flight__count">' + rows.length + ' team' + (rows.length === 1 ? "" : "s") + '</span>';
           return '<div class="lb-flight"><h4 class="lb-flight__title">' + title + count + "</h4>"
-            + '<div class="table-scroll"><table class="lb-table"><thead><tr><th>Team</th><th>Front 9</th><th>Back 9</th><th>Day 1</th><th>HCP</th></tr></thead><tbody>'
+            + '<div class="table-scroll"><table class="lb-table"><thead>' + _thHtml + '</thead><tbody>'
             + trs + "</tbody></table></div></div>";
         });
         // Weave inline cut sliders between flight sections (drag to shift the
