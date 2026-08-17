@@ -140,6 +140,7 @@
                 <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Alternates Allowed" /><span>Alternates allowed once cap is hit</span></label>
                 <label class="fmt-row fmt-row--chk" id="fmtExtraMealsRow"><input type="checkbox" name="Extra Meals Enabled" /><span>Track extra meals per player (kitchen head count)</span></label>
                 <label class="fmt-row fmt-row--chk" title="USGA-style scoring: teams mark opponents' cards. A→B, B→C, C→A. Individual teams can be flagged 'Scores whole group' on their Check-In card to have one captain score everyone on their tee."><input type="checkbox" name="Marker Scoring Enabled" /><span>Marker scoring &mdash; teams mark opponents' cards</span></label>
+                <label class="fmt-row fmt-row--chk" title="When on, each team's handicap = (their flight-basis score − flight leader) × Multiplier (see the Money section for the % — 0.80 = 80% allowable deduction). Flight prizes go by gross regardless; HCP only affects Calcutta / net scoring on 2-day tournaments. Default OFF on new 1-day tournaments (no handicap applied); default ON on 2-day tournaments (Founders)."><input type="checkbox" name="Handicaps Enabled" /><span>Apply handicap (multiplier = allowable deduction %)</span></label>
               </div>
               <div class="fmt-grid fmt-grid--shot">
                 <label class="fmt-row"><span>Shotgun starts</span>
@@ -1452,11 +1453,19 @@
         // checked on first load and only unchecks when Airtable explicitly
         // returns false. Same value the API's config-write path sends.
         var DEFAULT_ON = { "Marker Scoring Enabled": true };
+        // Handicaps default ON for 2-day tournaments (Founders) and OFF
+        // for 1-day (couples etc.) — per operator: 1-day events don't
+        // apply handicap, they play gross. Rounds is read from the same
+        // record so a new tournament with Rounds unset falls into the
+        // 1-day bucket (OFF).
+        var _rounds = Number(f["Rounds"] || 1);
+        var _hcpDefault = _rounds >= 2;
         Array.prototype.forEach.call(form.querySelectorAll("input, select, textarea"), function (el) {
           var name = el.getAttribute("name"); if (!name) return;
           var v = f[name];
           if (el.type === "checkbox") {
-            el.checked = (v === undefined || v === null) ? !!DEFAULT_ON[name] : !!v;
+            var defOn = name === "Handicaps Enabled" ? _hcpDefault : !!DEFAULT_ON[name];
+            el.checked = (v === undefined || v === null) ? defOn : !!v;
             return;
           }
           if (v === undefined || v === null) { el.value = ""; return; }
@@ -6849,6 +6858,26 @@
         var row = document.getElementById("fmtFlightFromRow"); if (!row) return;
         row.style.display = (Number(rounds) >= 2) ? "none" : "";
       }
+      // Handicaps master switch — Format-tab checkbox. Defaults ON for 2-day
+      // (Founders) and OFF for 1-day tournaments (couples etc. don't apply
+      // handicap per the operator). Returns true when the tournament wants
+      // handicap-based net scoring / HCP columns / Calcutta net.
+      function _hcpEnabled() {
+        var v = _tcConfigCache && _tcConfigCache["Handicaps Enabled"];
+        if (v === undefined || v === null) {
+          var rounds = Number((_tcConfigCache && _tcConfigCache["Rounds"]) || 1);
+          return rounds >= 2;
+        }
+        return !!v;
+      }
+      // Multiplier the HCP formula actually uses — 0 forces every hcp to
+      // zero so a single-day flight with the switch off shows no HCP
+      // adjustment and Calcutta net collapses to raw gross.
+      function _hcpMult(cfg) {
+        if (!_hcpEnabled()) return 0;
+        var m = cfg && cfg.handicapMultiplier;
+        return isFinite(m) ? m : 0.8;
+      }
       function teamName(r) { return teamShortNames((r && r.fields) || {}); }
 
       var CUTK = "fh_cuts_" + KEY, boardSorted = [], lbFilteredRecs = [];
@@ -6951,7 +6980,7 @@
 
       function renderStandings(recs, cfg) {
         var body = document.getElementById("lbBody"); if (!body) return;
-        var mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
+        var mult = _hcpMult(cfg), nF = cfg.flights || 4;
         // Preview grouping from current cut sliders so teams show up in flights
         // as soon as scores are entered — no need to click Save flights first.
         // On 1-day tournaments Flight From on Format can switch this to Out /
@@ -7001,11 +7030,19 @@
         var _showFront = (_lbBasis !== "In");
         var _showBack  = (_lbBasis !== "Out");
         var _showD1    = (_lbBasis === "Full 18");
+        // Handicap column follows the Format toggle. Defaults on for 2-day
+        // (Founders) and off for 1-day; explicit save overrides. When off
+        // the HCP column disappears entirely — no zeros, no dashes —
+        // matching how the operator described 1-day tournaments (no
+        // handicap applied at all).
+        var _hcpCfg = _tcConfigCache && _tcConfigCache["Handicaps Enabled"];
+        var _showHcp = (_hcpCfg === undefined || _hcpCfg === null) ? (_lbBasisRounds >= 2) : !!_hcpCfg;
         var _thHtml = "<tr><th>Team</th>"
           + (_showFront ? "<th>Front 9</th>" : "")
           + (_showBack  ? "<th>Back 9</th>"  : "")
           + (_showD1    ? "<th>Day 1</th>"   : "")
-          + "<th>HCP</th></tr>";
+          + (_showHcp   ? "<th>HCP</th>"     : "")
+          + "</tr>";
         var out = order.map(function (fl) {
           var arr = groups[fl]; if (!arr || !arr.length) return "";
           // Leader within the flight = lowest flight-basis score (full 18
@@ -7045,7 +7082,7 @@
               ? "<td><b>" + (x.back == null ? "—" : x.back) + "</b></td>"
               : "<td>" + (x.back == null ? "—" : x.back) + "</td>";
             if (_showD1)    cells += "<td><b>" + (x.a == null ? "—" : x.a) + "</b></td>";
-            cells += "<td>" + (x.hcp == null ? "—" : x.hcp) + "</td>";
+            if (_showHcp)   cells += "<td>" + (x.hcp == null ? "—" : x.hcp) + "</td>";
             return "<tr>" + cells + "</tr>";
           }).join("");
           var _unassignedLbl = _lbBasis === "Out" ? "no Front-9 score yet"
@@ -7130,7 +7167,7 @@
         var recs = (all || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         if (!recs.length) { body.innerHTML = '<p class="noms__msg">No teams yet.</p>'; return; }
         var caTeamNumbers = computeTeamNumbers(recs);
-        var cfg = loadCalc(), mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
+        var cfg = loadCalc(), mult = _hcpMult(cfg), nF = cfg.flights || 4;
         var comm = (cfg.calcuttaCommission || 0) / 100;
         var split = cfg.calcuttaSplit || [40, 30, 20, 10];
         // Group by Flight (fall through to unassigned as 0).
@@ -7377,7 +7414,7 @@
       // ---- Leaderboard + Payout: shared per-team computation ----
       // Returns { flights:[{num,name,leader,rows:[{name,d1,d2,gross,hcp,net,buyer,buyAmount,grossPlace,netPlace}]}], unassigned:[...] }
       function computeLeaderboardData(recs, cfg) {
-        var mult = cfg.handicapMultiplier || 0.8, nF = cfg.flights || 4;
+        var mult = _hcpMult(cfg), nF = cfg.flights || 4;
         // Flighting basis — full 18 by default; Out (front 9) or In (back 9)
         // on single-day tournaments when Format's Flight From is set.
         var sortedScores = recs.map(flightScore).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
