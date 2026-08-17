@@ -1548,10 +1548,21 @@
         // ever runs a Calcutta, add its key to the regex in
         // _applyCalcuttaVisibility below — one place.
         var ce = document.getElementById("fmtCalcuttaEnabled");
-        var isFoundersCA = typeof KEY === "string" && /^Founder/i.test(KEY);
-        var caOn = isFoundersCA ? ((f["Calcutta Enabled"] === false) ? false : true) : false;
+        var caOn = _isCalcuttaEnabled();
         if (ce) ce.value = caOn ? "on" : "off";
         _applyCalcuttaVisibility(caOn);
+      }
+      // Single source of truth for whether this workbook runs a Calcutta.
+      // The Format tab checkbox drives everything — tabs, Payout sections,
+      // Format Calcutta editor. When "Calcutta Enabled" has never been
+      // saved for a workbook we default Founders on (Calcutta is intrinsic
+      // to that event) and every other tournament off (Calcutta is opt-in).
+      // Once the operator saves a value, that value wins unconditionally.
+      function _isCalcuttaEnabled() {
+        var v = _tcConfigCache && _tcConfigCache["Calcutta Enabled"];
+        if (v === "on" || v === true) return true;
+        if (v === "off" || v === false) return false;
+        return typeof KEY === "string" && /^Founder/i.test(KEY);
       }
       // Hide/show the Calcutta workbook tabs + the Calcutta payout mount on
       // Format based on whether the tournament runs a Calcutta. When off,
@@ -1852,7 +1863,7 @@
                 // hero cart-demand summary.
                 try { _renderCartDemand(); } catch (e) {}
                 // Calcutta toggle may have flipped — re-hide/show tabs.
-                try { _applyCalcuttaVisibility((/^Founder/i.test(String(KEY || ""))) && (_tcConfigCache["Calcutta Enabled"] !== false)); } catch (e) {}
+                try { _applyCalcuttaVisibility(_isCalcuttaEnabled()); } catch (e) {}
                 // Extras editor may have added / removed a line — re-render
                 // the Check-In roster so the per-player checkboxes match
                 // the new config immediately. renderPL also picks up any
@@ -4105,7 +4116,7 @@
             try { _applyCheckinFeatureFlags(_tcConfigCache); } catch (e) {}
             try { _applyPairingsMultiDay(_tcConfigCache); } catch (e) {}
             try { _renderCartDemand(); } catch (e) {}
-            try { _applyCalcuttaVisibility(_tcConfigCache["Calcutta Enabled"] !== false); } catch (e) {}
+            try { _applyCalcuttaVisibility(_isCalcuttaEnabled()); } catch (e) {}
             // Kick off the course-wide cart pool fetch too so the check-in
             // cart dropdown has options as soon as the operator opens a card.
             try { ensureCourseCartsCache(); } catch (e) {}
@@ -9223,11 +9234,19 @@
           + '</table></div>'
           + '</section>';
 
+        // Calcutta payouts / Calcutta payout card only render when the
+        // Format tab's Calcutta checkbox is on. Format is the single
+        // switch — no KEY-based override here.
+        var showCalc = _isCalcuttaEnabled();
+        var calcuttaHeading = showCalc
+          ? ('<h4 class="po-hdr">Calcutta payouts (by net, top-' + calSplit.length + ')</h4>' + renderPayoutTable(calPayouts, "Calcutta", "calcutta"))
+          : "";
+        var calcuttaCardOrEmpty = showCalc ? calcuttaCard : "";
         body.innerHTML = summary
           + '<h4 class="po-hdr">Flight winnings (by 2-day gross)</h4>' + renderPayoutTable(flightPayouts, "Flight winnings", "flight")
-          + '<h4 class="po-hdr">Calcutta payouts (by net, top-' + calSplit.length + ')</h4>' + renderPayoutTable(calPayouts, "Calcutta", "calcutta")
+          + calcuttaHeading
           + '<div class="po-grand">Grand total to pay out: <b>' + _m(grand) + '</b></div>'
-          + '<div class="po-cards">' + flightMoneyCard + calcuttaCard + '</div>';
+          + '<div class="po-cards">' + flightMoneyCard + calcuttaCardOrEmpty + '</div>';
 
         // Wire the Check # inputs — debounced PATCH via tournament-checkin.
         // Flight Check # / Calcutta Check # both live on the signup record.
@@ -9906,11 +9925,22 @@
           var list = document.getElementById("fmtExtrasList");
           if (list) { list.appendChild(_fmtBuildExtraRow({})); var n = list.querySelector(".fmt-extra:last-child input[data-k=\"name\"]"); if (n) n.focus(); }
         });
-        // Calcutta dropdown → live-toggle Calcutta workbook tabs. Payload
-        // still writes on Save; this just gives immediate visual feedback.
+        // Calcutta dropdown → live-toggle Calcutta workbook tabs +
+        // re-render the Payout tab so its Calcutta section appears/
+        // disappears immediately. Payload still writes on Save; this just
+        // gives immediate visual feedback. Also updates the config cache
+        // so anything reading _isCalcuttaEnabled() before Save picks up
+        // the pending value.
         var fmtCE = document.getElementById("fmtCalcuttaEnabled");
         if (fmtCE) fmtCE.addEventListener("change", function () {
+          try {
+            if (!_tcConfigCache) _tcConfigCache = {};
+            _tcConfigCache["Calcutta Enabled"] = fmtCE.value === "on" ? "on" : "off";
+          } catch (e) {}
           _applyCalcuttaVisibility(fmtCE.value === "on");
+          try {
+            if (window.__fhActive === "payout" && typeof renderPayout === "function") renderPayout();
+          } catch (e) {}
         });
         // Locked reset hatch -- only reachable from the browser console
         // (window.__fhResetTournament()). There is no button.
