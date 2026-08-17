@@ -2808,13 +2808,18 @@
         // that captain score every team on their tee (both their own
         // team AND the opponents), and switches everyone else on the
         // tee into read-only spectator mode.
+        // Group Scorer toggle — inline in the totals row (right of OWES,
+        // directly above the Scoring link button in the primary action
+        // row). Only rendered when Marker Scoring is enabled on the
+        // tournament; otherwise .ci-tots stays a plain 3-column strip.
         var _markerEnabled = !!(_tcConfigCache && _tcConfigCache["Marker Scoring Enabled"]);
         var _isGroupScorer = !!f["Group Scorer"];
-        var markerLine = _markerEnabled
-          ? '<div class="ci-cartline ci-cartline--marker">'
-            +   '<span class="ci-cartline__lbl">Scorer</span>'
-            +   '<label class="ci-check ci-check--marker" title="If ON, this captain will score EVERY team on their tee (including their own). If OFF, they score only the opponent they\'re paired with, USGA-style."><input type="checkbox" class="ci-marker-group"' + (_isGroupScorer ? " checked" : "") + ' /><span>Scores whole group</span></label>'
-            + '</div>'
+        var scorerTot = _markerEnabled
+          ? '<span class="ci-tot ci-tot--scorer"><small>Scorer</small>'
+            + '<label class="ci-scorer-pill" title="If ON, this captain will score EVERY team on their tee (own team + opponents). If OFF, they only mark the opponent they\'re paired with, USGA-style.">'
+            +   '<input type="checkbox" class="ci-marker-group"' + (_isGroupScorer ? " checked" : "") + ' />'
+            +   '<span>' + (_isGroupScorer ? "Group" : "Solo") + '</span>'
+            + '</label></span>'
           : '';
 
         return '<article class="ci-card' + (isAlt ? " is-alt" : "") + (totalPaid >= totalOwed && totalOwed > 0 ? " is-fully-paid" : "") + '" data-id="' + esc(rec.id) + '" data-alt="' + (isAlt ? "1" : "0") + '">'
@@ -2842,12 +2847,12 @@
           + '</div>'
           + cartLine
           + cartAssignLine
-          + markerLine
           + '<footer class="ci-card__ft">'
-          + '<div class="ci-tots">'
+          + '<div class="ci-tots' + (_markerEnabled ? " ci-tots--with-scorer" : "") + '">'
           + '<span class="ci-tot"><small>Total</small><b class="ci-tot__total">' + money(totalOwed) + '</b></span>'
           + '<span class="ci-tot ci-tot--paid"><small>Paid</small><b class="ci-tot__paid">' + money(totalPaid) + '</b></span>'
           + '<span class="ci-tot ci-tot--owe"><small>Owes</small><b class="ci-tot__owe">' + money(remaining) + '</b></span>'
+          + scorerTot
           + '</div>'
           + '<div class="ci-card__acts">'
           +   '<div class="ci-card__acts-primary">'

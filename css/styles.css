@@ -2195,12 +2195,24 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
    below. Cleaner scan path: money → primary action → escape hatches. */
 .ci-card__ft { display: flex; flex-direction: column; gap: 0.55rem; padding: 0.7rem 1rem 0.85rem; background: var(--paper-2); }
 .ci-tots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; align-items: baseline; }
+/* Marker Scoring variant — 4th cell hosts the Group/Solo toggle so it
+   sits directly above the Scoring link button in the primary action row.
+   `auto` sizes the toggle to its content instead of stealing a full third. */
+.ci-tots--with-scorer { grid-template-columns: 1fr 1fr 1fr auto; }
 .ci-tot { display: flex; flex-direction: column; align-items: flex-start; }
 .ci-tot small { color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.62rem; font-weight: 800; margin-bottom: 0.1rem; }
 .ci-tot b { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; line-height: 1; }
 .ci-tot--paid b { color: var(--primary-green); }
 .ci-tot--owe b { color: var(--red-deep); }
 .ci-card.is-fully-paid .ci-tot--owe b { color: var(--primary-green); }
+/* Group Scorer cell — a tiny pill toggle that says Group / Solo. Right-
+   aligned so it visually anchors above the Scoring link button in the
+   primary action row directly below. */
+.ci-tot--scorer { align-items: flex-end; justify-content: center; }
+.ci-scorer-pill { display: inline-flex; align-items: center; gap: 0.32rem; padding: 0.2rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; cursor: pointer; font-size: 0.72rem; font-weight: 700; color: var(--muted); user-select: none; transition: border-color 0.12s, color 0.12s, background 0.12s; }
+.ci-scorer-pill:hover { border-color: var(--primary-green); }
+.ci-scorer-pill input { margin: 0; accent-color: var(--primary-green); }
+.ci-scorer-pill:has(input:checked) { border-color: var(--primary-green); color: var(--primary-green); background: #eaf3ec; }
 .ci-card__acts { display: flex; flex-direction: column; gap: 0.4rem; }
 /* Primary action row — Take Payment on the left (grows to fill so it
    stays the visual anchor near the OWES column), Scoring link tucked
