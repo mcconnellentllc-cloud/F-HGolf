@@ -2587,26 +2587,39 @@
               if (forcesReload) {
                 loadRoster();
               } else {
-                if (statusEl) { statusEl.textContent = "Saved ✓"; statusEl.className = "ci__status is-ok"; setTimeout(function () { statusEl.textContent = ""; }, 1200); }
+                // "Saved ✓" clears after 1.2s — but ONLY when the endpoint
+                // saved everything. A warning (auto-stripped field, etc.)
+                // stays visible until the next save so the operator can't
+                // miss it. Previously the timer wiped the warning ~1.2s
+                // after it appeared and staff kept re-clicking the same
+                // dropdown thinking it saved.
+                if (statusEl && !res.j.warning) {
+                  statusEl.textContent = "Saved ✓";
+                  statusEl.className = "ci__status is-ok";
+                  setTimeout(function () { statusEl.textContent = ""; }, 1200);
+                }
                 try { summarize(scAllCache.filter(function (r) { return (r.fields || {}).Tournament === KEY && !isAltRec(r); })); } catch (e) {}
                 try { renderPL(); } catch (e) {}
-                // If the paid state flipped, schedule a lightweight roster
-                // re-render (from cache, no network) so paid rows migrate to
-                // the "Paid & done" fold and disappear from the "Unpaid"
-                // filter view. Debounced so a burst of paid clicks coalesces
-                // into ONE re-render at the end instead of one per click.
                 var isNowFullyPaid = null;
                 for (var _k = 0; _k < scAllCache.length; _k++) if (scAllCache[_k].id === id) { isNowFullyPaid = fullyPaid(scAllCache[_k]); break; }
                 if (wasFullyPaid !== isNowFullyPaid) scheduleRosterResort();
               }
-              // Surface any silently-stripped fields (Player 1 Paid,
-              // Player 2 Paid, Extra Meals, Calcutta Paid) so an operator
-              // sees when the endpoint auto-stripped a field that Airtable
-              // was missing — the click "saved" but nothing actually
-              // persisted for that field.
-              if (res.j.warning && statusEl) {
-                statusEl.textContent = res.j.warning;
-                statusEl.className = "ci__status is-error";
+              // Surface any silently-stripped fields (Player 1-4 Paid,
+              // Extra Meals, Calcutta Paid, etc.) so the operator sees
+              // when the endpoint auto-stripped a field Airtable was
+              // missing — the click "saved" but nothing actually
+              // persisted. Now shown as a persistent alert (no auto-
+              // clear timer) AND a top-of-workbook toast so it can't be
+              // missed while the operator is glancing at another card.
+              if (res.j.warning) {
+                if (statusEl) {
+                  statusEl.textContent = "⚠ " + res.j.warning;
+                  statusEl.className = "ci__status is-error";
+                }
+                try {
+                  if (typeof toast === "function") toast("⚠ " + res.j.warning);
+                  else console.warn("[check-in] save warning:", res.j.warning);
+                } catch (e) {}
               }
             } else if (statusEl) {
               statusEl.textContent = (res.j && res.j.error) || "Couldn't save.";
