@@ -585,7 +585,7 @@
           </div>
           <div class="disp-tab">
             <div class="disp-tab__row">
-              <a class="btn btn--primary disp-tab__open" data-page="founders-calcutta-display.html" href="founders-calcutta-display.html" target="_blank" rel="noopener">Open display in new tab &rarr;</a>
+              <a class="btn btn--primary disp-tab__open" data-page="founders-calcutta-display.html" href="founders-calcutta-display.html" target="_blank" rel="noopener" onclick="return window.__fhOpenDisp &amp;&amp; window.__fhOpenDisp(event, this)">Open display in new tab &rarr;</a>
               <button type="button" class="btn btn--solid disp-tab__copy" data-page="founders-calcutta-display.html">Copy public link</button>
               <span class="disp-tab__copied" hidden>Copied.</span>
             </div>
@@ -617,7 +617,7 @@
           </div>
           <div class="disp-tab">
             <div class="disp-tab__row">
-              <a class="btn btn--primary disp-tab__open" data-page="founders-leaderboard-display.html" href="founders-leaderboard-display.html" target="_blank" rel="noopener">Open display in new tab &rarr;</a>
+              <a class="btn btn--primary disp-tab__open" data-page="founders-leaderboard-display.html" href="founders-leaderboard-display.html" target="_blank" rel="noopener" onclick="return window.__fhOpenDisp &amp;&amp; window.__fhOpenDisp(event, this)">Open display in new tab &rarr;</a>
               <button type="button" class="btn btn--solid disp-tab__copy" data-page="founders-leaderboard-display.html">Copy public link</button>
               <span class="disp-tab__copied" hidden>Copied.</span>
             </div>
@@ -1034,6 +1034,36 @@
         if (/^Founder/i.test(String(KEY || ""))) document.body.classList.add("tw-founders");
         else document.body.classList.add("tw-single-wave");
       } catch (e) {}
+
+      // Defense-in-depth click router for the Leaderboard/Calcutta Disp
+      // "Open display in new tab" buttons. The button's hardcoded href
+      // in the HTML is `founders-leaderboard-display.html`; mountDisplayTab
+      // rewrites it to the per-tournament page on tab activation. If the
+      // operator's device has a cached older workbook JS that never runs
+      // that rewrite (or hasn't opened the tab yet), the anchor still
+      // sends them to Founders. This inline onclick handler bypasses the
+      // anchor href entirely — computes the correct destination from the
+      // current KEY at click time and opens THAT.
+      window.__fhOpenDisp = function (event, a) {
+        try {
+          var p = new URLSearchParams(window.location.search);
+          var k = p.get("t") || "";
+          var page = (a && a.getAttribute && a.getAttribute("data-page")) || "";
+          if (!page) return true;
+          var isFounders = /^Founder/i.test(k);
+          if (!isFounders) {
+            if (page === "founders-leaderboard-display.html") {
+              page = /^Couple/i.test(k) ? "couples-leaderboard-display.html" : "leaderboard.html";
+            } else if (page === "founders-recap.html") {
+              page = "recap.html";
+            }
+          }
+          var url = page + (k ? ((page.indexOf("?") >= 0 ? "&" : "?") + "t=" + encodeURIComponent(k)) : "");
+          window.open(url, "_blank", "noopener");
+          if (event) { event.preventDefault(); }
+          return false;
+        } catch (e) { return true; }
+      };
 
       // Suffix Leaderboard Disp / Calcutta Disp / Recap tab labels with a
       // short tournament abbreviation (e.g. "Leaderboard Disp · 2CS") so
