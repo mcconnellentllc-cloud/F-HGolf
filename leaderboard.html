@@ -222,17 +222,39 @@
       var IS_TWO_DAY = true;
       // Fetch the tournament's Format config once so the h1 + Day 2 column
       // reflect what Format tab said (Display Name + Rounds).
+      // Apply the tournament identity to the header from whatever we can
+      // learn — starts with the KEY itself so the page reads correctly
+      // even before the config fetch resolves, then upgrades when
+      // Display Name / Format come in.
+      function _applyIdentity(display, format) {
+        var raw = String(display || KEY || "").trim();
+        var m = /^(.*?)\s*\(([^)]+)\)\s*$/.exec(raw);
+        var name = m ? m[1].trim() : raw;
+        var date = m ? m[2].trim() : "";
+        var t = document.getElementById("dispTitle");
+        if (t && name) t.textContent = name;
+        var sub = document.getElementById("dispSub");
+        if (sub) {
+          var parts = ["F&H Golf Course"];
+          if (date) parts.push(date);
+          if (format) parts.push(String(format).trim());
+          sub.innerHTML = parts.map(function (p) {
+            return p.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          }).join(" &middot; ");
+        }
+        document.title = (name || "Live Leaderboard") + " — Live Leaderboard";
+      }
+      _applyIdentity(KEY, "");
+
       (function loadTournamentConfig() {
         fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(KEY)), { cache: "no-store" })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
             var f = (j && j.record && j.record.fields) || {};
-            var name = String(f["Name"] || "").trim();
+            var display = String(f["Display Name"] || f["Name"] || "").trim();
+            var format = String(f["Format"] || "").trim();
             var rounds = Number(f["Rounds"] || 0);
-            if (name) {
-              var t = document.getElementById("dispTitle"); if (t) t.textContent = name;
-              document.title = name + " — Live Leaderboard";
-            }
+            _applyIdentity(display || KEY, format);
             if (rounds) IS_TWO_DAY = rounds >= 2;
             var hm = Number(f["Handicap Multiplier"]);
             if (isFinite(hm) && hm > 0) HCP_MULT = hm;
