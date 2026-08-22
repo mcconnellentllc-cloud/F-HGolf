@@ -9711,14 +9711,19 @@
         // leaderboard.html which is the same score-rendering logic but
         // stripped to a generic Tournaments / Home nav.
         function _rewritePage(page) {
-          var isFounders = typeof KEY === "string" && /^Founder/i.test(KEY);
+          var keyStr = typeof KEY === "string" ? KEY : "";
+          var isFounders = /^Founder/i.test(keyStr);
           if (isFounders) return page;
           // Aug 22 Couples has its own dedicated TV-display leaderboard —
           // couples-leaderboard-display.html — with Couples-only branding,
           // nav, and no ?t=<KEY> query string. Every other non-Founders
           // tournament falls back to the generic leaderboard.html.
+          // Any KEY starting with "Couple" (with or without the trailing
+          // apostrophe-s, or the (Aug 22) suffix) routes to the dedicated
+          // page so a Display Name typo or a follow-up couples event
+          // still lands on the right leaderboard.
           if (page === "founders-leaderboard-display.html") {
-            if (typeof KEY === "string" && /^Couple.*\bAug\s*22/i.test(KEY)) return "couples-leaderboard-display.html";
+            if (/^Couple/i.test(keyStr)) return "couples-leaderboard-display.html";
             return "leaderboard.html";
           }
           if (page === "founders-recap.html") return "recap.html";
