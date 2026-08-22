@@ -95,6 +95,8 @@
     .app-title { flex: 1; min-width: 0; }
     .app-title .t { font: 500 0.98rem/1.15 Georgia, "Iowan Old Style", serif; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .app-title .sub { font: 400 0.75rem/1.3 system-ui, sans-serif; color: var(--muted); margin-top: 0.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .app-rules { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.7rem; border-radius: 999px; background: rgba(180,128,0,0.14); color: var(--brass); font: 700 0.78rem/1 system-ui, sans-serif; text-decoration: none; border: 1px solid rgba(180,128,0,0.35); letter-spacing: 0.02em; flex-shrink: 0; }
+    .app-rules:hover, .app-rules:focus-visible { background: var(--brass); color: #1a1108; outline: none; }
     .live {
       display: inline-flex; align-items: center; gap: 0.35rem;
       font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
@@ -711,12 +713,26 @@
         return n > 0 ? "+" + n : String(n);
       }
 
+      // Rules page per tournament. New rules pages get added to the map
+      // as they ship. When a tournament has no dedicated rules page yet,
+      // the link is hidden (returns "").
+      function rulesUrlForTournament(key) {
+        if (!key) return "";
+        if (/^Founder/i.test(key)) return "founders-rules.html";
+        if (/^Couple.*\bAug\s*22/i.test(key)) return "couples-rules.html";
+        return "";
+      }
+
       function render() {
         var t = STATE.team;
         var tourn = STATE.config.name || STATE.tournament || "F&H Tournament";
         var partners = (t.partners || "").split(/\s*\/\s*/).filter(Boolean);
         var names = [t.teamName].concat(partners).filter(Boolean).join(" · ");
         var multiDay = (STATE.config.rounds || 1) >= 2;
+        var rulesHref = rulesUrlForTournament(STATE.tournament);
+        var rulesChip = rulesHref
+          ? '<a class="app-rules" href="' + esc(rulesHref) + '" target="_blank" rel="noopener" title="Open tournament rules">Rules &rarr;</a>'
+          : "";
 
         var html = ""
           + '<header class="app-hd">'
@@ -725,6 +741,7 @@
           +     '<div class="t">' + esc(tourn) + '</div>'
           +     '<div class="sub">' + esc(names || "Your team") + '</div>'
           +   '</div>'
+          +   rulesChip
           +   '<span class="live" id="liveDot" title="Live-syncing to the leaderboard">Live</span>'
           + '</header>'
           + '<div class="tabs" role="tablist">'
