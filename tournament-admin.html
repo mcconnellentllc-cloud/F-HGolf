@@ -5861,95 +5861,55 @@
         if (!slots.length) { tell("Turn on some A/B slots at the top of this wave first."); return; }
         var teams = _teamsForWave(prRecs, wave).sort(byCreated);
         if (!teams.length) { tell("No teams in this wave (check the Check-In sheet)."); return; }
-        // Capacity math — pairs FIRST, trios only when unavoidable:
-        //   pairCap   = slots × 2 (everyone in pairs)
-        //   trioCount = max(0, teams - pairCap) — how many teams overflow
-        //               pair capacity; each overflow team promotes one
-        //               slot to a trio. Capped at slot count.
-        // If pairCap already covers the field (14 teams / 9 slots = 18
-        // seats), trioCount = 0 and NO trios are created — even if a
-        // previous autofill or bulk import had left seat-3 teams lying
-        // around. Those get demoted to the unplaced pool and re-placed
-        // into open pair seats.
+        // Operator-first placement — every existing pick is sacred.
+        //
+        // Autofill NEVER moves, demotes, or unplaces a team that already
+        // has a Hole+Slot+Seat on its record. It only fills empty seats
+        // with teams the operator hasn't placed yet. Pair seats (1 & 2)
+        // fill before Seat 3 (trio) so trios only appear when pair seats
+        // are exhausted, but a manually-picked trio stays put even when
+        // pair seats are open elsewhere.
         var pairCap = slots.length * 2;
-        var trioCount = Math.max(0, teams.length - pairCap);
-        if (trioCount > slots.length) trioCount = slots.length;
-        var trioCap = pairCap + trioCount;
-        if (trioCap < teams.length) {
-          if (!silent) { tell("Need " + (teams.length - trioCap) + " more seat(s) — add more A/B slots first."); return; }
-        }
-        // Pass 1: preserve every team currently at seat 1 or 2 of an active
-        // slot. Seat 3 (trio) is deferred to Pass 3 — we only preserve it
-        // if the fresh capacity math still needs a trio there.
         var placed = {}, seated = {};
         slots.forEach(function (s) { placed[s.hole + s.slot] = [null, null, null]; });
+        // Pass 1: preserve every currently-placed team, seat-value-first.
+        // Any team with a valid Hole + Slot + Seat (1/2/3) stays exactly
+        // where the operator (or an earlier fill) put it.
         teams.forEach(function (t) {
           var f = t.fields || {}, h = Number(f.Hole), sl = String(f.Slot || "").toUpperCase(), k = h + sl;
           if (!(h && (sl === "A" || sl === "B") && placed[k])) return;
           var seatVal = Number(f.Seat);
-          if (seatVal === 1 || seatVal === 2) {
+          if (seatVal === 1 || seatVal === 2 || seatVal === 3) {
             if (!placed[k][seatVal - 1]) { placed[k][seatVal - 1] = t; seated[t.id] = true; }
           } else if (!seatVal) {
-            // No explicit seat — take first available pair seat.
             if (!placed[k][0]) { placed[k][0] = t; seated[t.id] = true; }
             else if (!placed[k][1]) { placed[k][1] = t; seated[t.id] = true; }
           }
-          // seatVal === 3 falls through — handled in Pass 3.
         });
-        // Pass 2: pick which slots are trios this fill. Prefer slots that
-        // already had a seat-3 team (respects an operator's manual "trio
-        // this tee" choice). If we still need more trios, promote the last
-        // slots on the tee sheet so trios cluster at the back nine.
-        var trioSet = {};
-        if (trioCount > 0) {
-          var slotsWithSeat3 = [];
-          teams.forEach(function (t) {
-            var f = t.fields || {}, h = Number(f.Hole), sl = String(f.Slot || "").toUpperCase(), k = h + sl;
-            if (!placed[k] || Number(f.Seat) !== 3) return;
-            if (slotsWithSeat3.indexOf(k) === -1) slotsWithSeat3.push(k);
-          });
-          slotsWithSeat3.slice(0, trioCount).forEach(function (k) { trioSet[k] = true; });
-          var need = trioCount - Object.keys(trioSet).length;
-          for (var _i = slots.length - 1; _i >= 0 && need > 0; _i--) {
-            var _k = slots[_i].hole + slots[_i].slot;
-            if (trioSet[_k]) continue;
-            trioSet[_k] = true; need--;
-          }
-        }
-        // Pass 3: preserve seat-3 teams ONLY on slots that survived as
-        // trios. Any that don't survive get treated as unplaced below.
-        teams.forEach(function (t) {
-          if (seated[t.id]) return;
-          var f = t.fields || {}, h = Number(f.Hole), sl = String(f.Slot || "").toUpperCase(), k = h + sl;
-          if (Number(f.Seat) !== 3) return;
-          if (trioSet[k] && placed[k] && !placed[k][2]) {
-            placed[k][2] = t;
-            seated[t.id] = true;
-          }
-        });
+        // Pass 2: fill unplaced teams into open seats. Pair seats first
+        // (all slots' seat 1, then all slots' seat 2), then trio seats
+        // only if unplaced teams remain.
         var unplaced = teams.filter(function (t) { return !seated[t.id]; });
         var assignments = [];
-        slots.forEach(function (s) {
-          var k = s.hole + s.slot;
-          var capacity = trioSet[k] ? 3 : 2;
-          for (var i = 0; i < capacity && unplaced.length; i++) {
-            if (placed[k][i]) continue;
+        function tryFillSeat(seatIdx) {
+          for (var i = 0; i < slots.length && unplaced.length; i++) {
+            var s = slots[i], k = s.hole + s.slot;
+            if (placed[k][seatIdx]) continue;
             var t = unplaced.shift();
-            placed[k][i] = t;
-            assignments.push({ id: t.id, hole: s.hole, slot: s.slot, seat: i + 1, start: wave });
+            placed[k][seatIdx] = t;
+            assignments.push({ id: t.id, hole: s.hole, slot: s.slot, seat: seatIdx + 1, start: wave });
           }
-        });
-        // Demoted seat-3 teams whose slot is no longer a trio (and who
-        // didn't get re-placed above) still have Hole/Slot/Seat on their
-        // Airtable row. Push explicit unplace so the tee sheet visually
-        // matches storage.
-        unplaced.forEach(function (t) {
-          var f = t.fields || {};
-          if (Number(f.Hole) || Number(f.Seat)) {
-            assignments.push({ id: t.id, hole: "", slot: "", seat: "", start: wave });
-          }
-        });
-        if (!assignments.length) { tell("All teams in " + wave + " are already seated — nothing to fill. If you want to reshuffle, first drag some teams to Unplaced (or use their dropdown → unplaced)."); return; }
+        }
+        tryFillSeat(0);
+        tryFillSeat(1);
+        if (unplaced.length) tryFillSeat(2);
+        if (!silent && unplaced.length) {
+          tell("Placed " + assignments.length + " team(s). " + unplaced.length + " team(s) had no room — add more A/B slots first.");
+        }
+        if (!assignments.length) {
+          if (!silent) tell("All teams in " + wave + " are already seated — nothing to fill. To reshuffle, use each team's dropdown to unplace first.");
+          return;
+        }
         positionSaveMany(assignments);
       }
 
