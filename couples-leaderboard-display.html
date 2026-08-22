@@ -270,7 +270,11 @@
           (groups[k] = groups[k] || []).push(r);
         });
 
-        var maxFl = Math.max(2, Number(Object.keys(groups).reduce(function (m, k) { return Number(k) > m ? Number(k) : m; }, 0)) || 0);
+        // Match the tournament data — show exactly the flights the
+        // operator has cut. No generic minimum, no empty placeholder
+        // flights. If only 2 flights exist in the field, show 2. If
+        // none are cut yet, only the "Unassigned" card renders below.
+        var maxFl = Number(Object.keys(groups).reduce(function (m, k) { return Number(k) > m ? Number(k) : m; }, 0)) || 0;
         var flightList = []; for (var _fi = 1; _fi <= maxFl; _fi++) flightList.push(_fi);
         var anyGross = recs.some(function (r) { return d1g(r) != null; });
         if (!anyGross) {
