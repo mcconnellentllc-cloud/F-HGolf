@@ -1035,6 +1035,30 @@
         else document.body.classList.add("tw-single-wave");
       } catch (e) {}
 
+      // Suffix Leaderboard Disp / Calcutta Disp / Recap tab labels with a
+      // short tournament abbreviation (e.g. "Leaderboard Disp · 2CS") so
+      // the operator sees at a glance that a display link belongs to
+      // *this* workbook and not the Founders default it was built from.
+      (function _decorateTabsWithTourney() {
+        var k = String(KEY || "").trim();
+        if (!k) return;
+        var abbr;
+        if (/^Founder/i.test(k)) abbr = "FDR";
+        else if (/^Couple/i.test(k)) abbr = "2CS";
+        else {
+          var base = k.replace(/\([^)]*\)/g, "").trim();
+          var parts = base.split(/\s+/).filter(function (w) { return w && !/^(the|and|of|at|for|a|an)$/i.test(w); });
+          abbr = parts.map(function (w) { return w.charAt(0).toUpperCase(); }).join("").slice(0, 5);
+        }
+        if (!abbr) return;
+        ["recap", "dispCalcutta", "dispLeaderboard"].forEach(function (sheet) {
+          var btn = document.querySelector('.wb-tab[data-sheet="' + sheet + '"]');
+          if (!btn || btn.__decorated) return;
+          btn.textContent = btn.textContent + " · " + abbr;
+          btn.__decorated = true;
+        });
+      })();
+
       // Per-tournament Rules-tab wiring. The workbook Rules tab defaults to
       // the Founders preview + link (page originally built for Founders).
       // Other tournaments swap the "Open public rules page" href + inline
@@ -9734,18 +9758,39 @@
           var base = location.origin.replace(/\/$/, "") + "/" + effective;
           return KEY ? (base + (effective.indexOf("?") >= 0 ? "&" : "?") + "t=" + encodeURIComponent(KEY)) : base;
         }
+        // Short tournament abbreviation for tab labels + button suffixes so
+        // the operator can visually confirm they're opening the RIGHT
+        // tournament's leaderboard/recap/etc. Founders defaults to "FDR",
+        // Couples to "2CS" (2-Couple Scramble). Every other tournament
+        // gets the first letters of each significant word in its KEY.
+        function _tourneyAbbrev() {
+          var k = String(KEY || "").trim();
+          if (!k) return "";
+          if (/^Founder/i.test(k)) return "FDR";
+          if (/^Couple/i.test(k)) return "2CS";
+          var base = k.replace(/\([^)]*\)/g, "").trim();
+          var parts = base.split(/\s+/).filter(function (w) { return w && !/^(the|and|of|at|for|a|an)$/i.test(w); });
+          var abbr = parts.map(function (w) { return w.charAt(0).toUpperCase(); }).join("");
+          return abbr.slice(0, 5) || k.slice(0, 3).toUpperCase();
+        }
         function mountDisplayTab(sheet) {
           var host = document.querySelector('[data-sheet="' + sheet + '"]');
           if (!host) return;
+          var abbrev = _tourneyAbbrev();
           Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__url"), function (inp) {
             inp.value = publicUrl(inp.getAttribute("data-page"));
           });
           // Anchor href — the "Open display in new tab →" button. Update
           // every mount so switching tournaments in the same session opens
-          // the right one.
+          // the right one. Also suffix the label with the tournament
+          // abbreviation + the effective destination filename so the
+          // operator sees "Open Couples leaderboard (2CS) →" instead of
+          // just "Open display in new tab →".
           Array.prototype.forEach.call(host.querySelectorAll(".disp-tab__open"), function (a) {
             var page = a.getAttribute("data-page") || a.getAttribute("href").split("?")[0];
             if (page) a.href = publicUrl(page);
+            var effective = _rewritePage(page);
+            a.innerHTML = 'Open display in new tab &middot; <b>' + esc(effective) + '</b> ' + (abbrev ? '(' + esc(abbrev) + ') ' : '') + '&rarr;';
           });
           if (host.__mounted) return;
           // Fill in the big readable URL text on every QR block so the URL
