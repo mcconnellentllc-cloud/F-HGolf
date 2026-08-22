@@ -627,7 +627,7 @@
               <img class="disp-tab__qr-img" alt="QR code — scan to open the live leaderboard" />
               <div class="disp-tab__qr-lbl">
                 <b>Scan for the live leaderboard</b>
-                <span class="disp-tab__qr-url" data-page="founders-leaderboard-display.html">fandhgolf.com/founders-leaderboard-display.html</span>
+                <span class="disp-tab__qr-url" data-page="founders-leaderboard-display.html">fandhgolf.com/leaderboard.html</span>
                 <small>Point your phone's camera at this code, or type the URL above into any browser.</small>
               </div>
             </div>
@@ -9746,6 +9746,11 @@
           });
           // Per-page static QR files staff can drop into /images/ so we don't
           // rely on any external QR generator (some networks block them).
+          // Keyed on the REWRITTEN (effective) page — the Founders workbook
+          // sees founders-leaderboard-display.html and gets the static
+          // Founders QR, but non-Founders workbooks get rewritten to
+          // leaderboard.html and fall through to the runtime QR generator
+          // (which encodes the per-tournament ?t=KEY URL).
           var STATIC_QR = {
             "founders-calcutta-display.html": "images/founders-calcutta-qr.png",
             "founders-leaderboard-display.html": "images/founders-leaderboard-qr.png",
@@ -9759,7 +9764,12 @@
             // Static PNG (staff-managed) is the preferred source. Falls
             // through to the runtime QR library, then a cascade of external
             // services, then the URL text card carries the handoff alone.
-            var staticSrc = STATIC_QR[page];
+            // Key by the rewritten page so a non-Founders workbook doesn't
+            // inherit the Founders static QR (which would encode the wrong
+            // URL). If the rewrite changes the destination, the static QR
+            // is no longer valid for this workbook.
+            var effectivePage = _rewritePage(page);
+            var staticSrc = effectivePage === page ? STATIC_QR[page] : null;
             var runtime = function () {
               if (window.QRCode && typeof window.QRCode.toDataURL === "function") {
                 window.QRCode.toDataURL(url, { width: 480, margin: 2, errorCorrectionLevel: "M" }).then(function (dataUri) {
