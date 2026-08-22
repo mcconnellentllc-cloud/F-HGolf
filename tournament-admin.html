@@ -9713,8 +9713,14 @@
         function _rewritePage(page) {
           var isFounders = typeof KEY === "string" && /^Founder/i.test(KEY);
           if (isFounders) return page;
-          // Non-Founders workbooks get the generic parallels.
-          if (page === "founders-leaderboard-display.html") return "leaderboard.html";
+          // Aug 22 Couples has its own dedicated TV-display leaderboard —
+          // couples-leaderboard-display.html — with Couples-only branding,
+          // nav, and no ?t=<KEY> query string. Every other non-Founders
+          // tournament falls back to the generic leaderboard.html.
+          if (page === "founders-leaderboard-display.html") {
+            if (typeof KEY === "string" && /^Couple.*\bAug\s*22/i.test(KEY)) return "couples-leaderboard-display.html";
+            return "leaderboard.html";
+          }
           if (page === "founders-recap.html") return "recap.html";
           return page;
         }
