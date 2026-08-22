@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aug 22 Couples — Live Leaderboard</title>
+  <meta name="description" content="Live leaderboard for the F&H Golf Aug 22 Couples Scramble." />
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <meta name="theme-color" content="#0b1a10" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700;800&family=Source+Sans+3:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b1a10;
+      --bg-2: #12261a;
+      --panel: rgba(255,255,255,0.06);
+      --line: rgba(255,255,255,0.14);
+      --gold: #f5c542;
+      --silver: #d8dde4;
+      --bronze: #d78a4b;
+      --green: #3fbc6b;
+      --red: #e64339;
+      --ink: #f6f9f4;
+      --muted: rgba(246,249,244,0.62);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; min-height: 100vh; }
+    body { background: radial-gradient(ellipse at top, var(--bg-2) 0%, var(--bg) 60%); }
+
+    .disp { min-height: 100vh; display: flex; flex-direction: column; }
+    .disp__hero { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: clamp(0.75rem, 2vw, 1.5rem); padding: clamp(1rem, 2vw, 1.5rem) clamp(1rem, 2vw, 1.75rem); background: #000; border-bottom: 3px solid #000; position: relative; }
+    .disp__logo { width: clamp(3.4rem, 6vw, 5.4rem); height: clamp(3.4rem, 6vw, 5.4rem); border-radius: 50%; background: #fff; padding: clamp(0.25rem, 0.5vw, 0.45rem); box-shadow: 0 0 0 3px #000, 0 0 0 5px rgba(255,255,255,0.15); object-fit: contain; }
+    .disp__logo--r { justify-self: end; }
+    .disp__hero__title { text-align: center; }
+    .disp__eyebrow { text-transform: uppercase; letter-spacing: 0.4em; color: #fff; font-weight: 800; font-size: clamp(0.7rem, 1.15vw, 0.95rem); }
+    .disp__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(2.1rem, 5vw, 4.2rem); margin: 0.1em 0 0; line-height: 1; letter-spacing: 0.01em; color: #fff; }
+    .disp__sub { color: rgba(255,255,255,0.75); font-size: clamp(0.95rem, 1.5vw, 1.2rem); margin: 0.15em 0 0; font-style: italic; }
+    @media (max-width: 720px) {
+      .disp__hero { grid-template-columns: 1fr; text-align: center; padding-top: 1rem; }
+      .disp__logo { margin: 0 auto; }
+      .disp__logo--r { display: none; }
+    }
+
+    .disp__body { flex: 1; padding: clamp(0.5rem, 1.4vw, 1rem) clamp(0.8rem, 2vw, 1.6rem) 3rem; display: grid; gap: clamp(0.6rem, 1.5vw, 1.2rem); grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr)); }
+    .lbd { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: clamp(0.7rem, 1.3vw, 1rem); }
+    .lbd__hdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.6rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--line); }
+    .lbd__name { font-family: "Fraunces", Georgia, serif; font-weight: 700; margin: 0; font-size: clamp(1.3rem, 2vw, 1.9rem); }
+    .lbd__meta { color: var(--muted); font-size: clamp(0.85rem, 1.05vw, 1rem); }
+
+    .lbd table { width: 100%; border-collapse: collapse; font-size: clamp(0.9rem, 1.15vw, 1.05rem); }
+    .lbd th { text-align: left; font-size: clamp(0.7rem, 0.9vw, 0.8rem); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--line); }
+    .lbd td { padding: 0.4rem 0.4rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .lbd th:not(:first-child), .lbd td:not(:first-child) { text-align: center; }
+    .lbd tr:last-child td { border-bottom: none; }
+    .lbd td b { color: var(--gold); font-size: 1.05em; }
+
+    .lbd__team { font-weight: 700; }
+    .lbd__place { padding-right: 0.35rem !important; white-space: nowrap; vertical-align: middle; min-width: 6.5rem; }
+    .lbd__place-stack { display: inline-flex; flex-direction: column; gap: 0.28rem; align-items: flex-start; }
+    .lbd__flag { display: inline-flex; align-items: center; justify-content: center; min-width: 5.5rem; padding: 0.18rem 0.6rem; border-radius: 6px; font-size: 0.7em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.15; border: 1px solid transparent; }
+    .lbd__flag--p1 { background: #e5b32f; color: #3a2a00; border-color: #b78100; }
+    .lbd__flag--p2 { background: #c6cad0; color: #262b32; border-color: #808286; }
+    .lbd__flag--p3 { background: #c47a3a; color: #2a1300; border-color: #7a4413; }
+
+    .disp__nav { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; padding: 0.75rem 1rem; background: rgba(0,0,0,0.7); border-bottom: 1px solid var(--line); }
+    .disp__nav a { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.95rem; border-radius: 999px; background: rgba(255,255,255,0.08); color: var(--ink); font-weight: 700; text-decoration: none; font-size: clamp(0.85rem, 1.1vw, 1rem); letter-spacing: 0.02em; border: 1px solid rgba(255,255,255,0.14); transition: background 0.15s ease, color 0.15s ease; }
+    .disp__nav a:hover, .disp__nav a:focus-visible { background: var(--gold); color: #0b1a10; border-color: var(--gold); outline: none; }
+    .disp__nav a.is-here { background: rgba(245,197,66,0.15); color: var(--gold); border-color: rgba(245,197,66,0.35); pointer-events: none; }
+
+    .disp__empty-msg { text-align: center; color: var(--muted); padding: 3rem 1rem; font-style: italic; grid-column: 1 / -1; }
+    .disp__foot { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0.6rem 1rem 1.2rem; letter-spacing: 0.08em; }
+    .disp__foot .live-dot { display: inline-block; width: 0.55rem; height: 0.55rem; background: var(--green); border-radius: 50%; margin-right: 0.35rem; vertical-align: middle; animation: pulse 1.8s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    body.idle { cursor: none; }
+
+    .disp__qrbtn { position: absolute; top: 1rem; right: 1rem; background: var(--gold); color: #0b1a10; border: none; border-radius: 999px; padding: 0.5rem 1.1rem; font-family: inherit; font-weight: 800; letter-spacing: 0.05em; font-size: 0.95rem; cursor: pointer; z-index: 3; box-shadow: 0 6px 22px rgba(0,0,0,0.4); }
+    .disp__qrbtn:hover { background: #fff; }
+    @media (max-width: 720px) { .disp__qrbtn { position: static; margin: 0.5rem auto 0; } }
+
+    .qrshow { position: fixed; inset: 0; background: rgba(6,12,8,0.98); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 999; padding: clamp(1rem, 4vw, 3rem); text-align: center; }
+    .qrshow.is-open { display: flex; }
+    .qrshow__eyebrow { color: var(--gold); font-weight: 800; letter-spacing: 0.4em; text-transform: uppercase; font-size: clamp(0.9rem, 1.4vw, 1.15rem); margin-bottom: 0.5rem; }
+    .qrshow__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(2rem, 4.5vw, 3.6rem); margin: 0 0 0.4em; color: #fff; line-height: 1.05; }
+    .qrshow__card { background: #fff; padding: clamp(1rem, 2vw, 1.5rem); border-radius: 18px; box-shadow: 0 30px 80px rgba(0,0,0,0.7); }
+    .qrshow__canvas, .qrshow__img { display: block; width: min(60vh, 60vmin); height: min(60vh, 60vmin); image-rendering: pixelated; }
+    .qrshow__url { color: #fff; font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; font-weight: 700; letter-spacing: 0.02em; font-size: clamp(1.1rem, 2.2vw, 1.8rem); margin-top: clamp(1rem, 2vw, 1.5rem); word-break: break-all; }
+    .qrshow__hint { color: rgba(255,255,255,0.7); font-size: clamp(0.9rem, 1.3vw, 1.1rem); margin-top: 0.7rem; font-style: italic; }
+    .qrshow__close { position: absolute; top: 1rem; right: 1.2rem; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; width: 3rem; height: 3rem; font-size: 1.5rem; cursor: pointer; }
+    .qrshow__close:hover { background: rgba(255,255,255,0.18); }
+    .qrshow__err { color: rgba(255,255,255,0.7); text-align: center; padding: 2rem; font-style: italic; }
+  </style>
+</head>
+<body>
+  <main class="disp" role="main">
+    <header class="disp__hero">
+      <img class="disp__logo" src="images/logo.png" alt="F&H Golf Course" />
+      <div class="disp__hero__title">
+        <div class="disp__eyebrow">2026 Couples Scramble</div>
+        <h1 class="disp__title" id="dispTitle">Aug 22 Couples</h1>
+        <p class="disp__sub" id="dispSub">F&amp;H Golf Course &middot; Aug 22 &middot; 2-couple team scramble</p>
+      </div>
+      <img class="disp__logo disp__logo--r" src="images/logo.png" alt="" aria-hidden="true" />
+      <button class="disp__qrbtn" type="button" id="qrShowBtn">Show QR</button>
+    </header>
+
+    <nav class="disp__nav" aria-label="Couples public pages">
+      <a href="index.html">F&amp;H Home</a>
+      <a href="tournaments.html">Tournaments</a>
+      <a href="couples-rules.html">Rules</a>
+      <a class="is-here" href="couples-leaderboard-display.html" aria-current="page">Results</a>
+      <a href="recap.html?t=Couple%27s%20Tournament%20(Aug%2022)">Recap</a>
+      <a href="history.html?name=Couple">Past</a>
+    </nav>
+
+    <div class="qrshow" id="qrShow" role="dialog" aria-modal="true" aria-label="Scan to open live leaderboard">
+      <button class="qrshow__close" type="button" id="qrShowClose" aria-label="Close">×</button>
+      <div class="qrshow__eyebrow">Scan to Follow</div>
+      <h2 class="qrshow__title">Live Leaderboard</h2>
+      <div class="qrshow__card" id="qrShowCard">
+        <canvas class="qrshow__canvas" id="qrShowCanvas"></canvas>
+      </div>
+      <div class="qrshow__url" id="qrShowUrl"></div>
+      <div class="qrshow__hint">Point your phone camera at the code &mdash; or type the URL into any browser.</div>
+    </div>
+
+    <section class="disp__body" id="dispBody">
+      <p class="disp__empty-msg">Loading leaderboard&hellip;</p>
+    </section>
+
+    <footer class="disp__foot"><span class="live-dot"></span><span id="dispLast">Loading&hellip;</span></footer>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
+  <script>
+    (function () {
+      var btn = document.getElementById("qrShowBtn");
+      var modal = document.getElementById("qrShow");
+      var closeBtn = document.getElementById("qrShowClose");
+      var canvas = document.getElementById("qrShowCanvas");
+      var card = document.getElementById("qrShowCard");
+      var urlEl = document.getElementById("qrShowUrl");
+      if (!btn || !modal) return;
+      var pageUrl = location.origin + location.pathname;
+      urlEl.textContent = pageUrl.replace(/^https?:\/\//, "");
+      var rendered = false;
+      function drawWithLib() {
+        try {
+          QRCode.toCanvas(canvas, pageUrl, { width: 640, margin: 1, color: { dark: "#0b1a10", light: "#ffffff" } }, function (err) {
+            if (err) drawWithImg();
+          });
+          rendered = true;
+        } catch (e) { drawWithImg(); }
+      }
+      function drawWithImg() {
+        var src = "https://api.qrserver.com/v1/create-qr-code/?size=640x640&margin=8&data=" + encodeURIComponent(pageUrl);
+        card.innerHTML = '<img class="qrshow__canvas" alt="Scan to open live leaderboard" style="width:100%;height:100%;object-fit:contain;background:#fff;border-radius:12px;" src="' + src + '" />';
+        var img = card.querySelector("img");
+        if (img) img.addEventListener("error", function () {
+          card.innerHTML = '<div class="qrshow__err">Couldn’t draw QR &mdash; use the URL below.</div>';
+        });
+        rendered = true;
+      }
+      function open() {
+        modal.classList.add("is-open");
+        if (rendered) return;
+        var waited = 0;
+        (function poll() {
+          if (typeof QRCode !== "undefined" && QRCode.toCanvas) { drawWithLib(); return; }
+          waited += 150;
+          if (waited < 3000) { setTimeout(poll, 150); return; }
+          drawWithImg();
+        })();
+      }
+      function close() { modal.classList.remove("is-open"); }
+      btn.addEventListener("click", open);
+      closeBtn.addEventListener("click", close);
+      modal.addEventListener("click", function (e) { if (e.target === modal) close(); });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape" && modal.classList.contains("is-open")) close(); });
+    })();
+
+    (function () {
+      // Aug 22 Couples: single-round, no Calcutta. This page is dedicated to
+      // this tournament; the KEY is hardcoded so it always shows the couples
+      // field even without a ?t= query param. To retire or rename the
+      // tournament, update this KEY (and this file's copy) in one place.
+      var KEY = "Couple's Tournament (Aug 22)";
+      var IS_TWO_DAY = false; // single-round scramble
+      var HCP_MULT = 0;       // couples runs no handicap by default
+      var HCP_BASIS = "day1";
+
+      // Config load — picks up any operator changes to Handicap Multiplier /
+      // Handicap Basis on the Format tab. Also refreshes Display Name.
+      (function loadTournamentConfig() {
+        fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(KEY)), { cache: "no-store" })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var f = (j && j.record && j.record.fields) || {};
+            var display = String(f["Display Name"] || f["Name"] || "").trim();
+            if (display) {
+              var t = document.getElementById("dispTitle");
+              if (t) t.textContent = display.replace(/\s*\([^)]*\)\s*$/, "");
+              document.title = display + " — Live Leaderboard";
+            }
+            var rounds = Number(f["Rounds"] || 0);
+            if (rounds) IS_TWO_DAY = rounds >= 2;
+            var hm = Number(f["Handicap Multiplier"]);
+            if (isFinite(hm) && hm >= 0) HCP_MULT = hm;
+            var hb = String(f["Handicap Basis"] || "").toLowerCase();
+            if (hb === "tournament") HCP_BASIS = "tournament";
+          })
+          .catch(function () {});
+      })();
+
+      function flightName(n) {
+        var names = ["Champ", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh"];
+        return names[n - 1] || ("Flight " + n);
+      }
+      var REFRESH_MS = 15000;
+      var FLIGHT_PRIZES = 3;
+
+      function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+      function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+      function teamShortNames(f) {
+        function shrt(n) {
+          n = String(n || "").trim(); if (!n) return "";
+          var parts = n.split(/\s+/);
+          if (parts.length === 1) return parts[0];
+          return parts[0].charAt(0).toUpperCase() + ". " + parts[parts.length - 1];
+        }
+        var p1 = shrt(f["Player Name"]);
+        var partners = String(f["Team / Partners"] || "").split(/\s*[\/,&]\s*|\s+and\s+/i).map(shrt).filter(Boolean);
+        return [p1].concat(partners).filter(Boolean).join(" / ");
+      }
+      function d1g(r) { var f = r.fields || {}; return (f["Day1 Scores"] && typeof f["Day1 Gross"] === "number") ? f["Day1 Gross"] : null; }
+      function d2g(r) { var f = r.fields || {}; return (f["Day2 Scores"] && typeof f["Day2 Gross"] === "number") ? f["Day2 Gross"] : null; }
+
+      function rankPlaces(rows, key, outField) {
+        var scored = rows.slice().filter(function (r) { return r[key] != null; }).sort(function (a, b) { return a[key] - b[key]; });
+        var rank = 1, i = 0;
+        while (i < scored.length) {
+          var val = scored[i][key], tied = [];
+          while (i < scored.length && scored[i][key] === val) { tied.push(scored[i]); i++; }
+          tied.forEach(function (t) { t[outField] = rank; });
+          rank += tied.length;
+        }
+      }
+
+      function fetchAll() {
+        return fetch(FH_API.url("/api/tournament-signups"), { cache: "no-store" })
+          .then(function (r) { return r.json(); })
+          .then(function (j) { if (!j || !j.ok) throw new Error(j && j.error || "Load failed"); return j.records || []; });
+      }
+
+      function render(records) {
+        var recs = records.filter(function (r) {
+          var f = r.fields || {};
+          if (f.Tournament !== KEY) return false;
+          if (f.Alternate === true || String(f.Alternate) === "true") return false;
+          return true;
+        });
+        var body = document.getElementById("dispBody");
+        if (!recs.length) { body.innerHTML = '<p class="disp__empty-msg">No teams registered yet.</p>'; return; }
+
+        var groups = {};
+        recs.forEach(function (r) {
+          var fl = (r.fields || {}).Flight;
+          var k = (fl != null && fl !== "") ? Number(fl) : 0;
+          (groups[k] = groups[k] || []).push(r);
+        });
+
+        var maxFl = Math.max(2, Number(Object.keys(groups).reduce(function (m, k) { return Number(k) > m ? Number(k) : m; }, 0)) || 0);
+        var flightList = []; for (var _fi = 1; _fi <= maxFl; _fi++) flightList.push(_fi);
+        var anyGross = recs.some(function (r) { return d1g(r) != null; });
+        if (!anyGross) {
+          var teamCards = recs.map(function (r) {
+            var f = r.fields || {};
+            return '<tr><td class="lbd__place"></td><td class="lbd__team">' + esc(teamShortNames(f)) + '</td><td>&mdash;</td>' + (IS_TWO_DAY ? '<td>&mdash;</td>' : '') + '<td>&mdash;</td></tr>';
+          }).join("");
+          body.innerHTML = '<div class="lbd">'
+            + '<div class="lbd__hdr"><h2 class="lbd__name">Field</h2><span class="lbd__meta">' + recs.length + ' teams &middot; tournament begins Day 1</span></div>'
+            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th></tr></thead><tbody>'
+            + teamCards + '</tbody></table></div>';
+          return;
+        }
+
+        var flights = flightList.map(function (fl) {
+          var arr = groups[fl] || [];
+          var rows = arr.map(function (r) {
+            var f = r.fields || {};
+            var d1 = d1g(r), d2 = d2g(r);
+            var gross = IS_TWO_DAY ? ((d1 != null && d2 != null) ? (d1 + d2) : null) : d1;
+            return {
+              id: r.id, name: teamShortNames(f),
+              d1: d1, d2: d2, gross: gross, hcp: null, net: null,
+              grossPlace: null,
+            };
+          });
+          // Optional handicap math when the operator has enabled it on
+          // Format. HCP_MULT stays 0 by default for couples so Net = Gross.
+          if (HCP_MULT > 0) {
+            if (HCP_BASIS === "tournament") {
+              var leaderT = null;
+              rows.forEach(function (r) { if (r.gross != null && (leaderT == null || r.gross < leaderT)) leaderT = r.gross; });
+              rows.forEach(function (r) {
+                if (r.gross != null && leaderT != null) {
+                  r.hcp = Math.round((r.gross - leaderT) * HCP_MULT);
+                  r.net = r.gross - r.hcp;
+                }
+              });
+            } else {
+              var leader = null;
+              rows.forEach(function (r) { if (r.d1 != null && (leader == null || r.d1 < leader)) leader = r.d1; });
+              rows.forEach(function (r) {
+                if (r.d1 != null && leader != null) {
+                  r.hcp = Math.round((r.d1 - leader) * HCP_MULT);
+                  if (IS_TWO_DAY) { if (r.d2 != null) r.net = r.d2 - r.hcp; }
+                  else if (r.gross != null) { r.net = r.gross - r.hcp; }
+                }
+              });
+            }
+          }
+          rankPlaces(rows, "gross", "grossPlace");
+          rows.sort(function (a, b) {
+            if (a.gross == null && b.gross == null) return 0;
+            if (a.gross == null) return 1;
+            if (b.gross == null) return -1;
+            return a.gross - b.gross;
+          });
+          return { fl: fl, name: flightName(fl), rows: rows };
+        });
+
+        var html = flights.map(function (fl) {
+          if (!fl.rows.length) {
+            return '<div class="lbd"><div class="lbd__hdr"><h2 class="lbd__name">' + esc(fl.name) + ' Flight</h2><span class="lbd__meta">no teams</span></div></div>';
+          }
+          var trs = fl.rows.map(function (row) {
+            var chips = [];
+            if (row.grossPlace && row.grossPlace <= FLIGHT_PRIZES) {
+              var ties = fl.rows.filter(function (r) { return r.grossPlace === row.grossPlace; }).length;
+              chips.push('<span class="lbd__flag lbd__flag--p' + row.grossPlace + '">' + (ties > 1 ? 'T' : '') + ordinal(row.grossPlace) + ' Gross</span>');
+            }
+            var placeCell = chips.length ? '<span class="lbd__place-stack">' + chips.join('') + '</span>' : '';
+            return '<tr>'
+              + '<td class="lbd__place">' + placeCell + '</td>'
+              + '<td class="lbd__team">' + esc(row.name) + '</td>'
+              + '<td>' + (row.d1 == null ? '&mdash;' : row.d1) + '</td>'
+              + (IS_TWO_DAY ? '<td>' + (row.d2 == null ? '&mdash;' : row.d2) + '</td>' : '')
+              + '<td><b>' + (row.gross == null ? '&mdash;' : row.gross) + '</b></td>'
+              + '</tr>';
+          }).join("");
+          return '<div class="lbd">'
+            + '<div class="lbd__hdr"><h2 class="lbd__name">' + esc(fl.name) + ' Flight</h2><span class="lbd__meta">' + fl.rows.length + ' teams</span></div>'
+            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th></tr></thead><tbody>'
+            + trs + '</tbody></table></div>';
+        }).join("");
+
+        var una = groups[0] || [];
+        if (una.length) {
+          una.sort(function (a, b) { return String(a.created || "").localeCompare(String(b.created || "")); });
+          var utrs = una.map(function (r) {
+            var f = r.fields || {};
+            var d1 = d1g(r), d2 = d2g(r);
+            var gross = IS_TWO_DAY ? ((d1 != null && d2 != null) ? (d1 + d2) : null) : d1;
+            return '<tr><td class="lbd__place"></td><td class="lbd__team">' + esc(teamShortNames(f)) + '</td>'
+              + '<td>' + (d1 == null ? '&mdash;' : d1) + '</td>'
+              + (IS_TWO_DAY ? '<td>' + (d2 == null ? '&mdash;' : d2) + '</td>' : '')
+              + '<td><b>' + (gross == null ? '&mdash;' : gross) + '</b></td>'
+              + '</tr>';
+          }).join("");
+          html += '<div class="lbd"><div class="lbd__hdr"><h2 class="lbd__name">Unassigned</h2><span class="lbd__meta">' + una.length + ' teams &middot; flights not cut yet</span></div>'
+            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th></tr></thead><tbody>'
+            + utrs + '</tbody></table></div>';
+        }
+
+        body.innerHTML = html || '<p class="disp__empty-msg">No teams yet.</p>';
+      }
+
+      function updateFooter() {
+        var t = new Date();
+        var hh = t.getHours(), mm = t.getMinutes();
+        var h12 = ((hh + 11) % 12) + 1;
+        var ap = hh >= 12 ? "PM" : "AM";
+        document.getElementById("dispLast").textContent = "LIVE · Updated " + h12 + ":" + (mm < 10 ? "0" : "") + mm + " " + ap;
+      }
+
+      function refresh() {
+        fetchAll().then(render).then(updateFooter).catch(function (e) {
+          console.error("couples leaderboard fetch", e);
+          document.getElementById("dispLast").textContent = "Connection lost — retrying…";
+        });
+      }
+      refresh();
+      setInterval(refresh, REFRESH_MS);
+
+      var idleT = null;
+      function nudge() { document.body.classList.remove("idle"); clearTimeout(idleT); idleT = setTimeout(function () { document.body.classList.add("idle"); }, 4000); }
+      ["mousemove", "keydown", "touchstart"].forEach(function (ev) { window.addEventListener(ev, nudge, { passive: true }); });
+      nudge();
+    })();
+  </script>
+</body>
+</html>

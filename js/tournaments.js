@@ -34,7 +34,7 @@
       // read ?t=<KEY>. Sign Up is rendered separately by signupControl().
       links: [
         { label: "Rules", href: "couples-rules.html" },
-        { label: "Live leaderboard", href: "leaderboard.html?t=Couple%27s%20Tournament%20(Aug%2022)" },
+        { label: "Live leaderboard", href: "couples-leaderboard-display.html" },
         { label: "Recap", href: "recap.html?t=Couple%27s%20Tournament%20(Aug%2022)" },
         { label: "Past events", href: "history.html?name=Couple%27s%20Tournament" }
       ]
