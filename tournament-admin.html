@@ -5618,15 +5618,15 @@
               var h = Number(f.Hole), sl = String(f.Slot || "").toUpperCase();
               return h && (sl === "A" || sl === "B");
             });
-            // Stale-trio cleanup: if any team is at Seat 3 but the current
-            // team count fits entirely in pairs (pairCap >= teams), run a
-            // silent autofill so the demote-unneeded-trios logic clears
-            // the seat-3 teams into open pair seats. Prevents the "trios
-            // stick forever after teams drop out" foot-gun.
-            var pairCap = slots.length * 2;
-            var currentTrios = teams.filter(function (t) { return Number((t.fields || {}).Seat) === 3; }).length;
-            var hasStaleTrios = currentTrios > 0 && teams.length <= pairCap;
-            if (!anyPlaced || hasStaleTrios) autofillWave(w.k, /*silent=*/true);
+            // Only auto-run autofill when the sheet is completely blank.
+            // The earlier "stale-trio silent cleanup" trigger fired on
+            // every save whenever teams.length <= pairCap AND any team
+            // was at Seat 3 — which meant a manually-picked "Team 3
+            // (trio)" from the dropdown was immediately demoted by the
+            // silent autofill's pair-preferring pass. Operators who want
+            // to clean up leftover trios after removing teams can hit
+            // the Autofill button explicitly.
+            if (!anyPlaced) autofillWave(w.k, /*silent=*/true);
           });
         }, 60);
       }
