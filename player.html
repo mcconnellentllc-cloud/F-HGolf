@@ -227,45 +227,8 @@
 
         <div class="pc-card">
           <h3>Score my round</h3>
-          <p style="color:#666;font-size:0.92rem;margin:0 0 0.75rem 0;">Post your own 9 or 18. We'll track your rounds and running average across the year.</p>
-          <form id="pcRoundForm" novalidate>
-            <div class="pc-round-grid">
-              <label class="form__field"><span class="form__label">Date</span>
-                <input type="date" id="prDate" required />
-              </label>
-              <fieldset class="form__field" style="border:none;padding:0;margin:0;">
-                <legend class="form__label" style="padding:0;">Holes</legend>
-                <div class="pc-radio-row">
-                  <label><input type="radio" name="prHoles" value="9" /> 9</label>
-                  <label><input type="radio" name="prHoles" value="18" checked /> 18</label>
-                </div>
-              </fieldset>
-              <label class="form__field"><span class="form__label">Tees</span>
-                <select id="prTees">
-                  <option value="">— pick tees —</option>
-                  <option>White</option>
-                  <option>Blue</option>
-                  <option>Red</option>
-                  <option>Gold</option>
-                  <option>Combo</option>
-                  <option>Other</option>
-                </select>
-              </label>
-              <label class="form__field"><span class="form__label">Gross score</span>
-                <input type="number" id="prGross" min="18" max="200" step="1" placeholder="e.g. 84" required />
-              </label>
-              <label class="form__field" style="grid-column:1/-1;"><span class="form__label">Course</span>
-                <input type="text" id="prCourse" maxlength="120" placeholder="F&amp;H Golf Course" />
-              </label>
-              <label class="form__field" style="grid-column:1/-1;"><span class="form__label">Notes (optional)</span>
-                <input type="text" id="prNotes" maxlength="1000" placeholder="Weather, playing partners, memorable holes…" />
-              </label>
-            </div>
-            <div class="form__actions" style="margin-top:0.75rem;">
-              <button type="submit" class="btn btn--primary" id="prSubmit">Save round</button>
-              <span class="form__status" id="prStatus" role="status" aria-live="polite"></span>
-            </div>
-          </form>
+          <p style="color:#666;font-size:0.92rem;margin:0 0 0.75rem 0;">Same feel as our tournament scorecard — tap through hole by hole, save when you're done. We'll track every round and your running average across the year.</p>
+          <a class="btn btn--primary" id="pcScoreOpen" href="score-round.html" style="display:inline-block;padding:0.85rem 1.5rem;font-weight:700;">Score my round &rarr;</a>
         </div>
 
         <div class="pc-card">
