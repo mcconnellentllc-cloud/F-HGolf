@@ -853,6 +853,10 @@
       <div class="pm-modal__body">
         <p class="cd-body"><b>Recipients:</b> <span id="typRecipCount">…</span> · <b>Subject:</b> <span id="typSubject" style="font-style:italic;">Loading preview…</span></p>
         <p class="cd-body" style="color:#7a5f00;background:#fff8e1;border:1px solid #f0d67a;padding:0.5rem 0.75rem;border-radius:6px;">This is what every recipient will see. Names and tournament data come from the current workbook state — same as if you sent right now.</p>
+        <label class="cd-body" style="display:flex;align-items:center;gap:0.5rem;background:#fff5f2;border:1px solid #f0bfae;padding:0.5rem 0.75rem;border-radius:6px;margin:0.5rem 0;">
+          <input type="checkbox" id="typApology" />
+          <span><b>Prefix with an apology note</b> — adds a short "the previous email had a mistake, please disregard it" block at the top. Use after a bad send.</span>
+        </label>
         <div style="border:1px solid #ddd;border-radius:8px;overflow:hidden;background:#fff;">
           <iframe id="typFrame" title="Email preview" style="width:100%;height:60vh;border:0;background:#fff;"></iframe>
         </div>
@@ -2452,36 +2456,47 @@
         else if (typeof KEY === "string" && /^Couple/i.test(KEY)) leaderboardUrl = base + "/couples-leaderboard-display.html";
         else leaderboardUrl = base + "/leaderboard.html?t=" + encodeURIComponent(KEY || "");
         var signupUrl = "https://fandhgolf.com/tournaments.html?t=" + encodeURIComponent(KEY || "") + "#signup";
-        var previewPayload = {
-          template: "thankYou",
-          preview: true,
-          to: sample.email,
-          playerName: sample.name,
-          tournamentName: tournamentDisplayName || KEY || "F&H Tournament",
-          tournamentYear: tournamentYear,
-          leaderboardUrl: leaderboardUrl,
-          signupUrl: signupUrl,
-          isFounders: isFounders
-        };
-        fetch(FH_API.url("/api/calcutta-receipt"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
-          body: JSON.stringify(previewPayload)
-        })
-          .then(function (r) { return r.json().catch(function () { return {}; }); })
-          .then(function (j) {
-            if (j && j.ok) {
-              subjectEl.textContent = j.subject || "(no subject)";
-              try { frame.srcdoc = String(j.html || j.text || ""); } catch (e) { frame.srcdoc = "<pre>" + (j.text || "") + "</pre>"; }
-            } else {
-              subjectEl.textContent = "(preview failed)";
-              frame.srcdoc = '<p style="color:#900;font-family:system-ui;padding:2rem;">Couldn\'t render the preview: ' + ((j && j.error) || "Unknown error") + '</p>';
-            }
+        function buildPreviewPayload() {
+          var apology = !!(document.getElementById("typApology") && document.getElementById("typApology").checked);
+          return {
+            template: "thankYou",
+            preview: true,
+            to: sample.email,
+            playerName: sample.name,
+            tournamentName: tournamentDisplayName || KEY || "F&H Tournament",
+            tournamentYear: tournamentYear,
+            leaderboardUrl: leaderboardUrl,
+            signupUrl: signupUrl,
+            isFounders: isFounders,
+            apology: apology
+          };
+        }
+        function refreshPreview() {
+          subjectEl.textContent = "Rendering preview…";
+          frame.srcdoc = '<p style="font-family:system-ui;color:#666;padding:2rem;">Rendering preview…</p>';
+          fetch(FH_API.url("/api/calcutta-receipt"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify(buildPreviewPayload())
           })
-          .catch(function () {
-            subjectEl.textContent = "(preview failed)";
-            frame.srcdoc = '<p style="color:#900;font-family:system-ui;padding:2rem;">Network error while rendering the preview.</p>';
-          });
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+              if (j && j.ok) {
+                subjectEl.textContent = j.subject || "(no subject)";
+                try { frame.srcdoc = String(j.html || j.text || ""); } catch (e) { frame.srcdoc = "<pre>" + (j.text || "") + "</pre>"; }
+              } else {
+                subjectEl.textContent = "(preview failed)";
+                frame.srcdoc = '<p style="color:#900;font-family:system-ui;padding:2rem;">Couldn\'t render the preview: ' + ((j && j.error) || "Unknown error") + '</p>';
+              }
+            })
+            .catch(function () {
+              subjectEl.textContent = "(preview failed)";
+              frame.srcdoc = '<p style="color:#900;font-family:system-ui;padding:2rem;">Network error while rendering the preview.</p>';
+            });
+        }
+        refreshPreview();
+        var apologyCheckbox = document.getElementById("typApology");
+        if (apologyCheckbox) { apologyCheckbox.checked = false; apologyCheckbox.onchange = refreshPreview; }
         function close() {
           modal.hidden = true; modal.setAttribute("aria-hidden", "true");
           document.body.classList.remove("modal-open");
@@ -2491,15 +2506,16 @@
         document.getElementById("typCancel").onclick = close;
         modal.querySelector(".pm-modal__backdrop").onclick = close;
         sendBtn.onclick = function () {
+          var apology = !!(document.getElementById("typApology") && document.getElementById("typApology").checked);
           close();
-          sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear);
+          sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear, apology);
         };
       }
       // Send one email per recipient, sequentially, with a small delay so
       // Resend's rate limit stays happy. Progress is shown via inline
       // banner; summary alert at the end. Failures are collected and
       // reported by name.
-      function sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear) {
+      function sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear, apology) {
         var btn = document.getElementById("plCommit");
         var origLabel = btn ? btn.textContent : "";
         var sent = 0, failed = [];
@@ -2537,7 +2553,8 @@
               // next year now" flow (deadlines, first-come/first-served,
               // waitlist). Every other tournament sends a generic thanks
               // + "see you next season" — no signup CTA in the email.
-              isFounders: (typeof KEY === "string" && /^Founder/i.test(KEY))
+              isFounders: (typeof KEY === "string" && /^Founder/i.test(KEY)),
+              apology: !!apology
             })
           }).then(function (res) { return res.json().catch(function () { return { ok: false }; }); })
             .then(function (j) { if (j && j.ok) sent++; else failed.push(r.name); })
