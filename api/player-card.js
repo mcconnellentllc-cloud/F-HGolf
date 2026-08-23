@@ -531,15 +531,27 @@ module.exports = async (req, res) => {
     const gross = Number(body.gross);
     if (!isFinite(gross) || gross <= 0 || gross > 300) return res.status(400).json({ ok: false, error: "Gross must be a positive number (up to 300)." });
     const notes = clean(body.notes, 1000);
+    // Optional hole-by-hole scores (from the score-round.html scorer).
+    // Stored as JSON string in an Airtable "Scores" long-text column;
+    // absent field is fine — writeRow's auto-strip drops it and the
+    // gross total still lands. Non-array / oversized payloads are
+    // silently dropped rather than rejecting the whole save.
+    let scoresJson = "";
+    if (Array.isArray(body.scores) && body.scores.length === holes) {
+      const cleanScores = body.scores.map((v) => (v == null || v === "") ? null : Math.max(1, Math.min(20, Math.floor(Number(v)))));
+      scoresJson = JSON.stringify(cleanScores).slice(0, 200);
+    }
     const player = await loadPlayerById(claims.id);
     const playerName = player ? String((player.fields || {}).Name || "").trim() : "";
     if (!playerName) return res.status(400).json({ ok: false, error: "Player not found." });
     const TABLE = process.env.ROUNDS_TABLE || "Rounds";
     try {
-      const { outcome, stripped } = await writeRow(TABLE, {
+      const row = {
         "Player Name": playerName, "Player ID": claims.id,
         "Date": date, "Holes": holes, "Tees": tees, "Course": course, "Gross": gross, "Notes": notes,
-      });
+      };
+      if (scoresJson) row["Scores"] = scoresJson;
+      const { outcome, stripped } = await writeRow(TABLE, row);
       if (!outcome.ok) {
         console.error("rounds-save failed", outcome.status, outcome.detail);
         if (outcome.status === 404 || outcome.status === 403 || /NOT_FOUND|TABLE_NOT_FOUND|MODEL_ID_NOT_FOUND/.test(outcome.detail || "")) {
