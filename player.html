@@ -195,7 +195,7 @@
       <!-- Token error state -->
       <div id="pcTokenErr" class="pc-card" hidden>
         <h2>This link doesn't work</h2>
-        <p id="pcTokenErrMsg">The sign-in link is expired or invalid.</p>
+        <p id="pcTokenErrMsg">This sign-in link isn't valid — request a new one below.</p>
         <p><a class="btn btn--primary" href="player.html">Request a new link</a></p>
       </div>
 
@@ -460,7 +460,7 @@
               loadPayments(tok);
               return;
             }
-            var msg = (res.j && res.j.error) || "This sign-in link is expired or invalid. Request a new one.";
+            var msg = (res.j && res.j.error) || "This sign-in link isn't valid. Request a new one.";
             // A stored token that stopped working is stale — wipe it so
             // the user doesn't get stuck in a loop.
             if (source === "storage") clearToken();
