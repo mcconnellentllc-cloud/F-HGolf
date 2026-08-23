@@ -203,30 +203,7 @@
 
       <!-- Signed-in card view -->
       <div id="pcCard" hidden>
-        <div class="pc-card">
-          <div class="pc-hero">
-            <h2 class="pc-name" id="pcCardName"></h2>
-            <span class="pc-member" id="pcMember"></span>
-          </div>
-          <div class="pc-grid">
-            <div><span class="lbl">Email</span><span class="val" id="pcEmail"></span></div>
-            <div><span class="lbl">Phone</span><span class="val" id="pcPhone"></span></div>
-            <div style="grid-column:1/-1;"><span class="lbl">Address</span><span class="val" id="pcAddress"></span></div>
-          </div>
-          <p style="margin-top:1rem;font-size:0.85rem;color:#888;">Something wrong? Editing your details from this page is coming soon — for now, call the pro shop at <a href="tel:+19707746362">(970)&nbsp;774-6362</a>.</p>
-          <p style="margin-top:0.75rem;"><button type="button" class="pc-signout" id="pcSignout">Sign out of this device</button></p>
-        </div>
-
-        <div class="pc-card">
-          <h3>2026 tournaments</h3>
-          <ul class="pc-history" id="pcCurrent"></ul>
-        </div>
-
-        <div class="pc-card">
-          <h3>Past tournaments</h3>
-          <ul class="pc-history" id="pcPast"></ul>
-        </div>
-
+        <!-- 1. Score my round (top — the most common thing a member wants) -->
         <div class="pc-card">
           <h3>Score my round</h3>
           <p style="color:#666;font-size:0.92rem;margin:0 0 0.75rem 0;">Same feel as our tournament scorecard — tap through hole by hole, save when you're done. We'll track every round and your running average across the year.</p>
@@ -240,6 +217,70 @@
           <p id="pcPayBalance" class="pc-balance" hidden></p>
         </div>
 
+        <!-- 2. Upcoming tournaments — CTA to sign up + what they're already in -->
+        <div class="pc-card">
+          <h3>Upcoming tournaments</h3>
+          <p style="color:#666;font-size:0.92rem;margin:0 0 0.75rem 0;">See the full 2026 schedule and reserve your spot in one tap.</p>
+          <a class="btn btn--primary" href="tournaments.html" style="display:inline-block;padding:0.75rem 1.3rem;font-weight:700;">See the schedule &amp; sign up &rarr;</a>
+          <h4 style="margin:1rem 0 0.4rem 0;font-family:Fraunces,Georgia,serif;color:var(--primary-green);font-size:0.98rem;">You're signed up for:</h4>
+          <ul class="pc-history" id="pcCurrent"></ul>
+        </div>
+
+        <!-- 3. Player information — read-mode with an Edit button that swaps in a form -->
+        <div class="pc-card">
+          <div class="pc-hero">
+            <h2 class="pc-name" id="pcCardName"></h2>
+            <span class="pc-member" id="pcMember"></span>
+          </div>
+          <div id="pcInfoRead">
+            <div class="pc-grid">
+              <div><span class="lbl">Email</span><span class="val" id="pcEmail"></span></div>
+              <div><span class="lbl">Phone</span><span class="val" id="pcPhone"></span></div>
+              <div style="grid-column:1/-1;"><span class="lbl">Address</span><span class="val" id="pcAddress"></span></div>
+            </div>
+            <div style="margin-top:0.85rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+              <button type="button" class="btn btn--primary" id="pcEditOpen">Edit my details</button>
+              <button type="button" class="pc-signout" id="pcSignout" style="margin-left:auto;">Sign out of this device</button>
+            </div>
+          </div>
+          <form id="pcInfoEdit" hidden style="margin-top:0.5rem;">
+            <div class="pc-round-grid">
+              <label class="form__field" style="grid-column:1/-1;"><span class="form__label">Email</span>
+                <input type="email" id="peEmail" autocomplete="email" maxlength="200" />
+              </label>
+              <label class="form__field" style="grid-column:1/-1;"><span class="form__label">Phone</span>
+                <input type="tel" id="pePhone" autocomplete="tel" maxlength="40" />
+              </label>
+              <label class="form__field" style="grid-column:1/-1;"><span class="form__label">Street</span>
+                <input type="text" id="peStreet" autocomplete="street-address" maxlength="200" />
+              </label>
+              <label class="form__field"><span class="form__label">City</span>
+                <input type="text" id="peCity" autocomplete="address-level2" maxlength="100" />
+              </label>
+              <label class="form__field"><span class="form__label">State</span>
+                <input type="text" id="peState" autocomplete="address-level1" maxlength="20" />
+              </label>
+              <label class="form__field" style="grid-column:1/-1;"><span class="form__label">Zip</span>
+                <input type="text" id="peZip" autocomplete="postal-code" maxlength="20" inputmode="numeric" />
+              </label>
+            </div>
+            <div class="form__actions" style="margin-top:0.75rem;gap:0.5rem;">
+              <button type="submit" class="btn btn--primary" id="peSave">Save my details</button>
+              <button type="button" class="btn btn--ghost" id="peCancel">Cancel</button>
+              <span class="form__status" id="peMsg" role="status" aria-live="polite"></span>
+            </div>
+            <p style="font-size:0.8rem;color:#888;margin-top:0.5rem;">Your name is locked here — call the pro shop at <a href="tel:+19707746362">(970)&nbsp;774-6362</a> if it needs to change.</p>
+          </form>
+        </div>
+
+        <!-- 4. Past tournaments — links back to each event's public page -->
+        <div class="pc-card">
+          <h3>Past tournaments</h3>
+          <p style="color:#666;font-size:0.88rem;margin:0 0 0.5rem 0;">Tap any tournament to open its results and track your past performances.</p>
+          <ul class="pc-history" id="pcPast"></ul>
+        </div>
+
+        <!-- 5. Pay for a round + payments log (bottom) -->
         <div class="pc-card">
           <h3>Pay for a round</h3>
           <p style="color:#666;font-size:0.92rem;margin:0 0 0.75rem 0;">Cover your green fee (and cart, if you're riding). Cards add a 4% processing surcharge; mailing a check is free — F&amp;H is small, every dollar of the fee goes to the course.</p>
@@ -472,6 +513,7 @@
       }
 
       function renderCard(p) {
+        _lastPlayer = p;
         $("pcCardName").textContent = p.name || "(no name)";
         var mem = $("pcMember");
         if (p.member) { mem.textContent = "Member"; mem.className = "pc-member"; }
@@ -530,7 +572,7 @@
       }
       function renderList(el, items, kind) {
         if (!items.length) {
-          el.innerHTML = '<li class="pc-empty">' + (kind === "current" ? "No 2026 tournaments yet." : "No past-year results in the archives yet.") + '</li>';
+          el.innerHTML = '<li class="pc-empty">' + (kind === "current" ? "You're not signed up for any 2026 tournaments yet — use the link above." : "No past-year results in the archives yet.") + '</li>';
           return;
         }
         el.innerHTML = items.map(function (it) {
@@ -564,6 +606,74 @@
       $("pcSignout").addEventListener("click", function () {
         clearToken();
         location.href = "player.html";
+      });
+
+      // ---- Edit-my-details (in-place form on the player-info card) ----
+      // Read mode → Edit toggles swap; Save posts profile-save; the API
+      // returns the updated player object which we render straight back
+      // into the read-mode fields so the page reflects the save without
+      // a full refetch.
+      var _profileEditOpen = $("pcEditOpen");
+      var _profileEditForm = $("pcInfoEdit");
+      var _profileReadPane = $("pcInfoRead");
+      function openProfileEdit(p) {
+        $("peEmail").value = p.email || "";
+        $("pePhone").value = p.phone || "";
+        $("peStreet").value = p.street || "";
+        $("peCity").value = p.city || "";
+        $("peState").value = p.state || "";
+        $("peZip").value = p.zip || "";
+        _profileReadPane.hidden = true;
+        _profileEditForm.hidden = false;
+        setProfileMsg("");
+        setTimeout(function () { $("peEmail").focus(); }, 50);
+      }
+      function closeProfileEdit() {
+        _profileEditForm.hidden = true;
+        _profileReadPane.hidden = false;
+        setProfileMsg("");
+      }
+      function setProfileMsg(msg, kind) {
+        var el = $("peMsg"); if (!el) return;
+        el.textContent = msg || "";
+        el.style.color = kind === "ok" ? "var(--primary-green, #1B5E20)" : kind === "err" ? "#a10000" : "#666";
+      }
+      var _lastPlayer = null;
+      if (_profileEditOpen) _profileEditOpen.addEventListener("click", function () {
+        if (_lastPlayer) openProfileEdit(_lastPlayer);
+      });
+      var _profileCancel = $("peCancel");
+      if (_profileCancel) _profileCancel.addEventListener("click", closeProfileEdit);
+      if (_profileEditForm) _profileEditForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (!_savedToken) return;
+        var btn = $("peSave");
+        btn.disabled = true; btn.textContent = "Saving…"; setProfileMsg("");
+        fetch(FH_API.url("/api/player-card"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "profile-save",
+            token: _savedToken,
+            email: ($("peEmail").value || "").trim(),
+            phone: ($("pePhone").value || "").trim(),
+            street: ($("peStreet").value || "").trim(),
+            city: ($("peCity").value || "").trim(),
+            state: ($("peState").value || "").trim(),
+            zip: ($("peZip").value || "").trim(),
+          })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            btn.disabled = false; btn.textContent = "Save my details";
+            if (j && j.ok && j.player) {
+              renderCard(j.player);         // refresh read-mode fields
+              closeProfileEdit();
+            } else {
+              setProfileMsg((j && j.error) || "Couldn't save your details.", "err");
+            }
+          })
+          .catch(function () { btn.disabled = false; btn.textContent = "Save my details"; setProfileMsg("Network error saving.", "err"); });
       });
 
       // ---- Score my round ----
