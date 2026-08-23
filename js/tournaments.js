@@ -50,10 +50,61 @@
     // the KEY here + in tournaments.html + migrate the signup rows in
     // Airtable in one pass. Date reads "TBD YYYY" in the schedule row +
     // "Date will be set by the board over winter" on the card itself.
+    // The two Couples events (June + Aug) both route to the same TBD
+    // card — the board decides in winter which edition each reservation
+    // is for. Invitationals and season-long contests are excluded.
+    "Par 4 the Future (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 4, format: "4-person scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Haxtun Daycare (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 4, format: "4-person scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "John Everitt Memorial (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 4, format: "4-man scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
     "Couple's Tournament (TBD 2027)": {
       tbd: true, cap: 24, unit: "teams", team: 2,
       roles: ["Your name", "Partner's name"],
       format: "2-player couples (one entry = a team)",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Red, White & Blue (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 3, format: "3-man scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Adult/Child Tournament (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 2,
+      roles: ["Adult's name", "Child's name"], format: "adult + child team",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Junior Golf Camp (TBD 2027)": {
+      tbd: true, cap: 50, unit: "spots", team: 1,
+      roles: ["Camper's name"], format: "junior camp, ages 6–13",
+      note: "Dates will be set by the board over winter — reserve your spot now."
+    },
+    "2-Lady Scramble (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 2,
+      roles: ["Your name", "Partner's name"], format: "2-lady scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Haxtun Bulldog (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 4, format: "4-man (4 players per team)",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Founder's Tournament (TBD 2027)": {
+      tbd: true, cap: 64, unit: "teams", team: 2,
+      format: "2-day 2-man scramble", ctaLabel: "Reserve for the 2027 Founders",
+      note: "Dates will be set by the board over winter — reserve your spot now."
+    },
+    "Haxtun Fire (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 4, format: "4-man scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Cornfest Tournament (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)",
       note: "Date will be set by the board over winter — reserve your spot now."
     }
   };
