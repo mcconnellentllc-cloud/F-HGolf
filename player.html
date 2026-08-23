@@ -83,6 +83,16 @@
     .pc-balance { margin: 0.75rem 0 0 0; padding: 0.6rem 0.85rem; border-radius: 8px; font-size: 0.92rem; }
     .pc-balance--even { background: #eff5ea; color: #2d5024; }
     .pc-balance--owed { background: #fff2e0; color: #8a4a00; border: 1px solid #f0d19a; }
+    .pc-signup-prompt { margin-top: 0.75rem; font-size: 0.92rem; color: #555; text-align: center; }
+    .pc-linkbtn { background: none; border: none; color: var(--primary-green, #1B5E20); font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; font: inherit; }
+    .pc-linkbtn:hover { color: var(--red-deep, #7a1a1a); }
+    .pc-signup { margin-top: 1.25rem; padding: 1.15rem; border-top: 2px solid var(--line, #e6e2d8); }
+    .pc-signup__hint { color: #666; font-size: 0.9rem; margin: 0 0 0.75rem 0; }
+    .pc-signup .form__field { display: block; margin: 0.5rem 0; }
+    .pc-signup input[type="text"], .pc-signup input[type="email"], .pc-signup input[type="tel"] { width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; }
+    .pc-signup__row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 0.5rem; }
+    @media (max-width: 480px) { .pc-signup__row { grid-template-columns: 1fr; } }
+    .form__hp { position: absolute; left: -9999px; }
   </style>
 </head>
 <body>
@@ -127,7 +137,7 @@
       <!-- Sign-in state (default when no ?token= is present) -->
       <div id="pcSignin" class="pc-signin pc-card" hidden>
         <h2>Sign in to your Player Card</h2>
-        <p class="pc-signin__hint">Type your name exactly as it appears on your F&amp;H Player Card. We'll email a sign-in link to the address we have on file. No password.</p>
+        <p class="pc-signin__hint">Type your name as it appears on your F&amp;H Player Card. We'll email a sign-in link to the address we have on file. No password. Case doesn't matter.</p>
         <form id="pcSigninForm" novalidate>
           <label class="form__field">
             <span class="form__label">Your full name</span>
@@ -137,6 +147,45 @@
             <button type="submit" class="btn btn--primary" id="pcSubmit">Email me a sign-in link</button>
           </div>
           <p class="pc-signin__msg" id="pcSigninMsg" role="status" aria-live="polite"></p>
+          <p id="pcSignupPrompt" class="pc-signup-prompt" hidden>Don't have a card yet? <button type="button" class="pc-linkbtn" id="pcSignupOpen">Create one now &rarr;</button></p>
+        </form>
+
+        <!-- Self-signup: appears after a "not found" hit on the sign-in form.
+             Public write into the Players table; server dedupes by name and
+             mails the sign-in link on success. -->
+        <form id="pcSignupForm" class="pc-signup" novalidate hidden>
+          <h3 style="margin:0 0 0.5rem 0;color:var(--primary-green);font-family:Fraunces,Georgia,serif;">Create a Player Card</h3>
+          <p class="pc-signup__hint">We couldn't find you in the directory — fill this in and we'll set you up. Only your name + email are required.</p>
+          <label class="form__field"><span class="form__label">Full name <span class="req">*</span></span>
+            <input type="text" id="suName" autocomplete="name" maxlength="120" required />
+          </label>
+          <label class="form__field"><span class="form__label">Email <span class="req">*</span></span>
+            <input type="email" id="suEmail" autocomplete="email" maxlength="200" required />
+          </label>
+          <label class="form__field"><span class="form__label">Phone</span>
+            <input type="tel" id="suPhone" autocomplete="tel" maxlength="40" />
+          </label>
+          <label class="form__field"><span class="form__label">Street</span>
+            <input type="text" id="suStreet" autocomplete="street-address" maxlength="200" />
+          </label>
+          <div class="pc-signup__row">
+            <label class="form__field"><span class="form__label">City</span>
+              <input type="text" id="suCity" autocomplete="address-level2" maxlength="100" />
+            </label>
+            <label class="form__field"><span class="form__label">State</span>
+              <input type="text" id="suState" autocomplete="address-level1" maxlength="20" />
+            </label>
+            <label class="form__field"><span class="form__label">Zip</span>
+              <input type="text" id="suZip" autocomplete="postal-code" maxlength="20" inputmode="numeric" />
+            </label>
+          </div>
+          <!-- Honeypot -->
+          <div class="form__hp" aria-hidden="true"><label>Company<input type="text" id="suCompany" tabindex="-1" autocomplete="off" /></label></div>
+          <div class="form__actions">
+            <button type="submit" class="btn btn--primary" id="suSubmit">Create my Player Card</button>
+            <button type="button" class="btn btn--ghost" id="suCancel">Cancel</button>
+          </div>
+          <p class="pc-signin__msg" id="suMsg" role="status" aria-live="polite"></p>
         </form>
       </div>
 
@@ -341,10 +390,15 @@
             btn.disabled = false; btn.textContent = "Email me a sign-in link";
             // Server returns { sent: true, message: "We sent to k***@g***.com" }
             // on a hit and { sent: false, message: "..." } on miss / no email
-            // on file. Color-code so the operator sees the outcome at a glance.
+            // on file. Color-code + offer self-signup when the name missed.
             var msg = (j && j.message) || "";
             var kind = (j && j.sent) ? "ok" : "err";
             setSigninMsg(msg || "Something went wrong — please try again.", kind);
+            var prompt = $("pcSignupPrompt");
+            // Only show the "create one now" prompt when the miss was a
+            // "no card found" one (not a "no email on file" or transient
+            // fail — those need a phone call, not a duplicate signup).
+            if (prompt) prompt.hidden = !(j && j.sent === false && /couldn't find/i.test(msg));
           })
           .catch(function () {
             btn.disabled = false; btn.textContent = "Email me a sign-in link";
@@ -356,6 +410,68 @@
         el.textContent = msg || "";
         el.className = "pc-signin__msg" + (kind === "ok" ? " pc-signin__msg--ok" : kind === "err" ? " pc-signin__msg--err" : "");
       }
+
+      // ---- Self-signup (visible only after a "not found" hit) ----
+      var _signupOpen = $("pcSignupOpen");
+      var _signupForm = $("pcSignupForm");
+      var _signupCancel = $("suCancel");
+      if (_signupOpen) _signupOpen.addEventListener("click", function () {
+        _signupForm.hidden = false;
+        // Prefill the signup name with whatever they typed on the sign-in form.
+        var typed = ($("pcName").value || "").trim();
+        if (typed) $("suName").value = typed;
+        setTimeout(function () { $("suEmail").focus(); }, 50);
+        _signupForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+      if (_signupCancel) _signupCancel.addEventListener("click", function () {
+        _signupForm.hidden = true;
+        setSignupMsg("");
+      });
+      function setSignupMsg(msg, kind) {
+        var el = $("suMsg"); if (!el) return;
+        el.textContent = msg || "";
+        el.className = "pc-signin__msg" + (kind === "ok" ? " pc-signin__msg--ok" : kind === "err" ? " pc-signin__msg--err" : "");
+      }
+      if (_signupForm) _signupForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var payload = {
+          action: "create",
+          name: ($("suName").value || "").trim(),
+          email: ($("suEmail").value || "").trim(),
+          phone: ($("suPhone").value || "").trim(),
+          street: ($("suStreet").value || "").trim(),
+          city: ($("suCity").value || "").trim(),
+          state: ($("suState").value || "").trim(),
+          zip: ($("suZip").value || "").trim(),
+          company: ($("suCompany").value || "").trim(),
+        };
+        if (!payload.name) { setSignupMsg("Type your name.", "err"); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) { setSignupMsg("A valid email is required — that's where we'll send your sign-in link.", "err"); return; }
+        var btn = $("suSubmit");
+        btn.disabled = true; btn.textContent = "Creating…";
+        setSignupMsg("");
+        fetch(FH_API.url("/api/player-card"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            btn.disabled = false; btn.textContent = "Create my Player Card";
+            if (j && j.ok && j.created) {
+              setSignupMsg(j.message || "Your Player Card is set up — check your inbox.", "ok");
+              // Hide the sign-in form controls now that the card is on the way.
+              $("pcSignupPrompt").hidden = true;
+              setSigninMsg("", "");
+            } else {
+              setSignupMsg((j && j.error) || "Couldn't create your Player Card.", "err");
+            }
+          })
+          .catch(function () {
+            btn.disabled = false; btn.textContent = "Create my Player Card";
+            setSignupMsg("Network error — please try again in a moment.", "err");
+          });
+      });
 
       // ---- Verify + render ----
       function verifyAndRender(tok, source) {
