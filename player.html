@@ -40,6 +40,8 @@
     .pc-history li { padding: 0.55rem 0; border-top: 1px solid var(--line, #e6e2d8); font-size: 0.95rem; }
     .pc-history li:first-child { border-top: none; }
     .pc-hist__t { font-weight: 700; color: #222; }
+    .pc-hist__link { color: var(--primary-green, #1B5E20); text-decoration: none; border-bottom: 1px dotted var(--primary-green, #1B5E20); }
+    .pc-hist__link:hover { border-bottom-style: solid; }
     .pc-hist__m { color: #666; font-size: 0.85rem; margin-top: 2px; }
     .pc-empty { color: #888; font-style: italic; font-size: 0.95rem; }
     .pc-signout { color: #999; font-size: 0.85rem; background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline; }
@@ -515,25 +517,38 @@
         var cls = place === 1 ? "pc-place--gold" : place === 2 ? "pc-place--silver" : place === 3 ? "pc-place--bronze" : "";
         return '<span class="pc-place ' + cls + '">' + place + (place === 1 ? "st" : place === 2 ? "nd" : place === 3 ? "rd" : "th") + '</span>';
       }
+      // Turn a tournament name into a URL back to its public page.
+      // Current-year entries carry the full KEY ("Couple's Tournament
+      // (Aug 22)") so we can point at recap.html?t=KEY. Past-year archive
+      // entries carry a base name ("Couple's Tournament") + year, so we
+      // point at history.html?name=<name>. Founders has its own hub page.
+      function tournamentUrl(name, kind) {
+        if (!name) return null;
+        if (/^Founder/i.test(name)) return "founders-recap.html";
+        if (kind === "past") return "history.html?name=" + encodeURIComponent(name.replace(/\s*\([^)]*\)\s*$/, "").trim());
+        return "recap.html?t=" + encodeURIComponent(name);
+      }
       function renderList(el, items, kind) {
         if (!items.length) {
           el.innerHTML = '<li class="pc-empty">' + (kind === "current" ? "No 2026 tournaments yet." : "No past-year results in the archives yet.") + '</li>';
           return;
         }
         el.innerHTML = items.map(function (it) {
+          var name = it.tournament || "Tournament";
+          var url = tournamentUrl(name, kind);
+          var linked = url ? ('<a class="pc-hist__link" href="' + esc(url) + '">' + esc(name) + '</a>') : esc(name);
           if (kind === "current") {
-            var line1 = esc(it.tournament || "Tournament");
             var bits = [];
             if (it.team) bits.push("Team: " + esc(it.team));
             if (it.role === "captain") bits.push("Captain");
             if (it.alternate) bits.push("Alternate");
             if (it.paid) bits.push("Paid: " + esc(it.paid));
-            return '<li><div class="pc-hist__t">' + line1 + '</div>'
+            return '<li><div class="pc-hist__t">' + linked + '</div>'
               + (bits.length ? '<div class="pc-hist__m">' + bits.join(" · ") + '</div>' : '')
               + '</li>';
           }
           // past
-          var head = esc(it.tournament || "Tournament") + (it.year ? " · " + esc(it.year) : "");
+          var head = linked + (it.year ? " · " + esc(it.year) : "");
           var meta = [];
           if (it.flight) meta.push(esc(it.flight));
           if (it.team) meta.push("Team: " + esc(it.team));
