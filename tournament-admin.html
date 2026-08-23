@@ -351,7 +351,8 @@
           <div class="noms__list" id="expList"><p class="noms__msg">Loading expenses…</p></div>
           <div class="pl-commit">
             <button class="btn btn--primary" type="button" id="plCommit">Commit snapshot to History &rarr;</button>
-            <p class="pl-commit__hint">Snapshots this year&rsquo;s leaderboard, Calcutta, payouts, and P&amp;L to the History tab. <b>Non-destructive</b> &mdash; all scores, buyers, and paid marks stay on the Signups records. Safe to run any time.</p>
+            <button class="btn btn--solid" type="button" id="plResendEmails" style="margin-left:0.5rem;">Preview / resend thank-you emails</button>
+            <p class="pl-commit__hint">Snapshots this year&rsquo;s leaderboard, Calcutta, payouts, and P&amp;L to the History tab. <b>Non-destructive</b> &mdash; all scores, buyers, and paid marks stay on the Signups records. Safe to run any time. The <b>Preview / resend</b> button rebuilds the thank-you email from the current data and previews it before sending, without creating a new History snapshot &mdash; use it to fix a bad send.</p>
             <p class="pl-commit__hint pl-commit__hint--muted"><small>Need to clear operational data for next year? Open the browser console (F12) and run <code>window.__fhResetTournament()</code>. That flow requires typing the year and CLEAR to confirm.</small></p>
           </div>
         </section>
@@ -837,6 +838,28 @@
       </div>
       <div class="pm-modal__foot">
         <button type="button" class="btn btn--primary" id="rsmOk">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== THANK-YOU EMAIL PREVIEW MODAL ==================== -->
+  <div class="pm-modal" id="thankYouPreviewModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="typTitle">
+    <div class="pm-modal__backdrop" data-close="1"></div>
+    <div class="pm-modal__panel" style="max-width:820px;width:96vw;">
+      <div class="pm-modal__head">
+        <h3 id="typTitle">Preview thank-you email</h3>
+        <button type="button" class="pm-modal__close" id="typClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="pm-modal__body">
+        <p class="cd-body"><b>Recipients:</b> <span id="typRecipCount">…</span> · <b>Subject:</b> <span id="typSubject" style="font-style:italic;">Loading preview…</span></p>
+        <p class="cd-body" style="color:#7a5f00;background:#fff8e1;border:1px solid #f0d67a;padding:0.5rem 0.75rem;border-radius:6px;">This is what every recipient will see. Names and tournament data come from the current workbook state — same as if you sent right now.</p>
+        <div style="border:1px solid #ddd;border-radius:8px;overflow:hidden;background:#fff;">
+          <iframe id="typFrame" title="Email preview" style="width:100%;height:60vh;border:0;background:#fff;"></iframe>
+        </div>
+      </div>
+      <div class="pm-modal__foot" style="display:flex;justify-content:space-between;gap:0.5rem;">
+        <button type="button" class="btn btn--solid" id="typCancel">Cancel</button>
+        <button type="button" class="btn btn--primary" id="typSend">Send to <span id="typSendCount">?</span> recipients</button>
       </div>
     </div>
   </div>
@@ -2365,10 +2388,13 @@
       // offer to send the post-tournament thank-you + save-your-spot email.
       // Player 1 email comes from the signup record; Player 2 (and any
       // additional partners) come from the Players roster cache.
+      // Build the recipient list (dedup by email) for the current tournament,
+      // then hand off to the preview modal. The modal shows the exact HTML
+      // every recipient will get and requires a Send click to actually blast.
       function offerThankYouEmailBlast(tournamentDisplayName, tournamentYear) {
         var recs = (scAllCache || []).filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); });
         ensurePlayersCache().then(function (cache) {
-          var byEmail = {}; // email(lc) → { email, name }
+          var byEmail = {};
           function add(rawName, rawEmail) {
             var name = String(rawName || "").trim();
             var em = String(rawEmail || "").trim();
@@ -2389,22 +2415,85 @@
           });
           var recipients = Object.keys(byEmail).map(function (k) { return byEmail[k]; });
           recipients.sort(function (a, b) { return a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
-
-          var total = recs.length * 2; // upper-bound approximation for the message
-          var msg = "Snapshot committed to History ✓\n\nSend a thank-you + next-year signup email to "
-                  + recipients.length + " player" + (recipients.length === 1 ? "" : "s") + " with an email on file?\n\n"
-                  + "Each email links to the final leaderboard, invites them to save their spot for "
-                  + (tournamentYear + 1) + ", and explains the July 25 signup / August 1 paid-priority dates.\n\n"
-                  + "Click OK to send. Cancel skips the emails — the snapshot is already saved either way.";
           if (!recipients.length) {
-            alert("Snapshot committed to History ✓\n\nNo player emails on file — nothing to send. Add addresses on the Check-In cards next year to reach every player.");
+            alert("No player emails on file — nothing to send. Add addresses on the Check-In cards next year to reach every player.");
             return;
           }
-          if (!confirm(msg)) return;
-          sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear);
+          openThankYouPreview(recipients, tournamentDisplayName, tournamentYear);
         }).catch(function () {
-          alert("Snapshot committed. Couldn't load the player roster to send thank-you emails — try again from the History tab if you want to send them manually.");
+          alert("Couldn't load the player roster to build the thank-you emails — try again in a moment.");
         });
+      }
+
+      // Preview modal: fetches the rendered email from the API with the
+      // FIRST recipient's data (so tournament name / dates / firstName are
+      // real) and shows it in an iframe. The Send button fires
+      // sendThankYouEmails on the FULL recipient list — the preview is
+      // representative, not the only send.
+      function openThankYouPreview(recipients, tournamentDisplayName, tournamentYear) {
+        var modal = document.getElementById("thankYouPreviewModal");
+        if (!modal || !recipients || !recipients.length) return;
+        var subjectEl = document.getElementById("typSubject");
+        var recipCountEl = document.getElementById("typRecipCount");
+        var sendCountEl = document.getElementById("typSendCount");
+        var frame = document.getElementById("typFrame");
+        var sendBtn = document.getElementById("typSend");
+        recipCountEl.textContent = recipients.length + " player" + (recipients.length === 1 ? "" : "s") + " with an email on file";
+        sendCountEl.textContent = recipients.length;
+        subjectEl.textContent = "Loading preview…";
+        frame.srcdoc = '<p style="font-family:system-ui;color:#666;padding:2rem;">Rendering preview…</p>';
+        modal.hidden = false; modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("modal-open");
+        var sample = recipients[0];
+        var isFounders = typeof KEY === "string" && /^Founder/i.test(KEY);
+        var base = location.origin.replace(/\/$/, "");
+        var leaderboardUrl;
+        if (isFounders) leaderboardUrl = base + "/founders-leaderboard-display.html";
+        else if (typeof KEY === "string" && /^Couple/i.test(KEY)) leaderboardUrl = base + "/couples-leaderboard-display.html";
+        else leaderboardUrl = base + "/leaderboard.html?t=" + encodeURIComponent(KEY || "");
+        var signupUrl = "https://fandhgolf.com/tournaments.html?t=" + encodeURIComponent(KEY || "") + "#signup";
+        var previewPayload = {
+          template: "thankYou",
+          preview: true,
+          to: sample.email,
+          playerName: sample.name,
+          tournamentName: tournamentDisplayName || KEY || "F&H Tournament",
+          tournamentYear: tournamentYear,
+          leaderboardUrl: leaderboardUrl,
+          signupUrl: signupUrl,
+          isFounders: isFounders
+        };
+        fetch(FH_API.url("/api/calcutta-receipt"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify(previewPayload)
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.ok) {
+              subjectEl.textContent = j.subject || "(no subject)";
+              try { frame.srcdoc = String(j.html || j.text || ""); } catch (e) { frame.srcdoc = "<pre>" + (j.text || "") + "</pre>"; }
+            } else {
+              subjectEl.textContent = "(preview failed)";
+              frame.srcdoc = '<p style="color:#900;font-family:system-ui;padding:2rem;">Couldn\'t render the preview: ' + ((j && j.error) || "Unknown error") + '</p>';
+            }
+          })
+          .catch(function () {
+            subjectEl.textContent = "(preview failed)";
+            frame.srcdoc = '<p style="color:#900;font-family:system-ui;padding:2rem;">Network error while rendering the preview.</p>';
+          });
+        function close() {
+          modal.hidden = true; modal.setAttribute("aria-hidden", "true");
+          document.body.classList.remove("modal-open");
+          sendBtn.onclick = null;
+        }
+        document.getElementById("typClose").onclick = close;
+        document.getElementById("typCancel").onclick = close;
+        modal.querySelector(".pm-modal__backdrop").onclick = close;
+        sendBtn.onclick = function () {
+          close();
+          sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear);
+        };
       }
       // Send one email per recipient, sequentially, with a small delay so
       // Resend's rate limit stays happy. Progress is shown via inline
@@ -10040,6 +10129,15 @@
         });
         var pc = document.getElementById("plCommit");
         if (pc) pc.addEventListener("click", commitToHistory);
+        // Preview / resend button — skips the archive and jumps straight to
+        // the preview modal, then Send. Use after a bad send (wrong copy /
+        // typo) without creating a duplicate History snapshot.
+        var pr = document.getElementById("plResendEmails");
+        if (pr) pr.addEventListener("click", function () {
+          var year = String(new Date().getFullYear());
+          var name = String(KEY || "").replace(/\s*\([^)]*\)\s*$/, "").trim();
+          offerThankYouEmailBlast(name, Number(year));
+        });
         var fmtSave = document.getElementById("fmtSave");
         if (fmtSave) fmtSave.addEventListener("click", saveFormat);
         var fmtReload = document.getElementById("fmtReload");
