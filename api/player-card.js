@@ -7,7 +7,13 @@
 // used by tournament-signups.js. Route by { action } in the POST body.
 //
 //   POST { action: "magic-request", name }
-//     -> 200 { ok: true, message: "If we found a match..." }  (always)
+//     -> 200 { ok: true, sent: true,  maskedEmail: "k***@g***.com",
+//              message: "We sent your sign-in link to k***@g***.com." }
+//     -> 200 { ok: true, sent: false,
+//              message: "We couldn't find a Player Card by that name — check
+//                        the spelling, or call the pro shop at (970) 774-6362." }
+//     Reveals whether a name matched (privacy trade-off the operator opted
+//     into) so the person who typed their real name sees which inbox to check.
 //
 //   POST { action: "magic-verify", token }
 //     -> 200 { ok: true, player: { id, name, email, phone, ... } }
@@ -114,14 +120,39 @@ async function airtableList(url, headers) {
 async function findPlayerByName(name) {
   const { AIRTABLE_TOKEN, AIRTABLE_BASE_ID } = process.env;
   const TABLE = process.env.PLAYERS_TABLE || "Players";
-  const safe = String(name).replace(/"/g, '\\"');
-  const filter = `LOWER({Name})=LOWER("${safe}")`;
+  // Case + whitespace insensitive match: lower + trim + collapse internal
+  // runs of whitespace on both sides. "KYLE  MCCONNELL " matches "Kyle McConnell".
+  const norm = String(name).trim().replace(/\s+/g, " ").toLowerCase();
+  const safe = norm.replace(/"/g, '\\"');
+  // Airtable's LOWER + TRIM handle case + surrounding whitespace; we
+  // rely on the operator not double-spacing names in the directory.
+  const filter = `LOWER(TRIM({Name}))="${safe}"`;
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}?maxRecords=1&filterByFormula=${encodeURIComponent(filter)}`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
   if (!r.ok) return null;
   const j = await r.json();
   const rec = (j.records || [])[0];
   return rec ? { id: rec.id, fields: rec.fields || {} } : null;
+}
+
+// Mask an email for on-screen confirmation: "kyle.m@example.com" →
+// "k***m@e***e.com". Keeps the first + last char of the local part and
+// first + last char of the domain name (minus TLD) so the person sees
+// enough to know which inbox to check without exposing the full address.
+function maskEmail(email) {
+  const m = /^([^@]+)@([^@]+)$/.exec(String(email || "").trim());
+  if (!m) return "";
+  const local = m[1];
+  const domain = m[2];
+  const dot = domain.lastIndexOf(".");
+  const host = dot > 0 ? domain.slice(0, dot) : domain;
+  const tld = dot > 0 ? domain.slice(dot) : "";
+  const maskPart = (s) => {
+    if (!s) return "";
+    if (s.length <= 2) return s[0] + "*";
+    return s[0] + "***" + s[s.length - 1];
+  };
+  return maskPart(local) + "@" + maskPart(host) + tld;
 }
 async function loadPlayerById(id) {
   const { AIRTABLE_TOKEN, AIRTABLE_BASE_ID } = process.env;
@@ -346,29 +377,37 @@ module.exports = async (req, res) => {
 
   const action = String(body.action || "").toLowerCase();
 
-  // --- Magic request (public, no token) --- always returns the generic
-  // message so we don't reveal directory membership.
+  // --- Magic request (public, no token) --- returns a masked-email
+  // confirmation on success + a "not found" message on miss. The operator
+  // opted into this small privacy trade-off so members see which inbox
+  // to check, and a mis-typed name doesn't stall silently.
   if (action === "magic-request") {
     const name = String(body.name || "").trim();
-    const generic = { ok: true, message: "If we found a match with an email on file, we sent a link." };
-    if (!name) return res.status(200).json(generic);
-    if (!process.env.RESEND_API_KEY) return res.status(200).json(generic);
+    const notFound = { ok: true, sent: false, message: "We couldn't find a Player Card by that name — check the spelling, or call the pro shop at (970) 774-6362." };
+    const noEmail = { ok: true, sent: false, message: "We found your Player Card but there's no email on file — call the pro shop at (970) 774-6362 to add one." };
+    const genericFail = { ok: true, sent: false, message: "We couldn't send a link right now — please try again in a moment." };
+    if (!name) return res.status(200).json(notFound);
+    if (!process.env.RESEND_API_KEY) return res.status(200).json(genericFail);
     try {
       const rec = await findPlayerByName(name);
-      if (!rec) return res.status(200).json(generic);
+      if (!rec) return res.status(200).json(notFound);
       const email = String((rec.fields || {}).Email || "").trim();
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(200).json(generic);
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(200).json(noEmail);
       const token = mintToken(rec.id);
-      if (!token) return res.status(200).json(generic);
+      if (!token) return res.status(200).json(genericFail);
       const origin = (req.headers.origin || req.headers.referer || "https://fandhgolf.com").replace(/\/$/, "");
       const cleanOrigin = /^https?:\/\/[^\/]+/.exec(origin);
       const base = cleanOrigin ? cleanOrigin[0] : "https://fandhgolf.com";
       const link = base + "/player.html?token=" + encodeURIComponent(token);
       sendMagicEmail({ to: email, playerName: rec.fields.Name || name, link }).catch(() => {});
-      return res.status(200).json(generic);
+      const masked = maskEmail(email);
+      return res.status(200).json({
+        ok: true, sent: true, maskedEmail: masked,
+        message: "We sent your sign-in link to " + masked + " — check that inbox.",
+      });
     } catch (e) {
       console.error("magic-request error", e);
-      return res.status(200).json(generic);
+      return res.status(200).json(genericFail);
     }
   }
 
