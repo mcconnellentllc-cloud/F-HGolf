@@ -936,7 +936,18 @@
       // Boot
       var t = readToken();
       if (t && t.token) verifyAndRender(t.token, t.source);
-      else showSignin();
+      else {
+        showSignin();
+        // ?new=1 (from the "Create a card" CTA on the homepage) opens
+        // the signup form directly so brand-new golfers don't have to
+        // fail a sign-in attempt first.
+        try {
+          if (new URLSearchParams(location.search).get("new") === "1") {
+            var f = $("pcSignupForm"), pr = $("pcSignupPrompt");
+            if (f) { f.hidden = false; if (pr) pr.hidden = true; setTimeout(function () { var n = $("suName"); if (n) n.focus(); }, 80); }
+          }
+        } catch (e) {}
+      }
 
       // Mobile-nav toggle mirrors the pattern used on nominate.html/etc.
       var nt = $("navToggle"); var nl = $("navLinks");

@@ -189,7 +189,12 @@ img { max-width: 100%; display: block; }
 .pcard-cta__kicker { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brass, #a37b3d); font-weight: 700; margin: 0 0 0.25rem 0; }
 .pcard-cta__title { font-family: Fraunces, Georgia, serif; color: var(--primary-green); margin: 0 0 0.35rem 0; font-size: 1.5rem; }
 .pcard-cta__lead { margin: 0; color: #555; font-size: 0.98rem; line-height: 1.45; max-width: 60ch; }
-.pcard-cta__actions { flex: 0 0 auto; }
+.pcard-cta__how { margin: 0.6rem 0 0 0; padding: 0 0 0 1.2rem; color: #555; font-size: 0.95rem; line-height: 1.5; max-width: 60ch; }
+.pcard-cta__how li { padding: 0.2rem 0; }
+.pcard-cta__how strong { color: var(--primary-green); }
+.pcard-cta__actions { flex: 0 0 auto; display: flex; flex-direction: column; gap: 0.5rem; align-items: stretch; }
+.pcard-cta__actions .btn { white-space: nowrap; text-align: center; }
+@media (max-width: 640px) { .pcard-cta__actions { flex-direction: row; flex-wrap: wrap; } }
 .nav__player { color: var(--primary-green) !important; font-weight: 700; border: 1.5px solid var(--primary-green); padding: 4px 10px; border-radius: 999px; }
 .nav__player:hover { background: var(--primary-green); color: #fff !important; }
 
