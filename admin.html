@@ -897,7 +897,14 @@
 
         var years = {};
         keys.forEach(function (k) {
-          var m = T[k], y = m.end ? m.end.slice(0, 4) : "Season-long";
+          var m = T[k];
+          // TBD placeholders (reserve-my-spot flow) — bucket by the year
+          // parsed out of the KEY suffix ("(TBD 2027)" → 2027) so they
+          // appear alongside their season, not under "Season-long".
+          var y;
+          if (m.end) y = m.end.slice(0, 4);
+          else if (m.tbd) { var mm = /\(\s*TBD\s+(\d{4})\s*\)/i.exec(k); y = mm ? mm[1] : "Season-long"; }
+          else y = "Season-long";
           (years[y] = years[y] || []).push(k);
         });
         var ynames = Object.keys(years).sort(function (a, b) {
