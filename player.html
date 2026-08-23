@@ -331,7 +331,7 @@
         var btn = $("pcSubmit");
         btn.disabled = true; btn.textContent = "Sending…";
         setSigninMsg("");
-        fetch(FH_API.url("/api/player"), {
+        fetch(FH_API.url("/api/player-card"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "magic-request", name: name })
@@ -357,7 +357,7 @@
       // ---- Verify + render ----
       function verifyAndRender(tok, source) {
         showLoading();
-        fetch(FH_API.url("/api/player"), {
+        fetch(FH_API.url("/api/player-card"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "magic-verify", token: tok })
@@ -408,7 +408,7 @@
         var cur = $("pcCurrent"); var past = $("pcPast");
         cur.innerHTML = '<li class="pc-empty">Loading…</li>';
         past.innerHTML = '<li class="pc-empty">Loading…</li>';
-        fetch(FH_API.url("/api/player"), {
+        fetch(FH_API.url("/api/player-card"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "history", token: tok })
@@ -470,7 +470,7 @@
       });
 
       // ---- Score my round ----
-      // Loaded on card render; save posts to /api/player (rounds-save) and
+      // Loaded on card render; save posts to /api/player-card (rounds-save) and
       // prepends the new round to the list so the player sees it land
       // immediately without a full refetch.
       var _savedToken = null;
@@ -478,7 +478,7 @@
         _savedToken = tok;
         var host = $("pcRounds"); var avg = $("pcRoundsAvg"); var count = $("pcRoundsCount");
         host.innerHTML = '<li class="pc-empty">Loading…</li>'; avg.innerHTML = ""; count.textContent = "";
-        fetch(FH_API.url("/api/player"), {
+        fetch(FH_API.url("/api/player-card"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "rounds-list", token: tok })
@@ -540,7 +540,7 @@
           if (!payload.date) { setStatus("Pick a date first.", "err"); return; }
           if (!payload.gross || payload.gross <= 0) { setStatus("Enter your gross score.", "err"); return; }
           btn.disabled = true; btn.textContent = "Saving…"; setStatus("");
-          fetch(FH_API.url("/api/player"), {
+          fetch(FH_API.url("/api/player-card"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
@@ -622,7 +622,7 @@
         var surcharge = method === "Card" ? Math.round(ctx.base * 0.04 * 100) / 100 : 0;
         var total = Math.round((ctx.base + surcharge) * 100) / 100;
         setPayStatus("Logging…");
-        return fetch(FH_API.url("/api/player"), {
+        return fetch(FH_API.url("/api/player-card"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -666,7 +666,7 @@
       function loadPayments(tok) {
         var host = $("pcPayments"); var count = $("pcPayCount");
         host.innerHTML = '<li class="pc-empty">Loading…</li>'; count.textContent = "";
-        fetch(FH_API.url("/api/player"), {
+        fetch(FH_API.url("/api/player-card"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "payments-list", token: tok })
