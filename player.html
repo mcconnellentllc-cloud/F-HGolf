@@ -68,6 +68,21 @@
     .pc-avg__lbl { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: #888; font-weight: 700; }
     .pc-avg__val { font-family: Fraunces, Georgia, serif; font-size: 1.4rem; color: var(--primary-green, #1B5E20); font-weight: 600; }
     @media (max-width: 480px) { .pc-round-grid { grid-template-columns: 1fr; } }
+    .pc-pay-rates { border: none; padding: 0; margin: 0; display: grid; gap: 0.4rem; }
+    .pc-pay-rates label { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.75rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; cursor: pointer; font-size: 0.95rem; background: #fff; }
+    .pc-pay-rates label:has(input:checked) { border-color: var(--primary-green, #1B5E20); background: #f4f9f5; }
+    .pc-pay-rates input[type="radio"] { accent-color: var(--primary-green, #1B5E20); }
+    .pc-pay-custom input { width: 12rem; padding: 0.5rem 0.7rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; }
+    .pc-pay-summary { margin: 0.75rem 0 0.5rem 0; padding: 0.65rem 0.9rem; border-radius: 8px; background: var(--paper-2, #faf7ef); border: 1px solid var(--line, #e6e2d8); font-size: 0.95rem; color: #333; line-height: 1.5; }
+    .pc-pay-summary strong { color: var(--primary-green, #1B5E20); font-family: Fraunces, Georgia, serif; font-size: 1.1rem; }
+    .pc-pay-summary--check { color: #444; }
+    .pc-pay-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .pc-pay-check { margin-top: 0.9rem; padding: 0.9rem 1rem; background: #f7f4ea; border: 1px solid #e8dfba; border-radius: 8px; }
+    .pc-pay-check p { margin: 0.35rem 0; }
+    .pc-pay-status { margin: 0.5rem 0 0 0; font-size: 0.92rem; }
+    .pc-balance { margin: 0.75rem 0 0 0; padding: 0.6rem 0.85rem; border-radius: 8px; font-size: 0.92rem; }
+    .pc-balance--even { background: #eff5ea; color: #2d5024; }
+    .pc-balance--owed { background: #fff2e0; color: #8a4a00; border: 1px solid #f0d19a; }
   </style>
 </head>
 <body>
@@ -208,6 +223,46 @@
           <h3>My rounds <span id="pcRoundsCount" style="font-size:0.85rem;font-weight:600;color:#888;"></span></h3>
           <div id="pcRoundsAvg" class="pc-avg"></div>
           <ul class="pc-history" id="pcRounds"></ul>
+          <p id="pcPayBalance" class="pc-balance" hidden></p>
+        </div>
+
+        <div class="pc-card">
+          <h3>Pay for a round</h3>
+          <p style="color:#666;font-size:0.92rem;margin:0 0 0.75rem 0;">Cover your green fee (and cart, if you're riding). Cards add a 4% processing surcharge; mailing a check is free — F&amp;H is small, every dollar of the fee goes to the course.</p>
+          <fieldset class="pc-pay-rates">
+            <legend class="form__label" style="padding:0;">Pick a rate</legend>
+            <label><input type="radio" name="pcRate" value="9 walk" data-base="19" checked /> <span>9 holes, walking — <strong>$19</strong></span></label>
+            <label><input type="radio" name="pcRate" value="9 cart" data-base="33" /> <span>9 holes + cart — <strong>$33</strong></span></label>
+            <label><input type="radio" name="pcRate" value="18 walk" data-base="32" /> <span>18 holes, walking — <strong>$32</strong></span></label>
+            <label><input type="radio" name="pcRate" value="18 cart" data-base="60" /> <span>18 holes + cart — <strong>$60</strong></span></label>
+            <label><input type="radio" name="pcRate" value="Custom" data-base="0" /> <span>Custom amount</span></label>
+          </fieldset>
+          <label class="form__field pc-pay-custom" id="pcPayCustomWrap" hidden style="display:block;margin:0.5rem 0 0 0;">
+            <span class="form__label">Your amount ($)</span>
+            <input type="number" id="pcPayCustom" min="1" max="500" step="1" placeholder="e.g. 25" />
+          </label>
+          <div class="pc-pay-summary" id="pcPaySummary" aria-live="polite"></div>
+          <div class="pc-pay-actions">
+            <button type="button" class="btn btn--primary" id="pcPayCard">Pay with card &rarr;</button>
+            <button type="button" class="btn btn--solid" id="pcPayCheck">Mail a check</button>
+          </div>
+          <div class="pc-pay-check" id="pcPayCheckPanel" hidden>
+            <p><strong>Send your check to:</strong></p>
+            <address style="font-style:normal;line-height:1.5;">
+              F&amp;H Golf Course<br />
+              43355 County Rd 30<br />
+              Fleming, CO 80728
+            </address>
+            <p style="font-size:0.9rem;color:#666;margin-top:0.5rem;">Write your name + <em>date played</em> on the memo line so we can match it to your round. When you click <strong>Log this check</strong>, we'll add it to your card as <em>Pending</em>; the pro shop marks it <em>Confirmed</em> once it arrives.</p>
+            <button type="button" class="btn btn--primary" id="pcPayCheckLog">Log this check</button>
+          </div>
+          <p class="pc-pay-status" id="pcPayStatus" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="pc-card">
+          <h3>My payments <span id="pcPayCount" style="font-size:0.85rem;font-weight:600;color:#888;"></span></h3>
+          <ul class="pc-history" id="pcPayments"></ul>
+          <p style="font-size:0.85rem;color:#888;margin-top:0.5rem;">Card payments are <em>Pending</em> until the pro shop confirms them against the Deposyt dashboard. Checks are <em>Pending</em> until they arrive at the course.</p>
         </div>
       </div>
 
@@ -320,6 +375,7 @@
               renderCard(res.j.player);
               loadHistory(tok);
               loadRounds(tok);
+              loadPayments(tok);
               return;
             }
             var msg = (res.j && res.j.error) || "This sign-in link is expired or invalid. Request a new one.";
@@ -511,6 +567,164 @@
         el.textContent = msg || "";
         el.style.color = kind === "ok" ? "var(--primary-green, #1B5E20)" : kind === "err" ? "#a10000" : "#666";
       }
+
+      // ---- Pay for a round ----
+      // Rate picker drives a live summary (base / 4% surcharge / total for
+      // card, base / mail a check / total for check). Card CTA opens the
+      // Deposyt hosted form in a new tab AND logs a Pending payment on the
+      // way out; Check CTA reveals the mailing address + logs on click.
+      // Payments list card re-fetches after each successful log.
+      var DEPOSYT_URL = (window.FH_PAY_URL || "https://fandhgolf.com/#rates");
+      var _payRoundsCount = 0;
+      var _payPaymentsCount = 0;
+      function currentPayCtx() {
+        var el = document.querySelector('input[name="pcRate"]:checked'); if (!el) return null;
+        var rateType = el.value;
+        var base = Number(el.getAttribute("data-base")) || 0;
+        if (rateType === "Custom") {
+          base = Number(($("pcPayCustom").value || "0").toString().replace(/[^0-9.]/g, ""));
+          if (!isFinite(base)) base = 0;
+        }
+        base = Math.round(base * 100) / 100;
+        return { rateType: rateType, base: base };
+      }
+      function refreshPaySummary() {
+        var ctx = currentPayCtx(); var out = $("pcPaySummary");
+        var customWrap = $("pcPayCustomWrap");
+        // Show the amount input inline when Custom is picked.
+        var isCustom = ctx && ctx.rateType === "Custom";
+        customWrap.hidden = !isCustom;
+        if (!ctx || !ctx.base) { out.innerHTML = '<span style="color:#888;">Pick a rate (or enter a custom amount).</span>'; return; }
+        var surcharge = Math.round(ctx.base * 0.04 * 100) / 100;
+        var totalCard = Math.round((ctx.base + surcharge) * 100) / 100;
+        out.innerHTML = ''
+          + 'Base: <strong>$' + ctx.base.toFixed(2) + '</strong>'
+          + ' &nbsp;·&nbsp; Card total: <strong>$' + totalCard.toFixed(2) + '</strong> <span style="color:#888;">(+$' + surcharge.toFixed(2) + ' surcharge)</span>'
+          + '<br /><span class="pc-pay-summary--check">Check by mail: <strong>$' + ctx.base.toFixed(2) + '</strong> — no surcharge.</span>';
+      }
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="pcRate"]'), function (r) {
+        r.addEventListener("change", function () { refreshPaySummary(); $("pcPayCheckPanel").hidden = true; });
+      });
+      var payCustom = $("pcPayCustom");
+      if (payCustom) payCustom.addEventListener("input", refreshPaySummary);
+      refreshPaySummary();
+
+      function setPayStatus(msg, kind) {
+        var el = $("pcPayStatus"); if (!el) return;
+        el.textContent = msg || "";
+        el.style.color = kind === "ok" ? "var(--primary-green, #1B5E20)" : kind === "err" ? "#a10000" : "#666";
+      }
+
+      function logPayment(method) {
+        if (!_savedToken) return;
+        var ctx = currentPayCtx();
+        if (!ctx || !ctx.base || ctx.base <= 0) { setPayStatus("Pick a rate first.", "err"); return null; }
+        var surcharge = method === "Card" ? Math.round(ctx.base * 0.04 * 100) / 100 : 0;
+        var total = Math.round((ctx.base + surcharge) * 100) / 100;
+        setPayStatus("Logging…");
+        return fetch(FH_API.url("/api/player-payments"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "log",
+            token: _savedToken,
+            method: method,
+            rateType: ctx.rateType,
+            baseAmount: ctx.base,
+            surcharge: surcharge,
+            total: total,
+            notes: ""
+          })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.ok) { setPayStatus("Logged as Pending — the pro shop will confirm shortly.", "ok"); loadPayments(_savedToken); return j; }
+            setPayStatus((j && j.error) || "Couldn't log your payment.", "err");
+            return null;
+          })
+          .catch(function () { setPayStatus("Network error logging.", "err"); return null; });
+      }
+
+      $("pcPayCard").addEventListener("click", function () {
+        var ctx = currentPayCtx();
+        if (!ctx || !ctx.base || ctx.base <= 0) { setPayStatus("Pick a rate first.", "err"); return; }
+        // Open Deposyt right away — pop-up blockers require the click
+        // handler itself to open the tab; the API log follows in the
+        // background. On the Deposyt form the player enters the total.
+        var opened = window.open(DEPOSYT_URL, "_blank", "noopener");
+        logPayment("Card");
+        if (!opened) setPayStatus("Pop-up blocked — you can still tap the Pay Online link on the Rates page. Your payment is logged as Pending.", "err");
+      });
+      $("pcPayCheck").addEventListener("click", function () {
+        $("pcPayCheckPanel").hidden = false;
+        // Bring the address into view so mobile users don't have to hunt.
+        setTimeout(function () { $("pcPayCheckPanel").scrollIntoView({ behavior: "smooth", block: "nearest" }); }, 50);
+      });
+      $("pcPayCheckLog").addEventListener("click", function () { logPayment("Check"); });
+
+      // ---- Payments list + reconciliation counter ----
+      function loadPayments(tok) {
+        var host = $("pcPayments"); var count = $("pcPayCount");
+        host.innerHTML = '<li class="pc-empty">Loading…</li>'; count.textContent = "";
+        fetch(FH_API.url("/api/player-payments"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "list", token: tok })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) { host.innerHTML = '<li class="pc-empty">Couldn\'t load your payments.</li>'; return; }
+            renderPayments(j.payments || []);
+          })
+          .catch(function () { host.innerHTML = '<li class="pc-empty">Couldn\'t load your payments.</li>'; });
+      }
+      function renderPayments(pays) {
+        var host = $("pcPayments"); var count = $("pcPayCount");
+        _payPaymentsCount = pays.length;
+        if (!pays.length) { host.innerHTML = '<li class="pc-empty">No payments logged yet.</li>'; refreshPayBalance(); return; }
+        count.textContent = "(" + pays.length + ")";
+        host.innerHTML = pays.map(function (p) {
+          var head = (p.date ? esc(p.date) : "") + " · " + esc(p.rateType || "") + " · <strong>$" + (p.total || 0).toFixed(2) + "</strong>";
+          var meta = [];
+          if (p.method) meta.push(esc(p.method));
+          if (p.status) meta.push(esc(p.status));
+          if (p.surcharge) meta.push("+ $" + p.surcharge.toFixed(2) + " fee");
+          if (p.notes) meta.push(esc(p.notes));
+          return '<li><div class="pc-hist__t">' + head + '</div>'
+            + (meta.length ? '<div class="pc-hist__m">' + meta.join(" · ") + '</div>' : '')
+            + '</li>';
+        }).join("");
+        refreshPayBalance();
+      }
+      function refreshPayBalance() {
+        var el = $("pcPayBalance"); if (!el) return;
+        // Cheap counter — one round = one payment expected. Not exact (a
+        // player could pay for two 9-hole rounds with one $32 18-hole
+        // ticket, or vice-versa), but "N rounds · M payments" surfaces the
+        // gap so the player knows to catch up. Staff Portal reconciliation
+        // in Phase 3b will do the real matching.
+        var rounds = _payRoundsCount, pays = _payPaymentsCount;
+        if (!rounds && !pays) { el.hidden = true; return; }
+        el.hidden = false;
+        if (pays >= rounds) {
+          el.className = "pc-balance pc-balance--even";
+          el.textContent = "You're squared up — " + rounds + " round" + (rounds === 1 ? "" : "s") + " · " + pays + " payment" + (pays === 1 ? "" : "s") + " logged.";
+        } else {
+          var owed = rounds - pays;
+          el.className = "pc-balance pc-balance--owed";
+          el.textContent = rounds + " round" + (rounds === 1 ? "" : "s") + " logged · " + pays + " payment" + (pays === 1 ? "" : "s") + " · about " + owed + " round" + (owed === 1 ? "" : "s") + " still to pay for.";
+        }
+      }
+
+      // Track the round count from the existing round renderer so the
+      // balance counter has both sides. We wrap the original renderRounds
+      // via a shim that saves the count before delegating.
+      var _originalRenderRounds = renderRounds;
+      renderRounds = function (rounds) {
+        _payRoundsCount = (rounds || []).length;
+        _originalRenderRounds(rounds);
+        refreshPayBalance();
+      };
 
       // Boot
       var t = readToken();
