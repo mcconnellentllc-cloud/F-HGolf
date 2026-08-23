@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Player Card — F&amp;H Golf Course</title>
+  <meta name="description" content="Sign in to your F&H Player Card — your tournament history, membership status, and contact details." />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1B5E20" />
+  <link rel="apple-touch-icon" href="images/icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="F&amp;H Golf" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    /* Player Card page — self-contained styles so this ships without a
+       trip through styles.css. Follows the existing brand tokens
+       (--primary-green, --paper, etc.) declared in styles.css. */
+    .pc-wrap { max-width: 720px; margin: 0 auto; padding: 1rem; }
+    .pc-card { background: var(--paper, #fff); border: 1px solid var(--line, #e6e2d8); border-radius: 14px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .pc-card + .pc-card { margin-top: 1rem; }
+    .pc-card h2 { margin: 0 0 0.5rem 0; color: var(--primary-green, #1B5E20); font-family: Fraunces, Georgia, serif; }
+    .pc-card h3 { margin: 0 0 0.75rem 0; color: var(--primary-green, #1B5E20); font-family: Fraunces, Georgia, serif; font-size: 1.15rem; }
+    .pc-card p { margin: 0.3rem 0; color: #333; }
+    .pc-hero { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+    .pc-name { font-family: Fraunces, Georgia, serif; font-size: 1.6rem; color: var(--primary-green, #1B5E20); margin: 0; }
+    .pc-member { display: inline-block; background: var(--primary-green, #1B5E20); color: #fff; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; font-weight: 700; }
+    .pc-member--no { background: #999; }
+    .pc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1.25rem; margin-top: 0.5rem; }
+    .pc-grid > div { font-size: 0.95rem; }
+    .pc-grid .lbl { display: block; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: #888; font-weight: 700; margin-bottom: 2px; }
+    .pc-grid .val { color: #222; }
+    .pc-grid .val--empty { color: #aaa; font-style: italic; }
+    .pc-history { list-style: none; padding: 0; margin: 0.5rem 0 0 0; }
+    .pc-history li { padding: 0.55rem 0; border-top: 1px solid var(--line, #e6e2d8); font-size: 0.95rem; }
+    .pc-history li:first-child { border-top: none; }
+    .pc-hist__t { font-weight: 700; color: #222; }
+    .pc-hist__m { color: #666; font-size: 0.85rem; margin-top: 2px; }
+    .pc-empty { color: #888; font-style: italic; font-size: 0.95rem; }
+    .pc-signout { color: #999; font-size: 0.85rem; background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline; }
+    .pc-signin { max-width: 480px; margin: 2rem auto; }
+    .pc-signin .form__field { display: block; margin: 0.75rem 0; }
+    .pc-signin .form__label { display: block; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: #666; font-weight: 700; margin-bottom: 4px; }
+    .pc-signin input[type="text"] { width: 100%; padding: 0.7rem 0.9rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; }
+    .pc-signin__hint { color: #666; font-size: 0.9rem; margin: 0.5rem 0 0.75rem 0; }
+    .pc-signin__msg { margin-top: 0.75rem; font-size: 0.95rem; }
+    .pc-signin__msg--ok { color: var(--primary-green, #1B5E20); font-weight: 600; }
+    .pc-signin__msg--err { color: #a10000; }
+    .pc-loading { color: #888; text-align: center; padding: 2rem; }
+    .pc-flag { background: #fff4d6; border: 1px solid #ecd08a; color: #6a4b00; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.95rem; }
+    .pc-place { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #f2ede1; color: #6a4b00; font-weight: 700; font-size: 0.78rem; margin-left: 6px; }
+    .pc-place--gold { background: #f5e6a0; color: #6a4b00; }
+    .pc-place--silver { background: #ececec; color: #444; }
+    .pc-place--bronze { background: #f0d3b6; color: #6b3b12; }
+  </style>
+</head>
+<body>
+
+  <!-- ============================ NAV BAR ============================ -->
+  <header class="nav" id="top">
+    <div class="nav__inner">
+      <a href="index.html" class="nav__brand" aria-label="F&H Golf Course home">
+        <img class="nav__mark" src="images/logo.png" alt="" aria-hidden="true" />
+        <span class="nav__wordmark">
+          <span class="nav__name">F&amp;H Golf Course</span>
+          <span class="nav__tagline">Est. 1972 · Fleming, CO</span>
+        </span>
+      </a>
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav__links" id="navLinks">
+        <a href="index.html#course">Course</a>
+        <a href="tournaments.html">Tournaments</a>
+        <a href="hall-of-fame.html">Hall of Fame</a>
+        <a href="index.html#rates">Rates</a>
+        <a href="index.html#contact">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ============================ HERO STRIP ============================ -->
+  <section class="hero hero--strip">
+    <div class="hero__inner">
+      <div class="hero__content">
+        <p class="hero__kicker">For Players</p>
+        <h1 class="hero__title">My Player Card</h1>
+        <p class="hero__subtitle">Your tournament history, membership status, and contact details — all in one place.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--alt">
+    <div class="pc-wrap">
+
+      <!-- Sign-in state (default when no ?token= is present) -->
+      <div id="pcSignin" class="pc-signin pc-card" hidden>
+        <h2>Sign in to your Player Card</h2>
+        <p class="pc-signin__hint">Type your name exactly as it appears on your F&amp;H Player Card. We'll email a sign-in link to the address we have on file. No password.</p>
+        <form id="pcSigninForm" novalidate>
+          <label class="form__field">
+            <span class="form__label">Your full name</span>
+            <input type="text" id="pcName" autocomplete="name" maxlength="120" placeholder="e.g. Rydge Peterson" required />
+          </label>
+          <div class="form__actions">
+            <button type="submit" class="btn btn--primary" id="pcSubmit">Email me a sign-in link</button>
+          </div>
+          <p class="pc-signin__msg" id="pcSigninMsg" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+
+      <!-- Loading state while verifying token -->
+      <div id="pcLoading" class="pc-loading" hidden>Loading your Player Card…</div>
+
+      <!-- Token error state -->
+      <div id="pcTokenErr" class="pc-card" hidden>
+        <h2>This link doesn't work</h2>
+        <p id="pcTokenErrMsg">The sign-in link is expired or invalid.</p>
+        <p><a class="btn btn--primary" href="player.html">Request a new link</a></p>
+      </div>
+
+      <!-- Signed-in card view -->
+      <div id="pcCard" hidden>
+        <div class="pc-card">
+          <div class="pc-hero">
+            <h2 class="pc-name" id="pcCardName"></h2>
+            <span class="pc-member" id="pcMember"></span>
+          </div>
+          <div class="pc-grid">
+            <div><span class="lbl">Email</span><span class="val" id="pcEmail"></span></div>
+            <div><span class="lbl">Phone</span><span class="val" id="pcPhone"></span></div>
+            <div style="grid-column:1/-1;"><span class="lbl">Address</span><span class="val" id="pcAddress"></span></div>
+          </div>
+          <p style="margin-top:1rem;font-size:0.85rem;color:#888;">Something wrong? Editing your details from this page is coming soon — for now, call the pro shop at <a href="tel:+19707746362">(970)&nbsp;774-6362</a>.</p>
+          <p style="margin-top:0.75rem;"><button type="button" class="pc-signout" id="pcSignout">Sign out of this device</button></p>
+        </div>
+
+        <div class="pc-card">
+          <h3>2026 tournaments</h3>
+          <ul class="pc-history" id="pcCurrent"></ul>
+        </div>
+
+        <div class="pc-card">
+          <h3>Past tournaments</h3>
+          <ul class="pc-history" id="pcPast"></ul>
+        </div>
+
+        <div class="pc-card">
+          <h3>Score my round <span style="font-size:0.72rem;font-weight:600;color:#888;letter-spacing:0.1em;text-transform:uppercase;">Coming soon</span></h3>
+          <p style="color:#666;font-size:0.95rem;">Post your own 9 or 18 from tees you played — we'll track your rounds and running average across the season. First release is coming next.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================ FOOTER ============================ -->
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <a href="index.html" class="site-footer__marklink"><img class="site-footer__mark" src="images/logo.png" alt="F&H Golf Course logo" /></a>
+        <div>
+          <div class="site-footer__name">F&amp;H Golf Course</div>
+          <p class="site-footer__tag">43355 County Rd 30, Fleming, CO 80728</p>
+        </div>
+      </div>
+      <div>
+        <h4>Go to</h4>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="tournaments.html">Tournaments</a></li>
+          <li><a href="hall-of-fame.html">Hall of Fame</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="site-footer__bottom">
+      <span>&copy; 2026 F&amp;H Golf Course — F&amp;H Park &amp; Recreation District. Fleming, Colorado.</span>
+      <span>(970) 774-6362</span>
+    </div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+      var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); };
+      var LS_KEY = "fh_player_token";
+
+      // Token precedence:
+      //   1. ?token=… in the URL (the email link, freshly clicked)
+      //   2. localStorage (previous device sign-in that stuck around)
+      // When a URL token verifies, we persist it to localStorage AND strip
+      // it from the URL so refreshes/bookmarks stay clean.
+      function readToken() {
+        try { var p = new URLSearchParams(window.location.search).get("token"); if (p) return { token: p, source: "url" }; } catch (e) {}
+        try { var s = localStorage.getItem(LS_KEY); if (s) return { token: s, source: "storage" }; } catch (e) {}
+        return null;
+      }
+      function saveToken(tok) { try { localStorage.setItem(LS_KEY, tok); } catch (e) {} }
+      function clearToken() { try { localStorage.removeItem(LS_KEY); } catch (e) {} }
+
+      // ---- Sign-in flow ----
+      function showSignin() { $("pcSignin").hidden = false; $("pcLoading").hidden = true; $("pcCard").hidden = true; $("pcTokenErr").hidden = true; }
+      function showLoading() { $("pcSignin").hidden = true; $("pcLoading").hidden = false; $("pcCard").hidden = true; $("pcTokenErr").hidden = true; }
+      function showCard() { $("pcSignin").hidden = true; $("pcLoading").hidden = true; $("pcCard").hidden = false; $("pcTokenErr").hidden = true; }
+      function showTokenErr(msg) {
+        $("pcSignin").hidden = true; $("pcLoading").hidden = true; $("pcCard").hidden = true; $("pcTokenErr").hidden = false;
+        if (msg) $("pcTokenErrMsg").textContent = msg;
+      }
+
+      var signinForm = $("pcSigninForm");
+      signinForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var name = ($("pcName").value || "").trim();
+        if (!name) { setSigninMsg("Type your name first.", "err"); return; }
+        var btn = $("pcSubmit");
+        btn.disabled = true; btn.textContent = "Sending…";
+        setSigninMsg("");
+        fetch(FH_API.url("/api/player-magic"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "request", name: name })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            btn.disabled = false; btn.textContent = "Email me a sign-in link";
+            // Server always returns the same message whether or not we
+            // found a match — that keeps directory membership private.
+            setSigninMsg((j && j.message) || "If we found a match with an email on file, we sent a link. Check your inbox.", "ok");
+          })
+          .catch(function () {
+            btn.disabled = false; btn.textContent = "Email me a sign-in link";
+            setSigninMsg("Network error — please try again in a moment.", "err");
+          });
+      });
+      function setSigninMsg(msg, kind) {
+        var el = $("pcSigninMsg");
+        el.textContent = msg || "";
+        el.className = "pc-signin__msg" + (kind === "ok" ? " pc-signin__msg--ok" : kind === "err" ? " pc-signin__msg--err" : "");
+      }
+
+      // ---- Verify + render ----
+      function verifyAndRender(tok, source) {
+        showLoading();
+        fetch(FH_API.url("/api/player-magic"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "verify", token: tok })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
+          .then(function (res) {
+            if (res.j && res.j.ok && res.j.player) {
+              // Cache the token for future visits (only when it verified),
+              // and drop it from the URL so refreshes / bookmarking don't
+              // pass a raw token around.
+              saveToken(tok);
+              if (source === "url" && window.history && history.replaceState) {
+                try { history.replaceState({}, "", location.pathname + location.hash); } catch (e) {}
+              }
+              renderCard(res.j.player);
+              loadHistory(tok);
+              return;
+            }
+            var msg = (res.j && res.j.error) || "This sign-in link is expired or invalid. Request a new one.";
+            // A stored token that stopped working is stale — wipe it so
+            // the user doesn't get stuck in a loop.
+            if (source === "storage") clearToken();
+            showTokenErr(msg);
+          })
+          .catch(function () { showTokenErr("Network error verifying your link — try again in a moment."); });
+      }
+
+      function renderCard(p) {
+        $("pcCardName").textContent = p.name || "(no name)";
+        var mem = $("pcMember");
+        if (p.member) { mem.textContent = "Member"; mem.className = "pc-member"; }
+        else { mem.textContent = "Non-member"; mem.className = "pc-member pc-member--no"; }
+        function fill(id, val) {
+          var el = $(id);
+          if (val) { el.textContent = val; el.className = "val"; }
+          else { el.textContent = "(not on file)"; el.className = "val val--empty"; }
+        }
+        fill("pcEmail", p.email);
+        fill("pcPhone", p.phone);
+        var addr = [p.street, [p.city, p.state].filter(Boolean).join(", "), p.zip].filter(Boolean).join(" · ");
+        fill("pcAddress", addr);
+        showCard();
+      }
+
+      function loadHistory(tok) {
+        var cur = $("pcCurrent"); var past = $("pcPast");
+        cur.innerHTML = '<li class="pc-empty">Loading…</li>';
+        past.innerHTML = '<li class="pc-empty">Loading…</li>';
+        fetch(FH_API.url("/api/player-history"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: tok })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) {
+              cur.innerHTML = '<li class="pc-empty">Couldn\'t load your history.</li>';
+              past.innerHTML = '';
+              return;
+            }
+            renderList(cur, j.current || [], "current");
+            renderList(past, j.past || [], "past");
+          })
+          .catch(function () {
+            cur.innerHTML = '<li class="pc-empty">Couldn\'t load your history.</li>';
+            past.innerHTML = '';
+          });
+      }
+      function placeLabel(place) {
+        if (!place) return "";
+        var cls = place === 1 ? "pc-place--gold" : place === 2 ? "pc-place--silver" : place === 3 ? "pc-place--bronze" : "";
+        return '<span class="pc-place ' + cls + '">' + place + (place === 1 ? "st" : place === 2 ? "nd" : place === 3 ? "rd" : "th") + '</span>';
+      }
+      function renderList(el, items, kind) {
+        if (!items.length) {
+          el.innerHTML = '<li class="pc-empty">' + (kind === "current" ? "No 2026 tournaments yet." : "No past-year results in the archives yet.") + '</li>';
+          return;
+        }
+        el.innerHTML = items.map(function (it) {
+          if (kind === "current") {
+            var line1 = esc(it.tournament || "Tournament");
+            var bits = [];
+            if (it.team) bits.push("Team: " + esc(it.team));
+            if (it.role === "captain") bits.push("Captain");
+            if (it.alternate) bits.push("Alternate");
+            if (it.paid) bits.push("Paid: " + esc(it.paid));
+            return '<li><div class="pc-hist__t">' + line1 + '</div>'
+              + (bits.length ? '<div class="pc-hist__m">' + bits.join(" · ") + '</div>' : '')
+              + '</li>';
+          }
+          // past
+          var head = esc(it.tournament || "Tournament") + (it.year ? " · " + esc(it.year) : "");
+          var meta = [];
+          if (it.flight) meta.push(esc(it.flight));
+          if (it.team) meta.push("Team: " + esc(it.team));
+          if (it.gross != null) meta.push("Gross " + esc(String(it.gross)));
+          if (it.net != null) meta.push("Net " + esc(String(it.net)));
+          var placeStr = placeLabel(it.grossPlace) || placeLabel(it.netPlace);
+          return '<li><div class="pc-hist__t">' + head + placeStr + '</div>'
+            + (meta.length ? '<div class="pc-hist__m">' + meta.join(" · ") + '</div>' : '')
+            + '</li>';
+        }).join("");
+      }
+
+      $("pcSignout").addEventListener("click", function () {
+        clearToken();
+        location.href = "player.html";
+      });
+
+      // Boot
+      var t = readToken();
+      if (t && t.token) verifyAndRender(t.token, t.source);
+      else showSignin();
+
+      // Mobile-nav toggle mirrors the pattern used on nominate.html/etc.
+      var nt = $("navToggle"); var nl = $("navLinks");
+      if (nt && nl) nt.addEventListener("click", function () {
+        var open = nl.classList.toggle("is-open");
+        nt.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+    })();
+  </script>
+</body>
+</html>
