@@ -47,6 +47,12 @@
 //                                  surcharge, total, notes }
 //     -> 200 { ok: true, id, payment }
 //
+//   POST { action: "profile-save", token, email?, phone?, street?, city?,
+//                                    state?, zip? }
+//     -> 200 { ok: true, player }
+//     Name stays locked (identity handle). Everything else the member
+//     can edit from their card. Empty string clears the field.
+//
 // Airtable tables used (see the PR body for the exact schemas):
 //   Players           — canonical member directory
 //   Tournament Signups — current tournament roster
@@ -637,6 +643,53 @@ module.exports = async (req, res) => {
         },
       });
     } catch (e) { console.error("payments-log error", e); return res.status(500).json({ ok: false, error: "Couldn't log your payment." }); }
+  }
+
+  if (action === "profile-save") {
+    // Player can edit their own contact info from the Player Card. Name
+    // stays locked (that's the identity handle for sign-in + tournament
+    // matching); everything else is theirs to update.
+    const { AIRTABLE_TOKEN, AIRTABLE_BASE_ID } = process.env;
+    const TABLE = process.env.PLAYERS_TABLE || "Players";
+    const cleanS = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+    const email = cleanS(body.email, 200);
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ ok: false, error: "That email doesn't look right." });
+    // Empty strings clear the field; skip fields the client didn't send.
+    const fields = {};
+    if (typeof body.email === "string") fields.Email = email;
+    if (typeof body.phone === "string") fields.Phone = cleanS(body.phone, 40);
+    if (typeof body.street === "string") fields.Street = cleanS(body.street, 200);
+    if (typeof body.city === "string") fields.City = cleanS(body.city, 100);
+    if (typeof body.state === "string") fields.State = cleanS(body.state, 20);
+    if (typeof body.zip === "string") fields.Zip = cleanS(body.zip, 20);
+    if (!Object.keys(fields).length) return res.status(400).json({ ok: false, error: "Nothing to save." });
+    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}/${encodeURIComponent(claims.id)}`;
+    try {
+      const r = await fetch(url, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ fields, typecast: true }),
+      });
+      const detail = await r.text();
+      if (!r.ok) {
+        console.error("profile-save failed", r.status, detail);
+        return res.status(502).json({ ok: false, error: "Couldn't save your details right now — please try again." });
+      }
+      const data = JSON.parse(detail);
+      const f = data.fields || {};
+      return res.status(200).json({
+        ok: true,
+        player: {
+          id: data.id,
+          name: f.Name || "", email: f.Email || "", phone: f.Phone || "",
+          street: f.Street || "", city: f.City || "", state: f.State || "", zip: f.Zip || "",
+          member: !!f.Member, notes: f.Notes || "",
+        },
+      });
+    } catch (e) {
+      console.error("profile-save error", e);
+      return res.status(500).json({ ok: false, error: "Couldn't save your details." });
+    }
   }
 
   return res.status(400).json({ ok: false, error: "Unknown action." });
