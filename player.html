@@ -339,9 +339,12 @@
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
             btn.disabled = false; btn.textContent = "Email me a sign-in link";
-            // Server always returns the same message whether or not we
-            // found a match — that keeps directory membership private.
-            setSigninMsg((j && j.message) || "If we found a match with an email on file, we sent a link. Check your inbox.", "ok");
+            // Server returns { sent: true, message: "We sent to k***@g***.com" }
+            // on a hit and { sent: false, message: "..." } on miss / no email
+            // on file. Color-code so the operator sees the outcome at a glance.
+            var msg = (j && j.message) || "";
+            var kind = (j && j.sent) ? "ok" : "err";
+            setSigninMsg(msg || "Something went wrong — please try again.", kind);
           })
           .catch(function () {
             btn.disabled = false; btn.textContent = "Email me a sign-in link";
