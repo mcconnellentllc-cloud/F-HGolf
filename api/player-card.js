@@ -55,7 +55,7 @@
 //   Payments          — self-logged green-fee payments (card + check)
 //
 // Auth: HMAC-SHA256 signed token, secret derived from ADMIN_KEY so no
-// new env var is needed. 30-day TTL. Token format:
+// new env var is needed. Effectively never expires. Token format:
 //   base64url({id, exp}) + "." + base64url(hmacSha256(secret, payload))
 //
 // Env: AIRTABLE_TOKEN, AIRTABLE_BASE_ID, ADMIN_KEY, RESEND_API_KEY,
@@ -68,7 +68,12 @@
 const crypto = require("crypto");
 
 // ---------- Token (HMAC) ---------------------------------------------------
-const TTL_MS = 30 * 24 * 60 * 60 * 1000;
+// Sign-in links don't expire — members bookmark the link on their phone
+// and expect it to keep working. 100 years is functionally "never" for
+// any human that would use this site. If we ever want revocation, we
+// can rev the derived-secret suffix (see `secret()` below) which
+// invalidates every issued token in one flip.
+const TTL_MS = 100 * 365 * 24 * 60 * 60 * 1000;
 function secret() {
   const adminKey = process.env.ADMIN_KEY || "";
   if (!adminKey) return null;
@@ -188,7 +193,7 @@ async function sendMagicEmail({ to, playerName, link }) {
     `Here's your sign-in link for your F&H Player Card.`,
     `Tap it on any device to open your card — no password.`, ``,
     `  ${link}`, ``,
-    `The link is good for 30 days. If you didn't request this, ignore this email.`, ``,
+    `Bookmark this link — it doesn't expire. If you didn't request this, ignore this email.`, ``,
     `— F&H Golf Course`,
   ].join("\n");
   const brand = "#1B5E20";
@@ -204,7 +209,7 @@ async function sendMagicEmail({ to, playerName, link }) {
         <tr><td style="padding:8px 0 20px 0;">
           <a href="${escHtml(link)}" style="display:inline-block;background:${brand};color:#fff;text-decoration:none;font:700 15px ${sans};padding:12px 24px;border-radius:8px;">Open my Player Card &rarr;</a>
         </td></tr>
-        <tr><td style="font:400 13px/1.55 ${sans};color:#666;">The link is good for 30 days. If you didn't request this, you can safely ignore this email.</td></tr>
+        <tr><td style="font:400 13px/1.55 ${sans};color:#666;">Bookmark this link — it doesn't expire. If you didn't request this, you can safely ignore this email.</td></tr>
         <tr><td style="font:400 12px/1.5 ${sans};color:#999;padding:20px 0 0 0;border-top:1px solid #eee;margin-top:20px;">F&amp;H Golf Course · Fleming, Colorado</td></tr>
       </table>
     </td></tr>
@@ -486,7 +491,7 @@ module.exports = async (req, res) => {
 
   // Everything else requires a valid magic-link token.
   const claims = verifyToken(body.token);
-  if (!claims) return res.status(400).json({ ok: false, error: "This link has expired or isn't valid." });
+  if (!claims) return res.status(400).json({ ok: false, error: "This sign-in link isn't valid." });
 
   if (action === "magic-verify") {
     const rec = await loadPlayerById(claims.id);
