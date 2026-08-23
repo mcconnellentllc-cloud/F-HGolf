@@ -57,6 +57,17 @@
     .pc-place--gold { background: #f5e6a0; color: #6a4b00; }
     .pc-place--silver { background: #ececec; color: #444; }
     .pc-place--bronze { background: #f0d3b6; color: #6b3b12; }
+    .pc-round-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem; }
+    .pc-round-grid .form__field { display: block; }
+    .pc-round-grid .form__label { display: block; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: #666; font-weight: 700; margin-bottom: 4px; }
+    .pc-round-grid input[type="text"], .pc-round-grid input[type="date"], .pc-round-grid input[type="number"], .pc-round-grid select { width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; background: #fff; }
+    .pc-radio-row { display: flex; gap: 1rem; font-size: 0.95rem; padding: 0.3rem 0; }
+    .pc-radio-row label { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+    .pc-avg { display: flex; gap: 1.25rem; padding: 0.25rem 0 0.75rem 0; flex-wrap: wrap; }
+    .pc-avg__item { background: var(--paper-2, #faf7ef); border: 1px solid var(--line, #e6e2d8); border-radius: 10px; padding: 0.5rem 0.9rem; display: inline-flex; flex-direction: column; }
+    .pc-avg__lbl { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: #888; font-weight: 700; }
+    .pc-avg__val { font-family: Fraunces, Georgia, serif; font-size: 1.4rem; color: var(--primary-green, #1B5E20); font-weight: 600; }
+    @media (max-width: 480px) { .pc-round-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -151,8 +162,52 @@
         </div>
 
         <div class="pc-card">
-          <h3>Score my round <span style="font-size:0.72rem;font-weight:600;color:#888;letter-spacing:0.1em;text-transform:uppercase;">Coming soon</span></h3>
-          <p style="color:#666;font-size:0.95rem;">Post your own 9 or 18 from tees you played — we'll track your rounds and running average across the season. First release is coming next.</p>
+          <h3>Score my round</h3>
+          <p style="color:#666;font-size:0.92rem;margin:0 0 0.75rem 0;">Post your own 9 or 18. We'll track your rounds and running average across the year.</p>
+          <form id="pcRoundForm" novalidate>
+            <div class="pc-round-grid">
+              <label class="form__field"><span class="form__label">Date</span>
+                <input type="date" id="prDate" required />
+              </label>
+              <fieldset class="form__field" style="border:none;padding:0;margin:0;">
+                <legend class="form__label" style="padding:0;">Holes</legend>
+                <div class="pc-radio-row">
+                  <label><input type="radio" name="prHoles" value="9" /> 9</label>
+                  <label><input type="radio" name="prHoles" value="18" checked /> 18</label>
+                </div>
+              </fieldset>
+              <label class="form__field"><span class="form__label">Tees</span>
+                <select id="prTees">
+                  <option value="">— pick tees —</option>
+                  <option>White</option>
+                  <option>Blue</option>
+                  <option>Red</option>
+                  <option>Gold</option>
+                  <option>Combo</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label class="form__field"><span class="form__label">Gross score</span>
+                <input type="number" id="prGross" min="18" max="200" step="1" placeholder="e.g. 84" required />
+              </label>
+              <label class="form__field" style="grid-column:1/-1;"><span class="form__label">Course</span>
+                <input type="text" id="prCourse" maxlength="120" placeholder="F&amp;H Golf Course" />
+              </label>
+              <label class="form__field" style="grid-column:1/-1;"><span class="form__label">Notes (optional)</span>
+                <input type="text" id="prNotes" maxlength="1000" placeholder="Weather, playing partners, memorable holes…" />
+              </label>
+            </div>
+            <div class="form__actions" style="margin-top:0.75rem;">
+              <button type="submit" class="btn btn--primary" id="prSubmit">Save round</button>
+              <span class="form__status" id="prStatus" role="status" aria-live="polite"></span>
+            </div>
+          </form>
+        </div>
+
+        <div class="pc-card">
+          <h3>My rounds <span id="pcRoundsCount" style="font-size:0.85rem;font-weight:600;color:#888;"></span></h3>
+          <div id="pcRoundsAvg" class="pc-avg"></div>
+          <ul class="pc-history" id="pcRounds"></ul>
         </div>
       </div>
 
@@ -264,6 +319,7 @@
               }
               renderCard(res.j.player);
               loadHistory(tok);
+              loadRounds(tok);
               return;
             }
             var msg = (res.j && res.j.error) || "This sign-in link is expired or invalid. Request a new one.";
@@ -356,6 +412,105 @@
         clearToken();
         location.href = "player.html";
       });
+
+      // ---- Score my round ----
+      // Loaded on card render; save posts to /api/player-rounds and
+      // prepends the new round to the list so the player sees it land
+      // immediately without a full refetch.
+      var _savedToken = null;
+      function loadRounds(tok) {
+        _savedToken = tok;
+        var host = $("pcRounds"); var avg = $("pcRoundsAvg"); var count = $("pcRoundsCount");
+        host.innerHTML = '<li class="pc-empty">Loading…</li>'; avg.innerHTML = ""; count.textContent = "";
+        fetch(FH_API.url("/api/player-rounds"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "list", token: tok })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) { host.innerHTML = '<li class="pc-empty">Couldn\'t load your rounds.</li>'; return; }
+            renderRounds(j.rounds || []);
+          })
+          .catch(function () { host.innerHTML = '<li class="pc-empty">Couldn\'t load your rounds.</li>'; });
+      }
+      function renderRounds(rounds) {
+        var host = $("pcRounds"); var avg = $("pcRoundsAvg"); var count = $("pcRoundsCount");
+        if (!rounds.length) { host.innerHTML = '<li class="pc-empty">No rounds posted yet — score your first one above.</li>'; return; }
+        count.textContent = "(" + rounds.length + ")";
+        // Split by 9 / 18 for meaningful averages — mixing them gives a
+        // misleading single number.
+        var by18 = rounds.filter(function (r) { return r.holes === 18 && r.gross != null; });
+        var by9 = rounds.filter(function (r) { return r.holes === 9 && r.gross != null; });
+        function avgOf(list) { if (!list.length) return null; var s = 0; list.forEach(function (r) { s += r.gross; }); return Math.round(s / list.length * 10) / 10; }
+        var avgBits = [];
+        var a18 = avgOf(by18); if (a18 != null) avgBits.push('<div class="pc-avg__item"><span class="pc-avg__lbl">18-hole avg</span><span class="pc-avg__val">' + a18 + '</span></div>');
+        var a9 = avgOf(by9); if (a9 != null) avgBits.push('<div class="pc-avg__item"><span class="pc-avg__lbl">9-hole avg</span><span class="pc-avg__val">' + a9 + '</span></div>');
+        avgBits.push('<div class="pc-avg__item"><span class="pc-avg__lbl">Total rounds</span><span class="pc-avg__val">' + rounds.length + '</span></div>');
+        avg.innerHTML = avgBits.join("");
+        host.innerHTML = rounds.map(function (r) {
+          var head = (r.date ? esc(r.date) : "") + (r.holes ? " · " + r.holes + " holes" : "") + (r.gross != null ? " · " + '<strong>' + r.gross + '</strong>' : "");
+          var meta = [];
+          if (r.tees) meta.push(esc(r.tees) + " tees");
+          if (r.course) meta.push(esc(r.course));
+          if (r.notes) meta.push(esc(r.notes));
+          return '<li><div class="pc-hist__t">' + head + '</div>'
+            + (meta.length ? '<div class="pc-hist__m">' + meta.join(" · ") + '</div>' : '')
+            + '</li>';
+        }).join("");
+      }
+      var roundForm = $("pcRoundForm");
+      if (roundForm) {
+        // Default the date field to today so tapping Save + Enter is the
+        // fast path for scoring immediately after finishing.
+        var dateEl = $("prDate"); var today = new Date();
+        var iso = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+        if (dateEl && !dateEl.value) dateEl.value = iso;
+        roundForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+          if (!_savedToken) return;
+          var btn = $("prSubmit"); var status = $("prStatus");
+          var holesEl = document.querySelector('input[name="prHoles"]:checked');
+          var payload = {
+            action: "save",
+            token: _savedToken,
+            date: ($("prDate").value || "").trim(),
+            holes: holesEl ? Number(holesEl.value) : 18,
+            tees: ($("prTees").value || "").trim(),
+            course: ($("prCourse").value || "").trim() || "F&H Golf Course",
+            gross: Number($("prGross").value || 0),
+            notes: ($("prNotes").value || "").trim(),
+          };
+          if (!payload.date) { setStatus("Pick a date first.", "err"); return; }
+          if (!payload.gross || payload.gross <= 0) { setStatus("Enter your gross score.", "err"); return; }
+          btn.disabled = true; btn.textContent = "Saving…"; setStatus("");
+          fetch(FH_API.url("/api/player-rounds"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          })
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+              btn.disabled = false; btn.textContent = "Save round";
+              if (j && j.ok) {
+                setStatus("Saved.", "ok");
+                // Prepend to the visible list right away.
+                loadRounds(_savedToken);
+                // Reset the score-specific fields but keep date + holes +
+                // tees + course so scoring a second round is one field.
+                $("prGross").value = ""; $("prNotes").value = "";
+              } else {
+                setStatus((j && j.error) || "Couldn't save your round.", "err");
+              }
+            })
+            .catch(function () { btn.disabled = false; btn.textContent = "Save round"; setStatus("Network error saving.", "err"); });
+        });
+      }
+      function setStatus(msg, kind) {
+        var el = $("prStatus"); if (!el) return;
+        el.textContent = msg || "";
+        el.style.color = kind === "ok" ? "var(--primary-green, #1B5E20)" : kind === "err" ? "#a10000" : "#666";
+      }
 
       // Boot
       var t = readToken();
