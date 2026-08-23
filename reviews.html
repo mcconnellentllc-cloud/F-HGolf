@@ -255,7 +255,7 @@
         var rsel = form.querySelector('input[name="rating"]:checked');
         data.rating = rsel ? rsel.value : "";
         var orig = btn.textContent; btn.disabled = true; btn.textContent = "Submitting…";
-        fetch(FH_API.url("/api/review-submit"), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(data) })
+        fetch(FH_API.url("/api/reviews"), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(data) })
           .then(function(r){ return r.json().catch(function(){return {};}).then(function(j){ return {status:r.status, j:j}; }); })
           .then(function(res){
             if (res.j && res.j.ok) { form.hidden=true; success.hidden=false; success.scrollIntoView({behavior:"smooth",block:"center"}); }
