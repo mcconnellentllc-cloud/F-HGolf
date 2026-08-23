@@ -49,21 +49,26 @@ module.exports = async (req, res) => {
   }
   const template = String(body.template || "calcuttaReceipt");
 
-  // ---- thankYou template: post-tournament thank-you + next-year signup ----
+  // ---- thankYou template: post-tournament thank-you email ----
+  // Every field except playerName is per-tournament. `isFounders: true`
+  // adds the Founders-specific "reserve your spot for next year" block
+  // (deadlines, first-come/first-served copy). Any other tournament
+  // sends a clean thanks + link to the leaderboard, no reserve CTA.
   if (template === "thankYou") {
     const to = String(body.to || "").trim();
     const playerName = String(body.playerName || "").trim();
-    const tournamentName = String(body.tournamentName || "F&H Founders Tournament").trim();
+    const tournamentName = String(body.tournamentName || "F&H Tournament").trim();
     const tournamentYear = Number(body.tournamentYear) || new Date().getFullYear();
     const nextYear = tournamentYear + 1;
-    const leaderboardUrl = String(body.leaderboardUrl || "https://fandhgolf.com/founders-leaderboard-display.html").trim();
+    const leaderboardUrl = String(body.leaderboardUrl || "https://fandhgolf.com/tournaments.html").trim();
     const signupUrl = String(body.signupUrl || "https://fandhgolf.com/tournaments.html").trim();
+    const isFounders = body.isFounders === true;
     if (!playerName) return res.status(400).json({ ok: false, error: "playerName is required." });
     if (!preview && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
       return res.status(400).json({ ok: false, error: "A valid player email is required." });
     }
     const firstName = playerName.split(/\s+/)[0] || playerName;
-    const ctx = { firstName, playerName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl };
+    const ctx = { firstName, playerName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl, isFounders };
     const subject = buildThankYouSubject(ctx);
     const html = buildThankYouHtml(ctx);
     const text = buildThankYouText(ctx);
@@ -334,37 +339,43 @@ function buildHtml({ firstName, buyerName, tournamentName, teams, totalSpent, to
 // year — dates read "July 25, <nextYear>" and "August 1, <nextYear>" so
 // no code changes are needed for the next tournament.
 
-function buildThankYouSubject({ tournamentYear, nextYear }) {
-  return "Thanks for playing the " + tournamentYear + " F&H Founders — save your spot for " + nextYear;
+function buildThankYouSubject({ tournamentYear, tournamentName, nextYear, isFounders }) {
+  if (isFounders) {
+    return "Thanks for playing the " + tournamentYear + " " + tournamentName + " — save your spot for " + nextYear;
+  }
+  return "Thanks for playing the " + tournamentYear + " " + tournamentName;
 }
 
-function buildThankYouText({ firstName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl }) {
+function buildThankYouText({ firstName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl, isFounders }) {
   const L = [];
   L.push(`Hi ${firstName},`);
   L.push("");
-  L.push(`Thanks for coming out to play the ${tournamentYear} ${tournamentName} — it wouldn't be`);
-  L.push("the same weekend without you.");
+  L.push(`Thanks for coming out to play the ${tournamentYear} ${tournamentName} — it`);
+  L.push("wouldn't have been the same without you.");
   L.push("");
   L.push("Final results are up on the leaderboard:");
   L.push(`  ${leaderboardUrl}`);
   L.push("");
-  L.push(`SAVE YOUR SPOT FOR ${nextYear}`);
-  L.push("");
-  L.push("Signups are open now. Payment secures your slot, and slots fill up.");
-  L.push("A few things to know:");
-  L.push("");
-  L.push(`  • Signup + payment deadline: July 25, ${nextYear}`);
-  L.push("  • Signups and payments are taken in order — first-come, first-served.");
-  L.push(`  • After August 1, ${nextYear}, paid participants take precedent over`);
-  L.push("    unpaid entrants for any remaining spots.");
-  L.push("");
-  L.push("Reserve your spot:");
-  L.push(`  ${signupUrl}`);
-  L.push("");
-  L.push("Watch for updates by email or on the website — we'll post pairings, format,");
-  L.push("and any changes as they come together.");
-  L.push("");
-  L.push("Thanks again for being part of it. See you next year.");
+  if (isFounders) {
+    L.push(`SAVE YOUR SPOT FOR ${nextYear}`);
+    L.push("");
+    L.push("Signups are open now. Payment secures your slot, and slots fill up.");
+    L.push("A few things to know:");
+    L.push("");
+    L.push(`  • Signup + payment deadline: July 25, ${nextYear}`);
+    L.push("  • Signups and payments are taken in order — first-come, first-served.");
+    L.push(`  • After August 1, ${nextYear}, paid participants take precedent over`);
+    L.push("    unpaid entrants for any remaining spots.");
+    L.push("");
+    L.push("Reserve your spot:");
+    L.push(`  ${signupUrl}`);
+    L.push("");
+  } else {
+    L.push("Keep an eye on the tournaments page for what's next this season:");
+    L.push(`  ${signupUrl}`);
+    L.push("");
+  }
+  L.push("Thanks again for being part of it. See you at the next one.");
   L.push("");
   L.push("— The F&H Golf Course crew");
   L.push("F&H Golf Course");
@@ -372,7 +383,7 @@ function buildThankYouText({ firstName, tournamentName, tournamentYear, nextYear
   return L.join("\n");
 }
 
-function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl }) {
+function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl, isFounders }) {
   const brand = "#1f5c3a";
   const brandDeep = "#12402a";
   const gold = "#c9a04b";
@@ -390,11 +401,11 @@ function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYe
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Thanks for playing the ${esc(String(tournamentYear))} F&amp;H Founders</title>
+<title>Thanks for playing the ${esc(String(tournamentYear))} ${esc(tournamentName)}</title>
 </head>
 <body style="margin:0;padding:0;background:${cream};">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:${cream};">
-  ${esc(firstName)}, thanks for playing the ${esc(String(tournamentYear))} Founders. Save your spot for ${esc(String(nextYear))} — signups + payment due July 25.
+  ${esc(firstName)}, thanks for playing the ${esc(String(tournamentYear))} ${esc(tournamentName)}. ${isFounders ? `Save your spot for ${esc(String(nextYear))} — signups + payment due July 25.` : "See you at the next one."}
 </div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${cream};">
   <tr><td align="center" style="padding:28px 12px 40px 12px;">
@@ -412,7 +423,7 @@ function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYe
         <td style="padding:36px 32px 6px 32px;">
           <h1 style="font:400 32px/1.15 ${serif};color:${ink};margin:0 0 12px 0;letter-spacing:-0.005em;">Thanks for playing, ${esc(firstName)}.</h1>
           <p style="font:16px/1.65 ${sans};color:${inkSoft};margin:0;">
-            The ${esc(String(tournamentYear))} Founders is one for the books. Thank you for making the trip out, for the good golf, and for the good company — it wouldn&rsquo;t be the same weekend without you.
+            The ${esc(String(tournamentYear))} ${esc(tournamentName)} is one for the books. Thank you for making the trip out, for the good golf, and for the good company — it wouldn&rsquo;t have been the same without you.
           </p>
         </td>
       </tr>
@@ -428,11 +439,13 @@ function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYe
 
       <tr><td style="padding:28px 32px 8px 32px;">
         <div style="font:600 11px ${sans};color:${gold};text-transform:uppercase;letter-spacing:0.16em;margin-bottom:8px;">Save your spot for ${esc(String(nextYear))}</div>
-        <h2 style="font:400 26px/1.2 ${serif};color:${ink};margin:0 0 12px 0;">Come back next August.</h2>
+        <h2 style="font:400 26px/1.2 ${serif};color:${ink};margin:0 0 12px 0;">${isFounders ? "Come back next August." : `Reserve your ${esc(String(nextYear))} spot now.`}</h2>
         <p style="font:16px/1.65 ${sans};color:${inkSoft};margin:0 0 14px 0;">
-          Signups are open now. Payment secures your slot, and slots fill up. A few things to know:
+          ${isFounders
+            ? "Signups are open now. Payment secures your slot, and slots fill up. A few things to know:"
+            : `Reserve your team for the ${esc(String(nextYear))} ${esc(tournamentName)}. Signups + payment are collected in order — first-come, first-served — and paid entries hold the field ahead of unpaid ones.`}
         </p>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${goldSoft};border:1px solid #e5d8ac;border-radius:10px;">
+        ${isFounders ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${goldSoft};border:1px solid #e5d8ac;border-radius:10px;">
           <tr><td style="padding:18px 22px;">
             <ul style="margin:0;padding:0;list-style:none;font:15px/1.7 ${sans};color:${ink};">
               <li style="padding:4px 0;"><b style="color:${brand};">Signup + payment deadline:</b> July 25, ${esc(String(nextYear))}</li>
@@ -441,7 +454,7 @@ function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYe
               <li style="padding:4px 0;font-size:13px;color:${muted};padding-top:8px;">These same dates apply every year, so it&rsquo;s easy to plan around.</li>
             </ul>
           </td></tr>
-        </table>
+        </table>` : ""}
       </td></tr>
 
       <tr><td style="padding:22px 32px 8px 32px;" align="center">
