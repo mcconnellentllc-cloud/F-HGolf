@@ -181,6 +181,18 @@ img { max-width: 100%; display: block; }
 }
 .hero__actions { display: flex; flex-wrap: wrap; gap: 0.9rem; opacity: 0; animation: rise 0.7s ease 0.4s forwards; }
 
+/* Player Card CTA — sits directly under the hero on index.html so
+   members find "Get my link" without scrolling. */
+.pcard-cta { background: #fffdf6; border-top: 1px solid var(--line, #e6e2d8); border-bottom: 1px solid var(--line, #e6e2d8); }
+.pcard-cta__inner { max-width: var(--max-width); margin: 0 auto; padding: 1.5rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; }
+.pcard-cta__text { flex: 1 1 320px; }
+.pcard-cta__kicker { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brass, #a37b3d); font-weight: 700; margin: 0 0 0.25rem 0; }
+.pcard-cta__title { font-family: Fraunces, Georgia, serif; color: var(--primary-green); margin: 0 0 0.35rem 0; font-size: 1.5rem; }
+.pcard-cta__lead { margin: 0; color: #555; font-size: 0.98rem; line-height: 1.45; max-width: 60ch; }
+.pcard-cta__actions { flex: 0 0 auto; }
+.nav__player { color: var(--primary-green) !important; font-weight: 700; border: 1.5px solid var(--primary-green); padding: 4px 10px; border-radius: 999px; }
+.nav__player:hover { background: var(--primary-green); color: #fff !important; }
+
 @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) {
   .hero__kicker, .hero__title, .hero__subtitle, .hero__actions { animation: none; opacity: 1; }
