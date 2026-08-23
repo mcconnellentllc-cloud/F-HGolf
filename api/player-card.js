@@ -15,6 +15,18 @@
 //     Reveals whether a name matched (privacy trade-off the operator opted
 //     into) so the person who typed their real name sees which inbox to check.
 //
+//   POST { action: "create", name, email, phone?, street?, city?, state?,
+//                             zip?, company (honeypot) }
+//     -> 200 { ok: true, created: true, sent: true, maskedEmail,
+//              message: "Your Player Card is set up — we sent your sign-in
+//                        link to k***@g***.com." }
+//     -> 400 { ok: false, error }  (missing name/email, dup name, bad email)
+//     Public write. Honeypot rejects obvious bots. Duplicates by
+//     case-insensitive Name are refused with "there's already a Player
+//     Card by that name — try signing in instead." New rows land with
+//     Member=false and a "self-signed up on YYYY-MM-DD" note; staff
+//     upgrade to Member from admin-people.html after verifying.
+//
 //   POST { action: "magic-verify", token }
 //     -> 200 { ok: true, player: { id, name, email, phone, ... } }
 //     -> 400 { ok: false, error }
@@ -408,6 +420,67 @@ module.exports = async (req, res) => {
     } catch (e) {
       console.error("magic-request error", e);
       return res.status(200).json(genericFail);
+    }
+  }
+
+  // --- Create Player Card (public, no token) --- new-golfer path from the
+  // "we couldn't find you" state on the sign-in form. Creates a Players
+  // row + immediately mints and emails the sign-in link so the flow ends
+  // at the same "check your inbox" screen.
+  if (action === "create") {
+    if (body.company) return res.status(200).json({ ok: true, created: true, sent: false, message: "Thanks!" }); // honeypot
+    const nameRaw = String(body.name || "").trim().replace(/\s+/g, " ");
+    const email = String(body.email || "").trim();
+    if (!nameRaw) return res.status(400).json({ ok: false, error: "Type your full name." });
+    if (nameRaw.length < 3) return res.status(400).json({ ok: false, error: "Full name looks too short." });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ ok: false, error: "A valid email is required so we can email your sign-in link." });
+    if (!process.env.RESEND_API_KEY) return res.status(500).json({ ok: false, error: "Email service isn't configured. Call the pro shop at (970) 774-6362." });
+    try {
+      const existing = await findPlayerByName(nameRaw);
+      if (existing) return res.status(400).json({ ok: false, error: "There's already a Player Card by that name. Try signing in instead — click Back and use \"Email me a sign-in link\"." });
+      // Create the row via /api/players write. Same table + auth as the
+      // admin Players CRUD endpoint; we're just reaching in with the
+      // Airtable REST API directly to avoid a self-call.
+      const { AIRTABLE_TOKEN, AIRTABLE_BASE_ID } = process.env;
+      const PLAYERS = process.env.PLAYERS_TABLE || "Players";
+      const today = new Date();
+      const iso = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+      const cleanS = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+      const fields = {
+        Name: nameRaw.slice(0, 120),
+        Email: email.slice(0, 200),
+        Phone: cleanS(body.phone, 40),
+        Street: cleanS(body.street, 200),
+        City: cleanS(body.city, 100),
+        State: cleanS(body.state, 20),
+        Zip: cleanS(body.zip, 20),
+        Member: false,
+        Notes: "Self-signed up via player.html on " + iso,
+      };
+      // Drop empty strings so Airtable doesn't stamp blank cells.
+      Object.keys(fields).forEach((k) => { if (fields[k] === "") delete fields[k]; });
+      const { outcome, stripped } = await writeRow(PLAYERS, fields);
+      if (!outcome.ok) {
+        console.error("player-card create failed", outcome.status, outcome.detail);
+        return res.status(502).json({ ok: false, error: "Couldn't create your Player Card right now — please try again in a minute, or call (970) 774-6362." });
+      }
+      const rec = outcome.rec;
+      const playerId = rec ? rec.id : null;
+      if (!playerId) return res.status(502).json({ ok: false, error: "Player Card created but the sign-in link couldn't be sent — call (970) 774-6362." });
+      const token = mintToken(playerId);
+      const origin = (req.headers.origin || req.headers.referer || "https://fandhgolf.com").replace(/\/$/, "");
+      const cleanOrigin = /^https?:\/\/[^\/]+/.exec(origin);
+      const base = cleanOrigin ? cleanOrigin[0] : "https://fandhgolf.com";
+      const link = base + "/player.html?token=" + encodeURIComponent(token);
+      sendMagicEmail({ to: email, playerName: nameRaw, link }).catch(() => {});
+      const masked = maskEmail(email);
+      return res.status(200).json({
+        ok: true, created: true, sent: true, maskedEmail: masked, stripped,
+        message: "Your Player Card is set up — we sent your sign-in link to " + masked + ". Check that inbox.",
+      });
+    } catch (e) {
+      console.error("player-card create error", e);
+      return res.status(500).json({ ok: false, error: "Couldn't create your Player Card right now — please try again in a minute." });
     }
   }
 
