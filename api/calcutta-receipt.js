@@ -63,12 +63,13 @@ module.exports = async (req, res) => {
     const leaderboardUrl = String(body.leaderboardUrl || "https://fandhgolf.com/tournaments.html").trim();
     const signupUrl = String(body.signupUrl || "https://fandhgolf.com/tournaments.html").trim();
     const isFounders = body.isFounders === true;
+    const apology = body.apology === true;
     if (!playerName) return res.status(400).json({ ok: false, error: "playerName is required." });
     if (!preview && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
       return res.status(400).json({ ok: false, error: "A valid player email is required." });
     }
     const firstName = playerName.split(/\s+/)[0] || playerName;
-    const ctx = { firstName, playerName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl, isFounders };
+    const ctx = { firstName, playerName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl, isFounders, apology };
     const subject = buildThankYouSubject(ctx);
     const html = buildThankYouHtml(ctx);
     const text = buildThankYouText(ctx);
@@ -339,17 +340,26 @@ function buildHtml({ firstName, buyerName, tournamentName, teams, totalSpent, to
 // year — dates read "July 25, <nextYear>" and "August 1, <nextYear>" so
 // no code changes are needed for the next tournament.
 
-function buildThankYouSubject({ tournamentYear, tournamentName, nextYear, isFounders }) {
-  if (isFounders) {
-    return "Thanks for playing the " + tournamentYear + " " + tournamentName + " — save your spot for " + nextYear;
-  }
-  return "Thanks for playing the " + tournamentYear + " " + tournamentName;
+function buildThankYouSubject({ tournamentYear, tournamentName, nextYear, isFounders, apology }) {
+  const base = isFounders
+    ? "Thanks for playing the " + tournamentYear + " " + tournamentName + " — save your spot for " + nextYear
+    : "Thanks for playing the " + tournamentYear + " " + tournamentName;
+  return apology ? "[Corrected] " + base : base;
 }
 
-function buildThankYouText({ firstName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl, isFounders }) {
+function buildThankYouText({ firstName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl, isFounders, apology }) {
   const L = [];
   L.push(`Hi ${firstName},`);
   L.push("");
+  if (apology) {
+    L.push("A quick note first: an earlier email went out with the wrong");
+    L.push(`tournament information. Please disregard that one — this is the`);
+    L.push(`correct writeup for the ${tournamentYear} ${tournamentName}.`);
+    L.push("Sorry for the confusion.");
+    L.push("");
+    L.push("— — —");
+    L.push("");
+  }
   L.push(`Thanks for coming out to play the ${tournamentYear} ${tournamentName} — it`);
   L.push("wouldn't have been the same without you.");
   L.push("");
@@ -383,7 +393,7 @@ function buildThankYouText({ firstName, tournamentName, tournamentYear, nextYear
   return L.join("\n");
 }
 
-function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl, isFounders }) {
+function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYear, nextYear, leaderboardUrl, signupUrl, isFounders, apology }) {
   const brand = "#1f5c3a";
   const brandDeep = "#12402a";
   const gold = "#c9a04b";
@@ -419,6 +429,14 @@ function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYe
         </td>
       </tr>
       <tr><td style="background:${gold};height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>
+      ${apology ? `<tr><td style="padding:20px 32px 0 32px;">
+        <div style="background:#fff5f2;border:1px solid #f0bfae;border-left:4px solid #b3391c;border-radius:8px;padding:16px 18px;">
+          <div style="font:700 12px ${sans};color:#b3391c;text-transform:uppercase;letter-spacing:0.14em;margin-bottom:6px;">A quick correction</div>
+          <p style="font:15px/1.55 ${sans};color:${ink};margin:0;">
+            An earlier email went out with the wrong tournament information. Please disregard that one &mdash; <b>this</b> is the correct writeup for the ${esc(String(tournamentYear))} ${esc(tournamentName)}. Sorry for the confusion.
+          </p>
+        </div>
+      </td></tr>` : ""}
       <tr>
         <td style="padding:36px 32px 6px 32px;">
           <h1 style="font:400 32px/1.15 ${serif};color:${ink};margin:0 0 12px 0;letter-spacing:-0.005em;">Thanks for playing, ${esc(firstName)}.</h1>
