@@ -2455,7 +2455,13 @@
         if (isFounders) leaderboardUrl = base + "/founders-leaderboard-display.html";
         else if (typeof KEY === "string" && /^Couple/i.test(KEY)) leaderboardUrl = base + "/couples-leaderboard-display.html";
         else leaderboardUrl = base + "/leaderboard.html?t=" + encodeURIComponent(KEY || "");
-        var signupUrl = "https://fandhgolf.com/tournaments.html?t=" + encodeURIComponent(KEY || "") + "#signup";
+        // Reserve-my-spot lands on next year's TBD placeholder card so
+        // signups pile onto one stable KEY until the board picks dates
+        // over winter. Placeholder KEYs live in js/tournaments.js
+        // (FH_TMETA entries flagged tbd:true).
+        var tourneyBase = (KEY || "").replace(/\s*\([^)]*\)\s*$/, "").trim();
+        var nextYearKey = tourneyBase + " (TBD " + (tournamentYear + 1) + ")";
+        var signupUrl = "https://fandhgolf.com/tournaments.html?t=" + encodeURIComponent(nextYearKey) + "#signup";
         function buildPreviewPayload() {
           var apology = !!(document.getElementById("typApology") && document.getElementById("typApology").checked);
           return {
@@ -2548,7 +2554,11 @@
                 if (typeof KEY === "string" && /^Couple/i.test(KEY)) return base + "/couples-leaderboard-display.html";
                 return base + "/leaderboard.html?t=" + encodeURIComponent(KEY || "");
               })(),
-              signupUrl: "https://fandhgolf.com/tournaments.html?t=" + encodeURIComponent(KEY || "") + "#signup",
+              signupUrl: (function () {
+                var base = (KEY || "").replace(/\s*\([^)]*\)\s*$/, "").trim();
+                var tbdKey = base + " (TBD " + (tournamentYear + 1) + ")";
+                return "https://fandhgolf.com/tournaments.html?t=" + encodeURIComponent(tbdKey) + "#signup";
+              })(),
               // Founders is the ONE F&H tournament with a "reserve for
               // next year now" flow (deadlines, first-come/first-served,
               // waitlist). Every other tournament sends a generic thanks

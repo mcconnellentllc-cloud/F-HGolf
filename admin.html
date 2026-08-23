@@ -254,6 +254,35 @@
           <p style="margin-top:1.2rem;"><a class="btn btn--primary" href="build-guide.html">Open the full step-by-step guide &rarr;</a></p>
         </div>
 
+        <!-- ==== Send invites modal (preview → send) =============================
+             Opens from the Send invites button on every non-past tournament card.
+             Fetches the recipient list (current signups + last year's committed
+             archive players who have an email on file), previews the invite
+             using the first recipient, then sends per-recipient on confirm.
+             Deadlines are baked into the API template (api/calcutta-receipt.js
+             → template: "invite"): payment required 7 days out, unpaid teams
+             replaced by paying players, no refunds within 72 hours. -->
+        <div id="inviteModal" class="pm-modal" hidden aria-hidden="true">
+          <div class="pm-modal__backdrop" data-inv-close="1"></div>
+          <div class="pm-modal__panel" role="dialog" aria-modal="true" aria-labelledby="invTitle" style="max-width:48rem;">
+            <div class="pm-modal__head">
+              <h3 id="invTitle">Send invites</h3>
+              <button type="button" class="pm-modal__close" data-inv-close="1" aria-label="Close">&times;</button>
+            </div>
+            <div class="pm-modal__body">
+              <p id="invStatus" style="margin:0;color:var(--muted);">Loading recipients…</p>
+              <div id="invMeta" style="font-size:0.9rem;color:var(--muted);"></div>
+              <p style="margin:0;font-size:0.85rem;color:var(--muted);">Preview (rendered for the first recipient — every send is personalized to that recipient's first name):</p>
+              <iframe id="invPreview" title="Invite preview" style="width:100%;height:52vh;border:1px solid var(--line);border-radius:8px;background:#fff;"></iframe>
+              <p id="invSendStatus" role="status" aria-live="polite" style="margin:0;font-size:0.9rem;color:var(--muted);"></p>
+            </div>
+            <div class="pm-modal__foot">
+              <button type="button" class="btn btn--ghost" data-inv-close="1">Cancel</button>
+              <button type="button" class="btn btn--primary" id="invSend" disabled>Send to 0 recipients</button>
+            </div>
+          </div>
+        </div>
+
         <div class="admin-note">
           <strong>Quick how-tos.</strong>
           To <strong>add a Hall of Fame photo</strong>: drop a square photo in <code>images/hof/</code> and swap that person's avatar for an <code>&lt;img class="hof__photo"&gt;</code> (or just send it to your web helper).
@@ -457,17 +486,243 @@
         recalc();
       })();
 
+      // Latest signup records — snapshotted from loadTournaments so the
+      // Send-invites modal can rebuild its current-signups recipient list
+      // without a second network round-trip.
+      var _touRecords = [];
       function loadTournaments() {
         if (!touList) return;
         touList.innerHTML = '<p class="noms__msg">Loading sign-ups…</p>';
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { renderTournaments(res.j.records); buildManager(res.j.records); }
+            if (res.j && res.j.ok) { _touRecords = res.j.records || []; renderTournaments(res.j.records); buildManager(res.j.records); }
             else if (res.status === 401) { touList.innerHTML = '<p class="noms__msg">Session expired — click <strong>Lock</strong> and sign in again.</p>'; buildManager([]); }
             else { touList.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load sign-ups.") + "</p>"; buildManager([]); }
           })
           .catch(function () { touList.innerHTML = '<p class="noms__msg">Network error loading sign-ups.</p>'; buildManager([]); });
+      }
+
+      // ==== Send invites (preview + per-recipient send) ====================
+      // Wired to every non-past tournament card via .tm-inv click delegation
+      // on the #tmYears container. The API template lives in
+      // api/calcutta-receipt.js (template: "invite") and bakes in the
+      // deadlines (7-day payment, unpaid → replaced, no refunds within 72h).
+      var _invModal = document.getElementById("inviteModal");
+      var _invStatus = document.getElementById("invStatus");
+      var _invMeta = document.getElementById("invMeta");
+      var _invPreview = document.getElementById("invPreview");
+      var _invSend = document.getElementById("invSend");
+      var _invSendStatus = document.getElementById("invSendStatus");
+      var _invTitle = document.getElementById("invTitle");
+      var _invRecipients = [];
+      var _invCtx = null;
+
+      function _invClose() {
+        if (!_invModal) return;
+        _invModal.hidden = true; _invModal.setAttribute("aria-hidden", "true");
+        _invRecipients = []; _invCtx = null;
+        if (_invSend) { _invSend.disabled = true; _invSend.textContent = "Send to 0 recipients"; }
+        if (_invSendStatus) { _invSendStatus.textContent = ""; _invSendStatus.style.color = "var(--muted)"; }
+        if (_invPreview) _invPreview.srcdoc = "";
+      }
+      if (_invModal) {
+        Array.prototype.forEach.call(_invModal.querySelectorAll("[data-inv-close]"), function (el) {
+          el.addEventListener("click", _invClose);
+        });
+      }
+
+      // Parse a team-name display string ("Peterson / Smith", "Jones & Doe",
+      // "A, B and C") into individual person names. Best-effort — used only
+      // to fuzzy-match into the canonical Players table by lowercase name.
+      function _splitTeam(str) {
+        return String(str || "")
+          .split(/\s*(?:\/|&|,|\band\b|\+)\s*/i)
+          .map(function (s) { return s.trim(); })
+          .filter(Boolean);
+      }
+
+      function openInvitesModal(key) {
+        if (!_invModal || !key) return;
+        _invModal.hidden = false; _invModal.setAttribute("aria-hidden", "false");
+        var info = splitName(key);
+        var T = window.FH_TMETA || {};
+        var meta = T[key] || {};
+        var displayName = meta.displayName || info.name;
+        var tournamentDate = info.date || "";
+        var year = meta.end ? Number(meta.end.slice(0, 4)) : (new Date().getFullYear() + 1);
+        _invTitle.textContent = "Send invites — " + displayName + (tournamentDate ? " (" + tournamentDate + ")" : "");
+        _invStatus.textContent = "Building recipient list…";
+        _invStatus.style.color = "var(--muted)";
+        _invMeta.textContent = "";
+        _invPreview.srcdoc = "";
+        _invSend.disabled = true;
+        _invSend.textContent = "Send to 0 recipients";
+        _invSendStatus.textContent = "";
+
+        // Current signups for this KEY: Player Name + Email straight off the
+        // signup record. Signups without an email are dropped silently.
+        var current = (_touRecords || [])
+          .filter(function (r) { return r.fields && r.fields["Tournament"] === key; })
+          .map(function (r) { return { name: String(r.fields["Player Name"] || "").trim(), email: String(r.fields["Email"] || "").trim() }; })
+          .filter(function (p) { return p.email && p.name; });
+
+        // Historical / last-year lane: pull archives that match this
+        // tournament NAME (splitName strips the date suffix so 2025's
+        // "(Aug 23)" archive matches the 2026 "(Aug 22)" card), extract
+        // every team-name string from the leaderboard, split into
+        // individual player names, then look each up in the Players table
+        // for an email. Best-effort — anyone the Players table doesn't
+        // have on file is silently skipped (they'll join via current
+        // signups going forward). Archives with a future "roster" array
+        // are used verbatim when present.
+        var tourneyBase = info.name;
+        var pArchives = fetch(FH_API.url("/api/tournament-signups?archives=1"), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .catch(function () { return {}; });
+        var pPlayers = fetch(FH_API.url("/api/players"), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .catch(function () { return {}; });
+
+        Promise.all([pArchives, pPlayers]).then(function (out) {
+          var archives = ((out[0] && out[0].records) || []).filter(function (rec) {
+            var nm = String((rec.fields || {}).Name || "").trim();
+            return nm && nm.toLowerCase() === tourneyBase.toLowerCase();
+          });
+          var byLName = {};
+          ((out[1] && out[1].records) || []).forEach(function (p) {
+            var nm = String((p.fields || {}).Name || "").trim();
+            var em = String((p.fields || {}).Email || "").trim();
+            if (nm && em) byLName[nm.toLowerCase()] = { name: nm, email: em };
+          });
+
+          var historical = [];
+          archives.forEach(function (rec) {
+            var snap = null;
+            try { snap = JSON.parse((rec.fields || {}).Snapshot || "null"); } catch (e) { snap = null; }
+            if (!snap) return;
+            // Future-proof: if a snapshot carries a roster with {name,email},
+            // trust it verbatim.
+            if (Array.isArray(snap.roster)) {
+              snap.roster.forEach(function (p) {
+                var em = String((p && p.email) || "").trim();
+                var nm = String((p && p.name) || "").trim();
+                if (em && nm) historical.push({ name: nm, email: em });
+              });
+            }
+            // Today's snapshots only have leaderboard team-name strings.
+            // Split each into individual names and look up in Players.
+            if (Array.isArray(snap.leaderboard)) {
+              snap.leaderboard.forEach(function (row) {
+                _splitTeam(row && row.name).forEach(function (nm) {
+                  var hit = byLName[nm.toLowerCase()];
+                  if (hit) historical.push(hit);
+                });
+              });
+            }
+          });
+
+          // Dedup by lowercase email; current signups win when both lanes
+          // agree (their name is the freshly-typed spelling).
+          var byEmail = {};
+          historical.forEach(function (p) { var k = p.email.toLowerCase(); if (!byEmail[k]) byEmail[k] = p; });
+          current.forEach(function (p) { var k = p.email.toLowerCase(); byEmail[k] = p; });
+          _invRecipients = Object.keys(byEmail).map(function (k) { return byEmail[k]; });
+
+          if (!_invRecipients.length) {
+            _invStatus.textContent = "No recipients found — no current signups have an email, and no past-year players were matched in the Players directory.";
+            _invStatus.style.color = "var(--red-deep)";
+            _invMeta.textContent = "";
+            _invSend.disabled = true;
+            _invSend.textContent = "Send to 0 recipients";
+            return;
+          }
+
+          _invStatus.textContent = "Ready to send.";
+          _invStatus.style.color = "var(--primary-green)";
+          _invMeta.innerHTML = "<strong>" + _invRecipients.length + "</strong> recipient" + (_invRecipients.length === 1 ? "" : "s") + " · "
+            + current.length + " current signup" + (current.length === 1 ? "" : "s") + " · "
+            + (historical.length ? historical.length + " past-year lookup" + (historical.length === 1 ? "" : "s") : "0 past-year matches");
+
+          _invSend.textContent = "Send to " + _invRecipients.length + " recipient" + (_invRecipients.length === 1 ? "" : "s");
+
+          _invCtx = {
+            tournamentName: displayName,
+            tournamentYear: year,
+            tournamentDate: tournamentDate,
+            format: meta.format || "",
+            signupUrl: "https://fandhgolf.com/tournaments.html?t=" + encodeURIComponent(key) + "#signup"
+          };
+          var sample = _invRecipients[0];
+          var body = Object.assign({ template: "invite", preview: true, playerName: sample.name, to: sample.email }, _invCtx);
+          fetch(FH_API.url("/api/calcutta-receipt"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify(body)
+          })
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+              if (j && j.ok && j.html) {
+                _invPreview.srcdoc = j.html;
+                _invSend.disabled = false;
+              } else {
+                _invStatus.textContent = "Preview failed: " + esc((j && j.error) || "unknown error");
+                _invStatus.style.color = "var(--red-deep)";
+              }
+            })
+            .catch(function () {
+              _invStatus.textContent = "Preview failed — network error.";
+              _invStatus.style.color = "var(--red-deep)";
+            });
+        });
+      }
+
+      if (_invSend) {
+        _invSend.addEventListener("click", function () {
+          if (!_invRecipients.length || !_invCtx) return;
+          _invSend.disabled = true;
+          var total = _invRecipients.length;
+          var sent = 0, failed = 0;
+          _invSendStatus.style.color = "var(--muted)";
+          _invSendStatus.textContent = "Sending 0 / " + total + "…";
+          var i = 0;
+          function next() {
+            if (i >= total) {
+              _invSendStatus.textContent = "Done — " + sent + " sent" + (failed ? ", " + failed + " failed" : "") + ".";
+              _invSendStatus.style.color = failed ? "var(--red-deep)" : "var(--primary-green)";
+              _invSend.textContent = "Sent";
+              return;
+            }
+            var p = _invRecipients[i++];
+            var body = Object.assign({ template: "invite", playerName: p.name, to: p.email }, _invCtx);
+            fetch(FH_API.url("/api/calcutta-receipt"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+              body: JSON.stringify(body)
+            })
+              .then(function (r) { return r.json().catch(function () { return {}; }); })
+              .then(function (j) {
+                if (j && j.ok) sent++; else failed++;
+              })
+              .catch(function () { failed++; })
+              .then(function () {
+                _invSendStatus.textContent = "Sending " + (sent + failed) + " / " + total + "…";
+                // Small stagger to keep Resend's rate limits happy on
+                // long recipient lists (60+ people is plausible).
+                setTimeout(next, 120);
+              });
+          }
+          next();
+        });
+      }
+
+      if (tmYears) {
+        tmYears.addEventListener("click", function (e) {
+          var btn = e.target && e.target.closest && e.target.closest(".tm-inv");
+          if (!btn) return;
+          var key = btn.getAttribute("data-key");
+          if (key) openInvitesModal(key);
+        });
       }
 
       // ---- Format-config overrides for the tournament cards -----------
@@ -642,7 +897,14 @@
 
         var years = {};
         keys.forEach(function (k) {
-          var m = T[k], y = m.end ? m.end.slice(0, 4) : "Season-long";
+          var m = T[k];
+          // TBD placeholders (reserve-my-spot flow) — bucket by the year
+          // parsed out of the KEY suffix ("(TBD 2027)" → 2027) so they
+          // appear alongside their season, not under "Season-long".
+          var y;
+          if (m.end) y = m.end.slice(0, 4);
+          else if (m.tbd) { var mm = /\(\s*TBD\s+(\d{4})\s*\)/i.exec(k); y = mm ? mm[1] : "Season-long"; }
+          else y = "Season-long";
           (years[y] = years[y] || []).push(k);
         });
         var ynames = Object.keys(years).sort(function (a, b) {
@@ -665,6 +927,12 @@
             var mailBtn = elist.length
               ? '<a class="btn btn--solid tm__btn" href="mailto:?bcc=' + encodeURIComponent(elist.join(",")) + "&subject=" + encodeURIComponent("F&H — " + info.name) + '">Email (' + elist.length + ")</a>"
               : '<span class="tm__btn tm__btn--off">No emails yet</span>';
+            // "Send invites" is a Resend-driven pre-tournament blast with
+            // baked-in deadlines (payment 7 days out, unpaid → replaced,
+            // no refunds inside 72 hrs). Hidden on past tournaments — the
+            // window for invites has already closed.
+            var invBtn = past ? ""
+              : '<button type="button" class="btn btn--solid tm__btn tm-inv" data-key="' + esc(k) + '">Send invites</button>';
             return '<article class="tm-card' + (past ? " is-past" : "") + '">'
               + '<div class="tm-card__head"><h4 class="tm-card__name">' + esc(info.name) + "</h4>"
               + (info.date ? '<span class="tm-card__date">' + esc(info.date) + "</span>" : "") + "</div>"
@@ -674,7 +942,7 @@
               + '<div class="tm-card__chips"><span>Roster</span><span>Flights</span><span>Scorecards</span><span>Leaderboard</span></div>'
               + '<div class="tm-card__actions">'
               + '<a class="btn btn--primary tm__btn" href="tournament-admin.html?t=' + encodeURIComponent(k) + '">Open &rarr;</a>'
-              + mailBtn + "</div></article>";
+              + mailBtn + invBtn + "</div></article>";
           }).join("");
           return '<div class="tm-year"><h4 class="tm-year__label">' + esc(y) + (y !== "Season-long" ? " Season" : "") + '</h4><div class="tm-grid">' + cards + "</div></div>";
         }).join("");

@@ -41,7 +41,72 @@
     },
     "Haxtun Fire (Sept 19)": { end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble" },
     "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)" },
-    "Hole 8 Raffle Contest": { team: 1, format: "tee shot into the circle on #8", fee: "$5/person · $20/team", note: "2 entries max · two winners" }
+    "Hole 8 Raffle Contest": { team: 1, format: "tee shot into the circle on #8", fee: "$5/person · $20/team", note: "2 entries max · two winners" },
+
+    // ----- Next-year TBD placeholders -----
+    // The thank-you email's "Reserve my spot for next year" CTA points at
+    // these entries. Keep the KEY stable ("<name> (TBD YYYY)") so signups
+    // pile onto one card; when the board picks dates in winter, rename
+    // the KEY here + in tournaments.html + migrate the signup rows in
+    // Airtable in one pass. Date reads "TBD YYYY" in the schedule row +
+    // "Date will be set by the board over winter" on the card itself.
+    // The two Couples events (June + Aug) both route to the same TBD
+    // card — the board decides in winter which edition each reservation
+    // is for. Invitationals and season-long contests are excluded.
+    "Par 4 the Future (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 4, format: "4-person scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Haxtun Daycare (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 4, format: "4-person scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "John Everitt Memorial (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 4, format: "4-man scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Couple's Tournament (TBD 2027)": {
+      tbd: true, cap: 24, unit: "teams", team: 2,
+      roles: ["Your name", "Partner's name"],
+      format: "2-player couples (one entry = a team)",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Red, White & Blue (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 3, format: "3-man scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Adult/Child Tournament (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 2,
+      roles: ["Adult's name", "Child's name"], format: "adult + child team",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Junior Golf Camp (TBD 2027)": {
+      tbd: true, cap: 50, unit: "spots", team: 1,
+      roles: ["Camper's name"], format: "junior camp, ages 6–13",
+      note: "Dates will be set by the board over winter — reserve your spot now."
+    },
+    "2-Lady Scramble (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 2,
+      roles: ["Your name", "Partner's name"], format: "2-lady scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Haxtun Bulldog (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 4, format: "4-man (4 players per team)",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Founder's Tournament (TBD 2027)": {
+      tbd: true, cap: 64, unit: "teams", team: 2,
+      format: "2-day 2-man scramble", ctaLabel: "Reserve for the 2027 Founders",
+      note: "Dates will be set by the board over winter — reserve your spot now."
+    },
+    "Haxtun Fire (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 4, format: "4-man scramble",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    },
+    "Cornfest Tournament (TBD 2027)": {
+      tbd: true, cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)",
+      note: "Date will be set by the board over winter — reserve your spot now."
+    }
   };
   window.FH_TMETA = TMETA; // shared with the sign-up success/payment block
 
@@ -128,6 +193,16 @@
       var past = isPast(m);
       var ml = metaLine(m);
       if (ml) { var d = document.createElement("div"); d.className = "schedule__meta"; d.textContent = ml; li.appendChild(d); }
+      // TBD placeholders — board sets the date in winter, meanwhile the
+      // reserve-my-spot link from the thank-you email lands here.
+      if (m.tbd) {
+        var tbdNote = document.createElement("div");
+        tbdNote.className = "schedule__meta schedule__tbd";
+        tbdNote.textContent = m.note || "Date will be set by the board over winter — reserve your spot now.";
+        li.appendChild(tbdNote);
+        li.appendChild(signupControl(li.getAttribute("data-key")));
+        return;
+      }
       if (past) {
         li.classList.add("is-past");
         var done = document.createElement("span");
@@ -344,9 +419,37 @@
       });
 
       // Pre-select from ?t=… (used by Sign Up links coming from the homepage).
+      // Also handles the "Reserve my spot for next year" link inside older
+      // thank-you emails — those emails were sent with ?t=<this-year KEY>,
+      // which is already past by the time someone clicks. When the target
+      // KEY is past, look for a matching TBD placeholder ("<name> (TBD YYYY)")
+      // for the same tournament base name and pre-select that instead, plus
+      // surface a small "reserving for next year" note on the form.
       try {
-        var t = new URLSearchParams(window.location.search).get("t");
-        if (t && TMETA[t] && !isPast(TMETA[t])) sel.value = t;
+        var params = new URLSearchParams(window.location.search);
+        var t = params.get("t");
+        if (t) {
+          var rerouted = false;
+          if (TMETA[t] && isPast(TMETA[t])) {
+            var base = t.replace(/\s*\([^)]*\)\s*$/, "").trim();
+            var tbdKey = null;
+            Object.keys(TMETA).forEach(function (k) {
+              if (tbdKey) return;
+              var mm = TMETA[k];
+              if (mm && mm.tbd && k.indexOf(base + " (TBD") === 0) tbdKey = k;
+            });
+            if (tbdKey) { t = tbdKey; rerouted = true; }
+          }
+          if (TMETA[t] && !isPast(TMETA[t])) sel.value = t;
+          if (rerouted) {
+            var note = document.getElementById("tourneyPrefill");
+            if (note) {
+              var info = splitKey(t);
+              note.hidden = false;
+              note.textContent = "Reserving your spot for the " + info.name + " — the board sets the date over winter. We'll follow up once it's picked.";
+            }
+          }
+        }
       } catch (e) {}
 
       onTournamentChange(sel); // initialize hint + player fields for the current selection

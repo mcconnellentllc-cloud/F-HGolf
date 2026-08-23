@@ -77,6 +77,33 @@ module.exports = async (req, res) => {
     return sendViaResend({ to, subject, html, text, res });
   }
 
+  // ---- invite template: pre-tournament invite + deadline reminders ----
+  // Sent from the Staff Portal tournament card. Recipients are the union
+  // of last year's players (via the archive) + the current signup roster,
+  // deduped by email upstream. Body carries the F&H standard deadlines:
+  // payment required 7 days out; unpaid teams get replaced by paying
+  // players; no refunds within 72 hours.
+  if (template === "invite") {
+    const to = String(body.to || "").trim();
+    const playerName = String(body.playerName || "Golfer").trim();
+    const tournamentName = String(body.tournamentName || "F&H Tournament").trim();
+    const tournamentYear = Number(body.tournamentYear) || new Date().getFullYear();
+    const tournamentDate = String(body.tournamentDate || "").trim();
+    const format = String(body.format || "").trim();
+    const signupUrl = String(body.signupUrl || "https://fandhgolf.com/tournaments.html").trim();
+    if (!playerName) return res.status(400).json({ ok: false, error: "playerName is required." });
+    if (!preview && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+      return res.status(400).json({ ok: false, error: "A valid player email is required." });
+    }
+    const firstName = playerName.split(/\s+/)[0] || playerName;
+    const ctx = { firstName, playerName, tournamentName, tournamentYear, tournamentDate, format, signupUrl };
+    const subject = buildInviteSubject(ctx);
+    const html = buildInviteHtml(ctx);
+    const text = buildInviteText(ctx);
+    if (preview) return res.status(200).json({ ok: true, subject, html, text });
+    return sendViaResend({ to, subject, html, text, res });
+  }
+
   // ---- calcuttaReceipt template (default, existing behavior) ----
   const to = String(body.to || "").trim();
   const buyerName = String(body.buyerName || "").trim();
@@ -497,6 +524,128 @@ function buildThankYouHtml({ firstName, playerName, tournamentName, tournamentYe
           <strong style="color:${ink};font:600 13px ${sans};">F&amp;H Golf Course</strong><br>
           <a href="tel:+19707746362" style="color:${brand};text-decoration:none;">(970) 774-6362</a> · <a href="https://fandhgolf.com" style="color:${brand};text-decoration:none;">fandhgolf.com</a><br>
           Reply to this email to reach the clubhouse — <a href="mailto:clubhouse@fandhgolf.com" style="color:${brand};text-decoration:none;">clubhouse@fandhgolf.com</a>.
+        </div>
+      </td></tr>
+    </table>
+    <div style="max-width:620px;font:12px ${sans};color:${muted};padding:14px 12px 0 12px;text-align:center;">Sent to ${esc(playerName)}</div>
+  </td></tr>
+</table>
+</body></html>`;
+}
+
+// ---- Invite template (pre-tournament reminder + signup CTA) --------
+// Standard F&H deadlines are baked in — payment 7 days out, unpaid
+// replacements, 72-hour no-refund window. Tournament date + format
+// come from the caller so every event gets its own copy.
+function buildInviteSubject({ tournamentYear, tournamentName, tournamentDate }) {
+  const suffix = tournamentDate ? " — " + tournamentDate : "";
+  return "You're invited: " + tournamentYear + " " + tournamentName + suffix;
+}
+
+function buildInviteText({ firstName, tournamentName, tournamentYear, tournamentDate, format, signupUrl }) {
+  const L = [];
+  L.push(`Hi ${firstName},`);
+  L.push("");
+  L.push(`Signups are open for the ${tournamentYear} ${tournamentName}${tournamentDate ? " on " + tournamentDate : ""}.`);
+  if (format) L.push(`Format: ${format}.`);
+  L.push("");
+  L.push("Reserve your spot:");
+  L.push(`  ${signupUrl}`);
+  L.push("");
+  L.push("A few things to know before you sign up:");
+  L.push("");
+  L.push("  • Payment is required no later than 7 days before the tournament.");
+  L.push("  • Any team not paid by that deadline will be replaced by a paying team.");
+  L.push("  • No refunds within 72 hours of the tournament.");
+  L.push("  • Signups are first-come, first-served — paid entries hold the field.");
+  L.push("");
+  L.push("Reply to this email with any questions.");
+  L.push("");
+  L.push("— The F&H Golf Course crew");
+  L.push("F&H Golf Course");
+  L.push("(970) 774-6362 · fandhgolf.com");
+  return L.join("\n");
+}
+
+function buildInviteHtml({ firstName, playerName, tournamentName, tournamentYear, tournamentDate, format, signupUrl }) {
+  const brand = "#1f5c3a";
+  const brandDeep = "#12402a";
+  const gold = "#c9a04b";
+  const goldSoft = "#f6ecd4";
+  const cream = "#f6f1e6";
+  const ink = "#1a1a1a";
+  const inkSoft = "#3d3d3d";
+  const muted = "#6c6c6c";
+  const line = "#e6e0d1";
+  const serif = `Georgia, 'Times New Roman', serif`;
+  const sans = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif`;
+
+  return `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>You're invited: ${esc(String(tournamentYear))} ${esc(tournamentName)}</title>
+</head>
+<body style="margin:0;padding:0;background:${cream};">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:${cream};">
+  ${esc(firstName)}, signups are open for the ${esc(String(tournamentYear))} ${esc(tournamentName)}. Payment due 7 days before the tournament.
+</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${cream};">
+  <tr><td align="center" style="padding:28px 12px 40px 12px;">
+    <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 6px rgba(20,40,25,0.08);border:1px solid ${line};">
+      <tr>
+        <td style="background:${brand};background:linear-gradient(180deg,${brand} 0%,${brandDeep} 100%);padding:28px 32px 26px 32px;">
+          <div style="font:600 12px ${sans};color:${gold};text-transform:uppercase;letter-spacing:0.22em;">F&amp;H Golf Course</div>
+          <div style="font:italic 400 13px ${serif};color:#e8dfc6;margin-top:2px;letter-spacing:0.02em;">Est. 1961</div>
+          <div style="font:400 22px ${serif};color:#ffffff;margin-top:14px;">${esc(String(tournamentYear))} ${esc(tournamentName)}</div>
+          <div style="font:600 12px ${sans};color:${gold};margin-top:8px;text-transform:uppercase;letter-spacing:0.18em;">Signups are open</div>
+        </td>
+      </tr>
+      <tr><td style="background:${gold};height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>
+      <tr>
+        <td style="padding:36px 32px 6px 32px;">
+          <h1 style="font:400 30px/1.15 ${serif};color:${ink};margin:0 0 12px 0;letter-spacing:-0.005em;">You're invited, ${esc(firstName)}.</h1>
+          <p style="font:16px/1.65 ${sans};color:${inkSoft};margin:0;">
+            Reserve your spot for the ${esc(String(tournamentYear))} ${esc(tournamentName)}${tournamentDate ? ` on <b>${esc(tournamentDate)}</b>` : ""}${format ? ` &mdash; ${esc(format)}` : ""}.
+          </p>
+        </td>
+      </tr>
+
+      <tr><td style="padding:26px 32px 8px 32px;" align="center">
+        <a href="${esc(signupUrl)}" style="display:inline-block;background:${brand};color:#ffffff;text-decoration:none;font:700 16px ${sans};padding:14px 30px;border-radius:8px;letter-spacing:0.01em;">Reserve my spot &rarr;</a>
+      </td></tr>
+
+      <tr><td style="padding:22px 32px 8px 32px;">
+        <div style="font:600 11px ${sans};color:${gold};text-transform:uppercase;letter-spacing:0.16em;margin-bottom:6px;">Before you sign up</div>
+        <h2 style="font:400 22px/1.2 ${serif};color:${ink};margin:0 0 12px 0;">Deadlines to know.</h2>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${goldSoft};border:1px solid #e5d8ac;border-radius:10px;">
+          <tr><td style="padding:16px 20px;">
+            <ul style="margin:0;padding:0;list-style:none;font:15px/1.7 ${sans};color:${ink};">
+              <li style="padding:4px 0;"><b style="color:${brand};">Payment due:</b> no later than <b>7 days before</b> the tournament.</li>
+              <li style="padding:4px 0;"><b style="color:${brand};">Unpaid teams:</b> any team not paid by that deadline is replaced by a paying team.</li>
+              <li style="padding:4px 0;"><b style="color:${brand};">No refunds:</b> within <b>72 hours</b> of the tournament.</li>
+              <li style="padding:4px 0;"><b style="color:${brand};">Order:</b> first-come, first-served — paid entries hold the field.</li>
+            </ul>
+          </td></tr>
+        </table>
+      </td></tr>
+
+      <tr><td style="padding:22px 32px 6px 32px;">
+        <p style="font:15px/1.65 ${sans};color:${inkSoft};margin:0;">
+          Reply to this email with any questions &mdash; we're happy to help. Reserve early to lock in your team.
+        </p>
+      </td></tr>
+
+      <tr><td style="padding:22px 32px 8px 32px;">
+        <p style="font:400 18px ${serif};color:${brand};margin:0;font-style:italic;">&mdash; The F&amp;H Golf Course crew</p>
+      </td></tr>
+
+      <tr><td style="padding:22px 32px 30px 32px;border-top:1px solid ${line};">
+        <div style="font:13px/1.6 ${sans};color:${muted};">
+          <strong style="color:${ink};font:600 13px ${sans};">F&amp;H Golf Course</strong><br>
+          <a href="tel:+19707746362" style="color:${brand};text-decoration:none;">(970) 774-6362</a> &middot; <a href="https://fandhgolf.com" style="color:${brand};text-decoration:none;">fandhgolf.com</a><br>
+          Reply to this email to reach the clubhouse &mdash; <a href="mailto:clubhouse@fandhgolf.com" style="color:${brand};text-decoration:none;">clubhouse@fandhgolf.com</a>.
         </div>
       </td></tr>
     </table>
