@@ -1029,19 +1029,59 @@
         } catch (e) {}
         return "";
       }
-      function getKey() { return _readAuth(KEYK); }
-      function authed() { return _readAuth(FLAG) === "1"; }
-      // Persist auth (used by both the passphrase gate and the staff-link
-      // handoff so a staff-link visitor's session survives restarts too).
+      // Staff tokens live in a per-tournament slot so they never
+      // clobber the master admin key. If a session was stuck because
+      // an earlier build wrote a staff token into KEYK, self-heal by
+      // clearing anything that looks like an HMAC token (payload.sig
+      // shape — the real passphrase has no period).
+      function _staffKeyFor(k) { return "fh_staff_token::" + String(k || ""); }
+      (function _healStuckStaffTokenInMasterSlot() {
+        try {
+          var v = _readAuth(KEYK);
+          if (v && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(v)) {
+            // Migrate the stuck staff token into its scoped slot for the
+            // page's current tournament (if we can figure it out) so the
+            // operator doesn't lose it entirely.
+            try {
+              var t = new URLSearchParams(location.search).get("t") || "";
+              if (t) localStorage.setItem(_staffKeyFor(t), v);
+            } catch (e) {}
+            try { localStorage.removeItem(KEYK); sessionStorage.removeItem(KEYK); } catch (e) {}
+            try { localStorage.removeItem(FLAG); sessionStorage.removeItem(FLAG); } catch (e) {}
+          }
+        } catch (e) {}
+      })();
+      // getKey precedence: master admin key wins (real operator, unscoped);
+      // otherwise fall back to a staff token scoped to the current
+      // tournament, so a staff-link visitor still authenticates for their
+      // one tournament without shadowing the master key on other workbooks.
+      function getKey() {
+        var master = _readAuth(KEYK);
+        if (master) return master;
+        try {
+          var t = new URLSearchParams(location.search).get("t") || "";
+          if (t) return localStorage.getItem(_staffKeyFor(t)) || "";
+        } catch (e) {}
+        return "";
+      }
+      function authed() {
+        if (_readAuth(FLAG) === "1") return true;
+        // Staff-link sessions don't set the master FLAG — they're authed
+        // when a scoped token exists for the current tournament.
+        try {
+          var t = new URLSearchParams(location.search).get("t") || "";
+          return !!(t && localStorage.getItem(_staffKeyFor(t)));
+        } catch (e) { return false; }
+      }
       function _writeAuth(k, v) {
         try { localStorage.setItem(k, v); } catch (e) {}
         try { sessionStorage.setItem(k, v); } catch (e) {}
       }
       // Staff-link handoff: ?stafftoken=<token> lands here from an emailed
-      // link. Verify against the API; on success, store the token as the
-      // effective admin key so every existing x-admin-key: getKey() fetch
-      // sails through with tournament-scoped auth. The URL fragment is
-      // scrubbed after storage so refreshes / bookmarks stay clean.
+      // link. Verify against the API; on success, store the token in a
+      // per-tournament staff slot (never into the master KEYK). getKey()
+      // above prefers the master key when present so the operator's own
+      // session isn't shadowed when they navigate between tournaments.
       (function () {
         try {
           var q = new URLSearchParams(location.search);
@@ -1060,10 +1100,7 @@
                 alert("This staff link is for a different tournament (" + j.tournamentKey + "). It won't open " + target + ".");
                 return;
               }
-              _writeAuth(KEYK, staffToken);
-              _writeAuth(FLAG, "1");
-              // Strip stafftoken from the URL so the token doesn't linger
-              // in the address bar / browser history for anyone glancing.
+              try { localStorage.setItem(_staffKeyFor(j.tournamentKey), staffToken); } catch (e) {}
               try {
                 q.delete("stafftoken");
                 var qs = q.toString();
