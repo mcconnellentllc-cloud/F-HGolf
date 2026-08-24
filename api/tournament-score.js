@@ -106,10 +106,8 @@ module.exports = async (req, res) => {
       }
     }
   } else {
-    const key = req.headers["x-admin-key"] || "";
-    if (!ADMIN_KEY || key !== ADMIN_KEY) {
-      return res.status(401).json({ ok: false, error: "Unauthorized" });
-    }
+    const auth = require("./_auth")(req);
+    if (!auth) return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
 
   // Extras-only update path: captain tapped a "used a mulligan" button.

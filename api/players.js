@@ -23,8 +23,15 @@ module.exports = async (req, res) => {
   const { AIRTABLE_TOKEN, AIRTABLE_BASE_ID, ADMIN_KEY } = process.env;
   const TABLE = process.env.PLAYERS_TABLE || "Players";
   if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) return res.status(500).json({ ok: false, error: "Not configured." });
-  const key = req.headers["x-admin-key"] || "";
-  if (!ADMIN_KEY || key !== ADMIN_KEY) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  // Accept either the real admin key or a tournament-scoped staff token
+  // so a staff link on tournament-admin.html can still resolve names
+  // when promoting captains. Staff tokens don't get to WRITE to the
+  // Players table — only read (GET). POSTs still require admin.
+  const auth = require("./_auth")(req);
+  if (!auth) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  if (req.method !== "GET" && auth.mode === "staff") {
+    return res.status(403).json({ ok: false, error: "Staff links can't edit the Players directory." });
+  }
 
   const base = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}`;
   const authRead = { Authorization: `Bearer ${AIRTABLE_TOKEN}` };
