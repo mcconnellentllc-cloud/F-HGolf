@@ -235,6 +235,21 @@
               <button type="button" class="btn btn--solid" id="fmtReload">Reload from Airtable</button>
             </div>
           </form>
+
+          <!-- Tournament staff magic link. Emails a signed link that grants
+               access to this workbook (this tournament only) without
+               handing over the Staff Portal passphrase. Recipient clicks
+               once; the workbook auto-signs them in. -->
+          <div class="fmt-stafflink" style="margin-top:1.25rem;padding:1rem 1.15rem;border-top:1px solid var(--rule);">
+            <h4 style="margin:0 0 0.35rem 0;font-family:Fraunces,Georgia,serif;color:var(--primary-green);font-size:1rem;">Email a staff link</h4>
+            <p class="fmt-note" style="margin:0 0 0.65rem 0;">Send a helper a link that opens THIS tournament workbook (Check-In, Pairings, Scores, Leaderboard, $ Summary) without the Staff Portal password. Scoped to this tournament only — they can't wander into another one.</p>
+            <div class="fmt-grid" style="grid-template-columns:2fr 1fr auto;gap:0.5rem;align-items:end;">
+              <label class="fmt-row" style="margin:0;"><span>Recipient email</span><input type="email" id="fmtStaffEmail" maxlength="200" placeholder="staff@example.com" /></label>
+              <label class="fmt-row" style="margin:0;"><span>Their name (optional)</span><input type="text" id="fmtStaffName" maxlength="120" placeholder="e.g. Chris" /></label>
+              <button type="button" class="btn btn--primary" id="fmtStaffSend" style="height:2.35rem;align-self:end;">Send link</button>
+            </div>
+            <p class="fmt-note" id="fmtStaffMsg" role="status" aria-live="polite" style="margin:0.5rem 0 0 0;"></p>
+          </div>
         </section>
 
         <!-- Check-in & money (live from sign-ups) -->
@@ -1016,6 +1031,49 @@
       }
       function getKey() { return _readAuth(KEYK); }
       function authed() { return _readAuth(FLAG) === "1"; }
+      // Persist auth (used by both the passphrase gate and the staff-link
+      // handoff so a staff-link visitor's session survives restarts too).
+      function _writeAuth(k, v) {
+        try { localStorage.setItem(k, v); } catch (e) {}
+        try { sessionStorage.setItem(k, v); } catch (e) {}
+      }
+      // Staff-link handoff: ?stafftoken=<token> lands here from an emailed
+      // link. Verify against the API; on success, store the token as the
+      // effective admin key so every existing x-admin-key: getKey() fetch
+      // sails through with tournament-scoped auth. The URL fragment is
+      // scrubbed after storage so refreshes / bookmarks stay clean.
+      (function () {
+        try {
+          var q = new URLSearchParams(location.search);
+          var staffToken = q.get("stafftoken");
+          if (!staffToken) return;
+          fetch(FH_API.url("/api/player-card"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": staffToken },
+            body: JSON.stringify({ action: "staff-link-verify" }),
+          })
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+              if (!j || !j.ok) { alert("This staff link isn't valid. Ask the pro shop to send a new one."); return; }
+              var target = q.get("t") || "";
+              if (target && j.tournamentKey && target !== j.tournamentKey) {
+                alert("This staff link is for a different tournament (" + j.tournamentKey + "). It won't open " + target + ".");
+                return;
+              }
+              _writeAuth(KEYK, staffToken);
+              _writeAuth(FLAG, "1");
+              // Strip stafftoken from the URL so the token doesn't linger
+              // in the address bar / browser history for anyone glancing.
+              try {
+                q.delete("stafftoken");
+                var qs = q.toString();
+                history.replaceState({}, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
+              } catch (e) {}
+              location.reload();
+            })
+            .catch(function () { alert("Couldn't verify your staff link. Check your connection and try again."); });
+        } catch (e) {}
+      })();
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
 
       // Shared filter-bar helper. Prepends a search input to `host`, filters
@@ -10184,6 +10242,31 @@
         if (fmtSave) fmtSave.addEventListener("click", saveFormat);
         var fmtReload = document.getElementById("fmtReload");
         if (fmtReload) fmtReload.addEventListener("click", function () { loadFormat(true); });
+        // Email a tournament-scoped staff link. Only visible while the
+        // operator is signed in with the real admin key — the API rejects
+        // staff-link-mint from anyone other than admin, so a staff token
+        // can't cascade-create more staff tokens.
+        var fmtStaffSend = document.getElementById("fmtStaffSend");
+        if (fmtStaffSend) fmtStaffSend.addEventListener("click", function () {
+          var to = (document.getElementById("fmtStaffEmail").value || "").trim();
+          var recipientName = (document.getElementById("fmtStaffName").value || "").trim();
+          var msg = document.getElementById("fmtStaffMsg");
+          function setMsg(s, kind) { msg.textContent = s || ""; msg.style.color = kind === "ok" ? "var(--primary-green)" : kind === "err" ? "var(--red-deep)" : "var(--muted)"; }
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { setMsg("Type a valid email first.", "err"); return; }
+          fmtStaffSend.disabled = true; fmtStaffSend.textContent = "Sending…"; setMsg("");
+          fetch(FH_API.url("/api/player-card"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify({ action: "staff-link-mint", tournamentKey: KEY, to: to, recipientName: recipientName }),
+          })
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+              fmtStaffSend.disabled = false; fmtStaffSend.textContent = "Send link";
+              if (j && j.ok) { setMsg("Sent — " + to + " will get an email with the link.", "ok"); document.getElementById("fmtStaffEmail").value = ""; document.getElementById("fmtStaffName").value = ""; }
+              else { setMsg((j && j.error) || "Couldn't send the link.", "err"); }
+            })
+            .catch(function () { fmtStaffSend.disabled = false; fmtStaffSend.textContent = "Send link"; setMsg("Network error — try again.", "err"); });
+        });
         var fmtShotCount = document.getElementById("fmtShotCount");
         if (fmtShotCount) fmtShotCount.addEventListener("change", _fmtSyncShotgunUI);
         // Rounds input drives Flight From visibility — 1-day tournaments

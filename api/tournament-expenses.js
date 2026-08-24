@@ -18,10 +18,8 @@ module.exports = async (req, res) => {
   if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) {
     return res.status(500).json({ ok: false, error: "Expenses aren't configured yet." });
   }
-  const key = req.headers["x-admin-key"] || "";
-  if (!ADMIN_KEY || key !== ADMIN_KEY) {
-    return res.status(401).json({ ok: false, error: "Unauthorized" });
-  }
+  const auth = require("./_auth")(req);
+  if (!auth) return res.status(401).json({ ok: false, error: "Unauthorized" });
 
   const base = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}`;
   const auth = { Authorization: `Bearer ${AIRTABLE_TOKEN}` };

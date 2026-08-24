@@ -495,6 +495,87 @@ module.exports = async (req, res) => {
     }
   }
 
+  // --- Staff link mint (admin-only) --- generates a tournament-scoped
+  // HMAC token and emails a link to a helper so they can operate the
+  // tournament workbook without the master passphrase. Same signing key
+  // as player magic links; scope claim keeps the two token types
+  // distinct at the auth check.
+  if (action === "staff-link-mint") {
+    const adminCheck = require("./_auth")(req);
+    if (!adminCheck || adminCheck.mode !== "admin") return res.status(401).json({ ok: false, error: "Admin only." });
+    const tournamentKey = String(body.tournamentKey || "").trim().slice(0, 200);
+    const to = String(body.to || "").trim();
+    const recipientName = String(body.recipientName || "").trim().slice(0, 120);
+    if (!tournamentKey) return res.status(400).json({ ok: false, error: "Tournament key is required." });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: "A valid recipient email is required." });
+    if (!process.env.RESEND_API_KEY) return res.status(500).json({ ok: false, error: "Email service isn't configured." });
+    // Mint a scope-carrying token. Same TTL as player magic links (100
+    // years = effectively never expires). Payload includes scope + key.
+    const s = secret(); if (!s) return res.status(500).json({ ok: false, error: "Not configured." });
+    const payload = JSON.stringify({ scope: "tournament", key: tournamentKey, exp: Date.now() + TTL_MS });
+    const payloadB = b64url(payload);
+    const sig = b64url(crypto.createHmac("sha256", s).update(payloadB).digest());
+    const token = payloadB + "." + sig;
+    const origin = (req.headers.origin || req.headers.referer || "https://fandhgolf.com").replace(/\/$/, "");
+    const cleanOrigin = /^https?:\/\/[^\/]+/.exec(origin);
+    const base = cleanOrigin ? cleanOrigin[0] : "https://fandhgolf.com";
+    const link = base + "/tournament-admin.html?t=" + encodeURIComponent(tournamentKey) + "&stafftoken=" + encodeURIComponent(token);
+    const from = process.env.RESEND_FROM_CALCUTTA || "F&H Golf Course <clubhouse@fandhgolf.com>";
+    const replyTo = process.env.RESEND_REPLY_TO_CALCUTTA || "clubhouse@fandhgolf.com";
+    const first = recipientName.split(/\s+/)[0] || "there";
+    const shortName = tournamentKey.replace(/\s*\([^)]*\)\s*$/, "").trim() || tournamentKey;
+    const subject = "Your F&H tournament staff link — " + shortName;
+    const text = [
+      first + ",", "",
+      "You've been added as tournament staff for the " + tournamentKey + ".",
+      "Tap the link below on any device to open the tournament workbook — Check-In, Pairings, Scores, Leaderboard, and the money summary.",
+      "",
+      "  " + link,
+      "",
+      "The link works only for this one tournament. Bookmark it — it doesn't expire.",
+      "",
+      "— F&H Golf Course",
+    ].join("\n");
+    const brand = "#1B5E20";
+    const serif = "Georgia, 'Times New Roman', serif";
+    const sans = "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
+    const html = `<!doctype html><html><body style="margin:0;background:#f6f4ef;font-family:${sans};">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f6f4ef;padding:24px 0;"><tr><td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="560" style="background:#fff;border-radius:12px;border:1px solid #e6e2d8;padding:32px 36px;">
+          <tr><td style="font:600 12px ${sans};color:${brand};letter-spacing:0.12em;text-transform:uppercase;">F&amp;H Golf Course · Staff link</td></tr>
+          <tr><td style="font:400 24px/1.25 ${serif};color:#222;padding:8px 0 6px 0;">${escHtml(shortName)}</td></tr>
+          <tr><td style="font:400 15px/1.5 ${sans};color:#333;padding:8px 0 16px 0;">${escHtml(first)}, you've been added as tournament staff for <strong>${escHtml(tournamentKey)}</strong>. Tap the button below on any device to open the tournament workbook.</td></tr>
+          <tr><td style="padding:8px 0 20px 0;"><a href="${escHtml(link)}" style="display:inline-block;background:${brand};color:#fff;text-decoration:none;font:700 15px ${sans};padding:12px 24px;border-radius:8px;">Open the workbook &rarr;</a></td></tr>
+          <tr><td style="font:400 13px/1.55 ${sans};color:#666;">The link works only for this one tournament — you can't wander into other tournaments or the Staff Portal. Bookmark it; it doesn't expire.</td></tr>
+          <tr><td style="font:400 12px/1.5 ${sans};color:#999;padding:20px 0 0 0;border-top:1px solid #eee;margin-top:20px;">F&amp;H Golf Course · Fleming, Colorado</td></tr>
+        </table>
+      </td></tr></table></body></html>`;
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to: [to], reply_to: replyTo, subject, html, text }),
+    });
+    if (!r.ok) {
+      const detail = await r.text();
+      console.error("staff-link email failed", r.status, detail);
+      return res.status(502).json({ ok: false, error: "Email service refused the send." });
+    }
+    return res.status(200).json({ ok: true, sent: true, link: link, tournamentKey: tournamentKey });
+  }
+
+  // --- Staff link verify (public, no other auth) --- tournament-admin.html
+  // hits this on landing with ?stafftoken=<token> to confirm the token is
+  // valid + scoped, then it stores the token in localStorage as the
+  // effective admin key for future API calls.
+  if (action === "staff-link-verify") {
+    const staffAuth = require("./_auth")(req);
+    // The staff token comes in as x-admin-key on this call (same header
+    // path the workbook uses for everything). We already validated the
+    // format via _auth; just confirm the shape and echo the scope.
+    if (!staffAuth || staffAuth.mode !== "staff") return res.status(400).json({ ok: false, error: "This staff link isn't valid." });
+    return res.status(200).json({ ok: true, tournamentKey: staffAuth.scope });
+  }
+
   // Everything else requires a valid magic-link token.
   const claims = verifyToken(body.token);
   if (!claims) return res.status(400).json({ ok: false, error: "This sign-in link isn't valid." });

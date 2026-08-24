@@ -31,8 +31,9 @@ module.exports = async (req, res) => {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  const { RESEND_API_KEY, ADMIN_KEY } = process.env;
-  if (!ADMIN_KEY || (req.headers["x-admin-key"] || "") !== ADMIN_KEY) {
+  const { RESEND_API_KEY } = process.env;
+  const _auth = require("./_auth")(req);
+  if (!_auth) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
 

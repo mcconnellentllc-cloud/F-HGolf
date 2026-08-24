@@ -26,12 +26,12 @@ module.exports = async (req, res) => {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  const { AIRTABLE_TOKEN, AIRTABLE_BASE_ID, ADMIN_KEY } = process.env;
+  const { AIRTABLE_TOKEN, AIRTABLE_BASE_ID } = process.env;
   const TABLE = process.env.TOURNAMENTS_TABLE || "Tournament Signups";
   const CFG_TABLE = process.env.CONFIG_TABLE || "Tournament Config";
   if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) return res.status(500).json({ ok: false, error: "Not configured." });
-  const key = req.headers["x-admin-key"] || "";
-  if (!ADMIN_KEY || key !== ADMIN_KEY) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  const auth = require("./_auth")(req);
+  if (!auth) return res.status(401).json({ ok: false, error: "Unauthorized" });
 
   let body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { body = {}; } }

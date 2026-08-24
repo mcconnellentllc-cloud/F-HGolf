@@ -130,17 +130,34 @@ module.exports = async (req, res) => {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  const { AIRTABLE_TOKEN, AIRTABLE_BASE_ID, ADMIN_KEY } = process.env;
+  const { AIRTABLE_TOKEN, AIRTABLE_BASE_ID } = process.env;
   const TABLE = process.env.TOURNAMENTS_TABLE || "Tournament Signups";
   if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) {
     return res.status(500).json({ ok: false, error: "Sign-ups aren't configured yet." });
   }
 
-  const key = req.headers["x-admin-key"] || "";
-  const isAdmin = ADMIN_KEY && key === ADMIN_KEY;
-  // Public GET is allowed; POST + any non-GET always requires the admin key.
+  // Auth: real admin key OR tournament-scoped staff token. isAdmin remains
+  // true for both so downstream code that keys off it (private records,
+  // caching, etc.) keeps working. Scope enforcement lives per-action below.
+  const _auth = require("./_auth")(req);
+  const isAdmin = !!_auth;
+  const staffScope = _auth && _auth.mode === "staff" ? _auth.scope : null;
+  // Public GET is allowed; POST + any non-GET always requires authorized.
   if (!isAdmin && req.method !== "GET") {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
+  }
+  // Staff-scope guard used by writes below: reject if a staff token
+  // is writing to a tournament other than its scoped one. Handles both
+  // exact-KEY and base-name comparisons (archive names drop the date
+  // suffix so we compare with the parentheses stripped).
+  function scopeBaseName(s) { return String(s || "").replace(/\s*\([^)]*\)\s*$/, "").trim(); }
+  function scopeReject(targetTournament) {
+    if (!staffScope) return null;
+    const t = String(targetTournament || "").trim();
+    const s = String(staffScope).trim();
+    if (t === s) return null;
+    if (scopeBaseName(t) === scopeBaseName(s)) return null;
+    return res.status(403).json({ ok: false, error: "This staff link is scoped to a different tournament." });
   }
 
   const listUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}`;
@@ -177,6 +194,7 @@ module.exports = async (req, res) => {
       const dates = typeof body.dates === "string" ? body.dates.slice(0, 120) : "";
       const snapshot = body.snapshot; // object; JSON-encoded before write
       if (!name || !year) return res.status(400).json({ ok: false, error: "Missing name or year." });
+      { const rej = scopeReject(name); if (rej) return rej; }
       const fields = {
         "Name": name,
         "Year": year,
@@ -413,6 +431,9 @@ module.exports = async (req, res) => {
       const tournament = typeof body.tournament === "string" ? body.tournament.trim().slice(0, 200) : "";
       const fields = (body.fields && typeof body.fields === "object") ? body.fields : null;
       if (!tournament || !fields) return res.status(400).json({ ok: false, error: "Missing tournament or fields." });
+      // Staff tokens can only write config for their scoped tournament.
+      // Skip the guard on the shared course row (Member Cart pool etc.).
+      if (tournament !== "__course__") { const rej = scopeReject(tournament); if (rej) return rej; }
       const cfgTable = process.env.CONFIG_TABLE || "Tournament Config";
       const cfgUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}`;
       try {
