@@ -4959,13 +4959,28 @@
         if (!rec) return;
         var f = rec.fields || {};
         var pp = teamPlayers(f, rec);
+        // Names come from teamPlayers first, but fall back to reading the
+        // team card's ci-name cells so a P3/P4 name that only landed via
+        // an inline rename (Team / Partners not yet re-parsed into the
+        // names array) still promotes correctly.
         var names = (pp.names || []).slice();
+        var domCard = document.querySelector('.ci-card[data-id="' + signupId + '"]');
+        if (domCard) {
+          ["p1", "p2", "p3", "p4"].forEach(function (role, idx) {
+            var el = domCard.querySelector('.ci-name[data-role="' + role + '"]');
+            if (!el) return;
+            var t = String(el.textContent || "").trim();
+            if (t && t !== "—" && t !== "(no name)" && !names[idx]) names[idx] = t;
+          });
+        }
         var newCapIdx = { p1: 0, p2: 1, p3: 2, p4: 3 }[newCapRole];
         if (newCapIdx == null || newCapIdx === 0) return; // already captain
-        if (!names[newCapIdx]) { alert("That row has no name yet."); return; }
+        if (!names[newCapIdx]) { alert("That row has no name yet — add one first, then tap the ★."); return; }
         if (!confirm("Make " + names[newCapIdx] + " the team captain? The scoring link and any check will go to them.")) return;
         var newCaptain = names[newCapIdx];
-        // Everyone else, in order, becomes the partners list.
+        // Everyone else, in order, becomes the partners list. Skip empty
+        // slots so a 3-player team doesn't get "Name / / Name" written
+        // back into Team / Partners.
         var partners = [];
         for (var j = 0; j < names.length; j++) if (j !== newCapIdx && names[j]) partners.push(names[j]);
         if (statusEl) { statusEl.textContent = "Looking up " + newCaptain + "…"; statusEl.className = "ci__status"; }
