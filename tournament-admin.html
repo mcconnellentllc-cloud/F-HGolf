@@ -72,6 +72,7 @@
           <button type="button" class="wb-tab" data-sheet="leaderboard" role="tab">Leaderboard</button>
           <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
+          <button type="button" class="wb-tab" data-sheet="pinprizes" role="tab">Pin Prizes</button>
           <button type="button" class="wb-tab" data-sheet="rules" role="tab">Rules</button>
           <button type="button" class="wb-tab" data-sheet="recap" role="tab">Recap</button>
           <button type="button" class="wb-tab wb-tab--history" data-sheet="history" role="tab">History</button>
@@ -535,6 +536,58 @@
              the format section are swapped per-tournament by _applyRulesForTournament()
              so the Couples workbook points to couples-rules.html and describes
              the couples format instead of the Founders default. -->
+        <!-- ==== Pin Prizes tab ==================================================
+             Two arrays kept on Tournament Config: `prizes` (a pool of prize +
+             sponsor + donor triples) and `cards` (one per hole, contest text
+             + assigned prize/sponsor/donor). Admin can drag a chip from the
+             prize pool onto a card to assign, and drag one card onto another
+             to swap. Master list prints on one letter page; card deck prints
+             one 5"×5" card per grid cell, two per portrait letter page with
+             a red top bar (cut guide) and dashed side/bottom borders.
+             Storage: `Pin Prizes JSON` long-text field on Tournament Config.
+             Loaded on tab open + on Format load; saved via the same
+             config-write action Format uses. -->
+        <section class="noms wb-sheet" data-sheet="pinprizes" id="twPinPrizes" aria-label="Pin Prizes" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Pin Prizes</h3>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn--solid" type="button" id="ppPrintMaster">Print master list</button>
+              <button class="btn btn--primary" type="button" id="ppPrintCards">Print pin cards</button>
+              <button class="btn btn--solid" type="button" id="ppSave">Save pin prizes</button>
+              <span class="ci__status" id="ppStatus" role="status" aria-live="polite" style="min-width:6rem;"></span>
+            </div>
+          </div>
+          <p class="scaffold__desc">Add each donated prize once, then drag it onto the hole that gets it. Print the master list for the pro shop and the pin cards to stake at each hole.</p>
+
+          <!-- 1. Prize pool -->
+          <div id="ppPool" class="pp-pool">
+            <form id="ppAddForm" class="pp-add" autocomplete="off">
+              <label class="pp-add__field"><span>Prize</span><input type="text" id="ppAddPrize" maxlength="120" required placeholder="e.g. Sleeve of Titleists" /></label>
+              <label class="pp-add__field"><span>Sponsor</span><input type="text" id="ppAddSponsor" maxlength="120" placeholder="e.g. Acme Feed &amp; Seed" /></label>
+              <label class="pp-add__field"><span>Donated by</span><input type="text" id="ppAddDonor" maxlength="120" placeholder="e.g. John Doe" /></label>
+              <button type="submit" class="btn btn--primary">Add prize</button>
+            </form>
+            <div class="pp-chips" id="ppChips" aria-label="Available prizes — drag onto a hole"></div>
+          </div>
+
+          <!-- 2. Master list -->
+          <div id="ppMasterWrap">
+            <h4 class="pp-h">Master list</h4>
+            <p class="pp-note">One row per hole. Unassigned holes show <em>—</em>. This is what the pro shop prints for check-in.</p>
+            <table class="pp-master">
+              <thead><tr><th>Hole</th><th>Par</th><th>Contest</th><th>Prize</th><th>Sponsor &amp; donor</th></tr></thead>
+              <tbody id="ppMasterBody"></tbody>
+            </table>
+          </div>
+
+          <!-- 3. Card deck (each admin-only tool stays inside its own card so
+               the .pcards grid stays a direct child of the section — matches
+               the print-selector convention). -->
+          <h4 class="pp-h">Pin cards</h4>
+          <p class="pp-note">One 5&Prime;×5&Prime; card per hole. Print two per letter page — the red top bar is a cut guide; dashed lines mark the trim.</p>
+          <div class="pcards" id="ppCards"></div>
+        </section>
+
         <section class="noms wb-sheet" data-sheet="rules" id="twRules" aria-label="Rules" hidden>
           <div class="noms__bar">
             <h3 class="noms__title">Rules &amp; Format</h3>
@@ -2282,6 +2335,246 @@
             }
           })
           .catch(function () { if (btn) btn.disabled = false; if (st) st.textContent = "Network error saving the recap."; });
+      }
+      // ---- Pin Prizes tab -----------------------------------------------
+      // Data model on Tournament Config's "Pin Prizes JSON" long-text
+      // field:
+      //   { prizes: [{prize, sponsor, contact}, ...],
+      //     cards:  [{hole, contest, prize, sponsor, contact}, ...] }
+      // 9 holes at F&H — one card per hole; the operator picks a prize
+      // from the pool for each contested hole. Drag-drop moves prizes
+      // from the pool onto a card, and swaps between cards.
+      var PARS9_PP = [4, 3, 4, 4, 5, 4, 4, 3, 5]; // par per hole, F&H
+      var _pinState = { prizes: [], cards: [] };
+      var _pinLoaded = false;
+      var _pinDirty = false;
+      function _pinDefaultCards() {
+        var out = []; for (var i = 1; i <= 9; i++) out.push({ hole: i, contest: "", prize: "", sponsor: "", contact: "" });
+        return out;
+      }
+      function _pinNormalize(raw) {
+        var s = { prizes: [], cards: _pinDefaultCards() };
+        if (raw && typeof raw === "object") {
+          if (Array.isArray(raw.prizes)) s.prizes = raw.prizes.filter(Boolean).map(function (p) {
+            return { prize: String(p.prize || "").slice(0, 120), sponsor: String(p.sponsor || "").slice(0, 120), contact: String(p.contact || "").slice(0, 120) };
+          });
+          if (Array.isArray(raw.cards) && raw.cards.length) {
+            var byHole = {}; raw.cards.forEach(function (c) { if (c && c.hole) byHole[c.hole] = c; });
+            s.cards = s.cards.map(function (blank) {
+              var c = byHole[blank.hole]; if (!c) return blank;
+              return {
+                hole: blank.hole,
+                contest: String(c.contest || "").slice(0, 120),
+                prize: String(c.prize || "").slice(0, 120),
+                sponsor: String(c.sponsor || "").slice(0, 120),
+                contact: String(c.contact || "").slice(0, 120),
+              };
+            });
+          }
+        }
+        return s;
+      }
+      function _pinStatus(msg, kind) {
+        var el = document.getElementById("ppStatus"); if (!el) return;
+        el.textContent = msg || "";
+        el.className = "ci__status" + (kind === "error" ? " is-error" : kind === "ok" ? " is-ok" : "");
+      }
+      function loadPinPrizes() {
+        // First open: hydrate from _tcConfigCache if Format already fetched
+        // it, otherwise do a lightweight config fetch for just this key.
+        if (_pinLoaded) { renderPinPrizes(); return; }
+        _pinStatus("Loading…");
+        var cachedRaw = _tcConfigCache && _tcConfigCache["Pin Prizes JSON"];
+        if (cachedRaw != null) {
+          try { _pinState = _pinNormalize(JSON.parse(cachedRaw || "{}")); } catch (e) { _pinState = _pinNormalize(null); }
+          _pinLoaded = true; _pinStatus(""); renderPinPrizes(); return;
+        }
+        fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(KEY)))
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var raw = j && j.record && j.record.fields && j.record.fields["Pin Prizes JSON"];
+            try { _pinState = _pinNormalize(JSON.parse(raw || "{}")); } catch (e) { _pinState = _pinNormalize(null); }
+            _pinLoaded = true; _pinStatus(""); renderPinPrizes();
+          })
+          .catch(function () { _pinState = _pinNormalize(null); _pinLoaded = true; _pinStatus("Couldn't load — starting fresh.", "error"); renderPinPrizes(); });
+      }
+      function savePinPrizes() {
+        if (!getKey()) { _pinStatus("Sign in first.", "error"); return; }
+        _pinStatus("Saving…");
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "config-write", tournament: KEY, fields: { "Pin Prizes JSON": JSON.stringify(_pinState) } }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.ok) { _pinDirty = false; _pinStatus("Saved ✓", "ok"); if (_tcConfigCache) _tcConfigCache["Pin Prizes JSON"] = JSON.stringify(_pinState); }
+            else { _pinStatus((j && j.error) || "Save failed.", "error"); }
+          })
+          .catch(function () { _pinStatus("Network error saving.", "error"); });
+      }
+      function _pinPrizeIsAssigned(prizeName) {
+        return _pinState.cards.some(function (c) { return c.prize && c.prize === prizeName; });
+      }
+      function renderPinPrizes() {
+        renderPinChips();
+        renderPinMaster();
+        renderPinCardsGrid();
+      }
+      function renderPinChips() {
+        var host = document.getElementById("ppChips"); if (!host) return;
+        if (!_pinState.prizes.length) { host.innerHTML = '<span class="pp-chip__empty">No prizes added yet — add one above.</span>'; return; }
+        host.innerHTML = _pinState.prizes.map(function (p, i) {
+          var assigned = _pinPrizeIsAssigned(p.prize);
+          return '<div class="pp-chip' + (assigned ? " is-assigned" : "") + '" draggable="true" data-idx="' + i + '" title="' + esc(p.prize) + '">'
+            + '<button type="button" class="pp-chip__rm" data-idx="' + i + '" aria-label="Remove ' + esc(p.prize) + '">&times;</button>'
+            + '<div class="pp-chip__prize">' + esc(p.prize) + '</div>'
+            + (p.sponsor ? '<span class="pp-chip__sponsor">' + esc(p.sponsor) + '</span>' : '')
+            + (p.contact ? '<span class="pp-chip__donor">Donated by ' + esc(p.contact) + '</span>' : '')
+            + '</div>';
+        }).join("");
+        Array.prototype.forEach.call(host.querySelectorAll(".pp-chip"), function (chip) {
+          chip.addEventListener("dragstart", function (e) {
+            chip.classList.add("is-dragging");
+            e.dataTransfer.setData("text/plain", JSON.stringify({ src: "chip", idx: Number(chip.getAttribute("data-idx")) }));
+            e.dataTransfer.effectAllowed = "copyMove";
+          });
+          chip.addEventListener("dragend", function () { chip.classList.remove("is-dragging"); });
+        });
+        Array.prototype.forEach.call(host.querySelectorAll(".pp-chip__rm"), function (btn) {
+          btn.addEventListener("click", function () {
+            var i = Number(btn.getAttribute("data-idx"));
+            var p = _pinState.prizes[i]; if (!p) return;
+            if (!confirm("Remove '" + p.prize + "' from the pool?")) return;
+            _pinState.prizes.splice(i, 1);
+            // Also blank any card that used it — otherwise a card ends up
+            // referencing a prize that doesn't exist in the pool anymore.
+            _pinState.cards.forEach(function (c) { if (c.prize === p.prize) { c.prize = ""; c.sponsor = ""; c.contact = ""; } });
+            _pinDirty = true; renderPinPrizes();
+          });
+        });
+      }
+      function renderPinMaster() {
+        var body = document.getElementById("ppMasterBody"); if (!body) return;
+        body.innerHTML = _pinState.cards.map(function (c) {
+          var em = '<span class="pp-em">—</span>';
+          var sponCell = c.sponsor || c.contact
+            ? '<td class="pp-master__spon">' + (c.sponsor ? '<strong>' + esc(c.sponsor) + '</strong>' : '') + (c.contact ? '<small>Donated by ' + esc(c.contact) + '</small>' : '') + '</td>'
+            : '<td class="pp-em">—</td>';
+          return '<tr>'
+            + '<td><b>' + c.hole + '</b></td>'
+            + '<td>' + PARS9_PP[c.hole - 1] + '</td>'
+            + '<td class="pp-master__contest">' + (c.contest ? esc(c.contest) : em) + '</td>'
+            + '<td>' + (c.prize ? esc(c.prize) : em) + '</td>'
+            + sponCell
+            + '</tr>';
+        }).join("");
+      }
+      function renderPinCardsGrid() {
+        var host = document.getElementById("ppCards"); if (!host) return;
+        // KEY looks like "Founder's Tournament (Aug 8–9)" — split into
+        // event + date for the eyebrow rail on each card.
+        var mm = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(KEY || "");
+        var evName = mm ? mm[1] : (KEY || "F&H Tournament");
+        var evDate = mm ? mm[2] : "";
+        var options = _pinState.prizes.map(function (p, i) { return '<option value="' + i + '">' + esc(p.prize) + '</option>'; }).join("");
+        host.innerHTML = _pinState.cards.map(function (c, ci) {
+          var selectedIdx = -1;
+          if (c.prize) { for (var i = 0; i < _pinState.prizes.length; i++) if (_pinState.prizes[i].prize === c.prize) { selectedIdx = i; break; } }
+          return '<article class="pcard" draggable="true" data-hole="' + c.hole + '" data-ci="' + ci + '">'
+            + '<img class="pcard__logo" src="images/logo.png" alt="" />'
+            + '<div class="pcard__rail">' + esc(evName) + (evDate ? ' &middot; ' + esc(evDate) : '') + ' &middot; F&amp;H Golf Course</div>'
+            + '<div class="pcard__holeline">'
+            +   '<div class="pcard__holecell"><span class="pcard__holelbl">Hole</span><span class="pcard__holenum">' + c.hole + '</span></div>'
+            +   '<div class="pcard__contest">' + esc(c.contest || (PARS9_PP[c.hole - 1] === 3 ? "Closest to the Pin" : "")) + '</div>'
+            + '</div>'
+            + '<div class="pcard__prize">' + (c.prize ? esc(c.prize) : '&nbsp;') + '</div>'
+            + (c.sponsor ? '<p class="pcard__thanks">Thank you</p>' : '')
+            + '<div class="pcard__sponsor">' + (c.sponsor ? esc(c.sponsor) : '&nbsp;') + '</div>'
+            + (c.contact ? '<p class="pcard__donor">Donated by ' + esc(c.contact) + '</p>' : '')
+            + '<div class="pcard__space"></div>'
+            + '<div class="pcard__tools">'
+            +   '<label>Contest<input type="text" class="pp-tool-contest" data-ci="' + ci + '" value="' + esc(c.contest) + '" placeholder="e.g. Closest to the Pin" /></label>'
+            +   '<label>Prize on this hole<select class="pp-tool-prize" data-ci="' + ci + '"><option value="-1">— none —</option>' + options + '</select></label>'
+            +   '<label>Sponsor override<input type="text" class="pp-tool-sponsor" data-ci="' + ci + '" value="' + esc(c.sponsor) + '" placeholder="Override sponsor" /></label>'
+            +   '<label>Donor override<input type="text" class="pp-tool-donor" data-ci="' + ci + '" value="' + esc(c.contact) + '" placeholder="Override donor" /></label>'
+            + '</div>'
+            + '</article>';
+        }).join("");
+        // Set the selected prize AFTER injection so option elements exist.
+        _pinState.cards.forEach(function (c, ci) {
+          var sel = host.querySelector('.pp-tool-prize[data-ci="' + ci + '"]'); if (!sel) return;
+          var idx = -1;
+          for (var i = 0; i < _pinState.prizes.length; i++) if (_pinState.prizes[i].prize === c.prize) { idx = i; break; }
+          sel.value = String(idx);
+        });
+        _wirePinCardEvents(host);
+      }
+      function _wirePinCardEvents(host) {
+        // Drag: chip onto card = assign; card onto card = swap prize+sponsor+contact.
+        Array.prototype.forEach.call(host.querySelectorAll(".pcard"), function (card) {
+          card.addEventListener("dragstart", function (e) {
+            e.dataTransfer.setData("text/plain", JSON.stringify({ src: "card", ci: Number(card.getAttribute("data-ci")) }));
+            e.dataTransfer.effectAllowed = "move";
+          });
+          card.addEventListener("dragover", function (e) { e.preventDefault(); card.classList.add("is-drop-target"); });
+          card.addEventListener("dragleave", function () { card.classList.remove("is-drop-target"); });
+          card.addEventListener("drop", function (e) {
+            e.preventDefault(); card.classList.remove("is-drop-target");
+            var raw = e.dataTransfer.getData("text/plain"); if (!raw) return;
+            var data; try { data = JSON.parse(raw); } catch (er) { return; }
+            var ci = Number(card.getAttribute("data-ci"));
+            if (data.src === "chip") { _pinAssignPrize(ci, data.idx); }
+            else if (data.src === "card" && data.ci !== ci) { _pinSwapCards(ci, data.ci); }
+          });
+        });
+        // Contest text
+        Array.prototype.forEach.call(host.querySelectorAll(".pp-tool-contest"), function (inp) {
+          inp.addEventListener("input", function () { var ci = Number(inp.getAttribute("data-ci")); _pinState.cards[ci].contest = inp.value.trim(); _pinDirty = true; _pinPaintCard(ci); });
+        });
+        // Prize dropdown
+        Array.prototype.forEach.call(host.querySelectorAll(".pp-tool-prize"), function (sel) {
+          sel.addEventListener("change", function () {
+            var ci = Number(sel.getAttribute("data-ci"));
+            var idx = Number(sel.value);
+            if (idx < 0) { _pinState.cards[ci].prize = ""; _pinState.cards[ci].sponsor = ""; _pinState.cards[ci].contact = ""; }
+            else { var p = _pinState.prizes[idx]; if (p) { _pinState.cards[ci].prize = p.prize; _pinState.cards[ci].sponsor = p.sponsor; _pinState.cards[ci].contact = p.contact; } }
+            _pinDirty = true; renderPinPrizes();
+          });
+        });
+        // Sponsor / donor overrides
+        Array.prototype.forEach.call(host.querySelectorAll(".pp-tool-sponsor"), function (inp) {
+          inp.addEventListener("input", function () { var ci = Number(inp.getAttribute("data-ci")); _pinState.cards[ci].sponsor = inp.value.trim(); _pinDirty = true; _pinPaintCard(ci); });
+        });
+        Array.prototype.forEach.call(host.querySelectorAll(".pp-tool-donor"), function (inp) {
+          inp.addEventListener("input", function () { var ci = Number(inp.getAttribute("data-ci")); _pinState.cards[ci].contact = inp.value.trim(); _pinDirty = true; _pinPaintCard(ci); });
+        });
+      }
+      // Surgical repaint of one card — preserves input focus while the
+      // operator is mid-type on Contest/Sponsor override.
+      function _pinPaintCard(ci) {
+        var host = document.getElementById("ppCards"); if (!host) return;
+        var card = host.querySelector('.pcard[data-ci="' + ci + '"]'); if (!card) return;
+        var c = _pinState.cards[ci];
+        var contestEl = card.querySelector(".pcard__contest"); if (contestEl) contestEl.textContent = c.contest || (PARS9_PP[c.hole - 1] === 3 ? "Closest to the Pin" : "");
+        var prizeEl = card.querySelector(".pcard__prize"); if (prizeEl) prizeEl.textContent = c.prize || " ";
+        var sponEl = card.querySelector(".pcard__sponsor"); if (sponEl) sponEl.textContent = c.sponsor || " ";
+        renderPinMaster();
+        renderPinChips();
+      }
+      function _pinAssignPrize(ci, prizeIdx) {
+        var p = _pinState.prizes[prizeIdx]; if (!p) return;
+        _pinState.cards[ci].prize = p.prize;
+        _pinState.cards[ci].sponsor = p.sponsor;
+        _pinState.cards[ci].contact = p.contact;
+        _pinDirty = true; renderPinPrizes();
+      }
+      function _pinSwapCards(aCi, bCi) {
+        var a = _pinState.cards[aCi], b = _pinState.cards[bCi];
+        var t = { prize: a.prize, sponsor: a.sponsor, contact: a.contact };
+        a.prize = b.prize; a.sponsor = b.sponsor; a.contact = b.contact;
+        b.prize = t.prize; b.sponsor = t.sponsor; b.contact = t.contact;
+        _pinDirty = true; renderPinPrizes();
       }
       // Copy-paste prompt for the operator to feed into a talk-to-text or
       // GPT project. Keeping it as a function so the shape is edit-in-place
@@ -9984,6 +10277,7 @@
           if (s === "recap") loadRecap();
           if (s === "format") loadFormat();
           if (s === "check") ensureConfigCache();
+          if (s === "pinprizes") loadPinPrizes();
           // Lazy-render the freshly-opened tab from the shared cache so
           // switching tabs shows current data without a network round-trip.
           // (Check-In already renders on every roster load — it's the
@@ -10277,6 +10571,40 @@
         });
         var fmtSave = document.getElementById("fmtSave");
         if (fmtSave) fmtSave.addEventListener("click", saveFormat);
+        // ---- Pin Prizes wiring ----
+        var ppAddForm = document.getElementById("ppAddForm");
+        if (ppAddForm) ppAddForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var prize = (document.getElementById("ppAddPrize").value || "").trim();
+          var sponsor = (document.getElementById("ppAddSponsor").value || "").trim();
+          var contact = (document.getElementById("ppAddDonor").value || "").trim();
+          if (!prize) { _pinStatus("Prize name is required.", "error"); return; }
+          if (_pinState.prizes.some(function (p) { return p.prize.toLowerCase() === prize.toLowerCase(); })) {
+            _pinStatus("A prize by that name is already in the pool.", "error"); return;
+          }
+          _pinState.prizes.push({ prize: prize, sponsor: sponsor, contact: contact });
+          _pinDirty = true; document.getElementById("ppAddPrize").value = ""; document.getElementById("ppAddSponsor").value = ""; document.getElementById("ppAddDonor").value = "";
+          document.getElementById("ppAddPrize").focus();
+          renderPinPrizes(); _pinStatus("Added — remember to Save.", "ok");
+        });
+        var ppSave = document.getElementById("ppSave");
+        if (ppSave) ppSave.addEventListener("click", savePinPrizes);
+        var ppPrintMaster = document.getElementById("ppPrintMaster");
+        if (ppPrintMaster) ppPrintMaster.addEventListener("click", function () {
+          document.body.classList.add("pp-print-master");
+          window.print();
+          setTimeout(function () { document.body.classList.remove("pp-print-master"); }, 200);
+        });
+        var ppPrintCards = document.getElementById("ppPrintCards");
+        if (ppPrintCards) ppPrintCards.addEventListener("click", function () {
+          document.body.classList.add("pp-print-cards");
+          window.print();
+          setTimeout(function () { document.body.classList.remove("pp-print-cards"); }, 200);
+        });
+        // Warn on tab-away with unsaved pin-prize edits (staff know to Save).
+        window.addEventListener("beforeunload", function (e) {
+          if (_pinDirty) { e.preventDefault(); e.returnValue = ""; return ""; }
+        });
         var fmtReload = document.getElementById("fmtReload");
         if (fmtReload) fmtReload.addEventListener("click", function () { loadFormat(true); });
         // Email a tournament-scoped staff link. Only visible while the
