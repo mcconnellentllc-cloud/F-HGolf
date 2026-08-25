@@ -62,6 +62,22 @@
     .missing { max-width: 40rem; margin: 4rem auto; padding: 2rem; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; text-align: center; }
     .missing h1 { font-family: "Fraunces", Georgia, serif; color: var(--gold); margin: 0 0 0.5rem; }
     .missing a { color: var(--gold); font-weight: 700; }
+
+    /* Donor wall — sponsor tiles rendered below the recap body. */
+    .donors { max-width: 60rem; width: 100%; margin: 0 auto; padding: 0 clamp(1rem, 2vw, 2rem) 3rem; }
+    .donors__head { text-align: center; margin: 0 0 1.25rem; }
+    .donors__eyebrow { text-transform: uppercase; letter-spacing: 0.4em; color: var(--muted); font-weight: 800; font-size: 0.85rem; }
+    .donors__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: var(--gold); font-size: clamp(1.5rem, 2.8vw, 2rem); margin: 0.35em 0 0; }
+    .donors__blurb { color: var(--muted); font-size: 0.95rem; margin: 0.4em 0 0; font-style: italic; }
+    .donors__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+    .donor { display: grid; grid-template-columns: 4.5rem 1fr; gap: 0.75rem; align-items: start; padding: 0.85rem; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+    .donor__logo { width: 4.5rem; height: 4.5rem; border-radius: 8px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; }
+    .donor__logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .donor__logo--empty { color: #0b1a10; font: 700 1.8rem/1 "Fraunces", Georgia, serif; background: var(--gold); }
+    .donor__body { min-width: 0; }
+    .donor__name { margin: 0 0 0.15rem; font: 700 1rem/1.2 "Source Sans 3", system-ui, sans-serif; color: var(--ink); word-wrap: break-word; }
+    .donor__thanks { margin: 0 0 0.2rem; font-size: 0.85rem; color: var(--ink); line-height: 1.35; }
+    .donor__contact { margin: 0; font-size: 0.75rem; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -87,6 +103,15 @@
     <article class="recap" id="recapBody">
       <p class="recap__empty">Loading the recap&hellip;</p>
     </article>
+
+    <section class="donors" id="donorWall" hidden aria-label="Tournament sponsors">
+      <header class="donors__head">
+        <div class="donors__eyebrow">Sponsors</div>
+        <h2 class="donors__title">Thank you to our supporters</h2>
+        <p class="donors__blurb">These local businesses and neighbors made the day possible.</p>
+      </header>
+      <div class="donors__grid" id="donorGrid"></div>
+    </section>
 
     <footer class="recap__foot"><span id="recapUpdated">&nbsp;</span></footer>
   </main>
@@ -182,13 +207,41 @@
         }
       }
 
+      function renderDonorWall(fields) {
+        var section = document.getElementById("donorWall");
+        var grid = document.getElementById("donorGrid");
+        if (!section || !grid) return;
+        var raw = fields && fields["Donors JSON"];
+        var list = [];
+        try { var parsed = JSON.parse(raw || "{}"); if (parsed && Array.isArray(parsed.donors)) list = parsed.donors; } catch (e) {}
+        list = list.filter(function (d) { return d && d.name; });
+        if (!list.length) { section.hidden = true; grid.innerHTML = ""; return; }
+        grid.innerHTML = list.map(function (d) {
+          var logo = d.logoDataUri && typeof d.logoDataUri === "string" && d.logoDataUri.indexOf("data:image/") === 0
+            ? '<div class="donor__logo"><img alt="" src="' + esc(d.logoDataUri) + '"></div>'
+            : '<div class="donor__logo donor__logo--empty" aria-hidden="true">' + esc((d.name || "?").slice(0, 1).toUpperCase()) + '</div>';
+          return ''
+            + '<article class="donor">'
+            +   logo
+            +   '<div class="donor__body">'
+            +     '<h3 class="donor__name">' + esc(d.name) + '</h3>'
+            +     (d.thankYou ? '<p class="donor__thanks">' + esc(d.thankYou) + '</p>' : "")
+            +     (d.contact ? '<p class="donor__contact">' + esc(d.contact) + '</p>' : "")
+            +   '</div>'
+            + '</article>';
+        }).join("");
+        section.hidden = false;
+      }
+
       // Two-fetch cascade like founders-recap: (1) tournament config for
-      // the display name, then (2) recaps map for the actual body.
+      // the display name + donor wall, then (2) recaps map for the body.
       fetch(FH_API.url("/api/tournament-signups") + "?config=" + encodeURIComponent(KEY), { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (cj) {
-          var display = (cj && cj.ok && cj.config && (cj.config["Display Name"] || cj.config.displayName)) || "";
+          var fields = (cj && cj.ok && cj.record && cj.record.fields) || null;
+          var display = (fields && (fields["Display Name"] || fields.displayName)) || "";
           applyTitle(display);
+          renderDonorWall(fields);
         })
         .catch(function () { applyTitle(""); });
 

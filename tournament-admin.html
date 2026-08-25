@@ -73,6 +73,7 @@
           <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
           <button type="button" class="wb-tab" data-sheet="pinprizes" role="tab">Pin Prizes</button>
+          <button type="button" class="wb-tab" data-sheet="donors" role="tab">Donors</button>
           <button type="button" class="wb-tab" data-sheet="rules" role="tab">Rules</button>
           <button type="button" class="wb-tab" data-sheet="recap" role="tab">Recap</button>
           <button type="button" class="wb-tab wb-tab--history" data-sheet="history" role="tab">History</button>
@@ -586,6 +587,35 @@
           <h4 class="pp-h">Pin cards</h4>
           <p class="pp-note">One 5&Prime;×5&Prime; card per hole. Print two per letter page — the red top bar is a cut guide; dashed lines mark the trim.</p>
           <div class="pcards" id="ppCards"></div>
+        </section>
+
+        <!-- Donors — sponsor wall for the tournament. Each donor has an
+             optional logo (client-side resized to a small JPEG data URI),
+             a name, an optional thank-you note, and an optional contact
+             line. Stored as `Donors JSON` long-text on Tournament Config;
+             rendered publicly on the recap page. -->
+        <section class="noms wb-sheet" data-sheet="donors" id="twDonors" aria-label="Donors" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Donors</h3>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn--solid" type="button" id="dnSave">Save donors</button>
+              <span class="ci__status" id="dnStatus" role="status" aria-live="polite" style="min-width:6rem;"></span>
+            </div>
+          </div>
+          <p class="scaffold__desc">Add each sponsor once with a logo, a name, and a short thank-you. The list shows up on the public tournament recap so players see who made the day possible.</p>
+
+          <form id="dnAddForm" class="dn-add" autocomplete="off">
+            <label class="dn-add__field dn-add__field--name"><span>Sponsor name *</span><input type="text" id="dnAddName" maxlength="120" required placeholder="e.g. Haxtun Volunteer Fire Dept." /></label>
+            <label class="dn-add__field"><span>Thank-you note</span><input type="text" id="dnAddThanks" maxlength="200" placeholder="e.g. Serving our community for over 100 years" /></label>
+            <label class="dn-add__field"><span>Contact / donated by</span><input type="text" id="dnAddContact" maxlength="160" placeholder="e.g. Marc Bornhoft &mdash; 970-580-2913" /></label>
+            <label class="dn-add__field dn-add__field--logo"><span>Logo (optional)</span><input type="file" id="dnAddLogo" accept="image/*" /></label>
+            <div class="dn-add__preview" id="dnAddPreview" aria-hidden="true"></div>
+            <button type="submit" class="btn btn--primary" id="dnAddBtn">Add sponsor</button>
+          </form>
+
+          <h4 class="dn-h">Sponsor wall</h4>
+          <p class="dn-note">Drag isn't needed &mdash; order is the order you added them. Use <strong>Remove</strong> to drop a sponsor.</p>
+          <div class="dn-grid" id="dnGrid" aria-live="polite"></div>
         </section>
 
         <section class="noms wb-sheet" data-sheet="rules" id="twRules" aria-label="Rules" hidden>
@@ -2576,6 +2606,164 @@
         b.prize = t.prize; b.sponsor = t.sponsor; b.contact = t.contact;
         _pinDirty = true; renderPinPrizes();
       }
+
+      // Donors — sponsor wall. Persisted as `Donors JSON` long-text on
+      // Tournament Config. Logos are resized in the browser (max 300px
+      // wide, JPEG q0.65) so the whole array stays under Airtable's
+      // 100KB long-text ceiling. Public rendering happens on recap.html.
+      var _dnState = { donors: [] };
+      var _dnLoaded = false;
+      var _dnPendingLogo = ""; // resized data URI staged for the next add
+      function _dnNormalize(raw) {
+        var s = { donors: [] };
+        if (raw && typeof raw === "object" && Array.isArray(raw.donors)) {
+          s.donors = raw.donors.filter(Boolean).map(function (d) {
+            return {
+              name: String(d.name || "").slice(0, 120),
+              thankYou: String(d.thankYou || "").slice(0, 200),
+              contact: String(d.contact || "").slice(0, 160),
+              logoDataUri: (typeof d.logoDataUri === "string" && d.logoDataUri.indexOf("data:image/") === 0) ? d.logoDataUri : "",
+              addedAt: String(d.addedAt || ""),
+            };
+          });
+        }
+        return s;
+      }
+      function _dnStatus(msg, kind) {
+        var el = document.getElementById("dnStatus"); if (!el) return;
+        el.textContent = msg || "";
+        el.className = "ci__status" + (kind === "error" ? " is-error" : kind === "ok" ? " is-ok" : "");
+      }
+      function loadDonors() {
+        if (_dnLoaded) { renderDonors(); return; }
+        _dnStatus("Loading…");
+        var cachedRaw = _tcConfigCache && _tcConfigCache["Donors JSON"];
+        if (cachedRaw != null) {
+          try { _dnState = _dnNormalize(JSON.parse(cachedRaw || "{}")); } catch (e) { _dnState = _dnNormalize(null); }
+          _dnLoaded = true; _dnStatus(""); renderDonors(); return;
+        }
+        fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(KEY)))
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var raw = j && j.record && j.record.fields && j.record.fields["Donors JSON"];
+            try { _dnState = _dnNormalize(JSON.parse(raw || "{}")); } catch (e) { _dnState = _dnNormalize(null); }
+            _dnLoaded = true; _dnStatus(""); renderDonors();
+          })
+          .catch(function () { _dnState = _dnNormalize(null); _dnLoaded = true; _dnStatus("Couldn't load — starting fresh.", "error"); renderDonors(); });
+      }
+      function saveDonors() {
+        if (!getKey()) { _dnStatus("Sign in first.", "error"); return; }
+        var payload = JSON.stringify(_dnState);
+        if (payload.length > 95000) { _dnStatus("Too many logos — remove one or use a smaller image.", "error"); return; }
+        _dnStatus("Saving…");
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "config-write", tournament: KEY, fields: { "Donors JSON": payload } }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.ok) { _dnStatus("Saved ✓", "ok"); if (_tcConfigCache) _tcConfigCache["Donors JSON"] = payload; }
+            else { _dnStatus((j && j.error) || "Save failed.", "error"); }
+          })
+          .catch(function () { _dnStatus("Network error saving.", "error"); });
+      }
+      function renderDonors() {
+        var host = document.getElementById("dnGrid"); if (!host) return;
+        var list = _dnState.donors || [];
+        if (!list.length) { host.innerHTML = '<p class="dn-empty">No sponsors yet. Add one above.</p>'; return; }
+        host.innerHTML = list.map(function (d, i) {
+          var logo = d.logoDataUri
+            ? '<div class="dn-tile__logo"><img alt="" src="' + esc(d.logoDataUri) + '"></div>'
+            : '<div class="dn-tile__logo dn-tile__logo--empty" aria-hidden="true">' + esc((d.name || "?").slice(0, 1).toUpperCase()) + '</div>';
+          return ''
+            + '<article class="dn-tile" data-idx="' + i + '">'
+            +   logo
+            +   '<div class="dn-tile__body">'
+            +     '<h5 class="dn-tile__name">' + esc(d.name) + '</h5>'
+            +     (d.thankYou ? '<p class="dn-tile__thanks">' + esc(d.thankYou) + '</p>' : "")
+            +     (d.contact ? '<p class="dn-tile__contact">' + esc(d.contact) + '</p>' : "")
+            +   '</div>'
+            +   '<div class="dn-tile__actions">'
+            +     '<button type="button" class="btn btn--ghost btn--small" data-dn-remove="' + i + '">Remove</button>'
+            +   '</div>'
+            + '</article>';
+        }).join("");
+        host.querySelectorAll("[data-dn-remove]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var idx = Number(btn.getAttribute("data-dn-remove"));
+            if (!(idx >= 0 && idx < _dnState.donors.length)) return;
+            var name = _dnState.donors[idx].name || "this sponsor";
+            if (!confirm("Remove " + name + " from the sponsor wall?")) return;
+            _dnState.donors.splice(idx, 1);
+            renderDonors();
+            _dnStatus("Removed — click Save donors to keep the change.");
+          });
+        });
+      }
+      function _dnResizeImage(file, cb) {
+        var MAX_W = 300, MAX_H = 300, Q = 0.65;
+        var reader = new FileReader();
+        reader.onerror = function () { cb(""); };
+        reader.onload = function () {
+          var img = new Image();
+          img.onerror = function () { cb(""); };
+          img.onload = function () {
+            var w = img.naturalWidth, h = img.naturalHeight;
+            if (!w || !h) { cb(""); return; }
+            var scale = Math.min(1, MAX_W / w, MAX_H / h);
+            var cw = Math.round(w * scale), ch = Math.round(h * scale);
+            var cvs = document.createElement("canvas");
+            cvs.width = cw; cvs.height = ch;
+            var ctx = cvs.getContext("2d");
+            // White background so JPEG compresses transparent PNGs cleanly
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, cw, ch);
+            ctx.drawImage(img, 0, 0, cw, ch);
+            try { cb(cvs.toDataURL("image/jpeg", Q)); } catch (e) { cb(""); }
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      }
+      function _dnHandleFilePick(input) {
+        var preview = document.getElementById("dnAddPreview");
+        var file = input.files && input.files[0];
+        if (!file) { _dnPendingLogo = ""; if (preview) preview.innerHTML = ""; return; }
+        if (file.size > 6 * 1024 * 1024) { _dnStatus("Image is too large (max 6 MB).", "error"); input.value = ""; return; }
+        _dnStatus("Preparing logo…");
+        _dnResizeImage(file, function (dataUri) {
+          if (!dataUri) { _dnStatus("Couldn't read that image.", "error"); _dnPendingLogo = ""; if (preview) preview.innerHTML = ""; return; }
+          _dnPendingLogo = dataUri;
+          if (preview) preview.innerHTML = '<img alt="" src="' + esc(dataUri) + '">';
+          _dnStatus("");
+        });
+      }
+      function _dnAddFromForm(ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        var nameEl = document.getElementById("dnAddName");
+        var thanksEl = document.getElementById("dnAddThanks");
+        var contactEl = document.getElementById("dnAddContact");
+        var logoEl = document.getElementById("dnAddLogo");
+        var preview = document.getElementById("dnAddPreview");
+        var name = nameEl ? nameEl.value.trim() : "";
+        if (!name) { _dnStatus("Sponsor name is required.", "error"); if (nameEl) nameEl.focus(); return; }
+        _dnState.donors.push({
+          name: name.slice(0, 120),
+          thankYou: (thanksEl ? thanksEl.value.trim() : "").slice(0, 200),
+          contact: (contactEl ? contactEl.value.trim() : "").slice(0, 160),
+          logoDataUri: _dnPendingLogo || "",
+          addedAt: new Date().toISOString(),
+        });
+        _dnPendingLogo = "";
+        if (nameEl) nameEl.value = "";
+        if (thanksEl) thanksEl.value = "";
+        if (contactEl) contactEl.value = "";
+        if (logoEl) logoEl.value = "";
+        if (preview) preview.innerHTML = "";
+        renderDonors();
+        _dnStatus("Added — click Save donors to keep the change.");
+      }
+
       // Copy-paste prompt for the operator to feed into a talk-to-text or
       // GPT project. Keeping it as a function so the shape is edit-in-place
       // if we tweak the recap section structure later.
@@ -10278,6 +10466,7 @@
           if (s === "format") loadFormat();
           if (s === "check") ensureConfigCache();
           if (s === "pinprizes") loadPinPrizes();
+          if (s === "donors") loadDonors();
           // Lazy-render the freshly-opened tab from the shared cache so
           // switching tabs shows current data without a network round-trip.
           // (Check-In already renders on every roster load — it's the
@@ -10605,6 +10794,12 @@
         window.addEventListener("beforeunload", function (e) {
           if (_pinDirty) { e.preventDefault(); e.returnValue = ""; return ""; }
         });
+        var dnAddForm = document.getElementById("dnAddForm");
+        if (dnAddForm) dnAddForm.addEventListener("submit", _dnAddFromForm);
+        var dnAddLogo = document.getElementById("dnAddLogo");
+        if (dnAddLogo) dnAddLogo.addEventListener("change", function () { _dnHandleFilePick(dnAddLogo); });
+        var dnSave = document.getElementById("dnSave");
+        if (dnSave) dnSave.addEventListener("click", saveDonors);
         var fmtReload = document.getElementById("fmtReload");
         if (fmtReload) fmtReload.addEventListener("click", function () { loadFormat(true); });
         // Email a tournament-scoped staff link. Only visible while the

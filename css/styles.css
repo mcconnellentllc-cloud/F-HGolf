@@ -2637,3 +2637,29 @@ body.pp-print-cards { background: #fff; }
   body.pp-print-cards .pcard:nth-of-type(2n) { page-break-after: always; break-after: page; }
   @page { size: letter portrait; margin: 0.4in; }
 }
+
+/* Donors tab — sponsor wall (workbook + public recap page share tile styles). */
+.dn-add { display: grid; grid-template-columns: 1fr 1fr 1fr auto auto; gap: 0.55rem 0.75rem; align-items: end; }
+@media (max-width: 900px) { .dn-add { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .dn-add { grid-template-columns: 1fr; } }
+.dn-add__field { display: block; }
+.dn-add__field span { display: block; font: 700 0.66rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted, #7a7663); margin-bottom: 0.25rem; }
+.dn-add__field input[type="text"] { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; }
+.dn-add__field--name span::after { content: " *"; color: var(--red-deep, #7a1a1a); }
+.dn-add__field--logo input[type="file"] { font: 0.85rem system-ui, sans-serif; }
+.dn-add__preview { width: 3.25rem; height: 3.25rem; border: 1px dashed var(--line, #e6e2d8); border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fff; overflow: hidden; }
+.dn-add__preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.dn-h { margin: 1rem 0 0.35rem 0; font-family: Fraunces, Georgia, serif; color: var(--primary-green, #1B5E20); font-size: 1.1rem; }
+.dn-note { color: var(--muted, #7a7663); font-size: 0.85rem; margin: 0 0 0.65rem 0; }
+.dn-empty { color: var(--muted, #7a7663); font-style: italic; padding: 1rem; background: #faf8f2; border-radius: 8px; }
+.dn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.85rem; }
+.dn-tile { display: grid; grid-template-columns: 4.25rem 1fr; grid-template-rows: auto auto; gap: 0.5rem 0.75rem; align-items: start; padding: 0.75rem; border: 1px solid var(--line, #e6e2d8); border-radius: 10px; background: #fff; }
+.dn-tile__logo { grid-row: 1 / span 2; width: 4.25rem; height: 4.25rem; border-radius: 8px; overflow: hidden; background: #f7f4ea; display: flex; align-items: center; justify-content: center; }
+.dn-tile__logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.dn-tile__logo--empty { color: var(--primary-green, #1B5E20); font: 700 1.6rem/1 Fraunces, Georgia, serif; }
+.dn-tile__body { min-width: 0; }
+.dn-tile__name { margin: 0 0 0.15rem 0; font: 700 1rem/1.2 system-ui, sans-serif; color: var(--ink, #2a2418); word-wrap: break-word; }
+.dn-tile__thanks { margin: 0 0 0.25rem 0; font-size: 0.85rem; color: var(--ink, #2a2418); line-height: 1.35; }
+.dn-tile__contact { margin: 0; font-size: 0.78rem; color: var(--muted, #7a7663); }
+.dn-tile__actions { grid-column: 2; justify-self: start; }
+.dn-tile__actions .btn { padding: 0.25rem 0.55rem; font-size: 0.75rem; }
