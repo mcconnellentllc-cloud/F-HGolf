@@ -440,6 +440,16 @@
             });
             if (tbdKey) { t = tbdKey; rerouted = true; }
           }
+          // If we rerouted onto a TBD 2027 placeholder, the option is
+          // NOT in the dropdown (the 2027 optgroup was pulled while the
+          // 2026 season is still running — nothing 2027 shows up unless
+          // a reserve link brings the visitor here). Inject just the one
+          // needed <option> now so pre-selecting it actually sticks.
+          if (rerouted && TMETA[t] && TMETA[t].tbd && !sel.querySelector('option[value="' + t.replace(/"/g, '\\"') + '"]')) {
+            var opt = document.createElement("option");
+            opt.value = t; opt.textContent = t;
+            sel.appendChild(opt);
+          }
           if (TMETA[t] && !isPast(TMETA[t])) sel.value = t;
           if (rerouted) {
             var note = document.getElementById("tourneyPrefill");
