@@ -4054,6 +4054,39 @@
         card.classList.toggle("is-fully-paid", paid >= owed && owed > 0);
       }
 
+      // Shared warn-then-continue modal for rename dup detection. Same
+      // "warn but allow" contract as the walk-up form.
+      function openInlineDupWarning(matches, onContinue, onCancel) {
+        var existing = document.getElementById("ciDupModal");
+        if (existing) existing.parentNode.removeChild(existing);
+        var host = document.createElement("div");
+        host.id = "ciDupModal";
+        host.setAttribute("role", "dialog");
+        host.setAttribute("aria-modal", "true");
+        host.setAttribute("aria-label", "That name is already on the roster");
+        host.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;";
+        var lines = matches.map(function (m) {
+          var others = (m.otherPlayers || []).filter(Boolean).slice(0, 3);
+          var withStr = others.length ? (" with " + others.join(", ")) : "";
+          var altStr = m.alternate ? " (alternate list)" : "";
+          return '<li><strong>' + esc(m.name) + '</strong> is on <strong>Team ' + m.teamNumber + '</strong>' + esc(altStr) + esc(withStr) + '.</li>';
+        }).join("");
+        host.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:32rem;width:100%;padding:1.5rem 1.5rem 1.25rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+          + '<h2 style="margin:0 0 0.5rem;font-family:Fraunces,Georgia,serif;color:#7a1a1a;font-size:1.35rem;">Already on the roster?</h2>'
+          + '<p style="margin:0 0 0.85rem;color:#2a2418;line-height:1.4;">This name matches an existing player. Different person? Continue &mdash; the same name will show on both teams. Same person? Cancel and fix the typo.</p>'
+          + '<ul style="margin:0 0 1.15rem;padding-left:1.25rem;color:#2a2418;line-height:1.45;">' + lines + '</ul>'
+          + '<div style="display:flex;gap:0.5rem;justify-content:flex-end;flex-wrap:wrap;">'
+          +   '<button type="button" id="ciDupCancel" class="btn btn--ghost">Go back &amp; fix</button>'
+          +   '<button type="button" id="ciDupGo" class="btn btn--solid">Save anyway</button>'
+          + '</div>'
+          + '</div>';
+        document.body.appendChild(host);
+        function close() { if (host.parentNode) host.parentNode.removeChild(host); }
+        host.addEventListener("click", function (e) { if (e.target === host) { close(); if (onCancel) onCancel(); } });
+        var cancel = document.getElementById("ciDupCancel"); if (cancel) cancel.addEventListener("click", function () { close(); if (onCancel) onCancel(); });
+        var go = document.getElementById("ciDupGo"); if (go) go.addEventListener("click", function () { close(); onContinue(); });
+      }
+
       // Inline rename: swap the .ci-name link for a text input; save on Enter/blur,
       // cancel on Escape. P1 writes Player Name; P2 writes Team / Partners.
       function startInlineRename(wrap, link, btn, role, signupId, statusEl) {
@@ -4083,9 +4116,33 @@
           });
         }
         function commit(save) {
-          if (done) return; done = true;
+          if (done) return;
           var next = input.value.trim();
-          if (!save || next === current) { restoreLink(current); return; }
+          if (!save || next === current) { done = true; restoreLink(current); return; }
+          // Set `done` up front so blur-after-Enter (or a click on the dup
+          // modal's own button, which blurs the input) doesn't re-enter
+          // commit and fire a second dupCheck. If the operator backs out
+          // of the dup warning we reset it so their next Enter can commit.
+          done = true;
+          // Duplicate check first — if the new name is already on the
+          // roster for this tournament (as captain or partner on some other
+          // team), give the operator a chance to back out before we
+          // optimistically overwrite the cell. Matches on the same signup
+          // (the row they're editing) are filtered out so re-typing the
+          // same person's name doesn't trip a warning on themselves.
+          if (statusEl) { statusEl.textContent = "Checking…"; statusEl.className = "ci__status"; }
+          FH_API.dupCheck(KEY, [next]).then(function (matches) {
+            var conflicts = matches.filter(function (m) { return m.signupId !== signupId; });
+            if (!conflicts.length) { doSave(); return; }
+            openInlineDupWarning(conflicts, doSave, function cancel() {
+              // Operator backed out — leave the input in place so they can
+              // fix the typo. Reset `done` so their next Enter commits.
+              done = false;
+              if (statusEl) { statusEl.textContent = ""; }
+              if (input && input.isConnected) { input.focus(); input.select(); }
+            });
+          }).catch(function () { doSave(); });
+          function doSave() {
           if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "ci__status"; }
           // Optimistic: swap link back with the new value immediately so the
           // operator's next action isn't blocked on the network.
@@ -4133,6 +4190,7 @@
               }
             })
             .catch(function () { restoreLink(current); if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
+          }
         }
         input.addEventListener("blur", function () { commit(true); });
         input.addEventListener("keydown", function (e) {
@@ -5601,6 +5659,19 @@
         // stored and how downstream tabs split partners out).
         var partners = players.slice(1).filter(Boolean);
         var teamStr = partners.join(" / ");
+        // Duplicate-player check before POST — warn if any name is already
+        // on the roster. Operator can Continue anyway (same "warn but
+        // allow" pattern as the public signup form).
+        var namesToCheck = [firstName].concat(partners);
+        if (msg) msg.textContent = "Checking…";
+        if (btn) btn.disabled = true;
+        FH_API.dupCheck(KEY, namesToCheck).then(function (matches) {
+          if (!matches.length) { doPost(); return; }
+          if (btn) btn.disabled = false;
+          if (msg) msg.textContent = "";
+          openWalkupDupWarning(matches, doPost);
+        }).catch(function () { doPost(); });
+        function doPost() {
         if (msg) msg.textContent = "Adding…";
         if (btn) btn.disabled = true;
         var data = { tournament: KEY, name: firstName, team: teamStr, phone: phone };
@@ -5621,6 +5692,40 @@
             } else { if (msg) msg.textContent = (j && j.error) || "Couldn't add team."; }
           })
           .catch(function () { if (btn) btn.disabled = false; if (msg) msg.textContent = "Network error."; });
+        }
+      }
+      // Warn modal for the walk-up form. Same "warn but allow" contract as
+      // the public signup form — Continue anyway proceeds; Go back closes
+      // so the operator can retype the offending name.
+      function openWalkupDupWarning(matches, onContinue) {
+        var existing = document.getElementById("waDupModal");
+        if (existing) existing.parentNode.removeChild(existing);
+        var host = document.createElement("div");
+        host.id = "waDupModal";
+        host.setAttribute("role", "dialog");
+        host.setAttribute("aria-modal", "true");
+        host.setAttribute("aria-label", "Some of these players are already signed up");
+        host.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;";
+        var lines = matches.map(function (m) {
+          var others = (m.otherPlayers || []).filter(Boolean).slice(0, 3);
+          var withStr = others.length ? (" with " + others.join(", ")) : "";
+          var altStr = m.alternate ? " (alternate list)" : "";
+          return '<li><strong>' + esc(m.name) + '</strong> &mdash; already on <strong>Team ' + m.teamNumber + '</strong>' + esc(altStr) + esc(withStr) + '.</li>';
+        }).join("");
+        host.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:32rem;width:100%;padding:1.5rem 1.5rem 1.25rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+          + '<h2 style="margin:0 0 0.5rem;font-family:Fraunces,Georgia,serif;color:#7a1a1a;font-size:1.35rem;">Already on the roster?</h2>'
+          + '<p style="margin:0 0 0.85rem;color:#2a2418;line-height:1.4;">These names are already on this tournament\'s roster. If it\'s a different player who happens to share the name, continue &mdash; otherwise cancel and fix the typo so we don\'t double-book.</p>'
+          + '<ul style="margin:0 0 1.15rem;padding-left:1.25rem;color:#2a2418;line-height:1.45;">' + lines + '</ul>'
+          + '<div style="display:flex;gap:0.5rem;justify-content:flex-end;flex-wrap:wrap;">'
+          +   '<button type="button" id="waDupCancel" class="btn btn--ghost">Go back &amp; fix</button>'
+          +   '<button type="button" id="waDupGo" class="btn btn--solid">Continue anyway</button>'
+          + '</div>'
+          + '</div>';
+        document.body.appendChild(host);
+        function close() { if (host.parentNode) host.parentNode.removeChild(host); }
+        host.addEventListener("click", function (e) { if (e.target === host) close(); });
+        var cancel = document.getElementById("waDupCancel"); if (cancel) cancel.addEventListener("click", close);
+        var go = document.getElementById("waDupGo"); if (go) go.addEventListener("click", function () { close(); onContinue(); });
       }
 
       // ---- Pairings: tee sheet (A/B slots per hole, autofill, drag-and-drop) ----

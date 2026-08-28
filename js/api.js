@@ -11,7 +11,23 @@
   var base = sameOrigin ? "" : "https://f-h-golf.vercel.app";
   window.FH_API = {
     base: base,
-    url: function (path) { return base + path; }
+    url: function (path) { return base + path; },
+    /* Public duplicate-player check for a signup form. Sends the tournament
+       key + a list of names, resolves to a list of matches:
+           [{ name, role, teamNumber, alternate, captainName, otherPlayers }]
+       Empty names are dropped by the server. Network / server errors resolve
+       to [] so the caller can proceed rather than block a signup on a
+       hiccup. */
+    dupCheck: function (tournament, names) {
+      var t = String(tournament || "").trim();
+      var list = (names || []).map(function (n) { return String(n || "").trim(); }).filter(Boolean);
+      if (!t || !list.length) return Promise.resolve([]);
+      var qs = "?dupCheck=" + encodeURIComponent(t) + "&names=" + encodeURIComponent(list.join("||"));
+      return fetch(base + "/api/tournament-signups" + qs, { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : { ok: false }; })
+        .then(function (j) { return (j && j.ok && Array.isArray(j.matches)) ? j.matches : []; })
+        .catch(function () { return []; });
+    }
   };
 
   /* Course's Deposyt hosted card-payment form (feeType=amount → payer enters the

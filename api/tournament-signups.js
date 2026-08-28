@@ -874,6 +874,96 @@ module.exports = async (req, res) => {
     }
   }
 
+  // GET ?dupCheck=<tournament>&names=<name>||<name>||... returns which of the
+  // supplied names are already on a signup for that tournament (as captain or
+  // as a partner). Public — the signup form calls this before it POSTs so it
+  // can warn "Cash Cochran is already on Team 10 with Don Mavis" without
+  // requiring an admin key. Match is case-insensitive + whitespace-trim.
+  if (q.dupCheck !== undefined && q.dupCheck !== "") {
+    const tournament = String(q.dupCheck).trim().slice(0, 200);
+    const raw = String(q.names || "").slice(0, 2000);
+    // Split on "||" so a name that contains a comma (rare) still parses.
+    // Empty names are dropped; duplicates within the query are deduped.
+    const norm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+    const wanted = [];
+    const seenWanted = Object.create(null);
+    raw.split("||").forEach((n) => {
+      const v = String(n || "").trim();
+      if (!v) return;
+      const k = norm(v);
+      if (!k || seenWanted[k]) return;
+      seenWanted[k] = true;
+      wanted.push({ original: v, key: k });
+    });
+    if (!tournament || !wanted.length) {
+      return res.status(200).json({ ok: true, matches: [] });
+    }
+    // Short edge cache — the signup form fires this once right before
+    // POST, so protecting Airtable from a burst is more important than
+    // sub-second freshness for the same team.
+    res.setHeader("Cache-Control", "public, s-maxage=5, stale-while-revalidate=15");
+    try {
+      const filter = "?filterByFormula=" + encodeURIComponent(`{Tournament}="${tournament.replace(/"/g, '\\"')}"`) + "&pageSize=100";
+      const records = [];
+      let offset = "";
+      for (let guard = 0; guard < 10; guard++) {
+        const url = listUrl + filter + (offset ? "&offset=" + encodeURIComponent(offset) : "");
+        const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        if (!r.ok) {
+          const detail = await r.text();
+          console.error("dupCheck read error", r.status, detail);
+          return res.status(502).json({ ok: false, error: "Could not check for duplicates." });
+        }
+        const data = await r.json();
+        (data.records || []).forEach((rec) => records.push({ id: rec.id, created: rec.createdTime, fields: rec.fields || {} }));
+        if (!data.offset) break;
+        offset = data.offset;
+      }
+      // Team numbering matches the Check-In UI: oldest signup first, and
+      // Alternates are numbered after the field. Simple stable order so the
+      // warning tells the operator the same "Team NN" the roster shows.
+      records.sort((a, b) => String(a.created || "").localeCompare(String(b.created || "")));
+      const field = records.filter((r) => !(r.fields || {})["Alternate"]);
+      const alts = records.filter((r) => !!(r.fields || {})["Alternate"]);
+      const numbered = field.concat(alts).map((rec, i) => Object.assign({}, rec, { teamNumber: i + 1 }));
+      const matches = [];
+      wanted.forEach((w) => {
+        for (const rec of numbered) {
+          const f = rec.fields || {};
+          const captain = String(f["Player Name"] || "").trim();
+          const partnersRaw = String(f["Team / Partners"] || "");
+          const partners = partnersRaw.split(/\s*\/\s*/).map((s) => s.trim()).filter(Boolean);
+          const isCaptain = norm(captain) === w.key;
+          const partnerHit = partners.find((p) => norm(p) === w.key);
+          if (!isCaptain && !partnerHit) continue;
+          // Compose a friendly "on Team 10 with Don Mavis, Todd Workman"
+          // list — everyone else on the team, captain first if partner
+          // matched, otherwise just partners.
+          const others = [];
+          if (!isCaptain && captain) others.push(captain);
+          partners.forEach((p) => {
+            if (!isCaptain && p === partnerHit) return;
+            others.push(p);
+          });
+          matches.push({
+            name: w.original,
+            role: isCaptain ? "captain" : "partner",
+            teamNumber: rec.teamNumber,
+            alternate: !!f["Alternate"],
+            captainName: captain,
+            otherPlayers: others,
+            signupId: rec.id,
+          });
+          break; // one match per queried name is enough for the warning
+        }
+      });
+      return res.status(200).json({ ok: true, matches });
+    } catch (e) {
+      console.error("dupCheck exception", e);
+      return res.status(500).json({ ok: false, error: "Something went wrong checking for duplicates." });
+    }
+  }
+
   // GET ?config=<tournament name> returns a single Tournament Config row.
   // GET ?config=1 returns every config row. Public — this feeds the
   // shareable public tournament card, so no admin key required.
