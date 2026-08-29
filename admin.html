@@ -101,9 +101,15 @@
         <section class="noms" id="sec-tournaments" aria-label="Tournament manager">
           <div class="noms__bar">
             <h3 class="noms__title">Tournaments <span class="noms__count" id="tmCount"></span></h3>
-            <button class="btn btn--solid" type="button" id="tmRefresh">Refresh</button>
+            <div class="noms__toolbar">
+              <label class="tm-season">
+                <span class="tm-season__label">Season</span>
+                <select id="tmSeason" class="tm-season__select" aria-label="Filter tournament cards by season"></select>
+              </label>
+              <button class="btn btn--solid" type="button" id="tmRefresh">Refresh</button>
+            </div>
           </div>
-          <p class="tm__intro">One card per tournament, grouped by year. Open a tournament to manage its roster, flights, scorecards &amp; leaderboard, and to email everyone signed up. Formats carry over year to year, so each event can be reused season after season.</p>
+          <p class="tm__intro">One card per tournament in the picked season. Open a tournament to manage its roster, flights, scorecards &amp; leaderboard, and to email everyone signed up. Formats carry over year to year, so each event can be reused season after season.</p>
           <div id="tmYears"><p class="noms__msg">Loading tournaments…</p></div>
 
           <!-- Course-wide cart pool. Lives on the tournaments page (not on
@@ -882,8 +888,19 @@
         return new Date(end + "T00:00:00") < today;
       }
 
+      // Persisted season pick — remembered so the operator lands on the
+      // same season next visit. "" means "All seasons".
+      var _tmSeasonKey = "fh:tmSeason";
+      var _tmRecords = [];
+      function _tmReadSeason() { try { return localStorage.getItem(_tmSeasonKey) || ""; } catch (e) { return ""; } }
+      function _tmWriteSeason(v) { try { localStorage.setItem(_tmSeasonKey, v || ""); } catch (e) {} }
+
       function buildManager(records) {
         if (!tmYears) return;
+        // Keep the last fetched records so the season picker can re-render
+        // without re-hitting the API.
+        if (records && records.length) _tmRecords = records;
+        else if (!records) records = _tmRecords || [];
         var T = window.FH_TMETA || {};
         var keys = Object.keys(T);
         if (!keys.length) { tmYears.innerHTML = '<p class="noms__msg">Tournament list unavailable.</p>'; return; }
@@ -912,7 +929,32 @@
           return b.localeCompare(a);
         });
 
-        tmCount.textContent = "(" + keys.length + ")";
+        // Populate the season dropdown. Default to the current year if the
+        // operator has never picked one and it's a real season we know
+        // about; otherwise fall back to the most recent one.
+        var seasonSel = document.getElementById("tmSeason");
+        if (seasonSel) {
+          var picked = _tmReadSeason();
+          var thisYear = String(new Date().getFullYear());
+          if (!picked) {
+            picked = ynames.indexOf(thisYear) !== -1
+              ? thisYear
+              : (ynames.filter(function (y) { return y !== "Season-long"; })[0] || ynames[0] || "");
+          }
+          var opts = ['<option value="">All seasons</option>'].concat(ynames.map(function (y) {
+            var lbl = y === "Season-long" ? "Season-long events" : (y + " Season");
+            var count = (years[y] || []).length;
+            return '<option value="' + esc(y) + '"' + (y === picked ? " selected" : "") + '>' + esc(lbl) + " (" + count + ")</option>";
+          }));
+          seasonSel.innerHTML = opts.join("");
+          // Filter the render to just the picked season.
+          if (picked) ynames = ynames.filter(function (y) { return y === picked; });
+        }
+
+        // Count reflects the CURRENTLY-SHOWN cards, so "(6)" matches what
+        // the operator sees on screen instead of the raw TMETA total.
+        var shownCount = ynames.reduce(function (n, y) { return n + (years[y] || []).length; }, 0);
+        tmCount.textContent = "(" + shownCount + ")";
         tmYears.innerHTML = ynames.map(function (y) {
           var items = years[y].slice().sort(function (a, b) {
             return (T[a].end || "9999").localeCompare(T[b].end || "9999");
@@ -972,6 +1014,13 @@
       if (refresh) refresh.addEventListener("click", loadNominations);
       if (touRefresh) touRefresh.addEventListener("click", loadTournaments);
       if (tmRefresh) tmRefresh.addEventListener("click", loadTournaments);
+      // Season picker — swap which year's cards are shown from the cached
+      // record set (no re-fetch needed).
+      var tmSeason = document.getElementById("tmSeason");
+      if (tmSeason) tmSeason.addEventListener("change", function () {
+        _tmWriteSeason(tmSeason.value);
+        buildManager(_tmRecords);
+      });
 
       var ccSave = document.getElementById("ccSave");
       if (ccSave) ccSave.addEventListener("click", saveCourseCarts);

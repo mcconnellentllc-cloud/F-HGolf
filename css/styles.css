@@ -832,6 +832,11 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 
 /* ===================== Staff: Tournament Manager cards ===================== */
 .tm__intro { color: var(--muted); font-size: 0.92rem; margin-bottom: 1.1rem; max-width: 70ch; }
+.noms__toolbar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.tm-season { display: flex; align-items: center; gap: 0.4rem; }
+.tm-season__label { font: 700 0.7rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.tm-season__select { padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.9rem; background: #fff; color: var(--ink); cursor: pointer; min-width: 11rem; }
+.tm-season__select:focus { outline: 2px solid var(--primary-green); outline-offset: 1px; }
 .tm-year { margin-bottom: 1.6rem; }
 .tm-year__label { color: var(--primary-green); font-family: var(--font-display); font-size: 1.15rem; margin-bottom: 0.7rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--line); }
 .tm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
