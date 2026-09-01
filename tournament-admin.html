@@ -1065,6 +1065,7 @@
 
   <script src="js/api.js"></script>
   <script src="js/tournaments.js"></script>
+  <script src="js/tournament-rules.js"></script>
   <script>
     (function () {
       var FLAG = "fh_admin_ok", KEYK = "fh_admin_key";
@@ -1312,13 +1313,42 @@
         }
       };
       function _applyRulesForTournament() {
-        var spec = _RULES_BY_TOURNAMENT[KEY]; if (!spec) return; // Founders default stays
-        var btn = document.getElementById("rulesOpenBtn");
-        if (btn) btn.setAttribute("href", spec.page);
-        var desc = document.getElementById("rulesDesc");
-        if (desc) desc.innerHTML = spec.desc;
-        var host = document.getElementById("rulesPreview");
-        if (host) host.innerHTML = spec.previewHtml;
+        // 1) Hand-authored page in the explicit map (Couples today) wins.
+        var spec = _RULES_BY_TOURNAMENT[KEY];
+        if (spec) {
+          var btn = document.getElementById("rulesOpenBtn");
+          if (btn) btn.setAttribute("href", spec.page);
+          var desc = document.getElementById("rulesDesc");
+          if (desc) desc.innerHTML = spec.desc;
+          var host = document.getElementById("rulesPreview");
+          if (host) host.innerHTML = spec.previewHtml;
+          return;
+        }
+        // 2) Founders keeps its dedicated founders-rules.html page — the
+        //    Rules tab already ships with that page's preview + link
+        //    hard-coded into the HTML, so nothing to swap in.
+        if (/^Founder/i.test(String(KEY || ""))) return;
+        // 3) Every other tournament (Fire, Cornfest, Par 4, etc.) gets
+        //    rules generated from its Format tab: Players Per Team,
+        //    Play Style, Rounds, Waves JSON, Calcutta Enabled. Rendered
+        //    both here and on the public tournament-rules.html?t=<KEY>
+        //    page, so a captain and staff see the same block. Renders
+        //    once from whatever config we have now, then re-renders
+        //    when the config finishes loading so the wave times etc.
+        //    populate cleanly on first visit.
+        function _renderGenerated(cfg) {
+          if (!window.FH_RULES || !window.FH_RULES.buildTournamentRules) return;
+          var btnG = document.getElementById("rulesOpenBtn");
+          if (btnG) btnG.setAttribute("href", "tournament-rules.html?t=" + encodeURIComponent(KEY));
+          var descG = document.getElementById("rulesDesc");
+          if (descG) descG.innerHTML = 'Public-facing rules for this tournament &mdash; auto-generated from the Format tab. Change <b>Players Per Team</b>, <b>Rounds</b>, <b>Waves</b>, or <b>Calcutta Enabled</b> and the rules follow. Same page is linked from the tournament card and the public Rules chip.';
+          var hostG = document.getElementById("rulesPreview");
+          if (hostG) hostG.innerHTML = window.FH_RULES.buildTournamentRules(cfg || {}, KEY);
+        }
+        _renderGenerated(_tcConfigCache || {});
+        try {
+          ensureConfigCache(function (cfg) { _renderGenerated(cfg); });
+        } catch (e) {}
       }
       try { _applyRulesForTournament(); } catch (e) {}
 
