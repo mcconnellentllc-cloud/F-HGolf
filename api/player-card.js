@@ -773,5 +773,125 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ---- Admin: site activity stats ------------------------------------
+  //   POST { action: "stats" }, x-admin-key header
+  // Returns aggregate counts across the tables this endpoint already
+  // knows about (Players, Rounds, Payments) — plus a lightweight signup
+  // total. Admin-key gated. Piggybacks here instead of a new file to
+  // stay under Vercel's 12-function cap.
+  if (action === "stats") {
+    const supplied = String((req.headers && req.headers["x-admin-key"]) || "");
+    if (!supplied || supplied !== ADMIN_KEY) {
+      return res.status(401).json({ ok: false, error: "Admin key required." });
+    }
+    try {
+      // Small helper: list every row in a table, page through 100-at-a-time.
+      // Returns [] when the table doesn't exist yet (fresh base).
+      async function listAll(tableName) {
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}`;
+        const rows = [];
+        let offset = "";
+        for (let guard = 0; guard < 50; guard++) {
+          const q = "?pageSize=100" + (offset ? "&offset=" + encodeURIComponent(offset) : "");
+          const r = await fetch(url + q, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+          if (!r.ok) {
+            const detail = await r.text();
+            if (r.status === 404 || /NOT_FOUND|TABLE_NOT_FOUND|MODEL_ID_NOT_FOUND/.test(detail || "")) return [];
+            throw new Error(tableName + " " + r.status);
+          }
+          const j = await r.json();
+          (j.records || []).forEach((rec) => rows.push({ id: rec.id, created: rec.createdTime, fields: rec.fields || {} }));
+          if (!j.offset) break;
+          offset = j.offset;
+        }
+        return rows;
+      }
+
+      const ROUNDS = process.env.ROUNDS_TABLE || "Rounds";
+      const PAYMENTS = process.env.PAYMENTS_TABLE || "Payments";
+      const PLAYERS = process.env.PLAYERS_TABLE || "Players";
+      const SIGNUPS = process.env.TOURNAMENTS_TABLE || "Tournament Signups";
+
+      const [rounds, payments, players, signups] = await Promise.all([
+        listAll(ROUNDS), listAll(PAYMENTS), listAll(PLAYERS), listAll(SIGNUPS),
+      ]);
+
+      const now = new Date();
+      const dayMs = 86400000;
+      const cutWeek = new Date(now.getTime() - 7 * dayMs);
+      const cutMonth = new Date(now.getTime() - 30 * dayMs);
+      function within(rec, cut) {
+        const dRaw = (rec.fields && rec.fields.Date) || rec.created;
+        if (!dRaw) return false;
+        const d = new Date(String(dRaw).slice(0, 10) + "T12:00:00");
+        if (isNaN(d.getTime())) return false;
+        return d >= cut;
+      }
+      function playerIdOf(rec) {
+        const f = rec.fields || {};
+        const raw = f["Player ID"] != null ? f["Player ID"] : (Array.isArray(f.Player) ? f.Player[0] : "");
+        return String(raw || "").trim();
+      }
+
+      // Rounds
+      const roundPlayers = new Set();
+      let roundsThisWeek = 0, roundsThisMonth = 0;
+      let latestRound = null;
+      rounds.forEach((r) => {
+        const pid = playerIdOf(r); if (pid) roundPlayers.add(pid);
+        if (within(r, cutWeek)) roundsThisWeek++;
+        if (within(r, cutMonth)) roundsThisMonth++;
+        const dRaw = (r.fields && r.fields.Date) || r.created;
+        if (dRaw) {
+          const t = new Date(String(dRaw).slice(0, 10) + "T12:00:00").getTime();
+          if (!isNaN(t) && (!latestRound || t > latestRound.t)) {
+            latestRound = { t: t, date: String(dRaw).slice(0, 10), name: String((r.fields && r.fields["Player Name"]) || (r.fields && r.fields.Name) || "") };
+          }
+        }
+      });
+
+      // Payments — total and this-month dollar amounts.
+      const payPlayers = new Set();
+      let paymentsThisMonth = 0, paymentsTotal = 0, paidCents = 0;
+      payments.forEach((p) => {
+        const pid = playerIdOf(p); if (pid) payPlayers.add(pid);
+        if (within(p, cutMonth)) paymentsThisMonth++;
+        paymentsTotal++;
+        const t = Number((p.fields || {}).Total);
+        if (typeof t === "number" && !isNaN(t)) paidCents += Math.round(t * 100);
+      });
+
+      // Signups — count field vs alt.
+      let signupsField = 0, signupsAlt = 0;
+      signups.forEach((s) => {
+        if ((s.fields || {}).Alternate) signupsAlt++;
+        else signupsField++;
+      });
+
+      return res.status(200).json({
+        ok: true,
+        generatedAt: new Date().toISOString(),
+        rounds: {
+          total: rounds.length,
+          distinctPlayers: roundPlayers.size,
+          thisWeek: roundsThisWeek,
+          thisMonth: roundsThisMonth,
+          latest: latestRound ? { date: latestRound.date, name: latestRound.name } : null,
+        },
+        payments: {
+          total: paymentsTotal,
+          thisMonth: paymentsThisMonth,
+          distinctPlayers: payPlayers.size,
+          dollarsTotal: Math.round(paidCents) / 100,
+        },
+        players: { total: players.length },
+        signups: { field: signupsField, alternate: signupsAlt, total: signupsField + signupsAlt },
+      });
+    } catch (e) {
+      console.error("stats error", e);
+      return res.status(500).json({ ok: false, error: "Couldn't compute stats right now." });
+    }
+  }
+
   return res.status(400).json({ ok: false, error: "Unknown action." });
 };
