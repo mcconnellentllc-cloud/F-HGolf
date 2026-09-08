@@ -356,7 +356,25 @@
           data.team = mates.join(", ");
         }
         try { localStorage.setItem(GKEY, JSON.stringify({ name: form.name.value, email: form.email.value, phone: form.phone.value })); } catch (e2) {}
-        var orig = btn.textContent; btn.disabled = true; btn.textContent = "Signing up…";
+        var orig = btn.textContent;
+        // Duplicate-player check: warn if the captain or any teammate is
+        // already on a signup for this tournament (same name, case-insensitive).
+        // A captain can still Continue anyway — this only informs; it never
+        // blocks. Skipped for "looking for partner" signups since those
+        // usually have no real teammate names to check.
+        function actuallyPost() {
+          btn.disabled = true; btn.textContent = "Signing up…";
+          submitSignup();
+        }
+        var namesToCheck = [String(form.name.value || "").trim()].concat(mates);
+        if (lfp && lfp.checked) { actuallyPost(); return; }
+        btn.disabled = true; btn.textContent = "Checking…";
+        FH_API.dupCheck(data.tournament, namesToCheck).then(function (matches) {
+          btn.disabled = false; btn.textContent = orig;
+          if (!matches.length) { actuallyPost(); return; }
+          openDupWarning(matches, actuallyPost);
+        }).catch(function () { actuallyPost(); });
+        function submitSignup() {
         fetch(FH_API.url("/api/tournament-signup"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
@@ -392,7 +410,44 @@
             }
           })
           .catch(function () { status.textContent = "Network error. Please try again, or call (970) 774-6362."; status.classList.add("is-error"); btn.disabled = false; btn.textContent = orig; });
+        }
       });
+
+      // Duplicate-player warning modal — lists every teammate name that is
+      // already on a signup for this tournament, with the team number and
+      // co-players so the captain can tell "same person" from "just shares
+      // a name". Two buttons: Continue anyway proceeds with the POST; Go
+      // back closes the modal so they can fix the name.
+      function openDupWarning(matches, onContinue) {
+        var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+        var existing = document.getElementById("dupWarn"); if (existing) existing.parentNode.removeChild(existing);
+        var host = document.createElement("div");
+        host.id = "dupWarn";
+        host.setAttribute("role", "dialog");
+        host.setAttribute("aria-modal", "true");
+        host.setAttribute("aria-label", "Some of these players are already signed up");
+        host.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;";
+        var lines = matches.map(function (m) {
+          var others = (m.otherPlayers || []).filter(Boolean).slice(0, 3);
+          var withStr = others.length ? (" with " + others.join(", ")) : "";
+          var altStr = m.alternate ? " (alternate list)" : "";
+          return '<li><strong>' + esc(m.name) + '</strong> is already on <strong>Team ' + m.teamNumber + '</strong>' + esc(altStr) + esc(withStr) + '.</li>';
+        }).join("");
+        host.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:32rem;width:100%;padding:1.5rem 1.5rem 1.25rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+          + '<h2 style="margin:0 0 0.5rem;font-family:Fraunces,Georgia,serif;color:#7a1a1a;font-size:1.35rem;">Already signed up?</h2>'
+          + '<p style="margin:0 0 0.85rem;color:#2a2418;line-height:1.4;">These names are already on this tournament\'s signup list. If any of them is a <em>different</em> person who happens to share the name, you can continue. Otherwise, please fix the name so we don\'t double-book a player.</p>'
+          + '<ul style="margin:0 0 1.15rem;padding-left:1.25rem;color:#2a2418;line-height:1.45;">' + lines + '</ul>'
+          + '<div style="display:flex;gap:0.5rem;justify-content:flex-end;flex-wrap:wrap;">'
+          +   '<button type="button" id="dupBack" class="btn btn--ghost">Go back &amp; fix name</button>'
+          +   '<button type="button" id="dupGo" class="btn btn--solid">Continue anyway</button>'
+          + '</div>'
+          + '</div>';
+        document.body.appendChild(host);
+        function close() { if (host.parentNode) host.parentNode.removeChild(host); }
+        host.addEventListener("click", function (e) { if (e.target === host) close(); });
+        var back = document.getElementById("dupBack"); if (back) back.addEventListener("click", close);
+        var go = document.getElementById("dupGo"); if (go) go.addEventListener("click", function () { close(); onContinue(); });
+      }
     })();
   </script>
   <script>
