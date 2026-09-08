@@ -73,6 +73,7 @@
           <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
           <button type="button" class="wb-tab" data-sheet="pinprizes" role="tab">Pin Prizes</button>
+          <button type="button" class="wb-tab" data-sheet="donors" role="tab">Donors</button>
           <button type="button" class="wb-tab" data-sheet="rules" role="tab">Rules</button>
           <button type="button" class="wb-tab" data-sheet="recap" role="tab">Recap</button>
           <button type="button" class="wb-tab wb-tab--history" data-sheet="history" role="tab">History</button>
@@ -588,6 +589,35 @@
           <div class="pcards" id="ppCards"></div>
         </section>
 
+        <!-- Donors — sponsor wall for the tournament. Each donor has an
+             optional logo (client-side resized to a small JPEG data URI),
+             a name, an optional thank-you note, and an optional contact
+             line. Stored as `Donors JSON` long-text on Tournament Config;
+             rendered publicly on the recap page. -->
+        <section class="noms wb-sheet" data-sheet="donors" id="twDonors" aria-label="Donors" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Donors</h3>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn--solid" type="button" id="dnSave">Save donors</button>
+              <span class="ci__status" id="dnStatus" role="status" aria-live="polite" style="min-width:6rem;"></span>
+            </div>
+          </div>
+          <p class="scaffold__desc">Add each sponsor once with a logo, a name, and a short thank-you. The list shows up on the public tournament recap so players see who made the day possible.</p>
+
+          <form id="dnAddForm" class="dn-add" autocomplete="off">
+            <label class="dn-add__field dn-add__field--name"><span>Sponsor name *</span><input type="text" id="dnAddName" maxlength="120" required placeholder="e.g. Haxtun Volunteer Fire Dept." /></label>
+            <label class="dn-add__field"><span>Thank-you note</span><input type="text" id="dnAddThanks" maxlength="200" placeholder="e.g. Serving our community for over 100 years" /></label>
+            <label class="dn-add__field"><span>Contact / donated by</span><input type="text" id="dnAddContact" maxlength="160" placeholder="e.g. Marc Bornhoft &mdash; 970-580-2913" /></label>
+            <label class="dn-add__field dn-add__field--logo"><span>Logo (optional)</span><input type="file" id="dnAddLogo" accept="image/*" /></label>
+            <div class="dn-add__preview" id="dnAddPreview" aria-hidden="true"></div>
+            <button type="submit" class="btn btn--primary" id="dnAddBtn">Add sponsor</button>
+          </form>
+
+          <h4 class="dn-h">Sponsor wall</h4>
+          <p class="dn-note">Drag isn't needed &mdash; order is the order you added them. Use <strong>Remove</strong> to drop a sponsor.</p>
+          <div class="dn-grid" id="dnGrid" aria-live="polite"></div>
+        </section>
+
         <section class="noms wb-sheet" data-sheet="rules" id="twRules" aria-label="Rules" hidden>
           <div class="noms__bar">
             <h3 class="noms__title">Rules &amp; Format</h3>
@@ -1065,6 +1095,7 @@
 
   <script src="js/api.js"></script>
   <script src="js/tournaments.js"></script>
+  <script src="js/tournament-rules.js"></script>
   <script>
     (function () {
       var FLAG = "fh_admin_ok", KEYK = "fh_admin_key";
@@ -1312,13 +1343,42 @@
         }
       };
       function _applyRulesForTournament() {
-        var spec = _RULES_BY_TOURNAMENT[KEY]; if (!spec) return; // Founders default stays
-        var btn = document.getElementById("rulesOpenBtn");
-        if (btn) btn.setAttribute("href", spec.page);
-        var desc = document.getElementById("rulesDesc");
-        if (desc) desc.innerHTML = spec.desc;
-        var host = document.getElementById("rulesPreview");
-        if (host) host.innerHTML = spec.previewHtml;
+        // 1) Hand-authored page in the explicit map (Couples today) wins.
+        var spec = _RULES_BY_TOURNAMENT[KEY];
+        if (spec) {
+          var btn = document.getElementById("rulesOpenBtn");
+          if (btn) btn.setAttribute("href", spec.page);
+          var desc = document.getElementById("rulesDesc");
+          if (desc) desc.innerHTML = spec.desc;
+          var host = document.getElementById("rulesPreview");
+          if (host) host.innerHTML = spec.previewHtml;
+          return;
+        }
+        // 2) Founders keeps its dedicated founders-rules.html page — the
+        //    Rules tab already ships with that page's preview + link
+        //    hard-coded into the HTML, so nothing to swap in.
+        if (/^Founder/i.test(String(KEY || ""))) return;
+        // 3) Every other tournament (Fire, Cornfest, Par 4, etc.) gets
+        //    rules generated from its Format tab: Players Per Team,
+        //    Play Style, Rounds, Waves JSON, Calcutta Enabled. Rendered
+        //    both here and on the public tournament-rules.html?t=<KEY>
+        //    page, so a captain and staff see the same block. Renders
+        //    once from whatever config we have now, then re-renders
+        //    when the config finishes loading so the wave times etc.
+        //    populate cleanly on first visit.
+        function _renderGenerated(cfg) {
+          if (!window.FH_RULES || !window.FH_RULES.buildTournamentRules) return;
+          var btnG = document.getElementById("rulesOpenBtn");
+          if (btnG) btnG.setAttribute("href", "tournament-rules.html?t=" + encodeURIComponent(KEY));
+          var descG = document.getElementById("rulesDesc");
+          if (descG) descG.innerHTML = 'Public-facing rules for this tournament &mdash; auto-generated from the Format tab. Change <b>Players Per Team</b>, <b>Rounds</b>, <b>Waves</b>, or <b>Calcutta Enabled</b> and the rules follow. Same page is linked from the tournament card and the public Rules chip.';
+          var hostG = document.getElementById("rulesPreview");
+          if (hostG) hostG.innerHTML = window.FH_RULES.buildTournamentRules(cfg || {}, KEY);
+        }
+        _renderGenerated(_tcConfigCache || {});
+        try {
+          ensureConfigCache(function (cfg) { _renderGenerated(cfg); });
+        } catch (e) {}
       }
       try { _applyRulesForTournament(); } catch (e) {}
 
@@ -2576,6 +2636,164 @@
         b.prize = t.prize; b.sponsor = t.sponsor; b.contact = t.contact;
         _pinDirty = true; renderPinPrizes();
       }
+
+      // Donors — sponsor wall. Persisted as `Donors JSON` long-text on
+      // Tournament Config. Logos are resized in the browser (max 300px
+      // wide, JPEG q0.65) so the whole array stays under Airtable's
+      // 100KB long-text ceiling. Public rendering happens on recap.html.
+      var _dnState = { donors: [] };
+      var _dnLoaded = false;
+      var _dnPendingLogo = ""; // resized data URI staged for the next add
+      function _dnNormalize(raw) {
+        var s = { donors: [] };
+        if (raw && typeof raw === "object" && Array.isArray(raw.donors)) {
+          s.donors = raw.donors.filter(Boolean).map(function (d) {
+            return {
+              name: String(d.name || "").slice(0, 120),
+              thankYou: String(d.thankYou || "").slice(0, 200),
+              contact: String(d.contact || "").slice(0, 160),
+              logoDataUri: (typeof d.logoDataUri === "string" && d.logoDataUri.indexOf("data:image/") === 0) ? d.logoDataUri : "",
+              addedAt: String(d.addedAt || ""),
+            };
+          });
+        }
+        return s;
+      }
+      function _dnStatus(msg, kind) {
+        var el = document.getElementById("dnStatus"); if (!el) return;
+        el.textContent = msg || "";
+        el.className = "ci__status" + (kind === "error" ? " is-error" : kind === "ok" ? " is-ok" : "");
+      }
+      function loadDonors() {
+        if (_dnLoaded) { renderDonors(); return; }
+        _dnStatus("Loading…");
+        var cachedRaw = _tcConfigCache && _tcConfigCache["Donors JSON"];
+        if (cachedRaw != null) {
+          try { _dnState = _dnNormalize(JSON.parse(cachedRaw || "{}")); } catch (e) { _dnState = _dnNormalize(null); }
+          _dnLoaded = true; _dnStatus(""); renderDonors(); return;
+        }
+        fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(KEY)))
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var raw = j && j.record && j.record.fields && j.record.fields["Donors JSON"];
+            try { _dnState = _dnNormalize(JSON.parse(raw || "{}")); } catch (e) { _dnState = _dnNormalize(null); }
+            _dnLoaded = true; _dnStatus(""); renderDonors();
+          })
+          .catch(function () { _dnState = _dnNormalize(null); _dnLoaded = true; _dnStatus("Couldn't load — starting fresh.", "error"); renderDonors(); });
+      }
+      function saveDonors() {
+        if (!getKey()) { _dnStatus("Sign in first.", "error"); return; }
+        var payload = JSON.stringify(_dnState);
+        if (payload.length > 95000) { _dnStatus("Too many logos — remove one or use a smaller image.", "error"); return; }
+        _dnStatus("Saving…");
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "config-write", tournament: KEY, fields: { "Donors JSON": payload } }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.ok) { _dnStatus("Saved ✓", "ok"); if (_tcConfigCache) _tcConfigCache["Donors JSON"] = payload; }
+            else { _dnStatus((j && j.error) || "Save failed.", "error"); }
+          })
+          .catch(function () { _dnStatus("Network error saving.", "error"); });
+      }
+      function renderDonors() {
+        var host = document.getElementById("dnGrid"); if (!host) return;
+        var list = _dnState.donors || [];
+        if (!list.length) { host.innerHTML = '<p class="dn-empty">No sponsors yet. Add one above.</p>'; return; }
+        host.innerHTML = list.map(function (d, i) {
+          var logo = d.logoDataUri
+            ? '<div class="dn-tile__logo"><img alt="" src="' + esc(d.logoDataUri) + '"></div>'
+            : '<div class="dn-tile__logo dn-tile__logo--empty" aria-hidden="true">' + esc((d.name || "?").slice(0, 1).toUpperCase()) + '</div>';
+          return ''
+            + '<article class="dn-tile" data-idx="' + i + '">'
+            +   logo
+            +   '<div class="dn-tile__body">'
+            +     '<h5 class="dn-tile__name">' + esc(d.name) + '</h5>'
+            +     (d.thankYou ? '<p class="dn-tile__thanks">' + esc(d.thankYou) + '</p>' : "")
+            +     (d.contact ? '<p class="dn-tile__contact">' + esc(d.contact) + '</p>' : "")
+            +   '</div>'
+            +   '<div class="dn-tile__actions">'
+            +     '<button type="button" class="btn btn--ghost btn--small" data-dn-remove="' + i + '">Remove</button>'
+            +   '</div>'
+            + '</article>';
+        }).join("");
+        host.querySelectorAll("[data-dn-remove]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var idx = Number(btn.getAttribute("data-dn-remove"));
+            if (!(idx >= 0 && idx < _dnState.donors.length)) return;
+            var name = _dnState.donors[idx].name || "this sponsor";
+            if (!confirm("Remove " + name + " from the sponsor wall?")) return;
+            _dnState.donors.splice(idx, 1);
+            renderDonors();
+            _dnStatus("Removed — click Save donors to keep the change.");
+          });
+        });
+      }
+      function _dnResizeImage(file, cb) {
+        var MAX_W = 300, MAX_H = 300, Q = 0.65;
+        var reader = new FileReader();
+        reader.onerror = function () { cb(""); };
+        reader.onload = function () {
+          var img = new Image();
+          img.onerror = function () { cb(""); };
+          img.onload = function () {
+            var w = img.naturalWidth, h = img.naturalHeight;
+            if (!w || !h) { cb(""); return; }
+            var scale = Math.min(1, MAX_W / w, MAX_H / h);
+            var cw = Math.round(w * scale), ch = Math.round(h * scale);
+            var cvs = document.createElement("canvas");
+            cvs.width = cw; cvs.height = ch;
+            var ctx = cvs.getContext("2d");
+            // White background so JPEG compresses transparent PNGs cleanly
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, cw, ch);
+            ctx.drawImage(img, 0, 0, cw, ch);
+            try { cb(cvs.toDataURL("image/jpeg", Q)); } catch (e) { cb(""); }
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      }
+      function _dnHandleFilePick(input) {
+        var preview = document.getElementById("dnAddPreview");
+        var file = input.files && input.files[0];
+        if (!file) { _dnPendingLogo = ""; if (preview) preview.innerHTML = ""; return; }
+        if (file.size > 6 * 1024 * 1024) { _dnStatus("Image is too large (max 6 MB).", "error"); input.value = ""; return; }
+        _dnStatus("Preparing logo…");
+        _dnResizeImage(file, function (dataUri) {
+          if (!dataUri) { _dnStatus("Couldn't read that image.", "error"); _dnPendingLogo = ""; if (preview) preview.innerHTML = ""; return; }
+          _dnPendingLogo = dataUri;
+          if (preview) preview.innerHTML = '<img alt="" src="' + esc(dataUri) + '">';
+          _dnStatus("");
+        });
+      }
+      function _dnAddFromForm(ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        var nameEl = document.getElementById("dnAddName");
+        var thanksEl = document.getElementById("dnAddThanks");
+        var contactEl = document.getElementById("dnAddContact");
+        var logoEl = document.getElementById("dnAddLogo");
+        var preview = document.getElementById("dnAddPreview");
+        var name = nameEl ? nameEl.value.trim() : "";
+        if (!name) { _dnStatus("Sponsor name is required.", "error"); if (nameEl) nameEl.focus(); return; }
+        _dnState.donors.push({
+          name: name.slice(0, 120),
+          thankYou: (thanksEl ? thanksEl.value.trim() : "").slice(0, 200),
+          contact: (contactEl ? contactEl.value.trim() : "").slice(0, 160),
+          logoDataUri: _dnPendingLogo || "",
+          addedAt: new Date().toISOString(),
+        });
+        _dnPendingLogo = "";
+        if (nameEl) nameEl.value = "";
+        if (thanksEl) thanksEl.value = "";
+        if (contactEl) contactEl.value = "";
+        if (logoEl) logoEl.value = "";
+        if (preview) preview.innerHTML = "";
+        renderDonors();
+        _dnStatus("Added — click Save donors to keep the change.");
+      }
+
       // Copy-paste prompt for the operator to feed into a talk-to-text or
       // GPT project. Keeping it as a function so the shape is edit-in-place
       // if we tweak the recap section structure later.
@@ -4054,6 +4272,39 @@
         card.classList.toggle("is-fully-paid", paid >= owed && owed > 0);
       }
 
+      // Shared warn-then-continue modal for rename dup detection. Same
+      // "warn but allow" contract as the walk-up form.
+      function openInlineDupWarning(matches, onContinue, onCancel) {
+        var existing = document.getElementById("ciDupModal");
+        if (existing) existing.parentNode.removeChild(existing);
+        var host = document.createElement("div");
+        host.id = "ciDupModal";
+        host.setAttribute("role", "dialog");
+        host.setAttribute("aria-modal", "true");
+        host.setAttribute("aria-label", "That name is already on the roster");
+        host.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;";
+        var lines = matches.map(function (m) {
+          var others = (m.otherPlayers || []).filter(Boolean).slice(0, 3);
+          var withStr = others.length ? (" with " + others.join(", ")) : "";
+          var altStr = m.alternate ? " (alternate list)" : "";
+          return '<li><strong>' + esc(m.name) + '</strong> is on <strong>Team ' + m.teamNumber + '</strong>' + esc(altStr) + esc(withStr) + '.</li>';
+        }).join("");
+        host.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:32rem;width:100%;padding:1.5rem 1.5rem 1.25rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+          + '<h2 style="margin:0 0 0.5rem;font-family:Fraunces,Georgia,serif;color:#7a1a1a;font-size:1.35rem;">Already on the roster?</h2>'
+          + '<p style="margin:0 0 0.85rem;color:#2a2418;line-height:1.4;">This name matches an existing player. Different person? Continue &mdash; the same name will show on both teams. Same person? Cancel and fix the typo.</p>'
+          + '<ul style="margin:0 0 1.15rem;padding-left:1.25rem;color:#2a2418;line-height:1.45;">' + lines + '</ul>'
+          + '<div style="display:flex;gap:0.5rem;justify-content:flex-end;flex-wrap:wrap;">'
+          +   '<button type="button" id="ciDupCancel" class="btn btn--ghost">Go back &amp; fix</button>'
+          +   '<button type="button" id="ciDupGo" class="btn btn--solid">Save anyway</button>'
+          + '</div>'
+          + '</div>';
+        document.body.appendChild(host);
+        function close() { if (host.parentNode) host.parentNode.removeChild(host); }
+        host.addEventListener("click", function (e) { if (e.target === host) { close(); if (onCancel) onCancel(); } });
+        var cancel = document.getElementById("ciDupCancel"); if (cancel) cancel.addEventListener("click", function () { close(); if (onCancel) onCancel(); });
+        var go = document.getElementById("ciDupGo"); if (go) go.addEventListener("click", function () { close(); onContinue(); });
+      }
+
       // Inline rename: swap the .ci-name link for a text input; save on Enter/blur,
       // cancel on Escape. P1 writes Player Name; P2 writes Team / Partners.
       function startInlineRename(wrap, link, btn, role, signupId, statusEl) {
@@ -4083,9 +4334,33 @@
           });
         }
         function commit(save) {
-          if (done) return; done = true;
+          if (done) return;
           var next = input.value.trim();
-          if (!save || next === current) { restoreLink(current); return; }
+          if (!save || next === current) { done = true; restoreLink(current); return; }
+          // Set `done` up front so blur-after-Enter (or a click on the dup
+          // modal's own button, which blurs the input) doesn't re-enter
+          // commit and fire a second dupCheck. If the operator backs out
+          // of the dup warning we reset it so their next Enter can commit.
+          done = true;
+          // Duplicate check first — if the new name is already on the
+          // roster for this tournament (as captain or partner on some other
+          // team), give the operator a chance to back out before we
+          // optimistically overwrite the cell. Matches on the same signup
+          // (the row they're editing) are filtered out so re-typing the
+          // same person's name doesn't trip a warning on themselves.
+          if (statusEl) { statusEl.textContent = "Checking…"; statusEl.className = "ci__status"; }
+          FH_API.dupCheck(KEY, [next]).then(function (matches) {
+            var conflicts = matches.filter(function (m) { return m.signupId !== signupId; });
+            if (!conflicts.length) { doSave(); return; }
+            openInlineDupWarning(conflicts, doSave, function cancel() {
+              // Operator backed out — leave the input in place so they can
+              // fix the typo. Reset `done` so their next Enter commits.
+              done = false;
+              if (statusEl) { statusEl.textContent = ""; }
+              if (input && input.isConnected) { input.focus(); input.select(); }
+            });
+          }).catch(function () { doSave(); });
+          function doSave() {
           if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "ci__status"; }
           // Optimistic: swap link back with the new value immediately so the
           // operator's next action isn't blocked on the network.
@@ -4133,6 +4408,7 @@
               }
             })
             .catch(function () { restoreLink(current); if (statusEl) { statusEl.textContent = "Network error."; statusEl.className = "ci__status is-error"; } });
+          }
         }
         input.addEventListener("blur", function () { commit(true); });
         input.addEventListener("keydown", function (e) {
@@ -5601,6 +5877,19 @@
         // stored and how downstream tabs split partners out).
         var partners = players.slice(1).filter(Boolean);
         var teamStr = partners.join(" / ");
+        // Duplicate-player check before POST — warn if any name is already
+        // on the roster. Operator can Continue anyway (same "warn but
+        // allow" pattern as the public signup form).
+        var namesToCheck = [firstName].concat(partners);
+        if (msg) msg.textContent = "Checking…";
+        if (btn) btn.disabled = true;
+        FH_API.dupCheck(KEY, namesToCheck).then(function (matches) {
+          if (!matches.length) { doPost(); return; }
+          if (btn) btn.disabled = false;
+          if (msg) msg.textContent = "";
+          openWalkupDupWarning(matches, doPost);
+        }).catch(function () { doPost(); });
+        function doPost() {
         if (msg) msg.textContent = "Adding…";
         if (btn) btn.disabled = true;
         var data = { tournament: KEY, name: firstName, team: teamStr, phone: phone };
@@ -5621,6 +5910,40 @@
             } else { if (msg) msg.textContent = (j && j.error) || "Couldn't add team."; }
           })
           .catch(function () { if (btn) btn.disabled = false; if (msg) msg.textContent = "Network error."; });
+        }
+      }
+      // Warn modal for the walk-up form. Same "warn but allow" contract as
+      // the public signup form — Continue anyway proceeds; Go back closes
+      // so the operator can retype the offending name.
+      function openWalkupDupWarning(matches, onContinue) {
+        var existing = document.getElementById("waDupModal");
+        if (existing) existing.parentNode.removeChild(existing);
+        var host = document.createElement("div");
+        host.id = "waDupModal";
+        host.setAttribute("role", "dialog");
+        host.setAttribute("aria-modal", "true");
+        host.setAttribute("aria-label", "Some of these players are already signed up");
+        host.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;";
+        var lines = matches.map(function (m) {
+          var others = (m.otherPlayers || []).filter(Boolean).slice(0, 3);
+          var withStr = others.length ? (" with " + others.join(", ")) : "";
+          var altStr = m.alternate ? " (alternate list)" : "";
+          return '<li><strong>' + esc(m.name) + '</strong> &mdash; already on <strong>Team ' + m.teamNumber + '</strong>' + esc(altStr) + esc(withStr) + '.</li>';
+        }).join("");
+        host.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:32rem;width:100%;padding:1.5rem 1.5rem 1.25rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);">'
+          + '<h2 style="margin:0 0 0.5rem;font-family:Fraunces,Georgia,serif;color:#7a1a1a;font-size:1.35rem;">Already on the roster?</h2>'
+          + '<p style="margin:0 0 0.85rem;color:#2a2418;line-height:1.4;">These names are already on this tournament\'s roster. If it\'s a different player who happens to share the name, continue &mdash; otherwise cancel and fix the typo so we don\'t double-book.</p>'
+          + '<ul style="margin:0 0 1.15rem;padding-left:1.25rem;color:#2a2418;line-height:1.45;">' + lines + '</ul>'
+          + '<div style="display:flex;gap:0.5rem;justify-content:flex-end;flex-wrap:wrap;">'
+          +   '<button type="button" id="waDupCancel" class="btn btn--ghost">Go back &amp; fix</button>'
+          +   '<button type="button" id="waDupGo" class="btn btn--solid">Continue anyway</button>'
+          + '</div>'
+          + '</div>';
+        document.body.appendChild(host);
+        function close() { if (host.parentNode) host.parentNode.removeChild(host); }
+        host.addEventListener("click", function (e) { if (e.target === host) close(); });
+        var cancel = document.getElementById("waDupCancel"); if (cancel) cancel.addEventListener("click", close);
+        var go = document.getElementById("waDupGo"); if (go) go.addEventListener("click", function () { close(); onContinue(); });
       }
 
       // ---- Pairings: tee sheet (A/B slots per hole, autofill, drag-and-drop) ----
@@ -10278,6 +10601,7 @@
           if (s === "format") loadFormat();
           if (s === "check") ensureConfigCache();
           if (s === "pinprizes") loadPinPrizes();
+          if (s === "donors") loadDonors();
           // Lazy-render the freshly-opened tab from the shared cache so
           // switching tabs shows current data without a network round-trip.
           // (Check-In already renders on every roster load — it's the
@@ -10605,6 +10929,12 @@
         window.addEventListener("beforeunload", function (e) {
           if (_pinDirty) { e.preventDefault(); e.returnValue = ""; return ""; }
         });
+        var dnAddForm = document.getElementById("dnAddForm");
+        if (dnAddForm) dnAddForm.addEventListener("submit", _dnAddFromForm);
+        var dnAddLogo = document.getElementById("dnAddLogo");
+        if (dnAddLogo) dnAddLogo.addEventListener("change", function () { _dnHandleFilePick(dnAddLogo); });
+        var dnSave = document.getElementById("dnSave");
+        if (dnSave) dnSave.addEventListener("click", saveDonors);
         var fmtReload = document.getElementById("fmtReload");
         if (fmtReload) fmtReload.addEventListener("click", function () { loadFormat(true); });
         // Email a tournament-scoped staff link. Only visible while the
