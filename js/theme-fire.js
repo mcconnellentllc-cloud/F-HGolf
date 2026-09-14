@@ -52,7 +52,18 @@
   // already declares — the override wins because it's declared LATER
   // and has a class-scoped selector one specificity above :root.
   var CSS = ""
-    + ".theme-fire {"
+    // Palette overrides scoped to `.disp` (the wrapper on every public
+    // dark-themed page: leaderboard, recap, tournament-rules, auction).
+    // Previously these lived on `.theme-fire { ... }` at the root, which
+    // cascaded --ink=#fff / --gold=#fff / --muted=rgba(255,255,255,...)
+    // into the workbook body too — where the background is CREAM, so
+    // every tab label / table row went white-on-cream and became
+    // unreadable. Scoping to .disp keeps the palette flip on the pages
+    // that need it and leaves the workbook's normal readable colors.
+    // The fire-* vars stay in case anything reads them; they're safe
+    // to broadcast because no page uses them as text/background pairs.
+    + ".theme-fire { --fire-red: #c8102e; --fire-red-deep: #7a0a1a; }"
+    + "body.theme-fire .disp {"
     +   "--bg: #0a0a0a;"
     +   "--bg-2: #1a0505;"
     +   "--panel: rgba(255,255,255,0.05);"
@@ -62,10 +73,11 @@
     +   "--muted: rgba(255,255,255,0.65);"
     +   "--red: #c8102e;"
     +   "--red-deep: #7a0a1a;"
-    +   "--fire-red: #c8102e;"
-    +   "--fire-red-deep: #7a0a1a;"
     + "}"
-    + "body.theme-fire { background: radial-gradient(ellipse at top, #2a0a0a 0%, #0a0a0a 65%); }"
+    // Public-page body background — only when .disp is actually in the
+    // page (public dark theme). Workbook has no .disp, so it keeps its
+    // cream background and readable text.
+    + "body.theme-fire:has(.disp) { background: radial-gradient(ellipse at top, #2a0a0a 0%, #0a0a0a 65%); }"
 
     // Shared hero patterns across recap / rules / leaderboard.
     + "body.theme-fire .disp__hero { background: linear-gradient(180deg, #000 0%, #1a0000 100%) !important; border-bottom: 4px solid #c8102e !important; box-shadow: 0 4px 0 #000, 0 5px 0 #c8102e !important; }"
