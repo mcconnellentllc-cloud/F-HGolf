@@ -5607,7 +5607,11 @@
             // typeof guard silently swallowed the call, so on first
             // page load the roster rendered with an empty config cache
             // (no extras checkboxes, no cart-assignment options, etc.).
-            if (window.__fhActive === "check" && typeof renderRoster === "function" && scAllCache) {
+            // Always re-render Check-In when new config lands, not just
+            // when the operator is looking at it. If they save Money on
+            // Format and jump to Check-In, the roster shows the pre-save
+            // totals until something else triggers a repaint.
+            if (typeof renderRoster === "function" && scAllCache && scAllCache.length) {
               try { renderRoster(scAllCache); } catch (e) {}
             }
           })
@@ -5749,7 +5753,10 @@
             // typeof guard silently swallowed the call, so on first
             // page load the roster rendered with an empty config cache
             // (no extras checkboxes, no cart-assignment options, etc.).
-            if (window.__fhActive === "check" && typeof renderRoster === "function" && scAllCache) {
+            // Always re-render Check-In when new config lands, not just
+            // when the operator is looking at it. Match the pattern used
+            // by saveCalc so Money edits always propagate.
+            if (typeof renderRoster === "function" && scAllCache && scAllCache.length) {
               try { renderRoster(scAllCache); } catch (e) {}
             }
           })
@@ -11537,8 +11544,15 @@
           // Entry / Cart / Meal / Surcharge values, and re-render the
           // Money card's own live formula so the summary tile at the top
           // matches the just-saved values.
-          try { if (window.__fhActive === "check" && typeof renderRoster === "function" && scAllCache) renderRoster(scAllCache); } catch (e) {}
+          // ALWAYS repaint the Check-In roster — the old gate on
+          // __fhActive === "check" meant a Save from the Format tab left
+          // Check-In cards showing the pre-save totals (Team 08 stuck at
+          // $480 after the operator dropped Entry Fee from $120 → $100).
+          // The re-render is cheap and correctness is more important than
+          // saving a frame on a tab the operator isn't looking at.
+          try { if (typeof renderRoster === "function" && scAllCache && scAllCache.length) renderRoster(scAllCache); } catch (e) {}
           try { renderCalcForm(); } catch (e) {}
+          try { if (typeof summarize === "function" && scAllCache) summarize(scAllCache.filter(function (r) { return (r.fields && r.fields["Tournament"]) === KEY && !isAltRec(r); })); } catch (e) {}
           if (st) {
             st.textContent = "Saved ✓ — Payout, Leaderboard, Calcutta refreshed";
             st.className = "ci__status is-ok";
