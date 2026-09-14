@@ -613,6 +613,7 @@
             <label class="dn-add__field"><span>Amount or item</span><input type="text" id="dnAddAmount" maxlength="60" placeholder="e.g. $50, or &lsquo;Sleeve of Titleists&rsquo;" /></label>
             <label class="dn-add__field"><span>Thank-you note</span><input type="text" id="dnAddThanks" maxlength="200" placeholder="e.g. Serving our community for over 100 years" /></label>
             <label class="dn-add__field"><span>Contact / donated by</span><input type="text" id="dnAddContact" maxlength="160" placeholder="e.g. Marc Bornhoft &mdash; 970-580-2913" /></label>
+            <label class="dn-add__field"><span>Website (optional)</span><input type="url" id="dnAddWebsite" maxlength="240" placeholder="e.g. haxtunfire.org" inputmode="url" /></label>
             <label class="dn-add__field dn-add__field--logo"><span>Logo (optional)</span><input type="file" id="dnAddLogo" accept="image/*" /></label>
             <div class="dn-add__preview" id="dnAddPreview" aria-hidden="true"></div>
             <button type="submit" class="btn btn--primary" id="dnAddBtn">Add sponsor</button>
@@ -2727,6 +2728,12 @@
               amount: String(d.amount || "").slice(0, 60),
               thankYou: String(d.thankYou || "").slice(0, 200),
               contact: String(d.contact || "").slice(0, 160),
+              // Public homepage / business page for this sponsor. Rendered
+              // as a clickable "Visit website" link on the admin tile, the
+              // recap sponsor wall, and the live-scoring Sponsors tab.
+              // Stored verbatim; the render step normalizes to an absolute
+              // http(s) URL so a bare "example.com" still opens correctly.
+              website: String(d.website || "").slice(0, 240),
               logoDataUri: (typeof d.logoDataUri === "string" && d.logoDataUri.indexOf("data:image/") === 0) ? d.logoDataUri : "",
               addedAt: String(d.addedAt || ""),
             };
@@ -2805,6 +2812,18 @@
           })
           .catch(function () { _dnStatus("Network error saving.", "error"); });
       }
+      // Sponsors often paste "haxtunfire.org" without a protocol; browsers
+      // treat that as a same-origin relative link. Prepend https:// when
+      // no scheme is present so every rendered link opens the real site.
+      // Returns "" for anything that doesn't look like a hostname so we
+      // don't render broken links from a stray phone number or note.
+      function _dnNormalizeUrl(u) {
+        var s = String(u || "").trim();
+        if (!s) return "";
+        if (/^https?:\/\//i.test(s)) return s;
+        if (/^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(s)) return "https://" + s;
+        return "";
+      }
       function renderDonors() {
         var host = document.getElementById("dnGrid"); if (!host) return;
         var list = _dnState.donors || [];
@@ -2816,6 +2835,10 @@
           var tierChip = d.tier ? '<span class="dn-tile__tier">' + esc(d.tier) + '</span>' : "";
           var amtChip = d.amount ? '<span class="dn-tile__amt">' + esc(d.amount) + '</span>' : "";
           var chipRow = (tierChip || amtChip) ? '<div class="dn-tile__chips">' + tierChip + amtChip + '</div>' : "";
+          var siteUrl = _dnNormalizeUrl(d.website);
+          var siteLine = siteUrl
+            ? '<p class="dn-tile__site"><a href="' + esc(siteUrl) + '" target="_blank" rel="noopener">' + esc(String(d.website).replace(/^https?:\/\//i, "")) + ' &rarr;</a></p>'
+            : "";
           return ''
             + '<article class="dn-tile" data-idx="' + i + '">'
             +   logo
@@ -2824,6 +2847,7 @@
             +     chipRow
             +     (d.thankYou ? '<p class="dn-tile__thanks">' + esc(d.thankYou) + '</p>' : "")
             +     (d.contact ? '<p class="dn-tile__contact">' + esc(d.contact) + '</p>' : "")
+            +     siteLine
             +   '</div>'
             +   '<div class="dn-tile__actions">'
             +     '<button type="button" class="btn btn--ghost btn--small" data-dn-remove="' + i + '">Remove</button>'
@@ -2886,6 +2910,7 @@
         var amountEl = document.getElementById("dnAddAmount");
         var thanksEl = document.getElementById("dnAddThanks");
         var contactEl = document.getElementById("dnAddContact");
+        var websiteEl = document.getElementById("dnAddWebsite");
         var logoEl = document.getElementById("dnAddLogo");
         var preview = document.getElementById("dnAddPreview");
         var name = nameEl ? nameEl.value.trim() : "";
@@ -2896,6 +2921,7 @@
           amount: (amountEl ? amountEl.value.trim() : "").slice(0, 60),
           thankYou: (thanksEl ? thanksEl.value.trim() : "").slice(0, 200),
           contact: (contactEl ? contactEl.value.trim() : "").slice(0, 160),
+          website: (websiteEl ? websiteEl.value.trim() : "").slice(0, 240),
           logoDataUri: _dnPendingLogo || "",
           addedAt: new Date().toISOString(),
         });
@@ -2905,6 +2931,7 @@
         if (amountEl) amountEl.value = "";
         if (thanksEl) thanksEl.value = "";
         if (contactEl) contactEl.value = "";
+        if (websiteEl) websiteEl.value = "";
         if (logoEl) logoEl.value = "";
         if (preview) preview.innerHTML = "";
         renderDonors();
