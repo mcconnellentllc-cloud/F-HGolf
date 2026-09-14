@@ -2683,6 +2683,13 @@ body.pp-print-cards { background: #fff; }
 .dn-tile__amt { display: inline-block; padding: 0.12rem 0.5rem; border-radius: 999px; font: 700 0.68rem/1.4 system-ui, sans-serif; letter-spacing: 0.04em; background: var(--primary-green, #1B5E20); color: #fff; }
 .dn-tile__thanks { margin: 0 0 0.25rem 0; font-size: 0.85rem; color: var(--ink, #2a2418); line-height: 1.35; }
 .dn-tile__contact { margin: 0; font-size: 0.78rem; color: var(--muted, #7a7663); }
+.dn-tile__site { margin: 0.35rem 0 0; font-size: 0.82rem; }
+.dn-tile__site a { color: var(--primary-green, #17472A); font-weight: 700; text-decoration: none; word-break: break-all; }
+.dn-tile__site a:hover { text-decoration: underline; }
+.donor__site { margin: 0.4rem 0 0; font-size: 0.85rem; }
+.donor__site a { color: var(--gold, #f5c542); font-weight: 700; text-decoration: none; word-break: break-all; }
+.donor__site a:hover { text-decoration: underline; }
+body.theme-fire .donor__site a { color: #fff; }
 
 /* ===================== Auction (workbook tab) ===================== */
 /* Named grid areas so the form reads clearly at any width:

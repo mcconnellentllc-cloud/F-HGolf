@@ -235,11 +235,22 @@
           if (!buckets[key]) { buckets[key] = []; order.push(key); }
           buckets[key].push(d);
         });
+        function normUrl(u) {
+          var s = String(u || "").trim();
+          if (!s) return "";
+          if (/^https?:\/\//i.test(s)) return s;
+          if (/^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(s)) return "https://" + s;
+          return "";
+        }
         function tile(d) {
           var logo = d.logoDataUri && typeof d.logoDataUri === "string" && d.logoDataUri.indexOf("data:image/") === 0
             ? '<div class="donor__logo"><img alt="" src="' + esc(d.logoDataUri) + '"></div>'
             : '<div class="donor__logo donor__logo--empty" aria-hidden="true">' + esc((d.name || "?").slice(0, 1).toUpperCase()) + '</div>';
           var amt = d.amount ? '<span class="donor__amt">' + esc(d.amount) + '</span>' : "";
+          var siteUrl = normUrl(d.website);
+          var siteLine = siteUrl
+            ? '<p class="donor__site"><a href="' + esc(siteUrl) + '" target="_blank" rel="noopener">' + esc(String(d.website).replace(/^https?:\/\//i, "")) + ' &rarr;</a></p>'
+            : "";
           return ''
             + '<article class="donor">'
             +   logo
@@ -248,6 +259,7 @@
             +     (amt ? '<div class="donor__chips">' + amt + '</div>' : "")
             +     (d.thankYou ? '<p class="donor__thanks">' + esc(d.thankYou) + '</p>' : "")
             +     (d.contact ? '<p class="donor__contact">' + esc(d.contact) + '</p>' : "")
+            +     siteLine
             +   '</div>'
             + '</article>';
         }

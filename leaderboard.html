@@ -449,11 +449,22 @@
       }
       function _lbEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]); }
       function _lbMoney(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+      function _lbNormUrl(u) {
+        var s = String(u || "").trim();
+        if (!s) return "";
+        if (/^https?:\/\//i.test(s)) return s;
+        if (/^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(s)) return "https://" + s;
+        return "";
+      }
       function _lbTile(d) {
         var logo = d.logoDataUri && String(d.logoDataUri).indexOf("data:image/") === 0
           ? '<div class="lb-tile__logo"><img alt="" src="' + _lbEsc(d.logoDataUri) + '"></div>'
           : '<div class="lb-tile__logo lb-tile__logo--empty" aria-hidden="true">' + _lbEsc((d.name || "?").slice(0, 1).toUpperCase()) + '</div>';
         var amt = d.amount ? '<span class="lb-tile__amt">' + _lbEsc(d.amount) + '</span>' : "";
+        var siteUrl = _lbNormUrl(d.website);
+        var siteLine = siteUrl
+          ? '<p class="lb-tile__site"><a href="' + _lbEsc(siteUrl) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + _lbEsc(String(d.website).replace(/^https?:\/\//i, "")) + ' &rarr;</a></p>'
+          : "";
         return ''
           + '<article class="lb-tile">'
           +   logo
@@ -462,6 +473,7 @@
           +     (amt ? '<div class="lb-tile__chips">' + amt + '</div>' : "")
           +     (d.thankYou ? '<p class="lb-tile__thanks">' + _lbEsc(d.thankYou) + '</p>' : "")
           +     (d.contact ? '<p class="lb-tile__contact">' + _lbEsc(d.contact) + '</p>' : "")
+          +     siteLine
           +   '</div>'
           + '</article>';
       }
