@@ -2666,6 +2666,8 @@ body.pp-print-cards { background: #fff; }
 .dn-add__field input[type="text"] { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; }
 .dn-add__field--name span::after { content: " *"; color: var(--red-deep, #7a1a1a); }
 .dn-add__field--logo input[type="file"] { font: 0.85rem system-ui, sans-serif; }
+.dn-add__logo-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.dn-add__logo-row .btn--small { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
 .dn-add__preview { width: 3.25rem; height: 3.25rem; border: 1px dashed var(--line, #e6e2d8); border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fff; overflow: hidden; }
 .dn-add__preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .dn-h { margin: 1rem 0 0.35rem 0; font-family: Fraunces, Georgia, serif; color: var(--primary-green, #1B5E20); font-size: 1.1rem; }

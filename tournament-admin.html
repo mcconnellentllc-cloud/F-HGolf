@@ -613,8 +613,19 @@
             <label class="dn-add__field"><span>Amount or item</span><input type="text" id="dnAddAmount" maxlength="60" placeholder="e.g. $50, or &lsquo;Sleeve of Titleists&rsquo;" /></label>
             <label class="dn-add__field"><span>Thank-you note</span><input type="text" id="dnAddThanks" maxlength="200" placeholder="e.g. Serving our community for over 100 years" /></label>
             <label class="dn-add__field"><span>Contact / donated by</span><input type="text" id="dnAddContact" maxlength="160" placeholder="e.g. Marc Bornhoft &mdash; 970-580-2913" /></label>
-            <label class="dn-add__field"><span>Website (optional)</span><input type="url" id="dnAddWebsite" maxlength="240" placeholder="e.g. haxtunfire.org" inputmode="url" /></label>
-            <label class="dn-add__field dn-add__field--logo"><span>Logo (optional)</span><input type="file" id="dnAddLogo" accept="image/*" /></label>
+            <!-- type="text", not "url" — the browser's URL validator
+                 rejects bare hostnames like "haxtunfire.org" and blocks
+                 the form. Our _dnNormalizeUrl helper prepends https://
+                 on save + on render, so bare hostnames are the norm and
+                 must be allowed through submission. -->
+            <label class="dn-add__field"><span>Website (optional)</span><input type="text" id="dnAddWebsite" maxlength="240" placeholder="e.g. haxtunfire.org" inputmode="url" autocapitalize="off" spellcheck="false" /></label>
+            <label class="dn-add__field dn-add__field--logo">
+              <span>Logo (optional)</span>
+              <div class="dn-add__logo-row">
+                <input type="file" id="dnAddLogo" accept="image/png,image/jpeg,image/webp,image/gif" />
+                <button type="button" class="btn btn--ghost btn--small" id="dnAddLogoClear" hidden>Remove file</button>
+              </div>
+            </label>
             <div class="dn-add__preview" id="dnAddPreview" aria-hidden="true"></div>
             <button type="submit" class="btn btn--primary" id="dnAddBtn">Add sponsor</button>
           </form>
@@ -2906,11 +2917,35 @@
         };
         reader.readAsDataURL(file);
       }
+      function _dnClearPendingLogo() {
+        _dnPendingLogo = "";
+        var input = document.getElementById("dnAddLogo");
+        if (input) input.value = "";
+        var preview = document.getElementById("dnAddPreview");
+        if (preview) preview.innerHTML = "";
+        var clr = document.getElementById("dnAddLogoClear");
+        if (clr) clr.hidden = true;
+        _dnStatus("");
+      }
       function _dnHandleFilePick(input) {
         var preview = document.getElementById("dnAddPreview");
+        var clr = document.getElementById("dnAddLogoClear");
         var file = input.files && input.files[0];
-        if (!file) { _dnPendingLogo = ""; if (preview) preview.innerHTML = ""; return; }
-        if (file.size > 6 * 1024 * 1024) { _dnStatus("Image is too large (max 6 MB).", "error"); input.value = ""; return; }
+        if (!file) { _dnClearPendingLogo(); return; }
+        // Show the Remove file button as soon as a file's staged so the
+        // operator can bail out from a wrong pick (e.g. selected a .pdf
+        // by mistake) without hunting for how to clear it.
+        if (clr) clr.hidden = false;
+        // Client-side type filter — the file picker accept="image/*"
+        // is only a hint on some platforms, so re-check the MIME type
+        // here. Blocks PDFs / docs before we spin the canvas resizer.
+        if (file.type && file.type.indexOf("image/") !== 0) {
+          _dnStatus("That's a " + (file.type.split("/").pop() || "non-image") + " file — pick a PNG, JPG, WEBP, or GIF.", "error");
+          _dnPendingLogo = "";
+          if (preview) preview.innerHTML = "";
+          return;
+        }
+        if (file.size > 6 * 1024 * 1024) { _dnStatus("Image is too large (max 6 MB).", "error"); input.value = ""; if (clr) clr.hidden = true; return; }
         _dnStatus("Preparing logo…");
         _dnResizeImage(file, function (dataUri) {
           if (!dataUri) { _dnStatus("Couldn't read that image.", "error"); _dnPendingLogo = ""; if (preview) preview.innerHTML = ""; return; }
@@ -2950,6 +2985,8 @@
         if (websiteEl) websiteEl.value = "";
         if (logoEl) logoEl.value = "";
         if (preview) preview.innerHTML = "";
+        var clr = document.getElementById("dnAddLogoClear");
+        if (clr) clr.hidden = true;
         renderDonors();
         _dnStatus("Added — click Save donors to keep the change.");
       }
@@ -11509,6 +11546,8 @@
         if (dnAddForm) dnAddForm.addEventListener("submit", _dnAddFromForm);
         var dnAddLogo = document.getElementById("dnAddLogo");
         if (dnAddLogo) dnAddLogo.addEventListener("change", function () { _dnHandleFilePick(dnAddLogo); });
+        var dnAddLogoClear = document.getElementById("dnAddLogoClear");
+        if (dnAddLogoClear) dnAddLogoClear.addEventListener("click", _dnClearPendingLogo);
         var dnAddTier = document.getElementById("dnAddTier");
         if (dnAddTier) dnAddTier.addEventListener("change", _dnTierChanged);
         var dnSave = document.getElementById("dnSave");
