@@ -696,6 +696,82 @@ module.exports = async (req, res) => {
       }
     }
 
+    // ---- Auction receipt email ------------------------------------
+    //   POST { action: "auction-receipt", tournament, item: {
+    //     name, description, donor, amount,
+    //     buyerName, buyerEmail, buyerPhone
+    //   } }
+    // Admin-key gated (Fire staff running the clerk board). Sends a
+    // thank-you receipt to the buyer via Resend so they have proof of
+    // the winning bid + tournament attribution. No Airtable write —
+    // the item's receiptSentAt timestamp is stamped client-side into
+    // the Auction Items JSON blob on the next save.
+    if (body.action === "auction-receipt") {
+      if (!isAdmin) return res.status(401).json({ ok: false, error: "Unauthorized" });
+      const it = (body.item && typeof body.item === "object") ? body.item : {};
+      const buyerEmail = String(it.buyerEmail || "").trim();
+      const buyerName = String(it.buyerName || "").trim();
+      const itemName = String(it.name || "").trim();
+      const amount = Number(it.amount) || 0;
+      const tournament = String(body.tournament || "").trim();
+      if (!buyerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)) {
+        return res.status(400).json({ ok: false, error: "A valid buyer email is required." });
+      }
+      if (!itemName || !amount) return res.status(400).json({ ok: false, error: "Item name + amount are required." });
+      const key = process.env.RESEND_API_KEY;
+      if (!key) return res.status(500).json({ ok: false, error: "Email isn't configured on the server." });
+      const from = process.env.RESEND_FROM || "F&H Golf <noreply@fandhgolf.com>";
+      const escHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      const money = "$" + amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      const firstName = (buyerName.split(/\s+/)[0] || "there");
+      const donorLine = it.donor ? `<p style="font-size:0.9rem;color:#555">Item donated by <b>${escHtml(String(it.donor))}</b>. Thank them the next time you see them.</p>` : "";
+      const descLine = it.description ? `<p style="font-size:0.9rem;color:#555;font-style:italic">${escHtml(String(it.description))}</p>` : "";
+      // Fire-specific copy when the tournament is Haxtun Fire — else
+      // fall back to generic thanks so the same endpoint can serve
+      // future tournaments that also run an auction.
+      const isFire = /^\s*haxtun\s*fire/i.test(tournament);
+      const mission = isFire
+        ? "Every dollar raised through this auction goes to the <b>Haxtun Volunteer Fire Department</b> &mdash; protecting our neighbors from the ferocity of fire."
+        : `Every dollar raised through this auction benefits the ${escHtml(tournament || "tournament")}.`;
+      const heading = isFire ? "Thank you from the Haxtun Volunteer Fire Department" : "Thank you for your winning bid";
+      const subject = `Auction receipt — ${itemName} · ${money}`;
+      const html = `
+<div style="font-family:'Source Sans 3',-apple-system,system-ui,sans-serif;color:#2a2418;max-width:560px">
+  <h2 style="font-family:Fraunces,Georgia,serif;color:${isFire ? "#c8102e" : "#1B5E20"};margin:0 0 0.5rem">${escHtml(heading)}</h2>
+  <p style="margin:0 0 0.75rem">Hi ${escHtml(firstName)},</p>
+  <p style="margin:0 0 0.75rem">This is your receipt for the auction item you won at <b>${escHtml(tournament || "the tournament")}</b>:</p>
+  <div style="border:1px solid #e6e2d8;border-left:4px solid ${isFire ? "#c8102e" : "#1B5E20"};border-radius:8px;padding:0.85rem 1rem;margin:0 0 1rem;background:#fffdf6">
+    <div style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#7a7663;font-weight:700">Item</div>
+    <div style="font-family:Fraunces,Georgia,serif;font-size:1.35rem;font-weight:700;margin:0.15rem 0 0.4rem;color:#2a2418">${escHtml(itemName)}</div>
+    ${descLine}
+    <div style="display:flex;justify-content:space-between;gap:1rem;margin-top:0.5rem;padding-top:0.5rem;border-top:1px dashed #e6e2d8">
+      <div><span style="color:#7a7663;font-size:0.85rem">Winning bid</span><br/><b style="font-family:Fraunces,Georgia,serif;font-size:1.4rem;color:${isFire ? "#c8102e" : "#1B5E20"}">${escHtml(money)}</b></div>
+      <div style="text-align:right"><span style="color:#7a7663;font-size:0.85rem">Buyer</span><br/><b>${escHtml(buyerName || "(no name)")}</b>${it.buyerPhone ? `<br/><span style="color:#7a7663;font-size:0.8rem">${escHtml(String(it.buyerPhone))}</span>` : ""}</div>
+    </div>
+  </div>
+  ${donorLine}
+  <p style="margin:0 0 0.75rem">${mission}</p>
+  <p style="margin:1rem 0 0.5rem;font-size:0.85rem;color:#555">Please pay before you leave the course &mdash; the pro shop takes cash, check, or card. Bring this email with you if it helps at the counter.</p>
+  <p style="margin:0.75rem 0 0;font-size:0.85rem;color:#555">Thanks for your support!<br/>&mdash; F&amp;H Golf Course${isFire ? " &amp; the Haxtun Volunteer Fire Department" : ""}</p>
+</div>`;
+      try {
+        const er = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ from, to: [buyerEmail], subject, html }),
+        });
+        if (!er.ok) {
+          const detail = await er.text().catch(() => "");
+          console.error("auction-receipt email failed", er.status, detail);
+          return res.status(502).json({ ok: false, error: "Email service refused the message. Try again in a moment." });
+        }
+        return res.status(200).json({ ok: true, sentTo: buyerEmail });
+      } catch (e) {
+        console.error("auction-receipt email exception", e);
+        return res.status(500).json({ ok: false, error: "Something went wrong sending the receipt." });
+      }
+    }
+
     return res.status(400).json({ ok: false, error: "Unknown action." });
   }
 

@@ -70,10 +70,11 @@
           <button type="button" class="wb-tab" data-sheet="calcutta" role="tab">Calcutta</button>
           <button type="button" class="wb-tab" data-sheet="calcuttaSummary" role="tab">Calcutta Buyers</button>
           <button type="button" class="wb-tab" data-sheet="leaderboard" role="tab">Leaderboard</button>
-          <button type="button" class="wb-tab" data-sheet="payout" role="tab">Payout</button>
+          <button type="button" class="wb-tab" data-sheet="payout" role="tab" id="wbTabPayout">Payout</button>
           <button type="button" class="wb-tab" data-sheet="money" role="tab">$ Summary</button>
           <button type="button" class="wb-tab" data-sheet="pinprizes" role="tab">Pin Prizes</button>
           <button type="button" class="wb-tab" data-sheet="donors" role="tab">Donors</button>
+          <button type="button" class="wb-tab wb-tab--fire" data-sheet="auction" role="tab" id="wbTabAuction" hidden>Auction</button>
           <button type="button" class="wb-tab" data-sheet="rules" role="tab">Rules</button>
           <button type="button" class="wb-tab" data-sheet="recap" role="tab">Recap</button>
           <button type="button" class="wb-tab wb-tab--history" data-sheet="history" role="tab">History</button>
@@ -620,6 +621,41 @@
           <h4 class="dn-h">Sponsor wall</h4>
           <p class="dn-note">Drag isn't needed &mdash; order is the order you added them. Use <strong>Remove</strong> to drop a sponsor.</p>
           <div class="dn-grid" id="dnGrid" aria-live="polite"></div>
+        </section>
+
+        <!-- Auction (Fire-only). Add donated items, clerk winning bids in
+             real time, and email receipts. Data lives in `Auction Items JSON`
+             on Tournament Config alongside Donors JSON and Pin Prizes JSON. -->
+        <section class="noms wb-sheet" data-sheet="auction" id="twAuction" aria-label="Auction" hidden>
+          <div class="noms__bar">
+            <h3 class="noms__title">Auction</h3>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+              <a class="btn btn--solid" id="auOpenPublic" href="#" target="_blank" rel="noopener">Open public auction page &rarr;</a>
+              <button class="btn btn--solid" type="button" id="auShareFb">Share on Facebook</button>
+              <button class="btn btn--solid" type="button" id="auCopyLink">Copy link</button>
+              <button class="btn btn--solid" type="button" id="auSave">Save auction</button>
+              <span class="ci__status" id="auStatus" role="status" aria-live="polite" style="min-width:8rem;"></span>
+            </div>
+          </div>
+          <p class="scaffold__desc">Track auction items, donors, floor bids, and winners. Buyers get an emailed receipt with the tournament&rsquo;s thanks. Everything auto-groups on the public auction page for sharing on Facebook.</p>
+
+          <!-- 1. Add item -->
+          <form id="auAddForm" class="au-add" autocomplete="off">
+            <label class="au-add__field au-add__field--name"><span>Item *</span><input type="text" id="auAddName" maxlength="120" required placeholder="e.g. Signed golf bag" /></label>
+            <label class="au-add__field"><span>Donor</span><input type="text" id="auAddDonor" maxlength="120" placeholder="e.g. Haxtun Fire Dept." /></label>
+            <label class="au-add__field"><span>Floor $</span><input type="number" id="auAddFloor" min="0" step="1" placeholder="0" /></label>
+            <label class="au-add__field au-add__field--desc"><span>Description</span><input type="text" id="auAddDesc" maxlength="240" placeholder="Short blurb shown on the item card" /></label>
+            <label class="au-add__field au-add__field--photo"><span>Photo (optional)</span><input type="file" id="auAddPhoto" accept="image/*" /></label>
+            <div class="au-add__preview" id="auAddPreview" aria-hidden="true"></div>
+            <button type="submit" class="btn btn--primary" id="auAddBtn">Add item</button>
+          </form>
+
+          <h4 class="au-h">Clerk &mdash; live bidding sheet</h4>
+          <p class="au-note">One row per item. Enter the winning buyer&rsquo;s name + phone + email, the winning amount, then hit <strong>Save auction</strong>. Click <strong>Send receipt</strong> to email the buyer confirmation. Rows highlight as SOLD once an amount is entered.</p>
+          <div class="au-clerk" id="auClerk" aria-live="polite"></div>
+
+          <h4 class="au-h">Totals</h4>
+          <div class="au-totals" id="auTotals" aria-live="polite"></div>
         </section>
 
         <section class="noms wb-sheet" data-sheet="rules" id="twRules" aria-label="Rules" hidden>
@@ -2865,6 +2901,318 @@
         else { if (amountEl.value && /^\$[\d,]+$/.test(amountEl.value.trim())) amountEl.value = ""; }
       }
 
+      // ---- Auction --------------------------------------------------
+      // Fire-only feature. Data model: { items: [{ id, name, description,
+      // donor, floor, photoDataUri, addedAt, sold: {buyerName,
+      // buyerEmail, buyerPhone, amount, soldAt, receiptSentAt} }] }
+      // Piled into `Auction Items JSON` on Tournament Config so no new
+      // Airtable table is needed. Photos are resized in the browser
+      // (400px, JPEG q0.6) so a ~20-item auction stays under the
+      // 100KB long-text ceiling. Clerk mode is a live spreadsheet-y
+      // table; hitting Save persists the whole array in one write.
+      var _auState = { items: [] };
+      var _auLoaded = false;
+      var _auPendingPhoto = "";
+      function _auIsFire() { return /^\s*haxtun\s*fire/i.test(String(KEY || "")); }
+      function _auStatus(msg, kind) {
+        var el = document.getElementById("auStatus"); if (!el) return;
+        el.textContent = msg || "";
+        el.className = "ci__status" + (kind === "error" ? " is-error" : kind === "ok" ? " is-ok" : "");
+      }
+      function _auNormalize(raw) {
+        var s = { items: [] };
+        if (raw && typeof raw === "object" && Array.isArray(raw.items)) {
+          s.items = raw.items.filter(Boolean).map(function (it) {
+            var sold = null;
+            if (it.sold && typeof it.sold === "object") {
+              sold = {
+                buyerName: String(it.sold.buyerName || "").slice(0, 120),
+                buyerEmail: String(it.sold.buyerEmail || "").slice(0, 160),
+                buyerPhone: String(it.sold.buyerPhone || "").slice(0, 40),
+                amount: Number(it.sold.amount) || 0,
+                soldAt: String(it.sold.soldAt || ""),
+                receiptSentAt: String(it.sold.receiptSentAt || ""),
+              };
+              // Treat as unsold if there's no amount AND no buyer.
+              if (!sold.amount && !sold.buyerName) sold = null;
+            }
+            return {
+              id: String(it.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 8))).slice(0, 40),
+              name: String(it.name || "").slice(0, 120),
+              description: String(it.description || "").slice(0, 240),
+              donor: String(it.donor || "").slice(0, 120),
+              floor: Number(it.floor) || 0,
+              photoDataUri: (typeof it.photoDataUri === "string" && it.photoDataUri.indexOf("data:image/") === 0) ? it.photoDataUri : "",
+              addedAt: String(it.addedAt || ""),
+              sold: sold,
+            };
+          });
+        }
+        return s;
+      }
+      function loadAuction() {
+        if (_auLoaded) { renderAuction(); return; }
+        _auStatus("Loading…");
+        var cachedRaw = _tcConfigCache && _tcConfigCache["Auction Items JSON"];
+        if (cachedRaw != null) {
+          try { _auState = _auNormalize(JSON.parse(cachedRaw || "{}")); } catch (e) { _auState = _auNormalize(null); }
+          _auLoaded = true; _auStatus(""); renderAuction(); return;
+        }
+        fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(KEY)))
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var raw = j && j.record && j.record.fields && j.record.fields["Auction Items JSON"];
+            try { _auState = _auNormalize(JSON.parse(raw || "{}")); } catch (e) { _auState = _auNormalize(null); }
+            _auLoaded = true; _auStatus(""); renderAuction();
+          })
+          .catch(function () { _auState = _auNormalize(null); _auLoaded = true; _auStatus("Couldn't load — starting fresh.", "error"); renderAuction(); });
+      }
+      function saveAuction() {
+        if (!getKey()) { _auStatus("Sign in first.", "error"); return; }
+        // Pull any pending clerk edits from the DOM into state first so
+        // the operator doesn't lose in-progress typing.
+        _auCollectFromDom();
+        var payload = JSON.stringify(_auState);
+        if (payload.length > 95000) { _auStatus("Too much data — remove a photo or item.", "error"); return; }
+        _auStatus("Saving…");
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "config-write", tournament: KEY, fields: { "Auction Items JSON": payload } }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.ok) {
+              _auStatus("Saved ✓", "ok");
+              if (_tcConfigCache) _tcConfigCache["Auction Items JSON"] = payload;
+              renderAuction(); // repaint totals + SOLD styling
+            } else {
+              _auStatus((j && j.error) || "Save failed.", "error");
+            }
+          })
+          .catch(function () { _auStatus("Network error saving.", "error"); });
+      }
+      function _auMoney(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+      function _auCollectFromDom() {
+        var host = document.getElementById("auClerk"); if (!host) return;
+        Array.prototype.forEach.call(host.querySelectorAll("[data-au-row]"), function (row) {
+          var id = row.getAttribute("data-au-row");
+          var item = _auState.items.filter(function (i) { return i.id === id; })[0];
+          if (!item) return;
+          var buyer = row.querySelector("[data-au-buyer]");
+          var email = row.querySelector("[data-au-email]");
+          var phone = row.querySelector("[data-au-phone]");
+          var amount = row.querySelector("[data-au-amount]");
+          var nameV = buyer ? buyer.value.trim() : "";
+          var emailV = email ? email.value.trim() : "";
+          var phoneV = phone ? phone.value.trim() : "";
+          var amtV = amount ? Number(amount.value) : 0;
+          if (!nameV && !amtV && !emailV && !phoneV) { item.sold = null; return; }
+          item.sold = {
+            buyerName: nameV.slice(0, 120),
+            buyerEmail: emailV.slice(0, 160),
+            buyerPhone: phoneV.slice(0, 40),
+            amount: isFinite(amtV) ? amtV : 0,
+            soldAt: (item.sold && item.sold.soldAt) || new Date().toISOString(),
+            receiptSentAt: (item.sold && item.sold.receiptSentAt) || "",
+          };
+        });
+      }
+      function renderAuction() {
+        var openBtn = document.getElementById("auOpenPublic");
+        if (openBtn) openBtn.setAttribute("href", "auction.html?t=" + encodeURIComponent(KEY));
+        var host = document.getElementById("auClerk"); if (!host) return;
+        var items = _auState.items || [];
+        if (!items.length) { host.innerHTML = '<p class="au-empty">No items yet. Add one above.</p>'; }
+        else {
+          host.innerHTML = ''
+            + '<div class="au-clerk__hdr">'
+            +   '<div>Item</div><div>Buyer</div><div>Email</div><div>Phone</div><div>Amount</div><div></div>'
+            + '</div>'
+            + items.map(function (it) {
+                var sold = it.sold && (it.sold.amount || it.sold.buyerName);
+                var receiptSent = it.sold && it.sold.receiptSentAt;
+                var photo = it.photoDataUri
+                  ? '<img alt="" class="au-clerk__thumb" src="' + esc(it.photoDataUri) + '">'
+                  : '';
+                var itemMeta = ''
+                  + '<div class="au-clerk__itemcell">'
+                  +   photo
+                  +   '<div class="au-clerk__itemtxt">'
+                  +     '<div class="au-clerk__itemname">' + esc(it.name || "(item)") + '</div>'
+                  +     '<div class="au-clerk__itemmeta">'
+                  +       (it.donor ? esc(it.donor) : '<em>no donor</em>')
+                  +       (it.floor ? ' &middot; floor <b>' + _auMoney(it.floor) + '</b>' : '')
+                  +     '</div>'
+                  +   '</div>'
+                  + '</div>';
+                var b = it.sold || {};
+                return '<div class="au-clerk__row' + (sold ? ' is-sold' : '') + '" data-au-row="' + esc(it.id) + '">'
+                  + itemMeta
+                  + '<input type="text" data-au-buyer placeholder="Buyer name" value="' + esc(b.buyerName || "") + '" />'
+                  + '<input type="email" data-au-email placeholder="email@..." value="' + esc(b.buyerEmail || "") + '" />'
+                  + '<input type="tel" data-au-phone placeholder="(970) ..." value="' + esc(b.buyerPhone || "") + '" />'
+                  + '<input type="number" data-au-amount min="0" step="1" placeholder="$" value="' + (b.amount || "") + '" />'
+                  + '<div class="au-clerk__acts">'
+                  +   (sold ? '<button type="button" class="btn btn--solid btn--small" data-au-receipt="' + esc(it.id) + '">' + (receiptSent ? 'Re-send receipt' : 'Send receipt') + '</button>' : '<span class="au-clerk__hint">enter amount</span>')
+                  +   '<button type="button" class="btn btn--ghost btn--small" data-au-remove="' + esc(it.id) + '">Remove</button>'
+                  + '</div>'
+                  + (sold && receiptSent ? '<div class="au-clerk__sent">Receipt sent ' + esc(String(receiptSent).slice(0, 16).replace("T", " ")) + '</div>' : '')
+                  + '</div>';
+              }).join("");
+        }
+        // Totals row
+        var totalItems = items.length;
+        var soldCount = items.filter(function (i) { return i.sold && i.sold.amount; }).length;
+        var pledged = items.reduce(function (s, i) { return s + ((i.sold && i.sold.amount) || 0); }, 0);
+        var floors = items.reduce(function (s, i) { return s + (i.floor || 0); }, 0);
+        var totals = document.getElementById("auTotals");
+        if (totals) {
+          totals.innerHTML = ''
+            + '<div class="au-total"><div class="au-total__l">Items</div><div class="au-total__n">' + totalItems + '</div></div>'
+            + '<div class="au-total"><div class="au-total__l">Sold</div><div class="au-total__n">' + soldCount + '</div></div>'
+            + '<div class="au-total"><div class="au-total__l">Pledged</div><div class="au-total__n">' + _auMoney(pledged) + '</div></div>'
+            + '<div class="au-total"><div class="au-total__l">Floor total</div><div class="au-total__n">' + _auMoney(floors) + '</div></div>';
+        }
+        // Wire per-row actions.
+        host.querySelectorAll("[data-au-remove]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var id = btn.getAttribute("data-au-remove");
+            var idx = _auState.items.findIndex(function (i) { return i.id === id; });
+            if (idx < 0) return;
+            if (!confirm("Remove \"" + (_auState.items[idx].name || "this item") + "\" from the auction?")) return;
+            _auCollectFromDom();
+            _auState.items.splice(idx, 1);
+            renderAuction();
+            _auStatus("Removed — click Save auction to keep the change.");
+          });
+        });
+        host.querySelectorAll("[data-au-receipt]").forEach(function (btn) {
+          btn.addEventListener("click", function () { _auSendReceipt(btn.getAttribute("data-au-receipt"), btn); });
+        });
+      }
+      function _auResizePhoto(file, cb) {
+        var MAX = 400, Q = 0.6;
+        var reader = new FileReader();
+        reader.onerror = function () { cb(""); };
+        reader.onload = function () {
+          var img = new Image();
+          img.onerror = function () { cb(""); };
+          img.onload = function () {
+            var w = img.naturalWidth, h = img.naturalHeight;
+            if (!w || !h) { cb(""); return; }
+            var scale = Math.min(1, MAX / w, MAX / h);
+            var cw = Math.round(w * scale), ch = Math.round(h * scale);
+            var cvs = document.createElement("canvas");
+            cvs.width = cw; cvs.height = ch;
+            var ctx = cvs.getContext("2d");
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, cw, ch);
+            ctx.drawImage(img, 0, 0, cw, ch);
+            try { cb(cvs.toDataURL("image/jpeg", Q)); } catch (e) { cb(""); }
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      }
+      function _auHandlePhotoPick(input) {
+        var preview = document.getElementById("auAddPreview");
+        var file = input.files && input.files[0];
+        if (!file) { _auPendingPhoto = ""; if (preview) preview.innerHTML = ""; return; }
+        if (file.size > 8 * 1024 * 1024) { _auStatus("Photo too large (max 8 MB).", "error"); input.value = ""; return; }
+        _auStatus("Preparing photo…");
+        _auResizePhoto(file, function (dataUri) {
+          if (!dataUri) { _auStatus("Couldn't read that photo.", "error"); _auPendingPhoto = ""; if (preview) preview.innerHTML = ""; return; }
+          _auPendingPhoto = dataUri;
+          if (preview) preview.innerHTML = '<img alt="" src="' + esc(dataUri) + '">';
+          _auStatus("");
+        });
+      }
+      function _auAddFromForm(ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        var nameEl = document.getElementById("auAddName");
+        var donorEl = document.getElementById("auAddDonor");
+        var floorEl = document.getElementById("auAddFloor");
+        var descEl = document.getElementById("auAddDesc");
+        var photoEl = document.getElementById("auAddPhoto");
+        var preview = document.getElementById("auAddPreview");
+        var name = nameEl ? nameEl.value.trim() : "";
+        if (!name) { _auStatus("Item name is required.", "error"); if (nameEl) nameEl.focus(); return; }
+        _auCollectFromDom();
+        _auState.items.push({
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+          name: name.slice(0, 120),
+          description: (descEl ? descEl.value.trim() : "").slice(0, 240),
+          donor: (donorEl ? donorEl.value.trim() : "").slice(0, 120),
+          floor: Number(floorEl ? floorEl.value : 0) || 0,
+          photoDataUri: _auPendingPhoto || "",
+          addedAt: new Date().toISOString(),
+          sold: null,
+        });
+        _auPendingPhoto = "";
+        if (nameEl) nameEl.value = "";
+        if (donorEl) donorEl.value = "";
+        if (floorEl) floorEl.value = "";
+        if (descEl) descEl.value = "";
+        if (photoEl) photoEl.value = "";
+        if (preview) preview.innerHTML = "";
+        renderAuction();
+        _auStatus("Added — click Save auction to keep the change.");
+      }
+      function _auSendReceipt(itemId, btn) {
+        _auCollectFromDom();
+        var item = _auState.items.filter(function (i) { return i.id === itemId; })[0];
+        if (!item || !item.sold) { _auStatus("Enter buyer + amount first.", "error"); return; }
+        if (!item.sold.buyerEmail) { _auStatus("Add the buyer's email so we can send a receipt.", "error"); return; }
+        if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
+        _auStatus("Sending receipt…");
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({
+            action: "auction-receipt",
+            tournament: KEY,
+            item: {
+              name: item.name, description: item.description, donor: item.donor,
+              amount: item.sold.amount,
+              buyerName: item.sold.buyerName, buyerEmail: item.sold.buyerEmail, buyerPhone: item.sold.buyerPhone,
+            },
+          }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (btn) btn.disabled = false;
+            if (j && j.ok) {
+              item.sold.receiptSentAt = new Date().toISOString();
+              _auStatus("Receipt sent ✓ Save auction to record it.", "ok");
+              renderAuction();
+            } else {
+              if (btn) btn.textContent = "Send receipt";
+              _auStatus((j && j.error) || "Receipt failed to send.", "error");
+            }
+          })
+          .catch(function () { if (btn) { btn.disabled = false; btn.textContent = "Send receipt"; } _auStatus("Network error sending receipt.", "error"); });
+      }
+      function _auShareFacebook() {
+        var url = location.origin.replace(/^https?:\/\/([^/]+).*/, "$1");
+        // Facebook wants the full absolute public URL; use the site's
+        // public host (fandhgolf.com) if we're on Vercel preview so the
+        // shared link resolves correctly.
+        var publicUrl = "https://fandhgolf.com/auction.html?t=" + encodeURIComponent(KEY);
+        var share = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(publicUrl);
+        try { window.open(share, "_blank", "noopener"); } catch (e) {}
+      }
+      function _auCopyLink() {
+        var publicUrl = "https://fandhgolf.com/auction.html?t=" + encodeURIComponent(KEY);
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(publicUrl).then(function () { _auStatus("Link copied ✓", "ok"); });
+          } else {
+            var ta = document.createElement("textarea"); ta.value = publicUrl; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+            _auStatus("Link copied ✓", "ok");
+          }
+        } catch (e) { _auStatus(publicUrl, "ok"); }
+      }
+
       // Copy-paste prompt for the operator to feed into a talk-to-text or
       // GPT project. Keeping it as a function so the shape is edit-in-place
       // if we tweak the recap section structure later.
@@ -2926,8 +3274,21 @@
         // snapshots show up — but also update the shared cache.
         _histCache = null; _histInFlight = null;
         ensureHistoryCache().then(function (recs) {
-          if (!recs.length) { body.innerHTML = '<p class="noms__msg">No archived tournaments yet. Commit a completed tournament from the $ Summary tab.</p>'; return; }
-          renderHistory(recs);
+          // Filter to THIS tournament's history only. Every archive row
+          // carries a "Name" (the tournament base name — no date suffix)
+          // set at commit time. The workbook's KEY looks like
+          // "Haxtun Fire (Sept 19)" — strip the trailing parenthetical
+          // to get the base name, lowercase both, and keep only matches.
+          // Previously the tab rendered EVERY archive across the whole
+          // course, so a Couples snapshot was showing up on the Fire
+          // workbook's History tab (and vice versa).
+          var base = String(KEY || "").replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
+          var mine = base ? recs.filter(function (r) {
+            var f = r.fields || {};
+            return String(f.Name || "").trim().toLowerCase() === base;
+          }) : recs;
+          if (!mine.length) { body.innerHTML = '<p class="noms__msg">No archived years yet for this tournament. Commit a completed year from the $ Summary tab.</p>'; return; }
+          renderHistory(mine);
         }).catch(function () { body.innerHTML = '<p class="noms__msg">Network error loading history.</p>'; });
       }
       function renderHistory(recs) {
@@ -10700,6 +11061,7 @@
           if (s === "check") ensureConfigCache();
           if (s === "pinprizes") loadPinPrizes();
           if (s === "donors") loadDonors();
+          if (s === "auction") loadAuction();
           // Lazy-render the freshly-opened tab from the shared cache so
           // switching tabs shows current data without a network round-trip.
           // (Check-In already renders on every roster load — it's the
@@ -11061,6 +11423,29 @@
         var dnSave = document.getElementById("dnSave");
         if (dnSave) dnSave.addEventListener("click", saveDonors);
         try { _dnPopulateTierOptions(); } catch (e) {}
+
+        // Auction tab — only revealed on the Haxtun Fire workbook. The
+        // tab button ships hidden in HTML; here we un-hide it when the
+        // KEY matches so every other tournament stays as-is (no extra
+        // tab, no data leak). Fire is also a fundraiser — no player
+        // flight payout — so we hide the Payout tab entirely on Fire.
+        if (_auIsFire()) {
+          var tabBtn = document.getElementById("wbTabAuction");
+          if (tabBtn) tabBtn.hidden = false;
+          var payTab = document.getElementById("wbTabPayout");
+          if (payTab) payTab.hidden = true;
+        }
+        var auAddForm = document.getElementById("auAddForm");
+        if (auAddForm) auAddForm.addEventListener("submit", _auAddFromForm);
+        var auAddPhoto = document.getElementById("auAddPhoto");
+        if (auAddPhoto) auAddPhoto.addEventListener("change", function () { _auHandlePhotoPick(auAddPhoto); });
+        var auSave = document.getElementById("auSave");
+        if (auSave) auSave.addEventListener("click", saveAuction);
+        var auShareFb = document.getElementById("auShareFb");
+        if (auShareFb) auShareFb.addEventListener("click", _auShareFacebook);
+        var auCopyLink = document.getElementById("auCopyLink");
+        if (auCopyLink) auCopyLink.addEventListener("click", _auCopyLink);
+
         var fmtReload = document.getElementById("fmtReload");
         if (fmtReload) fmtReload.addEventListener("click", function () { loadFormat(true); });
         // Email a tournament-scoped staff link. Only visible while the
