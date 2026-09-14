@@ -497,6 +497,95 @@ module.exports = async (req, res) => {
       }
     }
 
+    // Public sponsor self-service. Reads the Tournament Config's current
+    // Donors JSON, appends the submitted sponsor (paid=false, pending=true
+    // so the workbook committee reviews before payment lands), and writes
+    // it back. No admin key required — this is the endpoint the public
+    // "Become a Sponsor" form on sponsor.html posts to.
+    if (body.action === "sponsor-submit") {
+      const tournament = typeof body.tournament === "string" ? body.tournament.trim().slice(0, 200) : "";
+      const s = (body.sponsor && typeof body.sponsor === "object") ? body.sponsor : null;
+      if (!tournament || !s) return res.status(400).json({ ok: false, error: "Missing tournament or sponsor info." });
+      const name = String(s.name || "").trim().slice(0, 120);
+      if (!name) return res.status(400).json({ ok: false, error: "Sponsor name is required." });
+      const dataUri = (typeof s.logoDataUri === "string" && s.logoDataUri.indexOf("data:image/") === 0)
+        ? s.logoDataUri.slice(0, 200000)
+        : "";
+      const sponsor = {
+        name,
+        tier: String(s.tier || "").slice(0, 80),
+        amount: String(s.amount || "").slice(0, 60),
+        website: String(s.website || "").slice(0, 240),
+        contact: String(s.contact || "").slice(0, 160),
+        email: String(s.email || "").slice(0, 160),
+        thankYou: String(s.thankYou || "").slice(0, 200),
+        logoDataUri: dataUri,
+        paid: false,
+        pending: true,
+        source: "public",
+        addedAt: new Date().toISOString(),
+      };
+      const cfgTable = process.env.CONFIG_TABLE || "Tournament Config";
+      const cfgUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(cfgTable)}`;
+      try {
+        // Find the row.
+        const filter = "?filterByFormula=" + encodeURIComponent(`{Tournament}="${tournament.replace(/"/g, '\\"')}"`);
+        const findRes = await fetch(cfgUrl + filter + "&maxRecords=1", { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+        if (!findRes.ok) {
+          const detail = await findRes.text();
+          console.error("sponsor-submit find error", findRes.status, detail);
+          return res.status(502).json({ ok: false, error: "Could not read the tournament config." });
+        }
+        const found = await findRes.json();
+        const existing = (found.records || [])[0] || null;
+        // Parse existing Donors JSON if present.
+        let donorsObj = { donors: [] };
+        if (existing && existing.fields && typeof existing.fields["Donors JSON"] === "string") {
+          try {
+            const parsed = JSON.parse(existing.fields["Donors JSON"] || "{}");
+            if (parsed && Array.isArray(parsed.donors)) donorsObj = parsed;
+          } catch (e) {}
+        }
+        donorsObj.donors = Array.isArray(donorsObj.donors) ? donorsObj.donors : [];
+        // Reject obvious duplicate submissions (same name within the last
+        // 10 minutes) — protects against double-clicked submit button.
+        const nowMs = Date.now();
+        const recentDup = donorsObj.donors.some((d) => {
+          if (!d || String(d.name || "").toLowerCase() !== name.toLowerCase()) return false;
+          try {
+            const t = new Date(d.addedAt || 0).getTime();
+            return isFinite(t) && (nowMs - t) < 10 * 60 * 1000;
+          } catch (e) { return false; }
+        });
+        if (recentDup) return res.status(200).json({ ok: true, duplicate: true });
+        donorsObj.donors.push(sponsor);
+        const payload = JSON.stringify(donorsObj);
+        if (payload.length > 95000) {
+          return res.status(413).json({ ok: false, error: "The sponsor wall is full for this tournament. Please contact the committee directly to sign up as a sponsor." });
+        }
+        // Write back — upsert on the Tournament key so a brand-new config
+        // row is created if this is the first sponsor of the event.
+        const merged = { Tournament: tournament, "Donors JSON": payload };
+        const write = existing
+          ? { method: "PATCH", url: `${cfgUrl}/${existing.id}`, body: JSON.stringify({ fields: merged, typecast: true }) }
+          : { method: "POST", url: cfgUrl, body: JSON.stringify({ records: [{ fields: merged }], typecast: true }) };
+        const wr = await fetch(write.url, {
+          method: write.method,
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+          body: write.body,
+        });
+        if (!wr.ok) {
+          const detail = await wr.text();
+          console.error("sponsor-submit write error", wr.status, detail);
+          return res.status(502).json({ ok: false, error: "Could not save your sponsorship. Please try again in a moment." });
+        }
+        return res.status(200).json({ ok: true });
+      } catch (e) {
+        console.error("sponsor-submit exception", e);
+        return res.status(500).json({ ok: false, error: "Something went wrong submitting your sponsorship." });
+      }
+    }
+
     if (body.action === "config-write") {
       // Upsert a Tournament Config row keyed by the "Tournament" field.
       // Admin writes only. Body: { tournament, fields } where fields is a

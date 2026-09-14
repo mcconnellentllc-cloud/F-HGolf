@@ -737,10 +737,27 @@
       // (i.e. anyone the operator has categorized). Donors = everyone
       // else (custom-amount contributions, untagged). Rendered under
       // grouped headings when there are multiple tiers.
+      function _lbBecomeSponsorCta() {
+        // Only the Fire tournament runs a public sponsor signup page for
+        // now — the CTA lives inside the Sponsors / Donors panels so it
+        // reads as a natural next step after "here's who's in so far".
+        if (!IS_FIRE) return "";
+        var href = "sponsor.html?t=" + encodeURIComponent(KEY);
+        return '<div style="text-align:center;margin:1.5rem 0 0.5rem;">'
+          +   '<a class="lb-become-cta" href="' + href + '" style="display:inline-block;padding:0.75rem 1.5rem;background:#c8102e;color:#fff;font-weight:800;letter-spacing:0.05em;text-transform:uppercase;text-decoration:none;border-radius:999px;box-shadow:0 6px 22px rgba(200,16,46,0.55);">&#9733; Become a Sponsor &#9733;</a>'
+          +   '<p style="color:rgba(255,255,255,0.65);font-size:0.85rem;font-style:italic;margin:0.5rem 0 0;">Sign up online &mdash; a Fire Department member will follow up for payment.</p>'
+          + '</div>';
+      }
       function _lbRenderSponsors(fields) {
         var host = document.getElementById("lbSponsors");
         var all = _lbParseDonors(fields);
-        if (!all.length) { host.innerHTML = '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Sponsors</div><h2 class="lb-panel__title">Thank you to our sponsors</h2></div><p class="disp__empty-msg">Sponsor list coming soon — add sponsors on the Donors tab of the workbook.</p>'; return; }
+        if (!all.length) {
+          host.innerHTML = ''
+            + '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Sponsors</div><h2 class="lb-panel__title">Thank you to our sponsors</h2></div>'
+            + '<p class="disp__empty-msg">Sponsor list coming soon &mdash; be the first!</p>'
+            + _lbBecomeSponsorCta();
+          return;
+        }
         // Group by tier; tier-less sponsors land under "Other Sponsors" so
         // every donor with a name shows up somewhere. Previously the panel
         // rendered nothing at all when no donors had a tier, which looked
@@ -757,7 +774,8 @@
           + '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Sponsors</div><h2 class="lb-panel__title">Thank you to our sponsors</h2><p class="lb-panel__blurb">Local businesses and neighbors who made the day possible.</p></div>'
           + order.map(function (tier) {
               return '<section class="lb-group"><h3 class="lb-group__hd">' + _lbEsc(tier) + '</h3><div class="lb-tiles">' + buckets[tier].map(_lbTile).join("") + '</div></section>';
-            }).join("");
+            }).join("")
+          + _lbBecomeSponsorCta();
       }
       function _lbRenderDonors(fields) {
         var host = document.getElementById("lbDonors");
@@ -769,7 +787,8 @@
         // when both untagged and tiered donors exist.
         host.innerHTML = ''
           + '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Donors</div><h2 class="lb-panel__title">Thank you to every donor</h2><p class="lb-panel__blurb">Every contribution, cash or in-kind, made this day happen.</p></div>'
-          + '<div class="lb-tiles">' + all.map(_lbTile).join("") + '</div>';
+          + '<div class="lb-tiles">' + all.map(_lbTile).join("") + '</div>'
+          + _lbBecomeSponsorCta();
       }
       function _lbRenderAuction(fields) {
         var host = document.getElementById("lbAuction");
