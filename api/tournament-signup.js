@@ -21,7 +21,7 @@ const CAPS = {
   "Haxtun Bulldog (July 25)": 22,
   "Founder's Tournament (Aug 8–9)": 64,
   "Couple's Tournament (Aug 22)": 24,
-  "Haxtun Fire (Sept 2019)": 22,
+  "Haxtun Fire (Sept 19, 2026)": 22,
   "Cornfest Tournament (Sept 27)": 22,
 };
 

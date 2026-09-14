@@ -39,7 +39,7 @@
         { label: "Past events", href: "history.html?name=Couple%27s%20Tournament" }
       ]
     },
-    "Haxtun Fire (Sept 2019)": { end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble" },
+    "Haxtun Fire (Sept 19, 2026)": { end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble" },
     "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)" },
     "Hole 8 Raffle Contest": { team: 1, format: "tee shot into the circle on #8", fee: "$5/person · $20/team", note: "2 entries max · two winners" },
 
