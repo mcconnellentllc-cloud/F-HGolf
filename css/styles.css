@@ -2944,4 +2944,10 @@ body.theme-fire .wb-tabs { border-bottom-color: #c8102e !important; }
 body.theme-fire .tab-howto { border-left-color: #c8102e; background: #fdf3f3; }
 body.theme-fire .tab-howto b { color: #c8102e; }
 .dn-tile__actions { grid-column: 2; justify-self: start; display: flex; gap: 0.35rem; flex-wrap: wrap; }
-.dn-tile__actions .btn { padding: 0.25rem 0.55rem; font-size: 0.75rem; }
+/* Override .btn--ghost inside the sponsor tile: the base .btn--ghost
+   is white-on-transparent for dark-nav contexts, and the sponsor tile
+   is a WHITE card — Edit/Remove buttons render but the text was
+   invisible on invisible. Force dark ink + a visible border. */
+.dn-tile__actions .btn { padding: 0.25rem 0.55rem; font-size: 0.75rem; color: var(--ink, #2a2418); border-color: var(--line, #d5cfbe); background: #fff; }
+.dn-tile__actions .btn:hover { background: var(--paper-2, #faf7ef); border-color: var(--muted, #7a7663); }
+.dn-tile__actions [data-dn-remove]:hover { background: #fbe6e6; border-color: rgba(177,30,45,0.45); color: var(--red-deep, #7a1a1a); }
