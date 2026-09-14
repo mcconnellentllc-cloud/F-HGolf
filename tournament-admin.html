@@ -1659,6 +1659,10 @@
         var greenPP = cfg.greenFeePP || 0;
         var mealPP = cfg.mealPP || 0;
         var otherPP = cfg.otherPP || 0;
+        // Flat course fee — lump sum negotiated with the course, an
+        // alternative to (or on top of) the per-player green + meal
+        // model. Applied ONCE, not scaled by player count.
+        var courseFlatFee = Math.max(0, Number(cfg.courseFlatFee) || 0);
         var cartFee = cfg.cartRentalFee || 0;
         var extraMealFee = cfg.extraMealFee || 0;
         var comm = (cfg.calcuttaCommission || 0) / 100;
@@ -1737,7 +1741,9 @@
         var meals = paidPlayers * mealPP;
         var otherRevenue = paidPlayers * otherPP;
         var calcuttaCommission = calcuttaPool * comm;
-        var courseRevenue = greenFees + meals + extraMealsRevenue + cartRentalRevenue + extrasRevenue + otherRevenue + calcuttaCommission;
+        // courseFlatFee is a one-time lump added ONCE to course revenue
+        // (not scaled by paid-player count).
+        var courseRevenue = greenFees + meals + courseFlatFee + extraMealsRevenue + cartRentalRevenue + extrasRevenue + otherRevenue + calcuttaCommission;
 
         // Flight prize pool — PER FLIGHT (not total across all flights):
         //   base = (entry - green - meal - other) × paid players
@@ -1753,7 +1759,11 @@
         //   pro-shop convention.
         // - Additional flight money (Calc tab) is added to the pool so it
         //   follows the same 1st/2nd/3rd split as the entry-driven pool.
-        var basePool = (entryPP - greenPP - mealPP - otherPP) * paidPlayers;
+        // Base pool subtracts the per-player cost from every paid entry,
+        // then removes the flat course fee ONCE (not per player). Result
+        // can go negative on a light field vs. a big flat fee — the pool
+        // is clamped to 0 in the final Math.max below.
+        var basePool = ((entryPP - greenPP - mealPP - otherPP) * paidPlayers) - courseFlatFee;
         // Custom lines added on the Calc tab -- income adds to the pool,
         // expense subtracts. Per-player lines scale with paidPlayers so an
         // unpaid entry doesn't inflate the pool.
@@ -1785,6 +1795,7 @@
           cartRentalsCount: cartRentalsCount, cartRentalRevenue: cartRentalRevenue,
           extrasBreakdown: extrasBreakdown, extrasRevenue: extrasRevenue,
           entryPP: entryPP, greenPP: greenPP, mealPP: mealPP, otherPP: otherPP,
+          courseFlatFee: courseFlatFee,
           cartFee: cartFee, extraMealFee: extraMealFee,
           customLines: customLines, customIncome: customIncome, customExpense: customExpense,
           basePool: basePool, addFlight: addFlight, manualExp: expensesTotal,
@@ -1919,7 +1930,7 @@
               var addC = cents(addFlight);
               var customInC = cents(customIncome);
               var totalInC = cents(entryC + calPoolC + xMealC + cartC + extrasInC + addC + customInC);
-              var courseC = cents(greenFees + meals + m.extraMealsRevenue + m.cartRentalRevenue + (m.extrasRevenue || 0) + otherPerPlayer + calcuttaCommission);
+              var courseC = cents(greenFees + meals + (m.courseFlatFee || 0) + m.extraMealsRevenue + m.cartRentalRevenue + (m.extrasRevenue || 0) + otherPerPlayer + calcuttaCommission);
               var manualExpC = cents(manualExp);
               var customExpC = cents(customExpense);
               var prizeC = cents(totalFlightPayout);
@@ -11338,6 +11349,13 @@
         greenFeePP: 20,                      // $ per person to the course (green fee)
         mealPP: 30,                          // $ per person for meals
         otherPP: 0,                          // $ per person other deductions
+        // Flat course fee — a lump-sum negotiated with the course
+        // instead of (or on top of) the per-player green + meal.
+        // Applied ONCE against the flight prize pool and counted
+        // once in course revenue, regardless of player count. Default
+        // 0 so tournaments that use only the per-player model are
+        // unaffected.
+        courseFlatFee: 0,
         cartRentalFee: 22,                   // $ per team for a rental cart (checkbox on check-in)
         extraMealFee: 10,                    // $ per extra meal (guest/spouse) — cheaper than the entry-included meal
         surchargePct: 4,                     // % processing fee added to Card/Online at check-in
@@ -11390,11 +11408,12 @@
             + '<label class="calc__row">Green fee $ ' + numIn("cGreen", gv("greenFeePP", 20), "1") + "</label>"
             + '<label class="calc__row">Meals $ ' + numIn("cMeal", gv("mealPP", 30), "1") + "</label>"
             + '<label class="calc__row">Other $ ' + numIn("cOther", gv("otherPP", 0), "1") + "</label>"
+            + '<label class="calc__row">Course flat fee $ (lump sum &mdash; alternative to per-player) ' + numIn("cCourseFlat", gv("courseFlatFee", 0), "1") + "</label>"
             + '<label class="calc__row">Cart rental $ (per team) ' + numIn("cCart", gv("cartRentalFee", 22), "1") + "</label>"
             + '<label class="calc__row">Extra meal $ (guest / spouse) ' + numIn("cExtraM", gv("extraMealFee", 10), "1") + "</label>"
             + '<label class="calc__row">Card / Online surcharge % ' + numIn("cSur", gv("surchargePct", 4), "0.1") + "</label>"
             + '<div class="calc__formula" id="calcMoneyFormula"></div>'
-            + '<p class="calc__note">Prize pool = (entry − green − meal − other) × <b>paid</b> players + additional + custom income − custom expense − manual expenses. Green &amp; meals go to the course.</p></div>';
+            + '<p class="calc__note">Prize pool = (entry − green − meal − other) × <b>paid</b> players − <b>course flat fee</b> + additional + custom income − custom expense − manual expenses. Green + meals + flat fee go to the course.</p></div>';
         }
         if (flightBox) {
           flightBox.innerHTML =
@@ -11493,6 +11512,7 @@
             greenFeePP: isFinite(g("cGreen")) ? g("cGreen") : 20,
             mealPP: isFinite(g("cMeal")) ? g("cMeal") : 30,
             otherPP: isFinite(g("cOther")) ? g("cOther") : 0,
+            courseFlatFee: isFinite(g("cCourseFlat")) ? g("cCourseFlat") : 0,
             cartRentalFee: isFinite(g("cCart")) ? g("cCart") : 22,
             extraMealFee: isFinite(g("cExtraM")) ? g("cExtraM") : 10,
             surchargePct: isFinite(g("cSur")) ? g("cSur") : 4,
@@ -11526,10 +11546,12 @@
           var mt = document.getElementById("calcMoneyTotals");
           if (mt) {
             var otherTotal = m.otherRevenue;
+            var courseFlat = m.courseFlatFee || 0;
             mt.innerHTML =
               '<div class="calc__tot-row">'
               + '<span class="calc__tot"><small>Entry in</small><b>' + money(m.entryIncome) + '</b></span>'
               + '<span class="calc__tot calc__tot--neg"><small>To course (green + meal)</small><b>&minus; ' + money(m.greenFees + m.meals) + '</b></span>'
+              + (courseFlat ? '<span class="calc__tot calc__tot--neg"><small>Course flat fee</small><b>&minus; ' + money(courseFlat) + '</b></span>' : '')
               + (otherTotal ? '<span class="calc__tot calc__tot--neg"><small>Other</small><b>&minus; ' + money(otherTotal) + '</b></span>' : '')
               + '<span class="calc__tot calc__tot--pool"><small>Flight prize pool</small><b>' + money(m.flightPrizePool) + '</b></span>'
               + '</div>';
@@ -11589,6 +11611,7 @@
               +   '<div class="calc__f-line calc__f-line--out"><span>− Other</span><b>− ' + money(m.otherPP) + '</b></div>'
               +   '<div class="calc__f-line calc__f-line--sub"><span>= Net per player toward pool</span>' + fnum(perPlayerNet) + '</div>'
               +   '<div class="calc__f-line"><span>× Paid players</span>' + fint(m.paidPlayers) + '</div>'
+              +   (m.courseFlatFee ? '<div class="calc__f-line calc__f-line--out"><span>− Course flat fee (lump sum)</span><b>− ' + money(m.courseFlatFee) + '</b></div>' : '')
               +   '<div class="calc__f-line calc__f-line--sub"><span>= Base pool</span>' + fnum(m.basePool) + '</div>'
               +   (m.addFlight ? '<div class="calc__f-line calc__f-line--in"><span>+ Additional flight money</span><b>+ ' + money(m.addFlight) + '</b></div>' : '')
               +   customLinesRows
@@ -11658,6 +11681,7 @@
           greenFeePP: isFinite(g("cGreen")) ? g("cGreen") : 20,
           mealPP: isFinite(g("cMeal")) ? g("cMeal") : 30,
           otherPP: isFinite(g("cOther")) ? g("cOther") : 0,
+          courseFlatFee: isFinite(g("cCourseFlat")) ? g("cCourseFlat") : 0,
           cartRentalFee: isFinite(g("cCart")) ? g("cCart") : 22,
           extraMealFee: isFinite(g("cExtraM")) ? g("cExtraM") : 10,
           surchargePct: isFinite(g("cSur")) ? g("cSur") : 4,
