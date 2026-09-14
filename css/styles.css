@@ -2683,5 +2683,48 @@ body.pp-print-cards { background: #fff; }
 .dn-tile__amt { display: inline-block; padding: 0.12rem 0.5rem; border-radius: 999px; font: 700 0.68rem/1.4 system-ui, sans-serif; letter-spacing: 0.04em; background: var(--primary-green, #1B5E20); color: #fff; }
 .dn-tile__thanks { margin: 0 0 0.25rem 0; font-size: 0.85rem; color: var(--ink, #2a2418); line-height: 1.35; }
 .dn-tile__contact { margin: 0; font-size: 0.78rem; color: var(--muted, #7a7663); }
+
+/* ===================== Auction (workbook tab) ===================== */
+.au-add { display: grid; grid-template-columns: 1fr 1fr 5rem 2fr auto auto auto; gap: 0.55rem 0.75rem; align-items: end; margin-bottom: 1rem; }
+@media (max-width: 1000px) { .au-add { grid-template-columns: 1fr 1fr; } .au-add__field--desc { grid-column: 1 / -1; } }
+@media (max-width: 560px) { .au-add { grid-template-columns: 1fr; } }
+.au-add__field { display: block; }
+.au-add__field span { display: block; font: 700 0.66rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted, #7a7663); margin-bottom: 0.25rem; }
+.au-add__field input[type="text"], .au-add__field input[type="number"] { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; }
+.au-add__field--name span::after { content: " *"; color: var(--red-deep, #7a1a1a); }
+.au-add__field--photo input[type="file"] { font: 0.85rem system-ui, sans-serif; }
+.au-add__preview { width: 3.25rem; height: 3.25rem; border: 1px dashed var(--line, #e6e2d8); border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fff; overflow: hidden; }
+.au-add__preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.au-h { margin: 1rem 0 0.35rem 0; font-family: Fraunces, Georgia, serif; color: var(--primary-green, #1B5E20); font-size: 1.1rem; }
+.au-note { color: var(--muted, #7a7663); font-size: 0.85rem; margin: 0 0 0.65rem 0; }
+.au-empty { color: var(--muted, #7a7663); font-style: italic; padding: 1rem; background: #faf8f2; border-radius: 8px; }
+.au-clerk { display: flex; flex-direction: column; gap: 0.4rem; }
+.au-clerk__hdr, .au-clerk__row { display: grid; grid-template-columns: minmax(14rem, 2fr) 1fr 1.3fr 1fr 5.5rem auto; gap: 0.5rem; align-items: center; }
+.au-clerk__hdr { font: 700 0.66rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted, #7a7663); padding: 0 0.35rem 0.25rem; border-bottom: 1px solid var(--line, #e6e2d8); }
+.au-clerk__row { padding: 0.55rem 0.5rem; background: #fff; border: 1px solid var(--line, #e6e2d8); border-radius: 10px; }
+.au-clerk__row input { width: 100%; padding: 0.4rem 0.5rem; border: 1px solid var(--line, #e6e2d8); border-radius: 6px; font: inherit; font-size: 0.9rem; }
+.au-clerk__row.is-sold { background: rgba(27, 94, 32, 0.05); border-left: 4px solid var(--primary-green, #1B5E20); }
+.au-clerk__itemcell { display: flex; gap: 0.5rem; align-items: center; min-width: 0; }
+.au-clerk__thumb { width: 2.75rem; height: 2.75rem; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.au-clerk__itemtxt { min-width: 0; }
+.au-clerk__itemname { font-weight: 700; color: var(--ink, #2a2418); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.au-clerk__itemmeta { font-size: 0.78rem; color: var(--muted, #7a7663); }
+.au-clerk__acts { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.au-clerk__hint { font-size: 0.75rem; color: var(--muted, #7a7663); font-style: italic; }
+.au-clerk__sent { grid-column: 1 / -1; font-size: 0.72rem; color: var(--primary-green, #1B5E20); font-weight: 700; padding-top: 0.15rem; }
+.au-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.6rem; margin-top: 0.5rem; }
+.au-total { padding: 0.7rem 0.9rem; border: 1px solid var(--line, #e6e2d8); border-left: 4px solid var(--red-deep, #7a1a1a); border-radius: 10px; background: #fff; }
+.au-total__l { font: 700 0.65rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted, #7a7663); }
+.au-total__n { font-family: Fraunces, Georgia, serif; font-weight: 800; color: var(--primary-green, #1B5E20); font-size: 1.5rem; margin-top: 0.2rem; }
+@media (max-width: 900px) {
+  .au-clerk__hdr { display: none; }
+  .au-clerk__row { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+  .au-clerk__itemcell { grid-column: 1 / -1; }
+  .au-clerk__acts { grid-column: 1 / -1; justify-content: flex-start; }
+}
+/* Fire tab highlight — the Auction tab lives here so it deserves a
+   red accent on the workbook tab bar, matching the theme. */
+body.theme-fire .wb-tab.wb-tab--fire { color: var(--red, #c8102e); }
+body.theme-fire .wb-tab.wb-tab--fire.is-active { border-bottom-color: var(--red, #c8102e) !important; }
 .dn-tile__actions { grid-column: 2; justify-self: start; }
 .dn-tile__actions .btn { padding: 0.25rem 0.55rem; font-size: 0.75rem; }
