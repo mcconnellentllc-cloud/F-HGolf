@@ -2609,6 +2609,9 @@ body.tw-founders .tw-single-wave-only { display: none !important; }
 .pp-chip__donor { display: block; font: 500 0.7rem/1.2 ui-monospace, "SF Mono", Menlo, monospace; color: var(--muted, #7a7663); margin-top: 0.1rem; }
 .pp-chip__rm { position: absolute; top: 2px; right: 4px; background: none; border: none; color: var(--muted, #999); font-size: 1.05rem; line-height: 1; cursor: pointer; padding: 2px 5px; border-radius: 4px; }
 .pp-chip__rm:hover { color: var(--red-deep, #7a1a1a); background: #fbe6e6; }
+.pp-chip__edit { position: absolute; top: 4px; right: 26px; background: none; border: none; color: var(--muted, #999); font: 700 0.62rem/1 system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; padding: 2px 5px; border-radius: 4px; }
+.pp-chip__edit:hover { color: var(--primary-green, #1B5E20); background: #eaf3ea; }
+.pp-add--editing, .au-add--editing { border-left: 4px solid var(--brass, #a37f30); padding-left: 0.85rem; }
 .pp-chip__empty { color: var(--muted, #7a7663); font-style: italic; font-size: 0.9rem; }
 
 .pp-h { margin: 1rem 0 0.35rem 0; font-family: Fraunces, Georgia, serif; color: var(--primary-green, #1B5E20); font-size: 1.1rem; }
