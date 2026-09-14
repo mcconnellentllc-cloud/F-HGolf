@@ -3075,10 +3075,10 @@
         var items = _auState.items || [];
         if (!items.length) { host.innerHTML = '<p class="au-empty">No items yet. Add one above.</p>'; }
         else {
+          // Two-row bid block per item: buyer + amount live on top so the
+          // clerk types them at hammer time, email + phone sit underneath
+          // for after the auction closes (receipt send + pickup contact).
           host.innerHTML = ''
-            + '<div class="au-clerk__hdr">'
-            +   '<div>Item</div><div>Buyer</div><div>Email</div><div>Phone</div><div>Amount</div><div></div>'
-            + '</div>'
             + items.map(function (it) {
                 var sold = it.sold && (it.sold.amount || it.sold.buyerName);
                 var receiptSent = it.sold && it.sold.receiptSentAt;
@@ -3098,14 +3098,29 @@
                   + '</div>';
                 var b = it.sold || {};
                 return '<div class="au-clerk__row' + (sold ? ' is-sold' : '') + '" data-au-row="' + esc(it.id) + '">'
+                  + '<button type="button" class="au-clerk__close" data-au-remove="' + esc(it.id) + '" title="Remove this item" aria-label="Remove item">&times;</button>'
                   + itemMeta
-                  + '<input type="text" data-au-buyer placeholder="Buyer name" value="' + esc(b.buyerName || "") + '" />'
-                  + '<input type="email" data-au-email placeholder="email@..." value="' + esc(b.buyerEmail || "") + '" />'
-                  + '<input type="tel" data-au-phone placeholder="(970) ..." value="' + esc(b.buyerPhone || "") + '" />'
-                  + '<input type="number" data-au-amount min="0" step="1" placeholder="$" value="' + (b.amount || "") + '" />'
+                  + '<div class="au-clerk__bid">'
+                  +   '<label class="au-clerk__field au-clerk__field--buyer">'
+                  +     '<span>Buyer</span>'
+                  +     '<input type="text" data-au-buyer placeholder="Buyer name" value="' + esc(b.buyerName || "") + '" />'
+                  +   '</label>'
+                  +   '<label class="au-clerk__field au-clerk__field--amount">'
+                  +     '<span>Amount</span>'
+                  +     '<input type="number" data-au-amount min="0" step="1" placeholder="$" value="' + (b.amount || "") + '" />'
+                  +   '</label>'
+                  +   '<label class="au-clerk__field au-clerk__field--email">'
+                  +     '<span>Email (for receipt)</span>'
+                  +     '<input type="email" data-au-email placeholder="email@..." value="' + esc(b.buyerEmail || "") + '" />'
+                  +   '</label>'
+                  +   '<label class="au-clerk__field au-clerk__field--phone">'
+                  +     '<span>Phone (for pickup)</span>'
+                  +     '<input type="tel" data-au-phone placeholder="(970) ..." value="' + esc(b.buyerPhone || "") + '" />'
+                  +   '</label>'
+                  + '</div>'
                   + '<div class="au-clerk__acts">'
                   +   (sold ? '<button type="button" class="btn btn--solid btn--small" data-au-receipt="' + esc(it.id) + '">' + (receiptSent ? 'Re-send receipt' : 'Send receipt') + '</button>' : '<span class="au-clerk__hint">enter amount</span>')
-                  +   '<button type="button" class="btn btn--ghost btn--small" data-au-remove="' + esc(it.id) + '">Remove</button>'
+                  +   '<button type="button" class="btn au-clerk__remove btn--small" data-au-remove="' + esc(it.id) + '">Remove item</button>'
                   + '</div>'
                   + (sold && receiptSent ? '<div class="au-clerk__sent">Receipt sent ' + esc(String(receiptSent).slice(0, 16).replace("T", " ")) + '</div>' : '')
                   + '</div>';

@@ -2725,17 +2725,90 @@ body.theme-fire .au-add__field input:focus { outline-color: #c8102e; }
 .au-note { color: var(--muted, #7a7663); font-size: 0.85rem; margin: 0 0 0.65rem 0; }
 .au-empty { color: var(--muted, #7a7663); font-style: italic; padding: 1rem; background: #faf8f2; border-radius: 8px; }
 .au-clerk { display: flex; flex-direction: column; gap: 0.4rem; }
-.au-clerk__hdr, .au-clerk__row { display: grid; grid-template-columns: minmax(14rem, 2fr) 1fr 1.3fr 1fr 5.5rem auto; gap: 0.5rem; align-items: center; }
-.au-clerk__hdr { font: 700 0.66rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted, #7a7663); padding: 0 0.35rem 0.25rem; border-bottom: 1px solid var(--line, #e6e2d8); }
-.au-clerk__row { padding: 0.55rem 0.5rem; background: #fff; border: 1px solid var(--line, #e6e2d8); border-radius: 10px; }
-.au-clerk__row input { width: 100%; padding: 0.4rem 0.5rem; border: 1px solid var(--line, #e6e2d8); border-radius: 6px; font: inherit; font-size: 0.9rem; }
+.au-clerk__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(14rem, 1.4fr) minmax(0, 2.2fr) auto;
+  grid-template-areas: "item bid acts";
+  gap: 0.75rem 1rem;
+  align-items: start;
+  padding: 0.7rem 0.75rem;
+  background: #fff;
+  border: 1px solid var(--line, #e6e2d8);
+  border-radius: 10px;
+}
+.au-clerk__close {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.4rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1px solid rgba(200, 16, 46, 0.35);
+  background: rgba(200, 16, 46, 0.08);
+  color: #c8102e;
+  border-radius: 50%;
+  font: 800 1.05rem/1 system-ui, sans-serif;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 2;
+}
+.au-clerk__close:hover, .au-clerk__close:focus-visible {
+  background: #c8102e;
+  color: #fff;
+  border-color: #c8102e;
+  outline: none;
+}
+.btn.au-clerk__remove {
+  background: #fff;
+  color: #c8102e;
+  border: 1px solid rgba(200, 16, 46, 0.4);
+  font-weight: 800;
+}
+.btn.au-clerk__remove:hover, .btn.au-clerk__remove:focus-visible {
+  background: #c8102e;
+  color: #fff;
+  border-color: #c8102e;
+}
 .au-clerk__row.is-sold { background: rgba(27, 94, 32, 0.05); border-left: 4px solid var(--primary-green, #1B5E20); }
-.au-clerk__itemcell { display: flex; gap: 0.5rem; align-items: center; min-width: 0; }
-.au-clerk__thumb { width: 2.75rem; height: 2.75rem; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.au-clerk__itemcell { grid-area: item; display: flex; gap: 0.5rem; align-items: center; min-width: 0; padding-top: 0.55rem; }
+.au-clerk__thumb { width: 3rem; height: 3rem; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
 .au-clerk__itemtxt { min-width: 0; }
-.au-clerk__itemname { font-weight: 700; color: var(--ink, #2a2418); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.au-clerk__itemname { font-weight: 700; color: var(--ink, #2a2418); overflow: hidden; text-overflow: ellipsis; }
 .au-clerk__itemmeta { font-size: 0.78rem; color: var(--muted, #7a7663); }
-.au-clerk__acts { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.au-clerk__bid {
+  grid-area: bid;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-areas:
+    "buyer amount"
+    "email phone";
+  gap: 0.55rem 0.6rem;
+}
+.au-clerk__field { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.au-clerk__field > span {
+  font: 800 0.62rem/1 system-ui, sans-serif;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted, #7a7663);
+}
+.au-clerk__field input {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line, #e6e2d8);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.95rem;
+  background: #fff;
+}
+.au-clerk__field--buyer { grid-area: buyer; }
+.au-clerk__field--amount { grid-area: amount; }
+.au-clerk__field--amount input { font-weight: 800; font-size: 1.05rem; text-align: right; }
+.au-clerk__field--email { grid-area: email; }
+.au-clerk__field--phone { grid-area: phone; }
+.au-clerk__acts { grid-area: acts; display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; padding-top: 1.05rem; }
 .au-clerk__hint { font-size: 0.75rem; color: var(--muted, #7a7663); font-style: italic; }
 .au-clerk__sent { grid-column: 1 / -1; font-size: 0.72rem; color: var(--primary-green, #1B5E20); font-weight: 700; padding-top: 0.15rem; }
 .au-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.6rem; margin-top: 0.5rem; }
@@ -2743,10 +2816,13 @@ body.theme-fire .au-add__field input:focus { outline-color: #c8102e; }
 .au-total__l { font: 700 0.65rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted, #7a7663); }
 .au-total__n { font-family: Fraunces, Georgia, serif; font-weight: 800; color: var(--primary-green, #1B5E20); font-size: 1.5rem; margin-top: 0.2rem; }
 @media (max-width: 900px) {
-  .au-clerk__hdr { display: none; }
-  .au-clerk__row { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
-  .au-clerk__itemcell { grid-column: 1 / -1; }
-  .au-clerk__acts { grid-column: 1 / -1; justify-content: flex-start; }
+  .au-clerk__row { grid-template-columns: 1fr; grid-template-areas: "item" "bid" "acts"; }
+  .au-clerk__itemcell { padding-top: 0; }
+  .au-clerk__acts { padding-top: 0; justify-content: flex-start; }
+}
+@media (max-width: 520px) {
+  .au-clerk__bid { grid-template-columns: 1fr; grid-template-areas: "buyer" "amount" "email" "phone"; }
+  .au-clerk__field--amount input { text-align: left; }
 }
 /* Fire tab highlight — the Auction tab lives here so it deserves a
    red accent on the workbook tab bar, matching the theme. The active

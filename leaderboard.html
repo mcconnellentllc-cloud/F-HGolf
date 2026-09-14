@@ -544,7 +544,9 @@
           var chips = [];
           if (it.floor) chips.push('<span class="lb-au-card__chip lb-au-card__chip--floor">Floor ' + _lbEsc(_lbMoney(it.floor)) + '</span>');
           if (it.donor) chips.push('<span class="lb-au-card__chip">Donated by ' + _lbEsc(it.donor) + '</span>');
-          if (it.sold && it.sold.amount) chips.push('<span class="lb-au-card__chip lb-au-card__chip--sold">SOLD ' + _lbEsc(_lbMoney(it.sold.amount)) + '</span>');
+          // Public leaderboard — sold status only, no amounts, no names.
+          // Individual purchase info stays inside the workbook Clerk tab.
+          if (it.sold && it.sold.amount) chips.push('<span class="lb-au-card__chip lb-au-card__chip--sold">SOLD</span>');
           return ''
             + '<article class="lb-au-card">'
             +   photo
