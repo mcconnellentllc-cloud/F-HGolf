@@ -2714,7 +2714,12 @@ body.pp-print-cards { background: #fff; }
 .dn-add__field--website { grid-area: website; }
 .dn-add__field--logo    { grid-area: logo; }
 .dn-add__preview        { grid-area: preview; }
-.dn-add__submit         { grid-area: submit; align-self: end; }
+.dn-add__actions        { grid-area: submit; align-self: end; display: flex; flex-direction: column; gap: 0.35rem; }
+.dn-add__actions .btn   { width: 100%; }
+/* Editing state: the whole form gets a soft amber left border so the
+   operator can't miss that the primary button will overwrite an
+   existing sponsor instead of appending a fresh one. */
+.dn-add--editing { border-left: 4px solid var(--brass, #a37f30); padding-left: 0.85rem; }
 @media (max-width: 900px) {
   .dn-add {
     grid-template-columns: 1fr 1fr;
@@ -2935,5 +2940,5 @@ body.theme-fire .wb-tabs { border-bottom-color: #c8102e !important; }
 .tab-howto b { color: var(--primary-green, #1B5E20); }
 body.theme-fire .tab-howto { border-left-color: #c8102e; background: #fdf3f3; }
 body.theme-fire .tab-howto b { color: #c8102e; }
-.dn-tile__actions { grid-column: 2; justify-self: start; }
+.dn-tile__actions { grid-column: 2; justify-self: start; display: flex; gap: 0.35rem; flex-wrap: wrap; }
 .dn-tile__actions .btn { padding: 0.25rem 0.55rem; font-size: 0.75rem; }

@@ -652,7 +652,10 @@
               </div>
             </label>
             <div class="dn-add__preview" id="dnAddPreview" aria-hidden="true"></div>
-            <button type="submit" class="btn btn--primary dn-add__submit" id="dnAddBtn">Add sponsor</button>
+            <div class="dn-add__actions">
+              <button type="submit" class="btn btn--primary dn-add__submit" id="dnAddBtn">Add sponsor</button>
+              <button type="button" class="btn btn--ghost dn-add__cancel" id="dnEditCancel" hidden>Cancel edit</button>
+            </div>
           </form>
 
           <h4 class="dn-h">Sponsor wall</h4>
@@ -2895,6 +2898,10 @@
       var _dnState = { donors: [] };
       var _dnLoaded = false;
       var _dnPendingLogo = ""; // resized data URI staged for the next add
+      // -1 = adding a new sponsor; >=0 = editing the donor at that index.
+      // Kept in module state so the form-submit handler and the Cancel
+      // button both stay in sync without threading an argument through.
+      var _dnEditingIdx = -1;
       function _dnNormalize(raw) {
         var s = { donors: [] };
         if (raw && typeof raw === "object" && Array.isArray(raw.donors)) {
@@ -3069,6 +3076,7 @@
             +     siteLine
             +   '</div>'
             +   '<div class="dn-tile__actions">'
+            +     '<button type="button" class="btn btn--ghost btn--small" data-dn-edit="' + i + '">Edit</button>'
             +     '<button type="button" class="btn btn--ghost btn--small" data-dn-remove="' + i + '">Remove</button>'
             +   '</div>'
             + '</article>';
@@ -3079,9 +3087,20 @@
             if (!(idx >= 0 && idx < _dnState.donors.length)) return;
             var name = _dnState.donors[idx].name || "this sponsor";
             if (!confirm("Remove " + name + " from the sponsor wall?")) return;
+            // If we removed the row currently being edited, drop out of
+            // edit mode so the form doesn't overwrite whatever donor
+            // slid up into that index on the next submit.
+            if (_dnEditingIdx === idx) _dnCancelEdit();
+            else if (_dnEditingIdx > idx) _dnEditingIdx -= 1;
             _dnState.donors.splice(idx, 1);
             renderDonors();
             _dnStatus("Removed — click Save donors to keep the change.");
+          });
+        });
+        host.querySelectorAll("[data-dn-edit]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var idx = Number(btn.getAttribute("data-dn-edit"));
+            _dnStartEdit(idx);
           });
         });
         // Click the PAID / Unpaid chip on any tile to toggle payment
@@ -3170,7 +3189,8 @@
         var preview = document.getElementById("dnAddPreview");
         var name = nameEl ? nameEl.value.trim() : "";
         if (!name) { _dnStatus("Sponsor name is required.", "error"); if (nameEl) nameEl.focus(); return; }
-        _dnState.donors.push({
+        var isEdit = _dnEditingIdx >= 0 && _dnEditingIdx < _dnState.donors.length;
+        var payload = {
           name: name.slice(0, 120),
           tier: (tierEl ? tierEl.value.trim() : "").slice(0, 80),
           amount: (amountEl ? amountEl.value.trim() : "").slice(0, 60),
@@ -3178,10 +3198,27 @@
           contact: (contactEl ? contactEl.value.trim() : "").slice(0, 160),
           website: (websiteEl ? websiteEl.value.trim() : "").slice(0, 240),
           paid: !!(paidEl && paidEl.checked),
-          logoDataUri: _dnPendingLogo || "",
-          addedAt: new Date().toISOString(),
-        });
+        };
+        if (isEdit) {
+          var existing = _dnState.donors[_dnEditingIdx];
+          // Logo semantics: if the operator staged a new logo, use it; if
+          // they cleared it via the Remove file button (hides Clear +
+          // resets input), use "" to drop; otherwise keep the existing
+          // logo untouched so an edit doesn't accidentally wipe artwork.
+          var keepLogo = existing.logoDataUri || "";
+          var clearBtn = document.getElementById("dnAddLogoClear");
+          var stagedNew = !!_dnPendingLogo;
+          var explicitCleared = clearBtn && clearBtn.hidden && !stagedNew && !logoEl.value;
+          payload.logoDataUri = stagedNew ? _dnPendingLogo : (explicitCleared ? "" : keepLogo);
+          payload.addedAt = existing.addedAt || new Date().toISOString();
+          _dnState.donors[_dnEditingIdx] = payload;
+        } else {
+          payload.logoDataUri = _dnPendingLogo || "";
+          payload.addedAt = new Date().toISOString();
+          _dnState.donors.push(payload);
+        }
         _dnPendingLogo = "";
+        _dnEditingIdx = -1;
         if (nameEl) nameEl.value = "";
         if (tierEl) tierEl.value = "";
         if (amountEl) amountEl.value = "";
@@ -3193,8 +3230,62 @@
         if (preview) preview.innerHTML = "";
         var clr = document.getElementById("dnAddLogoClear");
         if (clr) clr.hidden = true;
+        _dnUpdateFormMode();
         renderDonors();
-        _dnStatus("Added — click Save donors to keep the change.");
+        _dnStatus(isEdit ? "Updated — click Save donors to keep the change." : "Added — click Save donors to keep the change.");
+      }
+      // Populate the top add-form from an existing tile so the operator
+      // can tweak details without a Remove + re-add dance. Scrolls the
+      // form into view because the tile clicked may be well below the
+      // fold on a long sponsor wall.
+      function _dnStartEdit(idx) {
+        if (!(idx >= 0 && idx < _dnState.donors.length)) return;
+        var d = _dnState.donors[idx];
+        _dnEditingIdx = idx;
+        var nameEl = document.getElementById("dnAddName"); if (nameEl) nameEl.value = d.name || "";
+        var tierEl = document.getElementById("dnAddTier"); if (tierEl) tierEl.value = d.tier || "";
+        var amountEl = document.getElementById("dnAddAmount"); if (amountEl) amountEl.value = d.amount || "";
+        var thanksEl = document.getElementById("dnAddThanks"); if (thanksEl) thanksEl.value = d.thankYou || "";
+        var contactEl = document.getElementById("dnAddContact"); if (contactEl) contactEl.value = d.contact || "";
+        var websiteEl = document.getElementById("dnAddWebsite"); if (websiteEl) websiteEl.value = d.website || "";
+        var paidEl = document.getElementById("dnAddPaid"); if (paidEl) paidEl.checked = !!d.paid;
+        var logoEl = document.getElementById("dnAddLogo"); if (logoEl) logoEl.value = "";
+        _dnPendingLogo = "";
+        var preview = document.getElementById("dnAddPreview");
+        if (preview) {
+          if (d.logoDataUri) preview.innerHTML = '<img alt="current logo — pick a new file to replace" title="current logo — pick a new file to replace" src="' + esc(d.logoDataUri) + '">';
+          else preview.innerHTML = "";
+        }
+        var clr = document.getElementById("dnAddLogoClear");
+        if (clr) clr.hidden = !d.logoDataUri;
+        _dnUpdateFormMode();
+        _dnStatus("Editing " + (d.name || "sponsor") + " — change fields above, then click Update sponsor.");
+        var form = document.getElementById("dnAddForm");
+        if (form && form.scrollIntoView) form.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (nameEl && nameEl.focus) nameEl.focus();
+      }
+      function _dnCancelEdit() {
+        _dnEditingIdx = -1;
+        _dnPendingLogo = "";
+        var ids = ["dnAddName","dnAddTier","dnAddAmount","dnAddThanks","dnAddContact","dnAddWebsite"];
+        ids.forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
+        var paidEl = document.getElementById("dnAddPaid"); if (paidEl) paidEl.checked = false;
+        var logoEl = document.getElementById("dnAddLogo"); if (logoEl) logoEl.value = "";
+        var preview = document.getElementById("dnAddPreview"); if (preview) preview.innerHTML = "";
+        var clr = document.getElementById("dnAddLogoClear"); if (clr) clr.hidden = true;
+        _dnUpdateFormMode();
+        _dnStatus("");
+      }
+      // Swap the submit button label + show/hide the Cancel edit button so
+      // the operator can tell at a glance which mode the form is in.
+      function _dnUpdateFormMode() {
+        var isEdit = _dnEditingIdx >= 0;
+        var addBtn = document.getElementById("dnAddBtn");
+        if (addBtn) addBtn.textContent = isEdit ? "Update sponsor" : "Add sponsor";
+        var cancelBtn = document.getElementById("dnEditCancel");
+        if (cancelBtn) cancelBtn.hidden = !isEdit;
+        var form = document.getElementById("dnAddForm");
+        if (form) form.classList.toggle("dn-add--editing", isEdit);
       }
       // Convenience: when the operator picks a preset tier that has a
       // dollar amount in parentheses (e.g. "Fire Donor ($250)"), auto-
@@ -11825,6 +11916,8 @@
         });
         var dnAddForm = document.getElementById("dnAddForm");
         if (dnAddForm) dnAddForm.addEventListener("submit", _dnAddFromForm);
+        var dnEditCancel = document.getElementById("dnEditCancel");
+        if (dnEditCancel) dnEditCancel.addEventListener("click", _dnCancelEdit);
         var dnAddLogo = document.getElementById("dnAddLogo");
         if (dnAddLogo) dnAddLogo.addEventListener("change", function () { _dnHandleFilePick(dnAddLogo); });
         var dnAddLogoClear = document.getElementById("dnAddLogoClear");
