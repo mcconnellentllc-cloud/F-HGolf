@@ -722,7 +722,10 @@
         var logo = d.logoDataUri && String(d.logoDataUri).indexOf("data:image/") === 0
           ? '<div class="lb-tile__logo"><img alt="" src="' + _lbEsc(d.logoDataUri) + '"></div>'
           : '<div class="lb-tile__logo lb-tile__logo--empty" aria-hidden="true">' + _lbEsc((d.name || "?").slice(0, 1).toUpperCase()) + '</div>';
-        var amt = d.amount ? '<span class="lb-tile__amt">' + _lbEsc(d.amount) + '</span>' : "";
+        // Amount chip removed from public sponsor tiles per Fire
+        // Department request — recognition only, no dollar figures.
+        // Internal workbook tiles still show the amount for
+        // reconciliation.
         var siteUrl = _lbNormUrl(d.website);
         var siteLine = siteUrl
           ? '<p class="lb-tile__site"><a href="' + _lbEsc(siteUrl) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">' + _lbEsc(String(d.website).replace(/^https?:\/\//i, "")) + ' &rarr;</a></p>'
@@ -732,7 +735,6 @@
           +   logo
           +   '<div class="lb-tile__body">'
           +     '<h3 class="lb-tile__name">' + _lbEsc(d.name) + '</h3>'
-          +     (amt ? '<div class="lb-tile__chips">' + amt + '</div>' : "")
           +     (d.thankYou ? '<p class="lb-tile__thanks">' + _lbEsc(d.thankYou) + '</p>' : "")
           +     (d.contact ? '<p class="lb-tile__contact">' + _lbEsc(d.contact) + '</p>' : "")
           +     siteLine
@@ -785,10 +787,15 @@
           if (!buckets[key]) { buckets[key] = []; order.push(key); }
           buckets[key].push(d);
         });
+        // Strip the "($250)" / "($100)" suffix off tier heading labels
+        // per Fire Department request. The raw tier value stays intact
+        // in Airtable so existing filters and per-tier tallies still
+        // work; only the public display drops the number.
+        var _stripTierAmt = function (t) { return String(t || "").replace(/\s*\(\$[\d,]+\)\s*$/i, "").trim() || t; };
         host.innerHTML = ''
           + '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Sponsors</div><h2 class="lb-panel__title">Thank you to our sponsors</h2><p class="lb-panel__blurb">Local businesses and neighbors who made the day possible.</p></div>'
           + order.map(function (tier) {
-              return '<section class="lb-group"><h3 class="lb-group__hd">' + _lbEsc(tier) + '</h3><div class="lb-tiles">' + buckets[tier].map(_lbTile).join("") + '</div></section>';
+              return '<section class="lb-group"><h3 class="lb-group__hd">' + _lbEsc(_stripTierAmt(tier)) + '</h3><div class="lb-tiles">' + buckets[tier].map(_lbTile).join("") + '</div></section>';
             }).join("")
           + _lbBecomeSponsorCta();
       }

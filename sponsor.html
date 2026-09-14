@@ -342,12 +342,19 @@
       var tiersHost = document.getElementById("spTiers");
       tiersHost.innerHTML = tiers.map(function (t, i) {
         var isCustom = !t.value;
+        // Amount text ("$250" / "$100") hidden per Fire Department
+        // request — recognition tiers only. Custom / In-kind still
+        // shows the "You choose" hint so it's clear what the card is
+        // for. Tier value strings stored on the signup stay unchanged
+        // ("Fire ($250)" etc.) so leaderboard grouping still buckets
+        // correctly.
+        var showAmt = isCustom;
         return ''
           + '<label class="sp__tier">'
           +   '<input type="radio" name="tier" value="' + escAttr(t.value) + '" data-custom="' + (isCustom ? "1" : "0") + '"' + (i === 0 ? " checked" : "") + ' />'
           +   '<div>'
           +     '<h3 class="sp__tier__name">' + escText(t.label) + '</h3>'
-          +     '<div class="sp__tier__amt">' + escText(t.amount) + '</div>'
+          +     (showAmt ? '<div class="sp__tier__amt">' + escText(t.amount) + '</div>' : '')
           +     '<p class="sp__tier__desc">' + escText(t.desc) + '</p>'
           +   '</div>'
           + '</label>';
