@@ -2533,7 +2533,17 @@
         })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
-            if (j && j.ok) { _pinDirty = false; _pinStatus("Saved ✓", "ok"); if (_tcConfigCache) _tcConfigCache["Pin Prizes JSON"] = JSON.stringify(_pinState); }
+            if (j && j.ok) {
+              _pinDirty = false;
+              if (_tcConfigCache) _tcConfigCache["Pin Prizes JSON"] = JSON.stringify(_pinState);
+              // Airtable auto-strip: if the Tournament Config table doesn't
+              // have "Pin Prizes JSON" the API silently drops it and returns
+              // a warning. Never quietly say "Saved ✓" when nothing landed —
+              // that's how prize configuration disappears on the next load
+              // and the operator thinks the site is losing their data.
+              if (j.warning) _pinStatus("⚠ Not saved: " + j.warning, "error");
+              else _pinStatus("Saved ✓", "ok");
+            }
             else { _pinStatus((j && j.error) || "Save failed.", "error"); }
           })
           .catch(function () { _pinStatus("Network error saving.", "error"); });
@@ -2807,7 +2817,13 @@
         })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
-            if (j && j.ok) { _dnStatus("Saved ✓", "ok"); if (_tcConfigCache) _tcConfigCache["Donors JSON"] = payload; }
+            if (j && j.ok) {
+              if (_tcConfigCache) _tcConfigCache["Donors JSON"] = payload;
+              // Same auto-strip surfacing pattern the other JSON tabs use —
+              // never say "Saved ✓" when Airtable silently dropped the field.
+              if (j.warning) _dnStatus("⚠ Not saved: " + j.warning, "error");
+              else _dnStatus("Saved ✓", "ok");
+            }
             else { _dnStatus((j && j.error) || "Save failed.", "error"); }
           })
           .catch(function () { _dnStatus("Network error saving.", "error"); });
@@ -3033,8 +3049,14 @@
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
             if (j && j.ok) {
-              _auStatus("Saved ✓", "ok");
               if (_tcConfigCache) _tcConfigCache["Auction Items JSON"] = payload;
+              // Airtable auto-strip: if "Auction Items JSON" isn't a real
+              // field on Tournament Config the API silently drops it and
+              // returns a warning. Never say "Saved ✓" in that case — the
+              // items evaporate on the next reload and the operator thinks
+              // the site is losing their data.
+              if (j.warning) _auStatus("⚠ Not saved: " + j.warning, "error");
+              else _auStatus("Saved ✓", "ok");
               renderAuction(); // repaint totals + SOLD styling
             } else {
               _auStatus((j && j.error) || "Save failed.", "error");
