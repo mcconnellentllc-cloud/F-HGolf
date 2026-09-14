@@ -105,14 +105,109 @@
     .qrshow__close { position: absolute; top: 1rem; right: 1.2rem; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; width: 3rem; height: 3rem; font-size: 1.5rem; cursor: pointer; }
     .qrshow__close:hover { background: rgba(255,255,255,0.18); }
     .qrshow__err { color: rgba(255,255,255,0.7); text-align: center; padding: 2rem; font-style: italic; }
+
+    /* ======================================================================
+       Haxtun Fire Department theme — activated by body.theme-fire, added
+       via JS when the KEY starts with "Haxtun Fire". Red / black / white
+       palette per the tournament flyer, with maltese-cross fire badges
+       flanking the eyebrow line and heavier borders that echo fire-truck
+       striping. F&H logos + title text stay in place. Doesn't affect any
+       other tournament's leaderboard.
+       ====================================================================== */
+    body.theme-fire {
+      --bg: #0a0a0a;
+      --bg-2: #1a0505;
+      --panel: rgba(255,255,255,0.05);
+      --line: rgba(255,255,255,0.18);
+      --gold: #ffffff;
+      --ink: #ffffff;
+      --muted: rgba(255,255,255,0.62);
+      --fire-red: #c8102e;
+      --fire-red-deep: #7a0a1a;
+    }
+    body.theme-fire { background: radial-gradient(ellipse at top, #2a0a0a 0%, #0a0a0a 65%); }
+    body.theme-fire .disp__hero {
+      background: linear-gradient(180deg, #000 0%, #1a0000 100%);
+      border-bottom: 4px solid var(--fire-red);
+      box-shadow: 0 4px 0 #000, 0 5px 0 var(--fire-red);
+    }
+    body.theme-fire .disp__eyebrow {
+      color: var(--fire-red);
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem;
+    }
+    body.theme-fire .disp__title { color: #fff; text-shadow: 0 2px 0 var(--fire-red-deep); }
+    body.theme-fire .disp__sub { color: rgba(255,255,255,0.85); }
+    body.theme-fire .disp__logo { box-shadow: 0 0 0 3px #000, 0 0 0 6px var(--fire-red); }
+    body.theme-fire .disp__nav { background: #000; border-bottom: 1px solid var(--fire-red-deep); }
+    body.theme-fire .disp__nav a { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.4); color: #fff; }
+    body.theme-fire .disp__nav a:hover, body.theme-fire .disp__nav a:focus-visible { background: var(--fire-red); color: #fff; border-color: var(--fire-red); }
+    body.theme-fire .disp__nav a.is-here { background: rgba(200,16,46,0.28); color: #fff; border-color: var(--fire-red); }
+    body.theme-fire .disp__qrbtn { background: var(--fire-red); color: #fff; box-shadow: 0 6px 22px rgba(200,16,46,0.55); }
+    body.theme-fire .disp__qrbtn:hover { background: #fff; color: var(--fire-red); }
+    body.theme-fire .lbd { border-color: rgba(200,16,46,0.28); border-left: 4px solid var(--fire-red); }
+    body.theme-fire .lbd__hdr { border-bottom-color: rgba(200,16,46,0.35); }
+    body.theme-fire .lbd__name { color: #fff; }
+    body.theme-fire .lbd th { color: rgba(255,255,255,0.72); border-bottom-color: rgba(200,16,46,0.35); }
+    body.theme-fire .lbd td { border-bottom-color: rgba(255,255,255,0.08); }
+    body.theme-fire .lbd td b { color: var(--fire-red); }
+    body.theme-fire .lbd__tnum { background: var(--fire-red); color: #fff; }
+    body.theme-fire .lbd__flag--p1 { background: var(--fire-red); color: #fff; border-color: #7a0a1a; }
+    body.theme-fire .lbd__flag--p2 { background: #fff; color: #000; border-color: #c9c9c9; }
+    body.theme-fire .lbd__flag--p3 { background: #333; color: #fff; border-color: #000; }
+    body.theme-fire .lbd__flag--calc { background: var(--fire-red-deep); color: #fff; border-color: #4a0000; }
+    body.theme-fire .disp__foot .live-dot { background: var(--fire-red); }
+    body.theme-fire .qrshow__eyebrow { color: var(--fire-red); }
+
+    /* Maltese-cross fire badge — inline SVG scaled to sit inside the eyebrow
+       line on either side of the "LIVE LEADERBOARD" text, so the identity
+       reads clearly on the TV without an external image asset. */
+    .fire-badge { display: inline-block; width: 1.6em; height: 1.6em; vertical-align: middle; flex-shrink: 0; }
+    .fire-badge__cross { fill: var(--fire-red); stroke: #000; stroke-width: 4; }
+    .fire-badge__inner { fill: #000; }
+    .fire-badge__glyph { fill: #fff; font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 30px; text-anchor: middle; }
+
+    /* Decorative flame divider that sits above the tournament tiles. Only
+       renders under theme-fire; other tournaments get their normal spacing. */
+    .theme-fire-strip { display: none; }
+    body.theme-fire .theme-fire-strip {
+      display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+      padding: 0.85rem 1rem 0.35rem; color: var(--fire-red); letter-spacing: 0.3em;
+      text-transform: uppercase; font: 800 clamp(0.7rem, 1.05vw, 0.9rem)/1 -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    body.theme-fire .theme-fire-strip::before,
+    body.theme-fire .theme-fire-strip::after {
+      content: ""; flex: 1 1 auto; max-width: 12rem; height: 3px;
+      background: linear-gradient(90deg, transparent, var(--fire-red) 30%, var(--fire-red) 70%, transparent);
+      border-radius: 2px;
+    }
+    body.theme-fire .theme-fire-strip .fire-badge { width: 1.9em; height: 1.9em; }
   </style>
 </head>
 <body>
   <main class="disp" role="main">
+    <!-- Inline maltese-cross fire badge, reused wherever the theme wants
+         to place one. Hidden until body.theme-fire flips on, so this stays
+         invisible on every non-Fire tournament without a JS branch. -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <defs>
+        <symbol id="fireBadge" viewBox="0 0 100 100">
+          <!-- Traditional 8-point fire-service maltese cross. Path outline
+               kept simple so it prints and scales at any size. -->
+          <path class="fire-badge__cross" d="M50 2 L60 25 L75 15 L85 25 L75 35 L98 45 L98 55 L75 65 L85 75 L75 85 L60 75 L50 98 L40 75 L25 85 L15 75 L25 65 L2 55 L2 45 L25 35 L15 25 L25 15 L40 25 Z" />
+          <circle class="fire-badge__inner" cx="50" cy="50" r="18" />
+          <text class="fire-badge__glyph" x="50" y="60">H</text>
+        </symbol>
+      </defs>
+    </svg>
+
     <header class="disp__hero">
       <img class="disp__logo" src="images/logo.png" alt="F&H Golf Course" />
       <div class="disp__hero__title">
-        <div class="disp__eyebrow">Live Leaderboard</div>
+        <div class="disp__eyebrow">
+          <svg class="fire-badge" aria-hidden="true"><use href="#fireBadge" /></svg>
+          <span>Live Leaderboard</span>
+          <svg class="fire-badge" aria-hidden="true"><use href="#fireBadge" /></svg>
+        </div>
         <h1 class="disp__title" id="dispTitle">Live Leaderboard</h1>
         <p class="disp__sub" id="dispSub">F&amp;H Golf Course</p>
       </div>
@@ -125,6 +220,16 @@
       <a href="tournaments.html">Tournaments</a>
       <a class="is-here" href="#" aria-current="page">Live results</a>
     </nav>
+
+    <!-- Fire-theme flame strip — only visible under body.theme-fire.
+         Sits between the nav and the tournament tiles so the Fire Dept
+         identity reads clearly on the TV before viewers even look at the
+         standings. -->
+    <div class="theme-fire-strip" aria-hidden="true">
+      <svg class="fire-badge"><use href="#fireBadge" /></svg>
+      <span>Supporting Our Local Heroes</span>
+      <svg class="fire-badge"><use href="#fireBadge" /></svg>
+    </div>
 
     <div class="qrshow" id="qrShow" role="dialog" aria-modal="true" aria-label="Scan to open live leaderboard">
       <button class="qrshow__close" type="button" id="qrShowClose" aria-label="Close">×</button>
@@ -214,6 +319,14 @@
         var body = document.getElementById("dispBody");
         if (body) body.innerHTML = '<p class="disp__empty-msg">No tournament selected. Head to <a href="tournaments.html" style="color:var(--brass);text-decoration:underline;">Tournaments</a> to pick one.</p>';
         return;
+      }
+      // Per-tournament theme flip — Haxtun Fire Department gets a red /
+      // black / white palette + maltese-cross badges to match the flyer.
+      // Every other tournament stays on the default green/gold F&H theme.
+      // Runs before the config fetch so the theme applies immediately from
+      // the KEY, no flash of default styling.
+      if (/^\s*haxtun\s*fire/i.test(KEY)) {
+        try { document.body.classList.add("theme-fire"); } catch (e) {}
       }
       // Two-day flag drives the D2 column visibility. Defaults to true so
       // the Founders (page's original tournament) keeps its Day 1 / Day 2
