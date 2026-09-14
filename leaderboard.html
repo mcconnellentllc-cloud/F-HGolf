@@ -181,6 +181,66 @@
       border-radius: 2px;
     }
     body.theme-fire .theme-fire-strip .fire-badge { width: 1.9em; height: 1.9em; }
+
+    /* ================= Fire-only view tabs + panels =================
+       Rendered on every load but the wrapper is `hidden` unless JS
+       shows it (Fire tournaments only). Same visual language as
+       .disp__nav so a TV reads it as one continuous chip row. */
+    .lb-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; padding: 0.6rem 1rem; background: rgba(0,0,0,0.5); border-bottom: 1px solid var(--line); }
+    .lb-tab { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 1rem; border-radius: 999px; background: rgba(255,255,255,0.08); color: var(--ink); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; font-size: clamp(0.72rem, 0.95vw, 0.85rem); border: 1px solid rgba(255,255,255,0.14); cursor: pointer; transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease; font-family: inherit; }
+    .lb-tab:hover { background: var(--gold); color: #0b1a10; border-color: var(--gold); }
+    .lb-tab.is-active { background: rgba(245,197,66,0.15); color: var(--gold); border-color: rgba(245,197,66,0.35); }
+    body.theme-fire .lb-tabs { background: #000; border-bottom-color: var(--fire-red-deep, #7a0a1a); }
+    body.theme-fire .lb-tab { background: rgba(200,16,46,0.10); border-color: rgba(200,16,46,0.4); color: #fff; }
+    body.theme-fire .lb-tab:hover { background: var(--fire-red, #c8102e); border-color: var(--fire-red, #c8102e); color: #fff; }
+    body.theme-fire .lb-tab.is-active { background: rgba(200,16,46,0.32); border-color: var(--fire-red, #c8102e); color: #fff; }
+
+    .lb-panel { flex: 1; padding: clamp(0.8rem, 2vw, 1.6rem) clamp(0.8rem, 2vw, 1.6rem) 3rem; max-width: 78rem; width: 100%; margin: 0 auto; }
+    .lb-panel__hd { text-align: center; margin: 0 0 1.25rem; }
+    .lb-panel__eyebrow { text-transform: uppercase; letter-spacing: 0.35em; color: var(--muted); font-weight: 800; font-size: 0.85rem; }
+    .lb-panel__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: var(--gold); font-size: clamp(1.5rem, 3vw, 2.2rem); margin: 0.35em 0 0; }
+    body.theme-fire .lb-panel__title { color: var(--fire-red, #c8102e); }
+    .lb-panel__blurb { color: var(--muted); font-size: 0.95rem; margin: 0.4em 0 0; font-style: italic; }
+
+    /* Sponsor / donor tiles (shared visual language). */
+    .lb-group { margin-bottom: 2rem; }
+    .lb-group__hd { font-family: "Fraunces", Georgia, serif; font-weight: 700; color: var(--gold); font-size: clamp(1.15rem, 2vw, 1.45rem); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.85rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--line); text-align: center; }
+    body.theme-fire .lb-group__hd { color: var(--fire-red, #c8102e); border-bottom-color: rgba(200,16,46,0.35); }
+    .lb-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr)); gap: 1rem; }
+    .lb-tile { display: grid; grid-template-columns: 4.5rem 1fr; gap: 0.75rem; align-items: start; padding: 0.85rem; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+    body.theme-fire .lb-tile { border-left: 4px solid var(--fire-red, #c8102e); }
+    .lb-tile__logo { width: 4.5rem; height: 4.5rem; border-radius: 8px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; }
+    .lb-tile__logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .lb-tile__logo--empty { color: #0b1a10; font: 700 1.8rem/1 "Fraunces", Georgia, serif; background: var(--gold); }
+    body.theme-fire .lb-tile__logo--empty { background: var(--fire-red, #c8102e); color: #fff; }
+    .lb-tile__body { min-width: 0; }
+    .lb-tile__name { margin: 0 0 0.2rem; font: 700 1rem/1.2 "Source Sans 3", system-ui, sans-serif; color: var(--ink); word-wrap: break-word; }
+    .lb-tile__chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0 0 0.35rem; }
+    .lb-tile__amt { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px; background: var(--gold); color: #0b1a10; font: 700 0.72rem/1.4 "Source Sans 3", system-ui, sans-serif; letter-spacing: 0.03em; }
+    body.theme-fire .lb-tile__amt { background: var(--fire-red, #c8102e); color: #fff; }
+    .lb-tile__thanks { margin: 0 0 0.2rem; font-size: 0.85rem; color: var(--ink); line-height: 1.35; }
+    .lb-tile__contact { margin: 0; font-size: 0.75rem; color: var(--muted); }
+
+    /* Auction cards on the leaderboard panel — same shape as auction.html. */
+    .lb-au-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.6rem; margin: 0 0 1.25rem; }
+    .lb-au-stat { padding: 0.7rem 0.9rem; border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 10px; background: var(--panel); }
+    body.theme-fire .lb-au-stat { border-left-color: var(--fire-red, #c8102e); }
+    .lb-au-stat__l { font: 700 0.65rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+    .lb-au-stat__n { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: var(--gold); font-size: 1.5rem; margin-top: 0.2rem; }
+    body.theme-fire .lb-au-stat__n { color: var(--fire-red, #c8102e); }
+    .lb-au-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr)); gap: 1rem; }
+    .lb-au-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+    body.theme-fire .lb-au-card { border-left: 4px solid var(--fire-red, #c8102e); }
+    .lb-au-card__photo { width: 100%; aspect-ratio: 4/3; object-fit: cover; background: #000; display: block; }
+    .lb-au-card__photo--empty { display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.35); font: 800 1rem/1 "Fraunces", Georgia, serif; letter-spacing: 0.2em; text-transform: uppercase; }
+    .lb-au-card__body { padding: 0.85rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
+    .lb-au-card__name { font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 1.2rem; margin: 0; color: #fff; line-height: 1.2; }
+    .lb-au-card__desc { color: rgba(255,255,255,0.82); font-size: 0.9rem; line-height: 1.35; margin: 0; }
+    .lb-au-card__chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.35rem; }
+    .lb-au-card__chip { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font: 700 0.72rem/1.4 "Source Sans 3", system-ui, sans-serif; background: rgba(255,255,255,0.08); color: #fff; }
+    .lb-au-card__chip--floor { background: var(--gold); color: #0b1a10; }
+    body.theme-fire .lb-au-card__chip--floor { background: var(--fire-red, #c8102e); color: #fff; }
+    .lb-au-card__chip--sold { background: #c8102e; color: #fff; }
   </style>
 </head>
 <body>
@@ -231,6 +291,17 @@
       <svg class="fire-badge"><use href="#fireBadge" /></svg>
     </div>
 
+    <!-- Fire-only view switcher. Rendered but hidden until JS
+         (isFire && has data) flips it visible. Same visual language as
+         the nav pills above so a TV viewer at a distance sees a
+         consistent chip row.  The Leaderboard chip is default-active. -->
+    <nav class="lb-tabs" id="lbTabs" aria-label="Tournament sections" hidden>
+      <button class="lb-tab is-active" type="button" data-view="leaderboard">Leaderboard</button>
+      <button class="lb-tab" type="button" data-view="sponsors">Sponsors</button>
+      <button class="lb-tab" type="button" data-view="donors">Donors</button>
+      <button class="lb-tab" type="button" data-view="auction">Auction</button>
+    </nav>
+
     <div class="qrshow" id="qrShow" role="dialog" aria-modal="true" aria-label="Scan to open live leaderboard">
       <button class="qrshow__close" type="button" id="qrShowClose" aria-label="Close">×</button>
       <div class="qrshow__eyebrow">Scan to Follow</div>
@@ -242,8 +313,21 @@
       <div class="qrshow__hint">Point your phone camera at the code &mdash; or type the URL into any browser.</div>
     </div>
 
-    <section class="disp__body" id="dispBody">
+    <section class="disp__body" id="dispBody" data-view="leaderboard">
       <p class="disp__empty-msg">Loading leaderboard&hellip;</p>
+    </section>
+
+    <!-- Fire-only view panels. Hidden until the corresponding chip is
+         picked. Loaded on-demand from the Tournament Config the first
+         time a chip is opened — cached in memory for the session. -->
+    <section class="lb-panel" id="lbSponsors" data-view="sponsors" hidden>
+      <p class="disp__empty-msg">Loading sponsors&hellip;</p>
+    </section>
+    <section class="lb-panel" id="lbDonors" data-view="donors" hidden>
+      <p class="disp__empty-msg">Loading donors&hellip;</p>
+    </section>
+    <section class="lb-panel" id="lbAuction" data-view="auction" hidden>
+      <p class="disp__empty-msg">Loading auction&hellip;</p>
     </section>
 
     <footer class="disp__foot"><span class="live-dot"></span><span id="dispLast">Loading&hellip;</span></footer>
@@ -325,8 +409,168 @@
       // Every other tournament stays on the default green/gold F&H theme.
       // Runs before the config fetch so the theme applies immediately from
       // the KEY, no flash of default styling.
-      if (/^\s*haxtun\s*fire/i.test(KEY)) {
+      var IS_FIRE = /^\s*haxtun\s*fire/i.test(KEY);
+      if (IS_FIRE) {
         try { document.body.classList.add("theme-fire"); } catch (e) {}
+      }
+
+      // -- Fire-only view tabs (Leaderboard / Sponsors / Donors / Auction) --
+      // Show the tab bar, wire chip clicks, and lazy-load the panel data
+      // from Tournament Config on first open. The Leaderboard chip is
+      // already the default view (dispBody is populated by the polling
+      // loop below); the other three chips show config-driven content
+      // that doesn't need polling.
+      function _lbSetView(view) {
+        try {
+          Array.prototype.forEach.call(document.querySelectorAll(".lb-tab"), function (btn) {
+            btn.classList.toggle("is-active", btn.getAttribute("data-view") === view);
+          });
+          Array.prototype.forEach.call(document.querySelectorAll("[data-view]"), function (el) {
+            if (el.classList && el.classList.contains("lb-tab")) return;
+            el.hidden = (el.getAttribute("data-view") !== view);
+          });
+          try { location.hash = view === "leaderboard" ? "" : ("#" + view); } catch (e) {}
+        } catch (e) {}
+      }
+      var _lbConfigCache = null;
+      var _lbConfigInFlight = null;
+      function _lbLoadConfig() {
+        if (_lbConfigCache) return Promise.resolve(_lbConfigCache);
+        if (_lbConfigInFlight) return _lbConfigInFlight;
+        _lbConfigInFlight = fetch(FH_API.url("/api/tournament-signups") + "?config=" + encodeURIComponent(KEY), { cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) {
+            _lbConfigCache = (j && j.ok && j.record && j.record.fields) || {};
+            _lbConfigInFlight = null;
+            return _lbConfigCache;
+          })
+          .catch(function () { _lbConfigInFlight = null; _lbConfigCache = {}; return _lbConfigCache; });
+        return _lbConfigInFlight;
+      }
+      function _lbEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]); }
+      function _lbMoney(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+      function _lbTile(d) {
+        var logo = d.logoDataUri && String(d.logoDataUri).indexOf("data:image/") === 0
+          ? '<div class="lb-tile__logo"><img alt="" src="' + _lbEsc(d.logoDataUri) + '"></div>'
+          : '<div class="lb-tile__logo lb-tile__logo--empty" aria-hidden="true">' + _lbEsc((d.name || "?").slice(0, 1).toUpperCase()) + '</div>';
+        var amt = d.amount ? '<span class="lb-tile__amt">' + _lbEsc(d.amount) + '</span>' : "";
+        return ''
+          + '<article class="lb-tile">'
+          +   logo
+          +   '<div class="lb-tile__body">'
+          +     '<h3 class="lb-tile__name">' + _lbEsc(d.name) + '</h3>'
+          +     (amt ? '<div class="lb-tile__chips">' + amt + '</div>' : "")
+          +     (d.thankYou ? '<p class="lb-tile__thanks">' + _lbEsc(d.thankYou) + '</p>' : "")
+          +     (d.contact ? '<p class="lb-tile__contact">' + _lbEsc(d.contact) + '</p>' : "")
+          +   '</div>'
+          + '</article>';
+      }
+      function _lbParseDonors(fields) {
+        var list = [];
+        try {
+          var raw = fields && fields["Donors JSON"];
+          var parsed = JSON.parse(raw || "{}");
+          if (parsed && Array.isArray(parsed.donors)) list = parsed.donors.filter(function (d) { return d && d.name; });
+        } catch (e) {}
+        return list;
+      }
+      // Sponsors = "Fire Donor" tier and any other explicit tier
+      // (i.e. anyone the operator has categorized). Donors = everyone
+      // else (custom-amount contributions, untagged). Rendered under
+      // grouped headings when there are multiple tiers.
+      function _lbRenderSponsors(fields) {
+        var host = document.getElementById("lbSponsors");
+        var all = _lbParseDonors(fields);
+        var tiered = all.filter(function (d) { return String(d.tier || "").trim(); });
+        if (!tiered.length) { host.innerHTML = '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Sponsors</div><h2 class="lb-panel__title">Thank you to our sponsors</h2></div><p class="disp__empty-msg">Sponsor list coming soon.</p>'; return; }
+        var order = [];
+        var buckets = {};
+        tiered.forEach(function (d) {
+          var key = String(d.tier || "").trim();
+          if (!buckets[key]) { buckets[key] = []; order.push(key); }
+          buckets[key].push(d);
+        });
+        host.innerHTML = ''
+          + '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Sponsors</div><h2 class="lb-panel__title">Thank you to our sponsors</h2><p class="lb-panel__blurb">Local businesses and neighbors who made the day possible.</p></div>'
+          + order.map(function (tier) {
+              return '<section class="lb-group"><h3 class="lb-group__hd">' + _lbEsc(tier) + '</h3><div class="lb-tiles">' + buckets[tier].map(_lbTile).join("") + '</div></section>';
+            }).join("");
+      }
+      function _lbRenderDonors(fields) {
+        var host = document.getElementById("lbDonors");
+        var all = _lbParseDonors(fields);
+        var untagged = all.filter(function (d) { return !String(d.tier || "").trim(); });
+        if (!untagged.length && !all.length) { host.innerHTML = '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Donors</div><h2 class="lb-panel__title">Thank you to our donors</h2></div><p class="disp__empty-msg">Donor list coming soon.</p>'; return; }
+        // Show ALL donors on the Donors tab (including tiered) so it's a
+        // complete honor roll, but visually flat — grouping heading only
+        // when both untagged and tiered donors exist.
+        host.innerHTML = ''
+          + '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Donors</div><h2 class="lb-panel__title">Thank you to every donor</h2><p class="lb-panel__blurb">Every contribution, cash or in-kind, made this day happen.</p></div>'
+          + '<div class="lb-tiles">' + all.map(_lbTile).join("") + '</div>';
+      }
+      function _lbRenderAuction(fields) {
+        var host = document.getElementById("lbAuction");
+        var items = [];
+        try {
+          var raw = fields && fields["Auction Items JSON"];
+          var parsed = JSON.parse(raw || "{}");
+          if (parsed && Array.isArray(parsed.items)) items = parsed.items.filter(function (i) { return i && i.name; });
+        } catch (e) {}
+        if (!items.length) { host.innerHTML = '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Auction</div><h2 class="lb-panel__title">Live auction</h2></div><p class="disp__empty-msg">Auction items coming soon.</p>'; return; }
+        var soldCount = items.filter(function (i) { return i.sold && i.sold.amount; }).length;
+        var pledged = items.reduce(function (s, i) { return s + ((i.sold && i.sold.amount) || 0); }, 0);
+        var summary = ''
+          + '<div class="lb-au-summary">'
+          +   '<div class="lb-au-stat"><div class="lb-au-stat__l">Items</div><div class="lb-au-stat__n">' + items.length + '</div></div>'
+          +   '<div class="lb-au-stat"><div class="lb-au-stat__l">Sold</div><div class="lb-au-stat__n">' + soldCount + '</div></div>'
+          +   '<div class="lb-au-stat"><div class="lb-au-stat__l">Raised</div><div class="lb-au-stat__n">' + _lbEsc(_lbMoney(pledged)) + '</div></div>'
+          + '</div>';
+        var grid = items.map(function (it) {
+          var photo = it.photoDataUri && String(it.photoDataUri).indexOf("data:image/") === 0
+            ? '<img class="lb-au-card__photo" alt="" src="' + _lbEsc(it.photoDataUri) + '">'
+            : '<div class="lb-au-card__photo lb-au-card__photo--empty">No photo</div>';
+          var chips = [];
+          if (it.floor) chips.push('<span class="lb-au-card__chip lb-au-card__chip--floor">Floor ' + _lbEsc(_lbMoney(it.floor)) + '</span>');
+          if (it.donor) chips.push('<span class="lb-au-card__chip">Donated by ' + _lbEsc(it.donor) + '</span>');
+          if (it.sold && it.sold.amount) chips.push('<span class="lb-au-card__chip lb-au-card__chip--sold">SOLD ' + _lbEsc(_lbMoney(it.sold.amount)) + '</span>');
+          return ''
+            + '<article class="lb-au-card">'
+            +   photo
+            +   '<div class="lb-au-card__body">'
+            +     '<h3 class="lb-au-card__name">' + _lbEsc(it.name) + '</h3>'
+            +     (it.description ? '<p class="lb-au-card__desc">' + _lbEsc(it.description) + '</p>' : "")
+            +     (chips.length ? '<div class="lb-au-card__chips">' + chips.join("") + '</div>' : "")
+            +   '</div>'
+            + '</article>';
+        }).join("");
+        host.innerHTML = ''
+          + '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Live Auction</div><h2 class="lb-panel__title">Bid to support the Fire Department</h2><p class="lb-panel__blurb">Every dollar raised protects our neighbors from the ferocity of fire.</p></div>'
+          + summary
+          + '<div class="lb-au-grid">' + grid + '</div>';
+      }
+      function _lbOpenView(view) {
+        _lbSetView(view);
+        if (view === "leaderboard") return;
+        _lbLoadConfig().then(function (fields) {
+          if (view === "sponsors") _lbRenderSponsors(fields);
+          else if (view === "donors") _lbRenderDonors(fields);
+          else if (view === "auction") _lbRenderAuction(fields);
+        });
+      }
+      if (IS_FIRE) {
+        var tabsBar = document.getElementById("lbTabs");
+        if (tabsBar) tabsBar.hidden = false;
+        Array.prototype.forEach.call(document.querySelectorAll(".lb-tab"), function (btn) {
+          btn.addEventListener("click", function () { _lbOpenView(btn.getAttribute("data-view")); });
+        });
+        // Honor #sponsors / #donors / #auction hash on first load so a
+        // shared link goes straight to the intended view.
+        try {
+          var hash = String(location.hash || "").replace(/^#/, "");
+          if (hash && ["sponsors", "donors", "auction"].indexOf(hash) !== -1) {
+            setTimeout(function () { _lbOpenView(hash); }, 0);
+          }
+        } catch (e) {}
       }
       // Two-day flag drives the D2 column visibility. Defaults to true so
       // the Founders (page's original tournament) keeps its Day 1 / Day 2
