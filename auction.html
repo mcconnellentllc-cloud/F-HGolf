@@ -61,6 +61,16 @@
     .au-card__chip--floor { background: var(--gold); color: #0b1a10; }
     .au-card__chip--sold { background: var(--red); color: #fff; }
     .au-card__chip--donor { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); font-weight: 600; }
+    /* "Now up for bid" — highlight the item the clerk is hammering
+       right now. Bright red border + pulsing glow + a top banner so
+       viewers on a TV or a phone can spot it at a glance. */
+    .au-card--now { border: 3px solid #c8102e; box-shadow: 0 0 0 3px rgba(200,16,46,0.35), 0 10px 30px rgba(200,16,46,0.35); animation: auNowPulse 2s ease-in-out infinite; }
+    .au-card__now { background: linear-gradient(90deg, #c8102e 0%, #7a0a1a 100%); color: #fff; font: 800 0.9rem/1.1 "Source Sans 3", system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; text-align: center; padding: 0.6rem 0.75rem; }
+    @keyframes auNowPulse {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(200,16,46,0.35), 0 10px 30px rgba(200,16,46,0.35); }
+      50%      { box-shadow: 0 0 0 6px rgba(200,16,46,0.55), 0 12px 40px rgba(200,16,46,0.55); }
+    }
+    @media (prefers-reduced-motion: reduce) { .au-card--now { animation: none; } }
     .au-card__winner { margin-top: 0.35rem; padding-top: 0.5rem; border-top: 1px dashed var(--line); font-size: 0.85rem; color: rgba(255,255,255,0.72); }
     .au-card__winner b { color: var(--gold); }
     .au-empty { text-align: center; color: var(--muted); padding: 3rem 1rem; font-style: italic; }
@@ -163,7 +173,15 @@
           grid.innerHTML = '<p class="au-empty">No auction items yet. Check back before the tournament for a full list.</p>';
           return;
         }
-        grid.innerHTML = items.map(function (it) {
+        // "Current item" = first unsold item from the top of the list.
+        // The clerk hammers items top-down; when a price lands on the
+        // current item, it flips SOLD and the next unsold one takes
+        // over. -1 = every item sold (auction closed).
+        var currentIdx = -1;
+        for (var _ci = 0; _ci < items.length; _ci++) {
+          if (!(items[_ci].sold && items[_ci].sold.amount)) { currentIdx = _ci; break; }
+        }
+        grid.innerHTML = items.map(function (it, idx) {
           // Support both the new `photos` array and legacy `photoDataUri`
           // string. New items save as `photos: [dataUri, dataUri]`; old
           // items still carry `photoDataUri` until they're re-saved.
@@ -196,8 +214,13 @@
           if (it.floor) chips.push('<span class="au-card__chip au-card__chip--floor">Floor ' + money(it.floor) + '</span>');
           if (it.donor) chips.push('<span class="au-card__chip au-card__chip--donor">Donated by ' + esc(it.donor) + '</span>');
           if (it.sold && it.sold.amount) chips.push('<span class="au-card__chip au-card__chip--sold">SOLD</span>');
+          var isCurrent = idx === currentIdx;
+          var nowBadge = isCurrent
+            ? '<div class="au-card__now" aria-label="Currently up for bid">&#x1F525; Now up for bid</div>'
+            : '';
           return ''
-            + '<article class="au-card">'
+            + '<article class="au-card' + (isCurrent ? ' au-card--now' : '') + '">'
+            +   nowBadge
             +   photo
             +   '<div class="au-card__body">'
             +     '<h2 class="au-card__name">' + esc(it.name || "(item)") + '</h2>'

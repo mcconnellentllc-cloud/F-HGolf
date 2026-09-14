@@ -244,8 +244,19 @@
     .lb-au-stat__n { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: var(--gold); font-size: 1.5rem; margin-top: 0.2rem; }
     body.theme-fire .lb-au-stat__n { color: var(--fire-red, #c8102e); }
     .lb-au-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr)); gap: 1rem; }
-    .lb-au-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+    .lb-au-card { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
     body.theme-fire .lb-au-card { border-left: 4px solid var(--fire-red, #c8102e); }
+    /* "Now up for bid" — the single item the clerk is hammering right
+       now. Bright fire-red frame and a top banner so the TV viewer
+       and the phone bidder both know exactly which item is live. */
+    .lb-au-card--now { border: 3px solid #c8102e; box-shadow: 0 0 0 3px rgba(200,16,46,0.35), 0 10px 30px rgba(200,16,46,0.35); animation: lbAuNowPulse 2s ease-in-out infinite; }
+    body.theme-fire .lb-au-card--now { border-left-width: 3px; }
+    .lb-au-card__now { background: linear-gradient(90deg, #c8102e 0%, #7a0a1a 100%); color: #fff; font: 800 0.85rem/1.1 "Source Sans 3", system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; text-align: center; padding: 0.55rem 0.75rem; }
+    @keyframes lbAuNowPulse {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(200,16,46,0.35), 0 10px 30px rgba(200,16,46,0.35); }
+      50%      { box-shadow: 0 0 0 6px rgba(200,16,46,0.55), 0 12px 40px rgba(200,16,46,0.55); }
+    }
+    @media (prefers-reduced-motion: reduce) { .lb-au-card--now { animation: none; } }
     .lb-au-card__photo { width: 100%; aspect-ratio: 4/3; object-fit: cover; background: #000; display: block; }
     .lb-au-card__photo--empty { display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.35); font: 800 1rem/1 "Fraunces", Georgia, serif; letter-spacing: 0.2em; text-transform: uppercase; }
     .lb-au-card__body { padding: 0.85rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
@@ -697,15 +708,13 @@
           var parsed = JSON.parse(raw || "{}");
           if (parsed && Array.isArray(parsed.items)) items = parsed.items.filter(function (i) { return i && i.name; });
         } catch (e) {}
-        var sold = items.filter(function (i) { return i.sold && i.sold.amount; }).length;
         var banner = document.getElementById("fireTotalBanner");
         if (banner) banner.setAttribute("aria-hidden", "false");
         var stats = document.getElementById("fireStats");
         if (stats) {
           stats.innerHTML = ''
             + '<div class="fire-stat"><div class="fire-stat__l">Sponsors</div><div class="fire-stat__n">' + donors.length + '</div></div>'
-            + '<div class="fire-stat"><div class="fire-stat__l">Auction items</div><div class="fire-stat__n">' + items.length + '</div></div>'
-            + '<div class="fire-stat"><div class="fire-stat__l">Items sold</div><div class="fire-stat__n">' + sold + '</div></div>';
+            + '<div class="fire-stat"><div class="fire-stat__l">Auction items</div><div class="fire-stat__n">' + items.length + '</div></div>';
           stats.setAttribute("aria-hidden", "false");
         }
       }
@@ -818,7 +827,16 @@
           +   '<div class="lb-au-stat"><div class="lb-au-stat__l">Items</div><div class="lb-au-stat__n">' + items.length + '</div></div>'
           +   '<div class="lb-au-stat"><div class="lb-au-stat__l">Sold</div><div class="lb-au-stat__n">' + soldCount + '</div></div>'
           + '</div>';
-        var grid = items.map(function (it) {
+        // "Current item" = first item from the top whose sold.amount is
+        // empty. The clerk hammers items top-down; the moment a price
+        // is entered, that item flips to SOLD and the next unsold one
+        // takes over. -1 means every item has already sold (auction
+        // done).
+        var currentIdx = -1;
+        for (var _ci = 0; _ci < items.length; _ci++) {
+          if (!(items[_ci].sold && items[_ci].sold.amount)) { currentIdx = _ci; break; }
+        }
+        var grid = items.map(function (it, idx) {
           var photo = it.photoDataUri && String(it.photoDataUri).indexOf("data:image/") === 0
             ? '<img class="lb-au-card__photo" alt="" src="' + _lbEsc(it.photoDataUri) + '">'
             : '<div class="lb-au-card__photo lb-au-card__photo--empty">No photo</div>';
@@ -828,8 +846,13 @@
           // Public leaderboard — sold status only, no amounts, no names.
           // Individual purchase info stays inside the workbook Clerk tab.
           if (it.sold && it.sold.amount) chips.push('<span class="lb-au-card__chip lb-au-card__chip--sold">SOLD</span>');
+          var isCurrent = idx === currentIdx;
+          var nowBadge = isCurrent
+            ? '<div class="lb-au-card__now" aria-label="Currently up for bid">&#x1F525; Now up for bid</div>'
+            : '';
           return ''
-            + '<article class="lb-au-card">'
+            + '<article class="lb-au-card' + (isCurrent ? ' lb-au-card--now' : '') + '">'
+            +   nowBadge
             +   photo
             +   '<div class="lb-au-card__body">'
             +     '<h3 class="lb-au-card__name">' + _lbEsc(it.name) + '</h3>'
