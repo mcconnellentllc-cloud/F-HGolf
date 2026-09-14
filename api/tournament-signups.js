@@ -285,12 +285,86 @@ module.exports = async (req, res) => {
         // Money + counts sum. Only include the field on the PATCH if at
         // least one side had a real value — avoids nulling out an empty
         // field on Airtable when neither side set it.
-        const sumFields = ["Amount Paid", "Extra Meals", "Player 1 Cart Share", "Player 2 Cart Share", "Player 1 Extra Meal", "Player 2 Extra Meal", "Buy Amount"];
+        const sumFields = ["Amount Paid", "Extra Meals", "Player 1 Cart Share", "Player 2 Cart Share", "Player 3 Cart Share", "Player 4 Cart Share", "Player 1 Extra Meal", "Player 2 Extra Meal", "Buy Amount"];
         sumFields.forEach((f) => {
           const kv = typeof kf[f] === "number" ? kf[f] : (kf[f] ? Number(kf[f]) : 0);
           const dv = typeof df[f] === "number" ? df[f] : (df[f] ? Number(df[f]) : 0);
           if (kv || dv) fields[f] = (kv || 0) + (dv || 0);
         });
+
+        // Extras Purchased is a JSON map { "Mulligans": ["p1","p3"], ... }
+        // where p1..p4 are per-team slot indices (p1 = captain, p2..p4 =
+        // partners in order). On merge, keep's slots stay put and drop's
+        // slots have to shift right by the count of keep-side players that
+        // survived deduplication AND survived the 4-slot cap — otherwise a
+        // "Mulligans: p1" on drop would silently overwrite keep's captain's
+        // Mulligans, or point at a slot that doesn't exist on the merged
+        // team. Non-numeric or out-of-range entries after remap are dropped
+        // rather than getting stuck on a nonexistent player.
+        function parseExP(raw) {
+          if (!raw) return {};
+          try {
+            const obj = JSON.parse(raw);
+            if (!obj || typeof obj !== "object" || Array.isArray(obj)) return {};
+            const out = {};
+            for (const k of Object.keys(obj)) {
+              const v = obj[k];
+              if (Array.isArray(v)) out[k] = v.filter((s) => /^p[1-4]$/.test(s));
+            }
+            return out;
+          } catch (e) { return {}; }
+        }
+        // Slot count on the keep team BEFORE the merge — captain + partners.
+        // partnersFromKeep already parsed above. drop's captain becomes the
+        // NEXT slot after keep's last partner (dropCap → p{keepCount+1}).
+        const keepSlotCount = 1 + partnersFromKeep.length;
+        const kExP = parseExP(kf["Extras Purchased"]);
+        const dExPRaw = parseExP(df["Extras Purchased"]);
+        const dExP = {};
+        for (const name of Object.keys(dExPRaw)) {
+          const remapped = [];
+          for (const slot of dExPRaw[name]) {
+            const oldIdx = Number(slot.slice(1));       // "p3" → 3
+            const newIdx = keepSlotCount + oldIdx;     // shift right
+            if (newIdx >= 1 && newIdx <= 4) remapped.push("p" + newIdx);
+          }
+          if (remapped.length) dExP[name] = remapped;
+        }
+        const allExPNames = new Set([...Object.keys(kExP), ...Object.keys(dExP)]);
+        if (allExPNames.size) {
+          const merged = {};
+          for (const name of allExPNames) {
+            const set = new Set([...(kExP[name] || []), ...(dExP[name] || [])]);
+            if (set.size) merged[name] = [...set].sort();
+          }
+          if (Object.keys(merged).length) fields["Extras Purchased"] = JSON.stringify(merged);
+        }
+        // Extras Used is a team-wide numeric map { "Mulligans": 2 }. No
+        // player indices involved, so we just add counts per name.
+        function parseExU(raw) {
+          if (!raw) return {};
+          try {
+            const obj = JSON.parse(raw);
+            if (!obj || typeof obj !== "object" || Array.isArray(obj)) return {};
+            const out = {};
+            for (const k of Object.keys(obj)) {
+              const n = Number(obj[k]);
+              if (isFinite(n) && n > 0) out[k] = Math.floor(n);
+            }
+            return out;
+          } catch (e) { return {}; }
+        }
+        const kExU = parseExU(kf["Extras Used"]);
+        const dExU = parseExU(df["Extras Used"]);
+        const allExUNames = new Set([...Object.keys(kExU), ...Object.keys(dExU)]);
+        if (allExUNames.size) {
+          const usedMerged = {};
+          for (const name of allExUNames) {
+            const total = (kExU[name] || 0) + (dExU[name] || 0);
+            if (total > 0) usedMerged[name] = total;
+          }
+          if (Object.keys(usedMerged).length) fields["Extras Used"] = JSON.stringify(usedMerged);
+        }
         // Player linked records — union.
         const kLinks = Array.isArray(kf.Player) ? kf.Player : [];
         const dLinks = Array.isArray(df.Player) ? df.Player : [];
