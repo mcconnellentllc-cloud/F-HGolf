@@ -1407,7 +1407,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 
 /* ===================== Tournament workspace: Excel-workbook feel ===================== */
 .wb-tabs { display: flex; gap: 3px; overflow-x: auto; border-bottom: 2px solid var(--primary-green); margin-bottom: 1.1rem; position: sticky; top: var(--nav-height); background: var(--paper); z-index: 6; padding-top: 0.35rem; -webkit-overflow-scrolling: touch; }
-.wb-tab { flex: 0 0 auto; border: 1px solid var(--line); border-bottom: none; background: var(--paper-2); color: var(--muted); font-family: var(--font-body); font-weight: 700; font-size: 0.9rem; padding: 0.55rem 1.05rem; border-radius: 8px 8px 0 0; cursor: pointer; white-space: nowrap; }
+.wb-tab { flex: 0 0 auto; border: 1px solid var(--line); border-bottom: none; background: var(--paper-2); color: var(--ink); font-family: var(--font-body); font-weight: 700; font-size: 0.9rem; padding: 0.55rem 1.05rem; border-radius: 8px 8px 0 0; cursor: pointer; white-space: nowrap; }
 .wb-tab:hover { color: var(--primary-green); background: #fff; }
 .wb-tab.is-active { background: #fff; color: var(--primary-green); border-color: var(--primary-green); box-shadow: inset 0 3px 0 var(--primary-green); margin-bottom: -2px; padding-bottom: calc(0.55rem + 2px); }
 .wb-tabs__spacer { flex: 1 1 auto; min-width: 0.6rem; }
@@ -2685,16 +2685,35 @@ body.pp-print-cards { background: #fff; }
 .dn-tile__contact { margin: 0; font-size: 0.78rem; color: var(--muted, #7a7663); }
 
 /* ===================== Auction (workbook tab) ===================== */
-.au-add { display: grid; grid-template-columns: 1fr 1fr 5rem 2fr auto auto auto; gap: 0.55rem 0.75rem; align-items: end; margin-bottom: 1rem; }
-@media (max-width: 1000px) { .au-add { grid-template-columns: 1fr 1fr; } .au-add__field--desc { grid-column: 1 / -1; } }
-@media (max-width: 560px) { .au-add { grid-template-columns: 1fr; } }
-.au-add__field { display: block; }
-.au-add__field span { display: block; font: 700 0.66rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted, #7a7663); margin-bottom: 0.25rem; }
-.au-add__field input[type="text"], .au-add__field input[type="number"] { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; }
+/* Named grid areas so the form reads clearly at any width:
+     row 1: [ Item * ]  [ Donor ]  [ Floor $ ]
+     row 2: [ Description spans all 3 ]
+     row 3: [ Photo ]   [ preview ]  [ Add item ]
+   Under 720px it stacks one field per row. */
+.au-add { display: grid; grid-template-columns: 2fr 1.4fr 6rem; grid-template-areas: "name donor floor" "desc desc desc" "photo preview submit"; gap: 0.75rem 1rem; align-items: end; padding: 1rem; background: #faf8f2; border: 1px solid var(--line, #e6e2d8); border-radius: 10px; margin-bottom: 1.25rem; }
+.au-add__field--name { grid-area: name; }
+.au-add__field--floor { grid-area: floor; }
+.au-add__field--desc { grid-area: desc; }
+.au-add__field--photo { grid-area: photo; }
+.au-add__preview { grid-area: preview; align-self: end; }
+.au-add__submit { grid-area: submit; align-self: end; }
+.au-add > .au-add__field:not(.au-add__field--name):not(.au-add__field--floor):not(.au-add__field--desc):not(.au-add__field--photo) { grid-area: donor; }
+@media (max-width: 720px) {
+  .au-add { grid-template-columns: 1fr; grid-template-areas: "name" "donor" "floor" "desc" "photo" "preview" "submit"; }
+}
+.au-add__field { display: block; min-width: 0; }
+.au-add__field span { display: block; font: 700 0.78rem/1.2 system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink, #2a2418); margin-bottom: 0.35rem; }
+.au-add__field input[type="text"], .au-add__field input[type="number"] { width: 100%; padding: 0.55rem 0.7rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; font-size: 0.95rem; background: #fff; }
+.au-add__field input:focus { outline: 2px solid var(--primary-green, #1B5E20); outline-offset: 1px; }
 .au-add__field--name span::after { content: " *"; color: var(--red-deep, #7a1a1a); }
-.au-add__field--photo input[type="file"] { font: 0.85rem system-ui, sans-serif; }
+.au-add__field--photo input[type="file"] { font: 0.85rem system-ui, sans-serif; padding: 0.35rem 0; }
 .au-add__preview { width: 3.25rem; height: 3.25rem; border: 1px dashed var(--line, #e6e2d8); border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fff; overflow: hidden; }
 .au-add__preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.au-add__submit .btn { width: 100%; }
+/* Fire theme swaps the panel accent to red so the workbook operator
+   sees at a glance that this is the Fire-only tab. */
+body.theme-fire .au-add { border-left: 4px solid #c8102e; }
+body.theme-fire .au-add__field input:focus { outline-color: #c8102e; }
 .au-h { margin: 1rem 0 0.35rem 0; font-family: Fraunces, Georgia, serif; color: var(--primary-green, #1B5E20); font-size: 1.1rem; }
 .au-note { color: var(--muted, #7a7663); font-size: 0.85rem; margin: 0 0 0.65rem 0; }
 .au-empty { color: var(--muted, #7a7663); font-style: italic; padding: 1rem; background: #faf8f2; border-radius: 8px; }
@@ -2723,8 +2742,25 @@ body.pp-print-cards { background: #fff; }
   .au-clerk__acts { grid-column: 1 / -1; justify-content: flex-start; }
 }
 /* Fire tab highlight — the Auction tab lives here so it deserves a
-   red accent on the workbook tab bar, matching the theme. */
-body.theme-fire .wb-tab.wb-tab--fire { color: var(--red, #c8102e); }
-body.theme-fire .wb-tab.wb-tab--fire.is-active { border-bottom-color: var(--red, #c8102e) !important; }
+   red accent on the workbook tab bar, matching the theme. The active
+   tab needs the full color-set (background + text + border + inset
+   box-shadow) overridden because the default active state uses
+   var(--primary-green) for all four; without every override the
+   green line-under-tab stays. */
+body.theme-fire .wb-tab.wb-tab--fire { color: #7a0a1a; }
+body.theme-fire .wb-tab.is-active { background: #fff !important; color: #c8102e !important; border-color: #c8102e !important; box-shadow: inset 0 3px 0 #c8102e !important; }
+body.theme-fire .wb-tabs { border-bottom-color: #c8102e !important; }
+
+/* Per-tab step-by-step instructions. Any tab that needs a quick
+   "how to use this" for a first-time operator drops an <ol class=
+   "tab-howto"> right below the noms__bar. Reads as a numbered list
+   with subtle background so it doesn't compete with the primary
+   content. Fire theme flips the accent to red. */
+.tab-howto { margin: 0.25rem 0 1.25rem; padding: 0.85rem 1.15rem 0.85rem 2.4rem; background: #fbf7ea; border: 1px solid var(--line, #e6e2d8); border-left: 4px solid var(--primary-green, #1B5E20); border-radius: 8px; font-size: 0.92rem; line-height: 1.45; color: var(--ink, #2a2418); }
+.tab-howto li { margin: 0.15rem 0; }
+.tab-howto li + li { margin-top: 0.35rem; }
+.tab-howto b { color: var(--primary-green, #1B5E20); }
+body.theme-fire .tab-howto { border-left-color: #c8102e; background: #fdf3f3; }
+body.theme-fire .tab-howto b { color: #c8102e; }
 .dn-tile__actions { grid-column: 2; justify-self: start; }
 .dn-tile__actions .btn { padding: 0.25rem 0.55rem; font-size: 0.75rem; }
