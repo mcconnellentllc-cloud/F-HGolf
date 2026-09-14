@@ -176,7 +176,7 @@
   function injectStrip(anchor, opts) {
     if (!anchor || !anchor.parentNode) return;
     opts = opts || {};
-    var label = opts.label || "Supporting Our Local Heroes";
+    var label = opts.label || "Haxtun’s Volunteer Firefighters · Phillips County, Colorado";
     var strip = document.createElement("div");
     strip.className = "fire-strip";
     strip.setAttribute("aria-hidden", "true");
@@ -191,7 +191,7 @@
     if (!anchor || !anchor.parentNode) return;
     opts = opts || {};
     var body = opts.body
-      || "This tournament exists because volunteer firefighters answer every call &mdash; through the middle of the night, in every kind of weather, without hesitation. Today's play, every dollar raised, and every prize handed out honors that service.";
+      || "Haxtun is a small town with a big heart, and its Volunteer Fire Department is proof of it &mdash; neighbors who leave dinner, sleep, or the shop to answer the call whenever it comes. Today's play, every dollar raised, and every prize handed out honors that service.";
     var box = document.createElement("aside");
     box.className = "fire-dedication";
     box.innerHTML = ''
