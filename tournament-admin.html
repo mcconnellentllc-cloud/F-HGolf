@@ -593,7 +593,8 @@
               <label class="pp-add__field"><span>Donated by</span><input type="text" id="ppAddDonor" maxlength="120" placeholder="e.g. John Doe" /></label>
               <label class="pp-add__field"><span>Photo (optional)</span><input type="file" id="ppAddPhoto" accept="image/*" /></label>
               <div class="pp-add__preview" id="ppAddPreview" aria-hidden="true"></div>
-              <button type="submit" class="btn btn--primary">Add prize</button>
+              <button type="submit" class="btn btn--primary" id="ppAddSubmit">Add prize</button>
+              <button type="button" class="btn btn--ghost" id="ppEditCancel" hidden>Cancel edit</button>
             </form>
             <div class="pp-chips" id="ppChips" aria-label="Available prizes — drag onto a hole"></div>
           </div>
@@ -693,7 +694,10 @@
             <label class="au-add__field au-add__field--desc"><span>Description</span><input type="text" id="auAddDesc" maxlength="240" placeholder="Short blurb shown on the item card" /></label>
             <label class="au-add__field au-add__field--photo"><span>Photos (optional &mdash; up to 2)</span><input type="file" id="auAddPhoto" accept="image/*" multiple /></label>
             <div class="au-add__preview" id="auAddPreview" aria-hidden="true"></div>
-            <div class="au-add__submit"><button type="submit" class="btn btn--primary" id="auAddBtn">Add item</button></div>
+            <div class="au-add__submit">
+              <button type="submit" class="btn btn--primary" id="auAddBtn">Add item</button>
+              <button type="button" class="btn btn--ghost" id="auEditCancel" hidden>Cancel edit</button>
+            </div>
           </form>
 
           <h4 class="au-h">Clerk &mdash; live bidding sheet</h4>
@@ -2622,6 +2626,10 @@
       var _pinLoaded = false;
       var _pinDirty = false;
       var _pinPendingPhoto = "";
+      // -1 = adding a new prize; >=0 = editing the pool entry at that
+      // index. Kept in module state so the form-submit handler and the
+      // Cancel button stay in sync.
+      var _pinEditingIdx = -1;
       function _pinDefaultCards() {
         var out = []; for (var i = 1; i <= 9; i++) out.push({ hole: i, contest: "", prize: "", sponsor: "", contact: "" });
         return out;
@@ -2683,7 +2691,15 @@
           })
           .catch(function () { _pinState = _pinNormalize(null); _pinLoaded = true; _pinStatus("Couldn't load — starting fresh.", "error"); renderPinPrizes(); });
       }
+      // Auto-save: pin-prize mutations schedule a debounced save so
+      // a forgotten "Save pin prizes" button click can't lose entries.
+      var _pinAutoTimer = null;
+      function _pinScheduleSave() {
+        if (_pinAutoTimer) clearTimeout(_pinAutoTimer);
+        _pinAutoTimer = setTimeout(function () { _pinAutoTimer = null; savePinPrizes(); }, 800);
+      }
       function savePinPrizes() {
+        if (_pinAutoTimer) { clearTimeout(_pinAutoTimer); _pinAutoTimer = null; }
         if (!getKey()) { _pinStatus("Sign in first.", "error"); return; }
         _pinStatus("Saving…");
         fetch(FH_API.url("/api/tournament-signups"), {
@@ -2739,6 +2755,7 @@
           var assigned = _pinPrizeIsAssigned(p.prize);
           return '<div class="pp-chip' + (assigned ? " is-assigned" : "") + '" draggable="true" data-idx="' + i + '" title="' + esc(p.prize) + '">'
             + '<button type="button" class="pp-chip__rm" data-idx="' + i + '" aria-label="Remove ' + esc(p.prize) + '">&times;</button>'
+            + '<button type="button" class="pp-chip__edit" data-pp-edit="' + i + '" aria-label="Edit ' + esc(p.prize) + '" title="Edit">Edit</button>'
             + (p.photo ? '<img class="pp-chip__photo" alt="" src="' + esc(p.photo) + '">' : '')
             + '<div class="pp-chip__prize">' + esc(p.prize) + '</div>'
             + (p.sponsor ? '<span class="pp-chip__sponsor">' + esc(p.sponsor) + '</span>' : '')
@@ -2762,9 +2779,52 @@
             // Also blank any card that used it — otherwise a card ends up
             // referencing a prize that doesn't exist in the pool anymore.
             _pinState.cards.forEach(function (c) { if (c.prize === p.prize) { c.prize = ""; c.sponsor = ""; c.contact = ""; } });
-            _pinDirty = true; renderPinPrizes();
+            if (_pinEditingIdx === i) _pinCancelEdit();
+            else if (_pinEditingIdx > i) _pinEditingIdx -= 1;
+            _pinDirty = true; _pinScheduleSave(); renderPinPrizes();
           });
         });
+        Array.prototype.forEach.call(host.querySelectorAll("[data-pp-edit]"), function (btn) {
+          btn.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            _pinStartEdit(Number(btn.getAttribute("data-pp-edit")));
+          });
+        });
+      }
+      function _pinStartEdit(idx) {
+        if (!(idx >= 0 && idx < _pinState.prizes.length)) return;
+        var p = _pinState.prizes[idx];
+        _pinEditingIdx = idx;
+        _pinPendingPhoto = "";
+        var prizeEl = document.getElementById("ppAddPrize"); if (prizeEl) prizeEl.value = p.prize || "";
+        var sponsorEl = document.getElementById("ppAddSponsor"); if (sponsorEl) sponsorEl.value = p.sponsor || "";
+        var contactEl = document.getElementById("ppAddDonor"); if (contactEl) contactEl.value = p.contact || "";
+        var photoEl = document.getElementById("ppAddPhoto"); if (photoEl) photoEl.value = "";
+        var preview = document.getElementById("ppAddPreview");
+        if (preview) preview.innerHTML = p.photo ? '<img alt="current photo — pick a new file to replace" title="current photo — pick a new file to replace" src="' + esc(p.photo) + '">' : "";
+        _pinUpdateFormMode();
+        _pinStatus("Editing " + (p.prize || "prize") + " — change fields, then Update prize.");
+        var form = document.getElementById("ppAddForm");
+        if (form && form.scrollIntoView) form.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (prizeEl && prizeEl.focus) prizeEl.focus();
+      }
+      function _pinCancelEdit() {
+        _pinEditingIdx = -1;
+        _pinPendingPhoto = "";
+        ["ppAddPrize","ppAddSponsor","ppAddDonor"].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
+        var photoEl = document.getElementById("ppAddPhoto"); if (photoEl) photoEl.value = "";
+        var preview = document.getElementById("ppAddPreview"); if (preview) preview.innerHTML = "";
+        _pinUpdateFormMode();
+        _pinStatus("");
+      }
+      function _pinUpdateFormMode() {
+        var isEdit = _pinEditingIdx >= 0;
+        var submitBtn = document.getElementById("ppAddSubmit");
+        if (submitBtn) submitBtn.textContent = isEdit ? "Update prize" : "Add prize";
+        var cancelBtn = document.getElementById("ppEditCancel");
+        if (cancelBtn) cancelBtn.hidden = !isEdit;
+        var form = document.getElementById("ppAddForm");
+        if (form) form.classList.toggle("pp-add--editing", isEdit);
       }
       function renderPinMaster() {
         var body = document.getElementById("ppMasterBody"); if (!body) return;
@@ -2844,7 +2904,7 @@
         });
         // Contest text
         Array.prototype.forEach.call(host.querySelectorAll(".pp-tool-contest"), function (inp) {
-          inp.addEventListener("input", function () { var ci = Number(inp.getAttribute("data-ci")); _pinState.cards[ci].contest = inp.value.trim(); _pinDirty = true; _pinPaintCard(ci); });
+          inp.addEventListener("input", function () { var ci = Number(inp.getAttribute("data-ci")); _pinState.cards[ci].contest = inp.value.trim(); _pinDirty = true; _pinScheduleSave(); _pinPaintCard(ci); });
         });
         // Prize dropdown
         Array.prototype.forEach.call(host.querySelectorAll(".pp-tool-prize"), function (sel) {
@@ -2853,15 +2913,15 @@
             var idx = Number(sel.value);
             if (idx < 0) { _pinState.cards[ci].prize = ""; _pinState.cards[ci].sponsor = ""; _pinState.cards[ci].contact = ""; }
             else { var p = _pinState.prizes[idx]; if (p) { _pinState.cards[ci].prize = p.prize; _pinState.cards[ci].sponsor = p.sponsor; _pinState.cards[ci].contact = p.contact; } }
-            _pinDirty = true; renderPinPrizes();
+            _pinDirty = true; _pinScheduleSave(); renderPinPrizes();
           });
         });
         // Sponsor / donor overrides
         Array.prototype.forEach.call(host.querySelectorAll(".pp-tool-sponsor"), function (inp) {
-          inp.addEventListener("input", function () { var ci = Number(inp.getAttribute("data-ci")); _pinState.cards[ci].sponsor = inp.value.trim(); _pinDirty = true; _pinPaintCard(ci); });
+          inp.addEventListener("input", function () { var ci = Number(inp.getAttribute("data-ci")); _pinState.cards[ci].sponsor = inp.value.trim(); _pinDirty = true; _pinScheduleSave(); _pinPaintCard(ci); });
         });
         Array.prototype.forEach.call(host.querySelectorAll(".pp-tool-donor"), function (inp) {
-          inp.addEventListener("input", function () { var ci = Number(inp.getAttribute("data-ci")); _pinState.cards[ci].contact = inp.value.trim(); _pinDirty = true; _pinPaintCard(ci); });
+          inp.addEventListener("input", function () { var ci = Number(inp.getAttribute("data-ci")); _pinState.cards[ci].contact = inp.value.trim(); _pinDirty = true; _pinScheduleSave(); _pinPaintCard(ci); });
         });
       }
       // Surgical repaint of one card — preserves input focus while the
@@ -2881,14 +2941,14 @@
         _pinState.cards[ci].prize = p.prize;
         _pinState.cards[ci].sponsor = p.sponsor;
         _pinState.cards[ci].contact = p.contact;
-        _pinDirty = true; renderPinPrizes();
+        _pinDirty = true; _pinScheduleSave(); renderPinPrizes();
       }
       function _pinSwapCards(aCi, bCi) {
         var a = _pinState.cards[aCi], b = _pinState.cards[bCi];
         var t = { prize: a.prize, sponsor: a.sponsor, contact: a.contact };
         a.prize = b.prize; a.sponsor = b.sponsor; a.contact = b.contact;
         b.prize = t.prize; b.sponsor = t.sponsor; b.contact = t.contact;
-        _pinDirty = true; renderPinPrizes();
+        _pinDirty = true; _pinScheduleSave(); renderPinPrizes();
       }
 
       // Donors — sponsor wall. Persisted as `Donors JSON` long-text on
@@ -3012,7 +3072,18 @@
           })
           .catch(function () { _dnState = _dnNormalize(null); _dnLoaded = true; _dnStatus("Couldn't load — starting fresh.", "error"); renderDonors(); });
       }
+      // Auto-save: every mutation schedules a debounced save so a
+      // forgotten "Save donors" click can never lose entries again.
+      // 800ms is short enough that a normal typing burst feels instant
+      // but long enough to coalesce a rapid add + edit + remove into
+      // one Airtable write.
+      var _dnAutoTimer = null;
+      function _dnScheduleSave() {
+        if (_dnAutoTimer) clearTimeout(_dnAutoTimer);
+        _dnAutoTimer = setTimeout(function () { _dnAutoTimer = null; saveDonors(); }, 800);
+      }
       function saveDonors() {
+        if (_dnAutoTimer) { clearTimeout(_dnAutoTimer); _dnAutoTimer = null; }
         if (!getKey()) { _dnStatus("Sign in first.", "error"); return; }
         var payload = JSON.stringify(_dnState);
         if (payload.length > 95000) { _dnStatus("Too many logos — remove one or use a smaller image.", "error"); return; }
@@ -3094,7 +3165,8 @@
             else if (_dnEditingIdx > idx) _dnEditingIdx -= 1;
             _dnState.donors.splice(idx, 1);
             renderDonors();
-            _dnStatus("Removed — click Save donors to keep the change.");
+            _dnScheduleSave();
+            _dnStatus("Removed — saving…");
           });
         });
         host.querySelectorAll("[data-dn-edit]").forEach(function (btn) {
@@ -3111,7 +3183,8 @@
             if (!(idx >= 0 && idx < _dnState.donors.length)) return;
             _dnState.donors[idx].paid = !_dnState.donors[idx].paid;
             renderDonors();
-            _dnStatus("Toggled — click Save donors to keep the change.");
+            _dnScheduleSave();
+            _dnStatus("Toggled — saving…");
           });
         });
       }
@@ -3232,7 +3305,8 @@
         if (clr) clr.hidden = true;
         _dnUpdateFormMode();
         renderDonors();
-        _dnStatus(isEdit ? "Updated — click Save donors to keep the change." : "Added — click Save donors to keep the change.");
+        _dnScheduleSave();
+        _dnStatus(isEdit ? "Updated — saving…" : "Added — saving…");
       }
       // Populate the top add-form from an existing tile so the operator
       // can tweak details without a Remove + re-add dance. Scrolls the
@@ -3320,6 +3394,10 @@
       var _auLoaded = false;
       var _auPendingPhotos = [];
       var AU_MAX_PHOTOS = 2;
+      // Which auction item is currently being edited (by id). "" = adding
+      // a fresh item. On Edit the add-form is filled with the item's
+      // current values and submit becomes Update.
+      var _auEditingId = "";
       function _auIsFire() { return /^\s*haxtun\s*fire/i.test(String(KEY || "")); }
       function _auStatus(msg, kind) {
         var el = document.getElementById("auStatus"); if (!el) return;
@@ -3382,7 +3460,18 @@
           })
           .catch(function () { _auState = _auNormalize(null); _auLoaded = true; _auStatus("Couldn't load — starting fresh.", "error"); renderAuction(); });
       }
+      // Auto-save: debounce every mutation. Clerk-side typing (buyer,
+      // amount, email, phone) also flows through here — 1200ms is a
+      // touch longer than the other tabs because a clerk is often
+      // filling in three fields in sequence and we don't want three
+      // separate Airtable writes for one row.
+      var _auAutoTimer = null;
+      function _auScheduleSave() {
+        if (_auAutoTimer) clearTimeout(_auAutoTimer);
+        _auAutoTimer = setTimeout(function () { _auAutoTimer = null; saveAuction(); }, 1200);
+      }
       function saveAuction() {
+        if (_auAutoTimer) { clearTimeout(_auAutoTimer); _auAutoTimer = null; }
         if (!getKey()) { _auStatus("Sign in first.", "error"); return; }
         // Pull any pending clerk edits from the DOM into state first so
         // the operator doesn't lose in-progress typing.
@@ -3495,6 +3584,7 @@
                   + '</div>'
                   + '<div class="au-clerk__acts">'
                   +   (sold ? '<button type="button" class="btn btn--solid btn--small" data-au-receipt="' + esc(it.id) + '">' + (receiptSent ? 'Re-send receipt' : 'Send receipt') + '</button>' : '<span class="au-clerk__hint">enter amount</span>')
+                  +   '<button type="button" class="btn btn--ghost btn--small" data-au-edit="' + esc(it.id) + '">Edit</button>'
                   +   '<button type="button" class="btn au-clerk__remove btn--small" data-au-remove="' + esc(it.id) + '">Remove item</button>'
                   + '</div>'
                   + (sold && receiptSent ? '<div class="au-clerk__sent">Receipt sent ' + esc(String(receiptSent).slice(0, 16).replace("T", " ")) + '</div>' : '')
@@ -3524,11 +3614,21 @@
             _auCollectFromDom();
             _auState.items.splice(idx, 1);
             renderAuction();
-            _auStatus("Removed — click Save auction to keep the change.");
+            _auScheduleSave();
+            _auStatus("Removed — saving…");
           });
         });
         host.querySelectorAll("[data-au-receipt]").forEach(function (btn) {
           btn.addEventListener("click", function () { _auSendReceipt(btn.getAttribute("data-au-receipt"), btn); });
+        });
+        host.querySelectorAll("[data-au-edit]").forEach(function (btn) {
+          btn.addEventListener("click", function () { _auStartEdit(btn.getAttribute("data-au-edit")); });
+        });
+        // Clerk-side auto-save. Any typing on a buyer/amount/email/
+        // phone field schedules a debounced save so hammer-time clerk
+        // work persists without the operator remembering a button.
+        host.querySelectorAll("[data-au-buyer], [data-au-amount], [data-au-email], [data-au-phone]").forEach(function (inp) {
+          inp.addEventListener("input", function () { _auCollectFromDom(); _auScheduleSave(); });
         });
       }
       function _auResizePhoto(file, cb) {
@@ -3612,16 +3712,30 @@
         var name = nameEl ? nameEl.value.trim() : "";
         if (!name) { _auStatus("Item name is required.", "error"); if (nameEl) nameEl.focus(); return; }
         _auCollectFromDom();
-        _auState.items.push({
-          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-          name: name.slice(0, 120),
-          description: (descEl ? descEl.value.trim() : "").slice(0, 240),
-          donor: (donorEl ? donorEl.value.trim() : "").slice(0, 120),
-          floor: Number(floorEl ? floorEl.value : 0) || 0,
-          photos: _auPendingPhotos.slice(0, AU_MAX_PHOTOS),
-          addedAt: new Date().toISOString(),
-          sold: null,
-        });
+        var editing = _auEditingId && _auState.items.filter(function (i) { return i.id === _auEditingId; })[0];
+        if (editing) {
+          editing.name = name.slice(0, 120);
+          editing.description = (descEl ? descEl.value.trim() : "").slice(0, 240);
+          editing.donor = (donorEl ? donorEl.value.trim() : "").slice(0, 120);
+          editing.floor = Number(floorEl ? floorEl.value : 0) || 0;
+          // Photo semantics on edit: staging new photos replaces the
+          // set; leaving pending empty keeps the existing photos so a
+          // pure text edit doesn't wipe artwork.
+          if (_auPendingPhotos.length) editing.photos = _auPendingPhotos.slice(0, AU_MAX_PHOTOS);
+        } else {
+          _auState.items.push({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+            name: name.slice(0, 120),
+            description: (descEl ? descEl.value.trim() : "").slice(0, 240),
+            donor: (donorEl ? donorEl.value.trim() : "").slice(0, 120),
+            floor: Number(floorEl ? floorEl.value : 0) || 0,
+            photos: _auPendingPhotos.slice(0, AU_MAX_PHOTOS),
+            addedAt: new Date().toISOString(),
+            sold: null,
+          });
+        }
+        var wasEdit = !!editing;
+        _auEditingId = "";
         _auPendingPhotos = [];
         if (nameEl) nameEl.value = "";
         if (donorEl) donorEl.value = "";
@@ -3629,8 +3743,52 @@
         if (descEl) descEl.value = "";
         if (photoEl) photoEl.value = "";
         if (preview) preview.innerHTML = "";
+        _auUpdateFormMode();
         renderAuction();
-        _auStatus("Added — click Save auction to keep the change.");
+        _auScheduleSave();
+        _auStatus(wasEdit ? "Updated — saving…" : "Added — saving…");
+      }
+      function _auStartEdit(id) {
+        var item = _auState.items.filter(function (i) { return i.id === id; })[0];
+        if (!item) return;
+        _auEditingId = id;
+        _auPendingPhotos = [];
+        var nameEl = document.getElementById("auAddName"); if (nameEl) nameEl.value = item.name || "";
+        var donorEl = document.getElementById("auAddDonor"); if (donorEl) donorEl.value = item.donor || "";
+        var floorEl = document.getElementById("auAddFloor"); if (floorEl) floorEl.value = item.floor || "";
+        var descEl = document.getElementById("auAddDesc"); if (descEl) descEl.value = item.description || "";
+        var photoEl = document.getElementById("auAddPhoto"); if (photoEl) photoEl.value = "";
+        var preview = document.getElementById("auAddPreview");
+        if (preview) {
+          if (item.photos && item.photos.length) {
+            preview.innerHTML = item.photos.map(function (uri) {
+              return '<span class="au-add__pending"><img alt="current photo — pick new files to replace" title="current photo — pick new files to replace" src="' + esc(uri) + '"></span>';
+            }).join("");
+          } else preview.innerHTML = "";
+        }
+        _auUpdateFormMode();
+        _auStatus("Editing " + (item.name || "item") + " — change fields, then Update item. Picking new photos replaces the current ones.");
+        var form = document.getElementById("auAddForm");
+        if (form && form.scrollIntoView) form.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (nameEl && nameEl.focus) nameEl.focus();
+      }
+      function _auCancelEdit() {
+        _auEditingId = "";
+        _auPendingPhotos = [];
+        ["auAddName","auAddDonor","auAddFloor","auAddDesc"].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
+        var photoEl = document.getElementById("auAddPhoto"); if (photoEl) photoEl.value = "";
+        var preview = document.getElementById("auAddPreview"); if (preview) preview.innerHTML = "";
+        _auUpdateFormMode();
+        _auStatus("");
+      }
+      function _auUpdateFormMode() {
+        var isEdit = !!_auEditingId;
+        var addBtn = document.getElementById("auAddBtn");
+        if (addBtn) addBtn.textContent = isEdit ? "Update item" : "Add item";
+        var cancelBtn = document.getElementById("auEditCancel");
+        if (cancelBtn) cancelBtn.hidden = !isEdit;
+        var form = document.getElementById("auAddForm");
+        if (form) form.classList.toggle("au-add--editing", isEdit);
       }
       function _auSendReceipt(itemId, btn) {
         _auCollectFromDom();
@@ -11880,20 +12038,44 @@
           var sponsor = (document.getElementById("ppAddSponsor").value || "").trim();
           var contact = (document.getElementById("ppAddDonor").value || "").trim();
           if (!prize) { _pinStatus("Prize name is required.", "error"); return; }
-          if (_pinState.prizes.some(function (p) { return p.prize.toLowerCase() === prize.toLowerCase(); })) {
-            _pinStatus("A prize by that name is already in the pool.", "error"); return;
+          var isEdit = _pinEditingIdx >= 0 && _pinEditingIdx < _pinState.prizes.length;
+          var existingIdx = _pinState.prizes.findIndex(function (p) { return p.prize.toLowerCase() === prize.toLowerCase(); });
+          if (isEdit) {
+            // Editing: only reject if the rename collides with a
+            // DIFFERENT existing prize.
+            if (existingIdx !== -1 && existingIdx !== _pinEditingIdx) {
+              _pinStatus("A prize by that name is already in the pool.", "error"); return;
+            }
+            var current = _pinState.prizes[_pinEditingIdx];
+            var oldName = current.prize;
+            var keepPhoto = current.photo || "";
+            var newPhoto = _pinPendingPhoto || keepPhoto;
+            _pinState.prizes[_pinEditingIdx] = { prize: prize, sponsor: sponsor, contact: contact, photo: newPhoto };
+            // If the prize was renamed, propagate to cards that reference it.
+            if (oldName && oldName !== prize) {
+              _pinState.cards.forEach(function (c) {
+                if (c.prize === oldName) { c.prize = prize; c.sponsor = sponsor; c.contact = contact; }
+              });
+            }
+          } else {
+            if (existingIdx !== -1) { _pinStatus("A prize by that name is already in the pool.", "error"); return; }
+            _pinState.prizes.push({ prize: prize, sponsor: sponsor, contact: contact, photo: _pinPendingPhoto || "" });
           }
-          _pinState.prizes.push({ prize: prize, sponsor: sponsor, contact: contact, photo: _pinPendingPhoto || "" });
           _pinPendingPhoto = "";
-          _pinDirty = true;
+          _pinEditingIdx = -1;
+          _pinDirty = true; _pinScheduleSave();
           document.getElementById("ppAddPrize").value = "";
           document.getElementById("ppAddSponsor").value = "";
           document.getElementById("ppAddDonor").value = "";
           var ppPhotoInput = document.getElementById("ppAddPhoto"); if (ppPhotoInput) ppPhotoInput.value = "";
           var ppPreview = document.getElementById("ppAddPreview"); if (ppPreview) ppPreview.innerHTML = "";
+          _pinUpdateFormMode();
           document.getElementById("ppAddPrize").focus();
-          renderPinPrizes(); _pinStatus("Added — remember to Save.", "ok");
+          renderPinPrizes();
+          _pinStatus(isEdit ? "Updated — saving…" : "Added — saving…", "ok");
         });
+        var ppEditCancel = document.getElementById("ppEditCancel");
+        if (ppEditCancel) ppEditCancel.addEventListener("click", _pinCancelEdit);
         var ppAddPhoto = document.getElementById("ppAddPhoto");
         if (ppAddPhoto) ppAddPhoto.addEventListener("change", function () { _pinHandlePhotoPick(ppAddPhoto); });
         var ppSave = document.getElementById("ppSave");
@@ -11941,6 +12123,8 @@
         }
         var auAddForm = document.getElementById("auAddForm");
         if (auAddForm) auAddForm.addEventListener("submit", _auAddFromForm);
+        var auEditCancel = document.getElementById("auEditCancel");
+        if (auEditCancel) auEditCancel.addEventListener("click", _auCancelEdit);
         var auAddPhoto = document.getElementById("auAddPhoto");
         if (auAddPhoto) auAddPhoto.addEventListener("change", function () { _auHandlePhotoPick(auAddPhoto); });
         var auSave = document.getElementById("auSave");
