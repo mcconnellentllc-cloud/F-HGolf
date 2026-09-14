@@ -637,21 +637,27 @@
               <span class="ci__status" id="auStatus" role="status" aria-live="polite" style="min-width:8rem;"></span>
             </div>
           </div>
-          <p class="scaffold__desc">Track auction items, donors, floor bids, and winners. Buyers get an emailed receipt with the tournament&rsquo;s thanks. Everything auto-groups on the public auction page for sharing on Facebook.</p>
+          <ol class="tab-howto">
+            <li><b>Before the tournament:</b> Add every auction item below &mdash; name, donor, optional floor bid, description, and a photo if you have one. Click <b>Save auction</b> after each batch so nothing is lost.</li>
+            <li><b>Share the auction:</b> <b>Open public auction page</b> shows what viewers see. Use <b>Share on Facebook</b> or <b>Copy link</b> to post it.</li>
+            <li><b>During the auction:</b> As each item sells, type the winner's <b>name</b>, <b>email</b>, <b>phone</b>, and <b>winning amount</b> right on that item's row. The row turns green &mdash; that means SOLD. Hit <b>Save auction</b> every few items.</li>
+            <li><b>Send receipts:</b> Click <b>Send receipt</b> on any sold row to email the buyer their receipt with your thanks. You'll see "Receipt sent" once it goes.</li>
+          </ol>
 
           <!-- 1. Add item -->
+          <h4 class="au-h">Add an item</h4>
           <form id="auAddForm" class="au-add" autocomplete="off">
             <label class="au-add__field au-add__field--name"><span>Item *</span><input type="text" id="auAddName" maxlength="120" required placeholder="e.g. Signed golf bag" /></label>
             <label class="au-add__field"><span>Donor</span><input type="text" id="auAddDonor" maxlength="120" placeholder="e.g. Haxtun Fire Dept." /></label>
-            <label class="au-add__field"><span>Floor $</span><input type="number" id="auAddFloor" min="0" step="1" placeholder="0" /></label>
+            <label class="au-add__field au-add__field--floor"><span>Floor $</span><input type="number" id="auAddFloor" min="0" step="1" placeholder="0" /></label>
             <label class="au-add__field au-add__field--desc"><span>Description</span><input type="text" id="auAddDesc" maxlength="240" placeholder="Short blurb shown on the item card" /></label>
             <label class="au-add__field au-add__field--photo"><span>Photo (optional)</span><input type="file" id="auAddPhoto" accept="image/*" /></label>
             <div class="au-add__preview" id="auAddPreview" aria-hidden="true"></div>
-            <button type="submit" class="btn btn--primary" id="auAddBtn">Add item</button>
+            <div class="au-add__submit"><button type="submit" class="btn btn--primary" id="auAddBtn">Add item</button></div>
           </form>
 
           <h4 class="au-h">Clerk &mdash; live bidding sheet</h4>
-          <p class="au-note">One row per item. Enter the winning buyer&rsquo;s name + phone + email, the winning amount, then hit <strong>Save auction</strong>. Click <strong>Send receipt</strong> to email the buyer confirmation. Rows highlight as SOLD once an amount is entered.</p>
+          <p class="au-note">One row per item. Enter the winning buyer&rsquo;s <b>name</b> + <b>email</b> + <b>phone</b> + <b>winning amount</b>, then hit <b>Save auction</b>. Click <b>Send receipt</b> to email the buyer confirmation. Rows highlight green as SOLD once an amount is entered.</p>
           <div class="au-clerk" id="auClerk" aria-live="polite"></div>
 
           <h4 class="au-h">Totals</h4>
