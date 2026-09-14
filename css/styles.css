@@ -2678,6 +2678,9 @@ body.pp-print-cards { background: #fff; }
 .dn-tile__logo--empty { color: var(--primary-green, #1B5E20); font: 700 1.6rem/1 Fraunces, Georgia, serif; }
 .dn-tile__body { min-width: 0; }
 .dn-tile__name { margin: 0 0 0.15rem 0; font: 700 1rem/1.2 system-ui, sans-serif; color: var(--ink, #2a2418); word-wrap: break-word; }
+.dn-tile__chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.15rem 0 0.3rem; }
+.dn-tile__tier { display: inline-block; padding: 0.12rem 0.5rem; border-radius: 999px; font: 700 0.68rem/1.4 system-ui, sans-serif; letter-spacing: 0.04em; background: var(--red-deep, #7a1a1a); color: #fff; }
+.dn-tile__amt { display: inline-block; padding: 0.12rem 0.5rem; border-radius: 999px; font: 700 0.68rem/1.4 system-ui, sans-serif; letter-spacing: 0.04em; background: var(--primary-green, #1B5E20); color: #fff; }
 .dn-tile__thanks { margin: 0 0 0.25rem 0; font-size: 0.85rem; color: var(--ink, #2a2418); line-height: 1.35; }
 .dn-tile__contact { margin: 0; font-size: 0.78rem; color: var(--muted, #7a7663); }
 .dn-tile__actions { grid-column: 2; justify-self: start; }
