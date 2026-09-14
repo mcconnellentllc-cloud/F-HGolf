@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Live Leaderboard — F&H Golf</title>
   <meta name="description" content="Live tournament leaderboard for F&H Golf Course." />
+  <!-- Aggressive no-cache so the leaderboard's inline HTML/CSS/JS never
+       sticks in the browser's HTTP cache across deploys. The service
+       worker is network-first already, but Chrome's own HTTP cache can
+       serve a stale copy before the SW even sees the request; these
+       meta tags stop that so per-tournament themes (Fire, etc.) always
+       reflect the freshest deployment. -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <link rel="icon" href="images/logo.png" type="image/png" />
   <meta name="theme-color" content="#0b1a10" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -536,7 +545,49 @@
       // the KEY, no flash of default styling.
       var IS_FIRE = /^\s*haxtun\s*fire/i.test(KEY);
       if (IS_FIRE) {
+        // Apply the theme class to BOTH <html> and <body> so any cached
+        // CSS variant that only matches one of them still activates the
+        // Fire palette. Also update the mobile browser chrome color and
+        // the loading placeholder text so viewers see the Fire identity
+        // even before signup records arrive from Airtable.
+        try { document.documentElement.classList.add("theme-fire"); } catch (e) {}
         try { document.body.classList.add("theme-fire"); } catch (e) {}
+        try {
+          var tc = document.querySelector('meta[name="theme-color"]');
+          if (tc) tc.setAttribute("content", "#c8102e");
+        } catch (e) {}
+        try {
+          var bod = document.getElementById("dispBody");
+          if (bod) bod.innerHTML = '<p class="disp__empty-msg" style="color:#fff;">Loading Fire Department leaderboard&hellip;</p>';
+        } catch (e) {}
+        // Belt-and-suspenders CSS override injected at runtime. If any
+        // upstream cached stylesheet is missing the theme-fire rules,
+        // this !important block still forces the fundamental red/black/
+        // white identity so a viewer never sees the F&H green/gold on
+        // a Fire tournament again.
+        try {
+          var s = document.createElement("style");
+          s.textContent =
+            "body.theme-fire, html.theme-fire body {" +
+              "background: radial-gradient(ellipse at top, #2a0a0a 0%, #0a0a0a 65%) !important;" +
+              "color: #fff !important;" +
+            "}" +
+            "body.theme-fire .disp__hero {" +
+              "background: linear-gradient(180deg, #000 0%, #1a0000 100%) !important;" +
+              "border-bottom: 5px solid #c8102e !important;" +
+            "}" +
+            "body.theme-fire .disp__eyebrow { color: #fff !important; }" +
+            "body.theme-fire .disp__title { color: #fff !important; }" +
+            "body.theme-fire .disp__nav { background: #000 !important; border-bottom: 1px solid #7a0a1a !important; }" +
+            "body.theme-fire .disp__nav a { background: rgba(200,16,46,0.10) !important; color: #fff !important; border-color: rgba(200,16,46,0.4) !important; }" +
+            "body.theme-fire .disp__nav a.is-here { background: rgba(200,16,46,0.32) !important; color: #fff !important; border-color: #c8102e !important; }" +
+            "body.theme-fire .lb-tabs { background: #000 !important; }" +
+            "body.theme-fire .lb-tab { background: rgba(200,16,46,0.10) !important; color: #fff !important; border-color: rgba(200,16,46,0.4) !important; }" +
+            "body.theme-fire .lb-tab.is-active { background: rgba(200,16,46,0.32) !important; color: #fff !important; border-color: #c8102e !important; }" +
+            "body.theme-fire .disp__qrbtn { background: #c8102e !important; color: #fff !important; }" +
+            "";
+          document.head.appendChild(s);
+        } catch (e) {}
       }
 
       // -- Fire-only view tabs (Leaderboard / Sponsors / Donors / Auction) --
