@@ -224,6 +224,20 @@
     (function () {
       var params = new URLSearchParams(location.search);
       var KEY = params.get("t") || "";
+      // Auto-redirect known phantom Haxtun Fire URL variants to the
+      // canonical name so a sponsor doesn't submit under the wrong
+      // tournament identifier.
+      try {
+        var _PHANTOM_MAP = {
+          "Haxtun Fire (Sept 2019)": "Haxtun Fire (Sept 19)",
+          "Haxtun Fire (Sept 19, 2026)": "Haxtun Fire (Sept 19)",
+          "Haxtun Fire (Sept 2019, 2026)": "Haxtun Fire (Sept 19)"
+        };
+        if (_PHANTOM_MAP[KEY]) {
+          location.replace("sponsor.html?t=" + encodeURIComponent(_PHANTOM_MAP[KEY]));
+          return;
+        }
+      } catch (_) {}
 
       // Per-tournament tier options + payment contacts. Keep this map in
       // sync with the workbook's _DONOR_TIERS_BY_KEY when the tournament

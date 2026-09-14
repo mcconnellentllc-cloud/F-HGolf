@@ -551,6 +551,23 @@
         if (body) body.innerHTML = '<p class="disp__empty-msg">No tournament selected. Head to <a href="tournaments.html" style="color:var(--brass);text-decoration:underline;">Tournaments</a> to pick one.</p>';
         return;
       }
+      // Auto-redirect known phantom Haxtun Fire URL variants to the
+      // canonical name so every viewer sees the same standings + Fire
+      // theme regardless of which stale link they had bookmarked.
+      try {
+        var _PHANTOM_MAP = {
+          "Haxtun Fire (Sept 2019)": "Haxtun Fire (Sept 19)",
+          "Haxtun Fire (Sept 19, 2026)": "Haxtun Fire (Sept 19)",
+          "Haxtun Fire (Sept 2019, 2026)": "Haxtun Fire (Sept 19)"
+        };
+        if (_PHANTOM_MAP[KEY]) {
+          var _fixed = _PHANTOM_MAP[KEY];
+          var _target = "leaderboard.html?t=" + encodeURIComponent(_fixed);
+          if (location.hash) _target += location.hash;
+          location.replace(_target);
+          return;
+        }
+      } catch (_) {}
       // Per-tournament theme flip — Haxtun Fire Department gets a red /
       // black / white palette + maltese-cross badges to match the flyer.
       // Every other tournament stays on the default green/gold F&H theme.
