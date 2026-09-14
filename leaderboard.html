@@ -241,6 +241,114 @@
     .lb-au-card__chip--floor { background: var(--gold); color: #0b1a10; }
     body.theme-fire .lb-au-card__chip--floor { background: var(--fire-red, #c8102e); color: #fff; }
     .lb-au-card__chip--sold { background: #c8102e; color: #fff; }
+
+    /* =========== FIRE DEPT FUNDRAISER — big prominent banner ===========
+       Only visible under body.theme-fire. Sits directly under the hero so
+       the identity of the whole page reads at TV distance. */
+    .fire-total { display: none; }
+    body.theme-fire .fire-total {
+      display: block;
+      position: relative;
+      padding: clamp(1rem, 2vw, 1.5rem) 1rem;
+      text-align: center;
+      color: #fff;
+      background: linear-gradient(90deg, #4a0000 0%, #c8102e 30%, #c8102e 70%, #4a0000 100%);
+      border-top: 3px solid #000;
+      border-bottom: 3px solid #000;
+      overflow: hidden;
+    }
+    .fire-total::before,
+    .fire-total::after {
+      content: ""; position: absolute; top: 0; bottom: 0; width: 6rem;
+      pointer-events: none;
+      background: repeating-linear-gradient(-45deg, transparent 0 14px, rgba(0,0,0,0.25) 14px 28px);
+    }
+    .fire-total::before { left: 0; }
+    .fire-total::after { right: 0; }
+    .fire-total__inner {
+      position: relative; z-index: 1;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: clamp(0.7rem, 2vw, 1.5rem);
+      align-items: center;
+      max-width: 68rem;
+      margin: 0 auto;
+    }
+    .fire-total__side {
+      display: flex; align-items: center; justify-content: center;
+      width: clamp(3rem, 6vw, 4.5rem);
+      height: clamp(3rem, 6vw, 4.5rem);
+    }
+    .fire-total__side .fire-badge { width: 100%; height: 100%; filter: drop-shadow(0 2px 0 #000); }
+    .fire-total__mid { text-align: center; }
+    .fire-total__label {
+      text-transform: uppercase; letter-spacing: 0.32em;
+      font: 800 clamp(0.7rem, 1.1vw, 0.9rem)/1.2 -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: rgba(255,255,255,0.95);
+      margin: 0 0 0.5em;
+    }
+    .fire-total__amt {
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 800;
+      font-size: clamp(2.6rem, 6.5vw, 4.8rem);
+      color: #fff;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      text-shadow: 0 3px 0 #000, 0 5px 14px rgba(0,0,0,0.55);
+      margin: 0;
+    }
+    .fire-total__sub {
+      color: rgba(255,255,255,0.9);
+      font-style: italic;
+      font-size: clamp(0.85rem, 1.2vw, 1.05rem);
+      margin: 0.55em 0 0;
+    }
+    @media (max-width: 640px) {
+      .fire-total__inner { grid-template-columns: 1fr; }
+      .fire-total__side { display: none; }
+    }
+
+    /* Alarm-report stat strip — Sponsors / Donors / Items / Auction $. */
+    .fire-stats { display: none; }
+    body.theme-fire .fire-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+      gap: 0.65rem;
+      padding: 0.75rem clamp(0.8rem, 2vw, 1.6rem);
+      background: #0a0a0a;
+      border-bottom: 1px solid rgba(200,16,46,0.35);
+    }
+    .fire-stat {
+      text-align: center;
+      padding: 0.55rem 0.5rem 0.65rem;
+      border: 1px solid rgba(200,16,46,0.4);
+      border-top: 3px solid #c8102e;
+      border-radius: 6px;
+      background: linear-gradient(180deg, rgba(200,16,46,0.10), rgba(0,0,0,0));
+    }
+    .fire-stat__l {
+      font: 800 0.66rem/1 -apple-system, "Segoe UI", Roboto, sans-serif;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.72);
+    }
+    .fire-stat__n {
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 800;
+      color: #fff;
+      font-size: clamp(1.35rem, 2.4vw, 1.9rem);
+      margin-top: 0.3em;
+      line-height: 1;
+    }
+    /* Deeper card treatment on Fire so standings read like alarm reports. */
+    body.theme-fire .lbd {
+      background: linear-gradient(180deg, rgba(200,16,46,0.06), rgba(255,255,255,0.03));
+      border-top: 3px solid #7a0a1a;
+    }
+    body.theme-fire .lbd__name {
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
   </style>
 </head>
 <body>
@@ -290,6 +398,23 @@
       <span>Supporting Our Local Heroes</span>
       <svg class="fire-badge"><use href="#fireBadge" /></svg>
     </div>
+
+    <!-- Fire-only fundraiser total banner. Populated by JS once the config
+         loads. The primary identity for the whole page: "raised for the
+         fire department" reads at TV distance so viewers see the mission
+         before the standings. -->
+    <div class="fire-total" id="fireTotalBanner" aria-hidden="true">
+      <div class="fire-total__inner">
+        <div class="fire-total__side" aria-hidden="true"><svg class="fire-badge"><use href="#fireBadge" /></svg></div>
+        <div class="fire-total__mid">
+          <div class="fire-total__label">Raised for the Haxtun Volunteer Fire Department</div>
+          <div class="fire-total__amt" id="fireTotalAmt">$0</div>
+          <div class="fire-total__sub">Every dollar protects our neighbors from the ferocity of fire.</div>
+        </div>
+        <div class="fire-total__side" aria-hidden="true"><svg class="fire-badge"><use href="#fireBadge" /></svg></div>
+      </div>
+    </div>
+    <div class="fire-stats" id="fireStats" aria-hidden="true"></div>
 
     <!-- Fire-only view switcher. Rendered but hidden until JS
          (isFire && has data) flips it visible. Same visual language as
@@ -442,10 +567,48 @@
           .then(function (j) {
             _lbConfigCache = (j && j.ok && j.record && j.record.fields) || {};
             _lbConfigInFlight = null;
+            // On Fire tournaments, populate the fundraiser total banner
+            // and alarm-report stat strip as soon as config lands so the
+            // TV shows real numbers even before viewers tap a sub-tab.
+            try { if (IS_FIRE) _lbUpdateFireStats(_lbConfigCache); } catch (e) {}
             return _lbConfigCache;
           })
           .catch(function () { _lbConfigInFlight = null; _lbConfigCache = {}; return _lbConfigCache; });
         return _lbConfigInFlight;
+      }
+      // Sum sponsor/donor amounts (parsing "$250", "$1,000", etc.) and
+      // auction sold amounts into the running "Raised" total. Skips any
+      // amount that isn't a number so a "Sleeve of Titleists" line doesn't
+      // poison the counter.
+      function _lbUpdateFireStats(fields) {
+        var donors = _lbParseDonors(fields);
+        var items = [];
+        try {
+          var raw = fields && fields["Auction Items JSON"];
+          var parsed = JSON.parse(raw || "{}");
+          if (parsed && Array.isArray(parsed.items)) items = parsed.items.filter(function (i) { return i && i.name; });
+        } catch (e) {}
+        var auctionRaised = items.reduce(function (s, i) { return s + ((i.sold && Number(i.sold.amount)) || 0); }, 0);
+        var donorTotal = donors.reduce(function (s, d) {
+          var raw = String(d.amount || "").replace(/[^\d.]/g, "");
+          var n = Number(raw);
+          return s + (isFinite(n) && n > 0 ? n : 0);
+        }, 0);
+        var sold = items.filter(function (i) { return i.sold && i.sold.amount; }).length;
+        var totalRaised = auctionRaised + donorTotal;
+        var amt = document.getElementById("fireTotalAmt");
+        if (amt) amt.textContent = _lbMoney(totalRaised);
+        var banner = document.getElementById("fireTotalBanner");
+        if (banner) banner.setAttribute("aria-hidden", "false");
+        var stats = document.getElementById("fireStats");
+        if (stats) {
+          stats.innerHTML = ''
+            + '<div class="fire-stat"><div class="fire-stat__l">Sponsors</div><div class="fire-stat__n">' + donors.filter(function (d) { return String(d.tier || "").trim(); }).length + '</div></div>'
+            + '<div class="fire-stat"><div class="fire-stat__l">Donors</div><div class="fire-stat__n">' + donors.length + '</div></div>'
+            + '<div class="fire-stat"><div class="fire-stat__l">Items Sold</div><div class="fire-stat__n">' + sold + '</div></div>'
+            + '<div class="fire-stat"><div class="fire-stat__l">Auction $</div><div class="fire-stat__n">' + _lbEsc(_lbMoney(auctionRaised)) + '</div></div>';
+          stats.setAttribute("aria-hidden", "false");
+        }
       }
       function _lbEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]); }
       function _lbMoney(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
@@ -493,12 +656,16 @@
       function _lbRenderSponsors(fields) {
         var host = document.getElementById("lbSponsors");
         var all = _lbParseDonors(fields);
-        var tiered = all.filter(function (d) { return String(d.tier || "").trim(); });
-        if (!tiered.length) { host.innerHTML = '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Sponsors</div><h2 class="lb-panel__title">Thank you to our sponsors</h2></div><p class="disp__empty-msg">Sponsor list coming soon.</p>'; return; }
+        if (!all.length) { host.innerHTML = '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Sponsors</div><h2 class="lb-panel__title">Thank you to our sponsors</h2></div><p class="disp__empty-msg">Sponsor list coming soon — add sponsors on the Donors tab of the workbook.</p>'; return; }
+        // Group by tier; tier-less sponsors land under "Other Sponsors" so
+        // every donor with a name shows up somewhere. Previously the panel
+        // rendered nothing at all when no donors had a tier, which looked
+        // broken to viewers even on a tournament with plenty of sponsors
+        // configured.
         var order = [];
         var buckets = {};
-        tiered.forEach(function (d) {
-          var key = String(d.tier || "").trim();
+        all.forEach(function (d) {
+          var key = String(d.tier || "").trim() || "Other Sponsors";
           if (!buckets[key]) { buckets[key] = []; order.push(key); }
           buckets[key].push(d);
         });
@@ -577,6 +744,10 @@
         Array.prototype.forEach.call(document.querySelectorAll(".lb-tab"), function (btn) {
           btn.addEventListener("click", function () { _lbOpenView(btn.getAttribute("data-view")); });
         });
+        // Kick off the Tournament Config fetch immediately so Sponsors /
+        // Donors / Auction chips switch instantly on first tap instead of
+        // waiting on a cold network round-trip.
+        try { _lbLoadConfig(); } catch (e) {}
         // Honor #sponsors / #donors / #auction hash on first load so a
         // shared link goes straight to the intended view.
         try {
