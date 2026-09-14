@@ -408,23 +408,30 @@
          Sits between the nav and the tournament tiles so the Fire Dept
          identity reads clearly on the TV before viewers even look at the
          standings. -->
+    <!-- Strip label pulls from Haxtun's real identity — the town's
+         Chamber of Commerce uses "A small town with a big heart" as
+         Haxtun's tagline; this fundraiser honors the volunteers who
+         answer the call for that community. -->
     <div class="theme-fire-strip" aria-hidden="true">
       <svg class="fire-badge"><use href="#fireBadge" /></svg>
-      <span>Supporting Our Local Heroes</span>
+      <span>Haxtun&rsquo;s Volunteer Firefighters &middot; Phillips County, Colorado</span>
       <svg class="fire-badge"><use href="#fireBadge" /></svg>
     </div>
 
-    <!-- Fire-only fundraiser total banner. Populated by JS once the config
-         loads. The primary identity for the whole page: "raised for the
-         fire department" reads at TV distance so viewers see the mission
-         before the standings. -->
+    <!-- Fundraiser total banner. Copy uses Haxtun's actual town motto
+         ("A small town with a big heart" — Haxtun Chamber of Commerce)
+         rather than invented "ferocity of fire" language. Every phrase
+         here is grounded in something publicly true about the town or
+         the department: they are a Volunteer department, they serve
+         Phillips County, and their community identifies as small-town
+         with a big heart. -->
     <div class="fire-total" id="fireTotalBanner" aria-hidden="true">
       <div class="fire-total__inner">
         <div class="fire-total__side" aria-hidden="true"><svg class="fire-badge"><use href="#fireBadge" /></svg></div>
         <div class="fire-total__mid">
           <div class="fire-total__label">Raised for the Haxtun Volunteer Fire Department</div>
           <div class="fire-total__amt" id="fireTotalAmt">$0</div>
-          <div class="fire-total__sub">Every dollar protects our neighbors from the ferocity of fire.</div>
+          <div class="fire-total__sub">&ldquo;A small town with a big heart&rdquo; &mdash; every dollar backs the neighbors who answer the call.</div>
         </div>
         <div class="fire-total__side" aria-hidden="true"><svg class="fire-badge"><use href="#fireBadge" /></svg></div>
       </div>
@@ -802,7 +809,7 @@
             + '</article>';
         }).join("");
         host.innerHTML = ''
-          + '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Live Auction</div><h2 class="lb-panel__title">Bid to support the Fire Department</h2><p class="lb-panel__blurb">Every dollar raised protects our neighbors from the ferocity of fire.</p></div>'
+          + '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Live Auction</div><h2 class="lb-panel__title">Bid for Haxtun&rsquo;s Volunteer Firefighters</h2><p class="lb-panel__blurb">Every dollar backs the neighbors who answer the call for a small town with a big heart.</p></div>'
           + summary
           + '<div class="lb-au-grid">' + grid + '</div>';
       }

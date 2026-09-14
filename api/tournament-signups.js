@@ -841,7 +841,7 @@ module.exports = async (req, res) => {
       // future tournaments that also run an auction.
       const isFire = /^\s*haxtun\s*fire/i.test(tournament);
       const mission = isFire
-        ? "Every dollar raised through this auction goes to the <b>Haxtun Volunteer Fire Department</b> &mdash; protecting our neighbors from the ferocity of fire."
+        ? "Your bid supports the <b>Haxtun Volunteer Fire Department</b> &mdash; a small town with a big heart, and the neighbors who answer the call for it."
         : `Every dollar raised through this auction benefits the ${escHtml(tournament || "tournament")}.`;
       const heading = isFire ? "Thank you from the Haxtun Volunteer Fire Department" : "Thank you for your winning bid";
       const subject = `Auction receipt — ${itemName} · ${money}`;
