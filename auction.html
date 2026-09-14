@@ -162,12 +162,14 @@
           var photo = it.photoDataUri && String(it.photoDataUri).indexOf("data:image/") === 0
             ? '<img class="au-card__photo" alt="" src="' + esc(it.photoDataUri) + '">'
             : '<div class="au-card__photo au-card__photo--empty">No photo</div>';
+          // Public view — never expose winning amounts or buyer identity.
+          // Just the item, floor (opening bid), donor, and a soft "SOLD"
+          // chip so viewers can see what's still open. Numbers + names
+          // stay inside the workbook Clerk tab.
           var chips = [];
           if (it.floor) chips.push('<span class="au-card__chip au-card__chip--floor">Floor ' + money(it.floor) + '</span>');
           if (it.donor) chips.push('<span class="au-card__chip au-card__chip--donor">Donated by ' + esc(it.donor) + '</span>');
-          if (it.sold && it.sold.amount) chips.push('<span class="au-card__chip au-card__chip--sold">SOLD ' + money(it.sold.amount) + '</span>');
-          var winner = it.sold && it.sold.buyerName
-            ? '<div class="au-card__winner">Won by <b>' + esc(it.sold.buyerName) + '</b></div>' : '';
+          if (it.sold && it.sold.amount) chips.push('<span class="au-card__chip au-card__chip--sold">SOLD</span>');
           return ''
             + '<article class="au-card">'
             +   photo
@@ -175,7 +177,6 @@
             +     '<h2 class="au-card__name">' + esc(it.name || "(item)") + '</h2>'
             +     (it.description ? '<p class="au-card__desc">' + esc(it.description) + '</p>' : "")
             +     (chips.length ? '<div class="au-card__meta">' + chips.join("") + '</div>' : "")
-            +     winner
             +   '</div>'
             + '</article>';
         }).join("");
