@@ -270,6 +270,18 @@
         }
       } catch (_) {}
 
+      // Carry the tournament identity through the top nav so "Live
+      // leaderboard" lands on the tournament's own leaderboard rather
+      // than the generic "No tournament selected" screen. Only rewrite
+      // when we actually have a KEY — an F&H-Home style visit stays
+      // generic.
+      try {
+        if (KEY) {
+          var _navLb = document.getElementById("navLeaderboard");
+          if (_navLb) _navLb.href = "leaderboard.html?t=" + encodeURIComponent(KEY);
+        }
+      } catch (_) {}
+
       // Per-tournament tier options + payment contacts. Keep this map in
       // sync with the workbook's _DONOR_TIERS_BY_KEY when the tournament
       // committee changes tiers or contacts.
