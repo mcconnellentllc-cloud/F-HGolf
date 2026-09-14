@@ -1315,16 +1315,16 @@
       var TMETA = window.FH_TMETA || {};
       var META = TMETA[KEY] || null;
       // AUTO-REDIRECT for known phantom URLs — one variant per line.
-      // The site's canonical Haxtun Fire key is "Haxtun Fire (Sept 19)".
+      // The site's canonical Haxtun Fire key is "Haxtun Fire (Sept 2019)".
       // Older cached tournament cards and browser autocompletes keep
       // landing the operator on typo'd variants; when we spot one, bounce
       // them at page-load time (before render) to the correct URL so
       // saves land on the right Airtable row.
       try {
         var _PHANTOM_MAP = {
-          "Haxtun Fire (Sept 2019)": "Haxtun Fire (Sept 19)",
-          "Haxtun Fire (Sept 19, 2026)": "Haxtun Fire (Sept 19)",
-          "Haxtun Fire (Sept 2019, 2026)": "Haxtun Fire (Sept 19)"
+          "Haxtun Fire (Sept 19)": "Haxtun Fire (Sept 2019)",
+          "Haxtun Fire (Sept 19, 2026)": "Haxtun Fire (Sept 2019)",
+          "Haxtun Fire (Sept 2019, 2026)": "Haxtun Fire (Sept 2019)"
         };
         if (KEY && _PHANTOM_MAP[KEY]) {
           var _fixed = _PHANTOM_MAP[KEY];

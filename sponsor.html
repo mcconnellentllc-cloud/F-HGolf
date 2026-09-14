@@ -229,9 +229,9 @@
       // tournament identifier.
       try {
         var _PHANTOM_MAP = {
-          "Haxtun Fire (Sept 2019)": "Haxtun Fire (Sept 19)",
-          "Haxtun Fire (Sept 19, 2026)": "Haxtun Fire (Sept 19)",
-          "Haxtun Fire (Sept 2019, 2026)": "Haxtun Fire (Sept 19)"
+          "Haxtun Fire (Sept 19)": "Haxtun Fire (Sept 2019)",
+          "Haxtun Fire (Sept 19, 2026)": "Haxtun Fire (Sept 2019)",
+          "Haxtun Fire (Sept 2019, 2026)": "Haxtun Fire (Sept 2019)"
         };
         if (_PHANTOM_MAP[KEY]) {
           location.replace("sponsor.html?t=" + encodeURIComponent(_PHANTOM_MAP[KEY]));
@@ -243,14 +243,14 @@
       // sync with the workbook's _DONOR_TIERS_BY_KEY when the tournament
       // committee changes tiers or contacts.
       var TIERS_BY_KEY = {
-        "Haxtun Fire (Sept 19)": [
+        "Haxtun Fire (Sept 2019)": [
           { value: "Fire ($250)", label: "Fire", amount: "$250", desc: "Hole sponsor + logo on the sponsor wall." },
           { value: "Department ($100)", label: "Department", amount: "$100", desc: "Logo on the sponsor wall." },
           { value: "", label: "Custom / In-kind", amount: "You choose", desc: "Any amount, or an in-kind donation (basket, service, gift card)." }
         ]
       };
       var CONTACTS_BY_KEY = {
-        "Haxtun Fire (Sept 19)": {
+        "Haxtun Fire (Sept 2019)": {
           intro: "Please contact one of the following members of the Haxtun Volunteer Fire Department to arrange payment:",
           contacts: [
             { role: "Fire Department", name: "Marc", note: "Contact through the Haxtun VFD" },
