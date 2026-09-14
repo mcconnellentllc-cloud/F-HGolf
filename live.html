@@ -133,6 +133,58 @@
     }
     .tab.on { color: var(--green); border-bottom-color: var(--green-strong); }
 
+    /* Sticky bottom tabs — Rules + Sponsors. Live on every screen so
+       players can jump to them without scrolling out of their round. */
+    .bottom-tabs {
+      position: sticky; bottom: 0; z-index: 5;
+      display: grid; grid-template-columns: 1fr 1fr;
+      background: var(--card);
+      border-top: 1px solid var(--line);
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .btab {
+      padding: 0.85rem 0.5rem;
+      font: 700 0.9rem/1 system-ui, sans-serif;
+      text-align: center;
+      color: var(--muted);
+      border: none;
+      border-top: 3px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .btab.on { color: var(--green-strong); border-top-color: var(--green-strong); background: var(--green-soft); }
+
+    /* Rules / Sponsors panels — full-width readable content on phone. */
+    .info-panel { padding: 0.5rem 0 1rem; }
+    .info-panel h3 { font: 800 1.05rem/1.2 -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0.85rem 0 0.35rem; color: var(--ink); text-transform: uppercase; letter-spacing: 0.05em; padding-bottom: 0.25rem; border-bottom: 1px solid var(--line); }
+    .info-panel h3:first-child { margin-top: 0.25rem; }
+    .info-panel ul { margin: 0 0 0.9rem; padding: 0; list-style: none; }
+    .info-panel li { padding: 0.35rem 0 0.35rem 1.2rem; position: relative; border-bottom: 1px dashed var(--line); color: var(--ink); font-size: 0.95rem; line-height: 1.4; }
+    .info-panel li:last-child { border-bottom: none; }
+    .info-panel li::before { content: "•"; position: absolute; left: 0.35rem; color: var(--brass); font-weight: 800; }
+    .info-panel b, .info-panel strong { color: var(--brass); font-weight: 800; }
+    .info-panel__empty { color: var(--muted); font-style: italic; padding: 1rem; text-align: center; }
+
+    .sp-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(9rem, 100%), 1fr)); gap: 0.65rem; margin-bottom: 1rem; }
+    .sp-tile { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--brass); border-radius: 8px; padding: 0.6rem 0.7rem; display: flex; flex-direction: column; gap: 0.25rem; }
+    .sp-tile__logo { width: 100%; aspect-ratio: 4/3; background: #fff; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 0.35rem; }
+    .sp-tile__logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .sp-tile__logo--empty { color: var(--ink-2); font: 800 1.2rem/1 "Fraunces", Georgia, serif; background: var(--brass-soft); }
+    .sp-tile__name { font: 700 0.9rem/1.2 system-ui, sans-serif; color: var(--ink); word-wrap: break-word; }
+    .sp-tile__meta { color: var(--muted); font-size: 0.78rem; }
+    .sp-tile__site { color: var(--green-strong); font-weight: 700; font-size: 0.82rem; text-decoration: none; word-break: break-all; }
+    .sp-group__hd { font: 800 0.72rem/1 system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 0.85rem 0 0.45rem; padding-bottom: 0.2rem; border-bottom: 1px solid var(--line); }
+
+    /* Fire-themed accents on the info panels when playing a Fire tournament. */
+    body.live-fire .info-panel h3 { color: #c8102e; border-bottom-color: rgba(200,16,46,0.35); }
+    body.live-fire .info-panel li::before { color: #c8102e; }
+    body.live-fire .info-panel b, body.live-fire .info-panel strong { color: #c8102e; }
+    body.live-fire .sp-tile { border-left-color: #c8102e; }
+    body.live-fire .btab.on { color: #c8102e; border-top-color: #c8102e; background: rgba(200,16,46,0.08); }
+
     .body { flex: 1; padding: 0.95rem 0.95rem 1.5rem; }
 
     /* Hole card */
@@ -428,6 +480,7 @@
   </div>
 
   <script src="js/api.js"></script>
+  <script src="js/tournament-rules.js"></script>
   <script>
     (function () {
       "use strict";
@@ -516,6 +569,37 @@
             STATE.tournament = j.tournament || "";
             STATE.config = j.config || {};
             STATE.field = j.field || [];
+            // Haxtun Fire tournaments get a subtle red accent on the
+            // Rules / Sponsors panels + bottom-tab highlight, matching
+            // the leaderboard's Fire theme so the two identities agree.
+            try {
+              if (/^\s*haxtun\s*fire/i.test(String(STATE.tournament || ""))) {
+                document.body.classList.add("live-fire");
+              }
+            } catch (e) {}
+            // Fetch Donors JSON for the Sponsors tab. Separate call
+            // because the live-load endpoint doesn't return donor
+            // content. Silent on failure — Sponsors panel just shows
+            // the empty state.
+            try {
+              fetch(FH_API.url("/api/tournament-signups") + "?config=" + encodeURIComponent(STATE.tournament), { cache: "no-store" })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (cfgJ) {
+                  var f = (cfgJ && cfgJ.ok && cfgJ.record && cfgJ.record.fields) || {};
+                  STATE.config.donors = f["Donors JSON"] || "";
+                  // Extend the config passed to buildTournamentRules with
+                  // whatever Format tab settings landed on the config row.
+                  STATE.config.format = f["Format"] || STATE.config.format || "";
+                  STATE.config.playStyle = f["Play Style"] || "";
+                  STATE.config.calcuttaEnabled = f["Calcutta Enabled"] === true;
+                  var w = []; try { w = JSON.parse(f["Waves JSON"] || "[]"); if (!Array.isArray(w)) w = []; } catch (_) {}
+                  STATE.config.waves = w;
+                  // If the operator is looking at Rules or Sponsors when
+                  // the donors land, repaint so the tiles actually show.
+                  if (STATE.tab === "sponsors" || STATE.tab === "rules") render();
+                })
+                .catch(function () {});
+            } catch (e) {}
             // Marker assignment (server-computed). Falls back to a
             // self-mode baseline if the response predates PR #321.
             STATE.marker = (j.markerAssignment && j.markerAssignment.d1)
@@ -749,8 +833,19 @@
           +   '<button class="tab ' + (STATE.tab === "lb" ? "on" : "") + '" type="button" data-tab="lb">Leaderboard</button>'
           + '</div>'
           + '<main class="body">'
-          + (STATE.tab === "score" ? renderScorecard(multiDay) : renderLeaderboard())
-          + '</main>';
+          + (STATE.tab === "score" ? renderScorecard(multiDay)
+             : STATE.tab === "lb" ? renderLeaderboard()
+             : STATE.tab === "rules" ? renderRules()
+             : STATE.tab === "sponsors" ? renderSponsors()
+             : renderScorecard(multiDay))
+          + '</main>'
+          // Bottom nav — Rules + Sponsors. Sticky on the phone so
+          // players can jump to them from any point in a round without
+          // scrolling all the way back up.
+          + '<nav class="bottom-tabs" role="tablist" aria-label="Info">'
+          +   '<button class="btab ' + (STATE.tab === "rules" ? "on" : "") + '" type="button" data-tab="rules">Rules</button>'
+          +   '<button class="btab ' + (STATE.tab === "sponsors" ? "on" : "") + '" type="button" data-tab="sponsors">Sponsors</button>'
+          + '</nav>';
         app.innerHTML = html;
         wire();
       }
@@ -1093,6 +1188,78 @@
           + '<button class="day-btn ' + (STATE.day === 1 ? "on" : "") + '" type="button" data-day="1">Day 1</button>'
           + '<button class="day-btn ' + (STATE.day === 2 ? "on" : "") + '" type="button" data-day="2">Day 2</button>'
           + '</div>';
+      }
+
+      // Rules panel — reads the tournament's format-derived rules and
+      // renders them as headings + bullet lists. Uses the same
+      // buildTournamentRules helper that tournament-rules.html uses so
+      // there's one source of truth for how a Fire (4-man scramble),
+      // Founders, or Couples tournament's rules read.
+      function renderRules() {
+        var cfg = STATE.config || {};
+        var html = "";
+        try {
+          if (typeof window.buildTournamentRules === "function") {
+            html = window.buildTournamentRules({
+              perTeam: cfg.playersPerTeam || 4,
+              rounds: cfg.rounds || 1,
+              format: cfg.format || "",
+              playStyle: cfg.playStyle || "",
+              waves: cfg.waves || [],
+              calcutta: !!cfg.calcuttaEnabled,
+            }, STATE.tournament);
+          }
+        } catch (e) {}
+        if (!html) {
+          html = '<p class="info-panel__empty">Rules are being finalized — check back closer to the tournament, or ask the pro shop.</p>';
+        }
+        return '<section class="info-panel">' + html + '</section>';
+      }
+
+      // Sponsors panel — reads Donors JSON from tournament config
+      // (fetched alongside the marker load) and renders each donor as
+      // a compact tile with a logo, amount, and website. Grouped by
+      // tier when tiers are set.
+      function renderSponsors() {
+        var raw = (STATE.config && STATE.config.donors) || "";
+        var list = [];
+        try {
+          var parsed = JSON.parse(raw || "{}");
+          if (parsed && Array.isArray(parsed.donors)) list = parsed.donors.filter(function (d) { return d && d.name; });
+        } catch (e) {}
+        if (!list.length) return '<section class="info-panel"><p class="info-panel__empty">Sponsor list is coming together — check back closer to the tournament.</p></section>';
+        // Bucket by tier; anything without a tier lands under "Other".
+        var order = [];
+        var buckets = {};
+        list.forEach(function (d) {
+          var key = String(d.tier || "").trim() || "Other Sponsors";
+          if (!buckets[key]) { buckets[key] = []; order.push(key); }
+          buckets[key].push(d);
+        });
+        function normUrl(u) {
+          var s = String(u || "").trim();
+          if (!s) return "";
+          if (/^https?:\/\//i.test(s)) return s;
+          if (/^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(s)) return "https://" + s;
+          return "";
+        }
+        function tile(d) {
+          var logo = d.logoDataUri && String(d.logoDataUri).indexOf("data:image/") === 0
+            ? '<div class="sp-tile__logo"><img alt="" src="' + esc(d.logoDataUri) + '"></div>'
+            : '<div class="sp-tile__logo sp-tile__logo--empty">' + esc((d.name || "?").slice(0, 1).toUpperCase()) + '</div>';
+          var site = normUrl(d.website);
+          return '<div class="sp-tile">'
+            + logo
+            + '<div class="sp-tile__name">' + esc(d.name) + '</div>'
+            + (d.amount ? '<div class="sp-tile__meta">' + esc(d.amount) + '</div>' : "")
+            + (site ? '<a class="sp-tile__site" href="' + esc(site) + '" target="_blank" rel="noopener">' + esc(String(d.website).replace(/^https?:\/\//i, "")) + ' &rarr;</a>' : "")
+            + '</div>';
+        }
+        var html = order.map(function (tier) {
+          return '<h4 class="sp-group__hd">' + esc(tier) + '</h4>'
+            + '<div class="sp-tiles">' + buckets[tier].map(tile).join("") + '</div>';
+        }).join("");
+        return '<section class="info-panel">' + html + '</section>';
       }
 
       function renderLeaderboard() {
