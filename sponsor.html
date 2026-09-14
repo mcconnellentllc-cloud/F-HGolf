@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Become a Sponsor — F&H Golf</title>
+  <meta name="description" content="Sponsor a tournament at F&H Golf Course. Pick your tier, upload your logo, and we'll follow up with payment arrangements." />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <meta name="theme-color" content="#0b1a10" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700;800&family=Source+Sans+3:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b1a10; --bg-2: #12261a;
+      --panel: rgba(255,255,255,0.06); --line: rgba(255,255,255,0.14);
+      --gold: #f5c542; --ink: #f6f9f4; --muted: rgba(246,249,244,0.62);
+      --red: #c8102e; --red-deep: #7a0a1a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: "Source Sans 3", -apple-system, system-ui, sans-serif; min-height: 100vh; }
+    body { background: radial-gradient(ellipse at top, var(--bg-2) 0%, var(--bg) 60%); }
+
+    .disp { min-height: 100vh; display: flex; flex-direction: column; }
+    .disp__hero { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: clamp(0.75rem, 2vw, 1.5rem); padding: clamp(1rem, 2vw, 1.5rem) clamp(1rem, 2vw, 1.75rem); background: #000; border-bottom: 3px solid #000; }
+    .disp__logo { width: clamp(3.4rem, 6vw, 5.4rem); height: clamp(3.4rem, 6vw, 5.4rem); border-radius: 50%; background: #fff; padding: clamp(0.25rem, 0.5vw, 0.45rem); box-shadow: 0 0 0 3px #000, 0 0 0 5px rgba(255,255,255,0.15); object-fit: contain; }
+    .disp__logo--r { justify-self: end; }
+    .disp__hero__title { text-align: center; }
+    .disp__eyebrow { text-transform: uppercase; letter-spacing: 0.4em; color: #fff; font-weight: 800; font-size: clamp(0.7rem, 1.15vw, 0.95rem); }
+    .disp__title { font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: clamp(2.1rem, 5vw, 4.2rem); margin: 0.1em 0 0; line-height: 1; letter-spacing: 0.01em; color: #fff; }
+    .disp__sub { color: rgba(255,255,255,0.75); font-size: clamp(0.95rem, 1.5vw, 1.2rem); margin: 0.15em 0 0; font-style: italic; }
+    @media (max-width: 720px) {
+      .disp__hero { grid-template-columns: 1fr; text-align: center; padding-top: 1rem; }
+      .disp__logo { margin: 0 auto; }
+      .disp__logo--r { display: none; }
+    }
+    .disp__nav { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; padding: 0.75rem 1rem; background: rgba(0,0,0,0.7); border-bottom: 1px solid var(--line); }
+    .disp__nav a { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.95rem; border-radius: 999px; background: rgba(255,255,255,0.08); color: var(--ink); font-weight: 700; text-decoration: none; font-size: clamp(0.85rem, 1.1vw, 1rem); letter-spacing: 0.02em; border: 1px solid rgba(255,255,255,0.14); transition: background 0.15s ease, color 0.15s ease; }
+    .disp__nav a:hover, .disp__nav a:focus-visible { background: var(--gold); color: #0b1a10; border-color: var(--gold); outline: none; }
+    .disp__nav a.is-here { background: rgba(245,197,66,0.15); color: var(--gold); border-color: rgba(245,197,66,0.35); pointer-events: none; }
+
+    .sp { flex: 1; max-width: 44rem; width: 100%; margin: 0 auto; padding: clamp(1rem, 2vw, 2rem) clamp(1rem, 2vw, 1.75rem) 3rem; }
+    .sp__intro { text-align: center; margin: 0 0 1.5rem; }
+    .sp__intro h2 { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: var(--gold); font-size: clamp(1.4rem, 3vw, 2rem); margin: 0 0 0.35em; }
+    .sp__intro p { color: rgba(255,255,255,0.85); margin: 0 auto; max-width: 34rem; line-height: 1.5; }
+
+    .sp__form { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: clamp(1rem, 2vw, 1.75rem); display: grid; gap: 1rem; }
+    .sp__row { display: grid; gap: 0.35rem; }
+    .sp__row label > span { font: 800 0.75rem/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(255,255,255,0.8); }
+    .sp__row input[type="text"], .sp__row input[type="url"], .sp__row input[type="email"], .sp__row input[type="tel"], .sp__row input[type="number"], .sp__row textarea, .sp__row select {
+      width: 100%; padding: 0.65rem 0.85rem; border: 1px solid rgba(255,255,255,0.22); border-radius: 8px; background: rgba(0,0,0,0.35); color: #fff; font: inherit; font-size: 1rem;
+    }
+    .sp__row textarea { min-height: 4.5rem; resize: vertical; }
+    .sp__row input:focus, .sp__row textarea:focus, .sp__row select:focus { outline: 2px solid var(--gold); outline-offset: 2px; }
+    .sp__row .sp__hint { color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0.15rem 0 0; font-style: italic; }
+    .sp__req::after { content: " *"; color: var(--red); }
+
+    .sp__tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr)); gap: 0.75rem; }
+    .sp__tier { position: relative; }
+    .sp__tier input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+    .sp__tier > div {
+      cursor: pointer; padding: 1rem 1rem 0.85rem; border: 2px solid rgba(255,255,255,0.22); border-radius: 12px; background: rgba(0,0,0,0.35); transition: all 0.15s ease;
+    }
+    .sp__tier input[type="radio"]:checked + div {
+      border-color: var(--red); background: rgba(200,16,46,0.15); box-shadow: 0 0 0 3px rgba(200,16,46,0.25);
+    }
+    .sp__tier input[type="radio"]:focus-visible + div { outline: 2px solid var(--gold); outline-offset: 3px; }
+    .sp__tier__name { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: #fff; font-size: 1.15rem; margin: 0 0 0.15rem; }
+    .sp__tier__amt { color: var(--red); font-weight: 800; letter-spacing: 0.05em; font-size: 1rem; }
+    .sp__tier__desc { color: rgba(255,255,255,0.75); font-size: 0.85rem; margin: 0.3rem 0 0; line-height: 1.35; }
+
+    .sp__custom { display: none; padding: 0.85rem 1rem; border: 1px dashed rgba(255,255,255,0.3); border-radius: 10px; background: rgba(0,0,0,0.3); }
+    .sp__custom.is-open { display: grid; gap: 0.5rem; }
+
+    .sp__logo-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .sp__logo-row input[type="file"] { color: #fff; font-size: 0.9rem; }
+    .sp__logo-preview { width: 3.5rem; height: 3.5rem; border: 1px dashed rgba(255,255,255,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fff; overflow: hidden; }
+    .sp__logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .sp__logo-clear { padding: 0.4rem 0.85rem; background: transparent; color: rgba(255,255,255,0.85); border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; cursor: pointer; font-weight: 700; }
+    .sp__logo-clear:hover { background: rgba(200,16,46,0.15); border-color: var(--red); color: #fff; }
+
+    .sp__submit { padding: 0.9rem 1.5rem; background: var(--red); color: #fff; border: none; border-radius: 999px; font: 800 1rem/1 inherit; letter-spacing: 0.05em; cursor: pointer; box-shadow: 0 6px 22px rgba(200,16,46,0.45); }
+    .sp__submit:hover:not(:disabled) { background: #fff; color: var(--red); }
+    .sp__submit:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .sp__status { min-height: 1.15rem; text-align: center; color: rgba(255,255,255,0.7); font-size: 0.9rem; }
+    .sp__status.is-error { color: #ff8a95; font-weight: 700; }
+
+    /* Success screen — replaces the form on submit. */
+    .sp__done { text-align: center; padding: 2rem 1rem; }
+    .sp__done h2 { font-family: "Fraunces", Georgia, serif; font-weight: 800; color: var(--gold); font-size: clamp(1.6rem, 3.5vw, 2.4rem); margin: 0 0 0.35em; }
+    .sp__done p { color: rgba(255,255,255,0.9); line-height: 1.5; max-width: 32rem; margin: 0 auto 0.85rem; }
+    .sp__contacts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr)); gap: 0.75rem; margin: 1.25rem 0 1.5rem; text-align: left; }
+    .sp__contact { padding: 0.85rem 1rem; border: 1px solid rgba(200,16,46,0.4); border-top: 3px solid var(--red); border-radius: 10px; background: rgba(200,16,46,0.08); }
+    .sp__contact__role { font: 800 0.72rem/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.7); }
+    .sp__contact__name { font-family: "Fraunces", Georgia, serif; font-weight: 700; color: #fff; font-size: 1.25rem; margin: 0.25rem 0 0.1rem; }
+    .sp__contact__note { color: rgba(255,255,255,0.7); font-size: 0.85rem; margin: 0.15rem 0 0; font-style: italic; }
+
+    .missing { max-width: 40rem; margin: 4rem auto; padding: 2rem; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; text-align: center; }
+    .missing h1 { font-family: "Fraunces", Georgia, serif; color: var(--gold); margin: 0 0 0.5rem; }
+    .missing a { color: var(--gold); font-weight: 700; }
+    .disp__foot { text-align: center; color: rgba(255,255,255,0.55); font-size: 0.85rem; padding: 0.6rem 1rem 1.5rem; letter-spacing: 0.06em; }
+  </style>
+</head>
+<body>
+  <main class="disp" role="main">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <defs>
+        <symbol id="fireBadge" viewBox="0 0 100 100">
+          <path d="M50 2 L60 25 L75 15 L85 25 L75 35 L98 45 L98 55 L75 65 L85 75 L75 85 L60 75 L50 98 L40 75 L25 85 L15 75 L25 65 L2 55 L2 45 L25 35 L15 25 L25 15 L40 25 Z" fill="#c8102e" stroke="#000" stroke-width="4" />
+          <circle cx="50" cy="50" r="18" fill="#000" />
+          <text x="50" y="60" fill="#fff" font-family="Fraunces,Georgia,serif" font-weight="800" font-size="30" text-anchor="middle">H</text>
+        </symbol>
+      </defs>
+    </svg>
+
+    <header class="disp__hero">
+      <img class="disp__logo" src="images/logo.png" alt="F&H Golf Course" />
+      <div class="disp__hero__title">
+        <div class="disp__eyebrow">Become a Sponsor</div>
+        <h1 class="disp__title" id="spTitle">Sponsor the Tournament</h1>
+        <p class="disp__sub" id="spSub">F&amp;H Golf Course</p>
+      </div>
+      <img class="disp__logo disp__logo--r" src="images/logo.png" alt="" aria-hidden="true" />
+    </header>
+
+    <nav class="disp__nav" aria-label="Tournament public pages">
+      <a href="index.html">F&amp;H Home</a>
+      <a href="tournaments.html">Tournaments</a>
+      <a id="navLeaderboard" href="leaderboard.html">Live leaderboard</a>
+      <a class="is-here" aria-current="page">Become a Sponsor</a>
+    </nav>
+
+    <section class="sp" aria-label="Sponsor sign-up form">
+      <div class="sp__intro" id="spIntro">
+        <h2>Support this tournament</h2>
+        <p id="spIntroText">Pick a tier below, add your business info, and upload your logo. We&rsquo;ll follow up with payment details.</p>
+      </div>
+
+      <form class="sp__form" id="spForm" autocomplete="on" novalidate>
+        <div class="sp__row">
+          <label><span class="sp__req">Tier</span></label>
+          <div class="sp__tiers" id="spTiers" role="radiogroup" aria-label="Sponsorship tier"></div>
+          <div class="sp__custom" id="spCustomBox">
+            <label>
+              <span>Custom amount or item</span>
+              <input type="text" id="spCustomAmount" maxlength="60" placeholder="e.g. $500, or &lsquo;Case of golf balls&rsquo;" />
+            </label>
+          </div>
+        </div>
+
+        <div class="sp__row">
+          <label>
+            <span class="sp__req">Sponsor name (as it should appear on the wall)</span>
+            <input type="text" id="spName" maxlength="120" required placeholder="e.g. McConnell Enterprises" />
+          </label>
+        </div>
+
+        <div class="sp__row">
+          <label>
+            <span>Website (optional)</span>
+            <input type="text" id="spWebsite" maxlength="240" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="e.g. haxtunfire.org" />
+          </label>
+          <p class="sp__hint">We&rsquo;ll link your name to your site on the public sponsor wall.</p>
+        </div>
+
+        <div class="sp__row">
+          <label>
+            <span>Contact person &amp; phone (optional)</span>
+            <input type="text" id="spContact" maxlength="160" placeholder="e.g. Marc Bornhoft &mdash; 970-580-2913" />
+          </label>
+          <p class="sp__hint">Who should the Fire Department follow up with?</p>
+        </div>
+
+        <div class="sp__row">
+          <label>
+            <span>Contact email (optional)</span>
+            <input type="email" id="spEmail" maxlength="160" placeholder="you@example.com" />
+          </label>
+          <p class="sp__hint">Only used to send you a confirmation.</p>
+        </div>
+
+        <div class="sp__row">
+          <label>
+            <span>Thank-you note (optional)</span>
+            <textarea id="spThanks" maxlength="200" placeholder="e.g. Serving our community since 1962"></textarea>
+          </label>
+        </div>
+
+        <div class="sp__row">
+          <label>
+            <span>Logo (optional)</span>
+            <div class="sp__logo-row">
+              <input type="file" id="spLogo" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="sp__logo-preview" id="spLogoPreview" aria-hidden="true"></div>
+              <button type="button" class="sp__logo-clear" id="spLogoClear" hidden>Remove file</button>
+            </div>
+          </label>
+          <p class="sp__hint">PNG, JPG, WEBP or GIF. We&rsquo;ll resize it to fit the wall (max 6&nbsp;MB).</p>
+        </div>
+
+        <div style="text-align:center;">
+          <button class="sp__submit" type="submit" id="spSubmit">Submit sponsorship</button>
+        </div>
+        <p class="sp__status" id="spStatus" role="status" aria-live="polite"></p>
+      </form>
+
+      <!-- Success screen swapped in after submit. Payment contacts are
+           configured per-tournament by CONTACTS_BY_KEY in the JS below. -->
+      <div class="sp__done" id="spDone" hidden>
+        <h2 id="spDoneTitle">Thank you!</h2>
+        <p id="spDoneBody">We&rsquo;ve got your info. Please contact one of the following to arrange payment:</p>
+        <div class="sp__contacts" id="spContacts"></div>
+        <p><a href="leaderboard.html" id="spDoneBack" style="color:var(--gold); font-weight:700;">See the live sponsor wall &rarr;</a></p>
+      </div>
+    </section>
+
+    <footer class="disp__foot"><span id="spFoot">Every dollar backs the neighbors who answer the call.</span></footer>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var KEY = params.get("t") || "";
+
+      // Per-tournament tier options + payment contacts. Keep this map in
+      // sync with the workbook's _DONOR_TIERS_BY_KEY when the tournament
+      // committee changes tiers or contacts.
+      var TIERS_BY_KEY = {
+        "Haxtun Fire (Sept 19)": [
+          { value: "Fire ($250)", label: "Fire", amount: "$250", desc: "Hole sponsor + logo on the sponsor wall." },
+          { value: "Department ($100)", label: "Department", amount: "$100", desc: "Logo on the sponsor wall." },
+          { value: "", label: "Custom / In-kind", amount: "You choose", desc: "Any amount, or an in-kind donation (basket, service, gift card)." }
+        ]
+      };
+      var CONTACTS_BY_KEY = {
+        "Haxtun Fire (Sept 19)": {
+          intro: "Please contact one of the following members of the Haxtun Volunteer Fire Department to arrange payment:",
+          contacts: [
+            { role: "Fire Department", name: "Marc", note: "Contact through the Haxtun VFD" },
+            { role: "Fire Department", name: "Michael", note: "Contact through the Haxtun VFD" },
+            { role: "Fire Department", name: "Wyett", note: "Contact through the Haxtun VFD" }
+          ]
+        }
+      };
+      var IS_FIRE = /^\s*haxtun\s*fire/i.test(KEY);
+
+      // If no tournament in the URL, land on a friendly picker back to the
+      // tournaments page. Prevents saves against a phantom tournament.
+      if (!KEY || !TIERS_BY_KEY[KEY]) {
+        var main = document.querySelector("main.disp");
+        if (main) {
+          main.innerHTML = ''
+            + '<div class="missing"><h1>Pick a tournament first</h1>'
+            + '<p>Head to <a href="tournaments.html">Tournaments</a> and pick the event you\'d like to sponsor.</p></div>';
+        }
+        return;
+      }
+
+      // Apply Fire theme via inline styles — no reliance on CSS a viewer
+      // may have cached from an older leaderboard.html visit.
+      if (IS_FIRE) {
+        try { document.body.classList.add("theme-fire"); } catch (e) {}
+        try {
+          var eyebrow = document.querySelector(".disp__eyebrow");
+          if (eyebrow) eyebrow.innerHTML =
+            '<svg width="1.4em" height="1.4em" style="vertical-align:middle;margin-right:0.4em;"><use href="#fireBadge"/></svg>' +
+            '&#9733; HAXTUN VOLUNTEER FIRE DEPARTMENT &#9733;' +
+            '<svg width="1.4em" height="1.4em" style="vertical-align:middle;margin-left:0.4em;"><use href="#fireBadge"/></svg>';
+          var t = document.getElementById("spTitle");
+          if (t) t.textContent = "Sponsor the Fire Department Tournament";
+          var sub = document.getElementById("spSub");
+          if (sub) sub.innerHTML = 'A small town with a big heart &middot; F&amp;H Golf Course &middot; Sept 19';
+          var intro = document.getElementById("spIntroText");
+          if (intro) intro.textContent = "Every dollar supports the volunteers who answer the call. Pick a tier below, add your business info, and upload your logo — we'll follow up with a Fire Department member for payment.";
+          var foot = document.getElementById("spFoot");
+          if (foot) foot.textContent = "A small town with a big heart — every dollar backs the neighbors who answer the call.";
+        } catch (e) {}
+      }
+
+      // Render the tier radios.
+      var tiers = TIERS_BY_KEY[KEY];
+      var tiersHost = document.getElementById("spTiers");
+      tiersHost.innerHTML = tiers.map(function (t, i) {
+        var isCustom = !t.value;
+        return ''
+          + '<label class="sp__tier">'
+          +   '<input type="radio" name="tier" value="' + escAttr(t.value) + '" data-custom="' + (isCustom ? "1" : "0") + '"' + (i === 0 ? " checked" : "") + ' />'
+          +   '<div>'
+          +     '<h3 class="sp__tier__name">' + escText(t.label) + '</h3>'
+          +     '<div class="sp__tier__amt">' + escText(t.amount) + '</div>'
+          +     '<p class="sp__tier__desc">' + escText(t.desc) + '</p>'
+          +   '</div>'
+          + '</label>';
+      }).join("");
+      // Wire the custom-amount reveal.
+      var customBox = document.getElementById("spCustomBox");
+      function syncCustom() {
+        var picked = tiersHost.querySelector('input[name="tier"]:checked');
+        var isCustom = picked && picked.getAttribute("data-custom") === "1";
+        if (customBox) customBox.classList.toggle("is-open", !!isCustom);
+      }
+      Array.prototype.forEach.call(tiersHost.querySelectorAll('input[name="tier"]'), function (r) {
+        r.addEventListener("change", syncCustom);
+      });
+      syncCustom();
+
+      // Logo upload — client-side resize down to 300px max, JPEG q0.65,
+      // same shape the workbook uses so we stay under Airtable's ~100KB
+      // long-text ceiling once the logo is packed into Donors JSON.
+      var pendingLogo = "";
+      var logoInput = document.getElementById("spLogo");
+      var logoPreview = document.getElementById("spLogoPreview");
+      var logoClear = document.getElementById("spLogoClear");
+      function resetLogo() {
+        pendingLogo = "";
+        if (logoInput) logoInput.value = "";
+        if (logoPreview) logoPreview.innerHTML = "";
+        if (logoClear) logoClear.hidden = true;
+      }
+      if (logoInput) logoInput.addEventListener("change", function () {
+        var file = logoInput.files && logoInput.files[0];
+        if (!file) { resetLogo(); return; }
+        if (logoClear) logoClear.hidden = false;
+        if (file.type && file.type.indexOf("image/") !== 0) {
+          setStatus("That file isn't an image — pick a PNG, JPG, WEBP, or GIF.", "error");
+          resetLogo();
+          return;
+        }
+        if (file.size > 6 * 1024 * 1024) {
+          setStatus("Image is too large (max 6 MB).", "error");
+          resetLogo();
+          return;
+        }
+        resizeImage(file, 300, 0.65, function (dataUri) {
+          if (!dataUri) { setStatus("Couldn't read that image — try a different file.", "error"); resetLogo(); return; }
+          pendingLogo = dataUri;
+          logoPreview.innerHTML = '<img alt="" src="' + escAttr(dataUri) + '">';
+          setStatus("");
+        });
+      });
+      if (logoClear) logoClear.addEventListener("click", function () { resetLogo(); setStatus(""); });
+
+      function resizeImage(file, maxSide, quality, cb) {
+        var reader = new FileReader();
+        reader.onerror = function () { cb(""); };
+        reader.onload = function () {
+          var img = new Image();
+          img.onerror = function () { cb(""); };
+          img.onload = function () {
+            var w = img.naturalWidth, h = img.naturalHeight;
+            if (!w || !h) { cb(""); return; }
+            var scale = Math.min(1, maxSide / w, maxSide / h);
+            var cw = Math.round(w * scale), ch = Math.round(h * scale);
+            var cvs = document.createElement("canvas");
+            cvs.width = cw; cvs.height = ch;
+            var ctx = cvs.getContext("2d");
+            ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cw, ch);
+            ctx.drawImage(img, 0, 0, cw, ch);
+            try { cb(cvs.toDataURL("image/jpeg", quality)); } catch (e) { cb(""); }
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // Submit — POST to the sponsor-submit action which appends to the
+      // Tournament Config's Donors JSON without needing any admin key.
+      // The row lands with paid=false and pending=true so the workbook
+      // committee can review before the wall shows it publicly.
+      var form = document.getElementById("spForm");
+      var submitBtn = document.getElementById("spSubmit");
+      var status = document.getElementById("spStatus");
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var name = String(document.getElementById("spName").value || "").trim();
+        if (!name) { setStatus("Please enter a sponsor name.", "error"); return; }
+        var picked = tiersHost.querySelector('input[name="tier"]:checked');
+        var tier = picked ? picked.value : "";
+        var isCustom = picked && picked.getAttribute("data-custom") === "1";
+        var amount = "";
+        if (isCustom) {
+          amount = String(document.getElementById("spCustomAmount").value || "").trim();
+          if (!amount) { setStatus("Enter a custom amount or describe your in-kind donation.", "error"); return; }
+        } else if (tier) {
+          // Pull "$250" out of "Fire ($250)" so the amount chip reads a
+          // dollar figure even though the tier label already implies it.
+          var m = /\$([\d,]+)/.exec(tier);
+          if (m) amount = "$" + m[1];
+        }
+        var payload = {
+          action: "sponsor-submit",
+          tournament: KEY,
+          sponsor: {
+            name: name.slice(0, 120),
+            tier: (tier || "").slice(0, 80),
+            amount: amount.slice(0, 60),
+            website: String(document.getElementById("spWebsite").value || "").trim().slice(0, 240),
+            contact: String(document.getElementById("spContact").value || "").trim().slice(0, 160),
+            email: String(document.getElementById("spEmail").value || "").trim().slice(0, 160),
+            thankYou: String(document.getElementById("spThanks").value || "").trim().slice(0, 200),
+            logoDataUri: pendingLogo || "",
+          },
+        };
+        submitBtn.disabled = true;
+        setStatus("Submitting…");
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.ok) { showDone(); }
+            else {
+              setStatus((j && j.error) || "Something went wrong. Please try again.", "error");
+              submitBtn.disabled = false;
+            }
+          })
+          .catch(function () {
+            setStatus("Network error — please try again in a moment.", "error");
+            submitBtn.disabled = false;
+          });
+      });
+
+      function showDone() {
+        var f = document.getElementById("spForm");
+        var d = document.getElementById("spDone");
+        var i = document.getElementById("spIntro");
+        var contacts = document.getElementById("spContacts");
+        var body = document.getElementById("spDoneBody");
+        var cfg = CONTACTS_BY_KEY[KEY] || { intro: "Please reach out to the tournament committee to arrange payment.", contacts: [] };
+        if (body) body.textContent = cfg.intro;
+        if (contacts) {
+          contacts.innerHTML = cfg.contacts.map(function (c) {
+            return ''
+              + '<div class="sp__contact">'
+              +   '<div class="sp__contact__role">' + escText(c.role) + '</div>'
+              +   '<div class="sp__contact__name">' + escText(c.name) + '</div>'
+              +   (c.note ? '<p class="sp__contact__note">' + escText(c.note) + '</p>' : "")
+              + '</div>';
+          }).join("");
+        }
+        var back = document.getElementById("spDoneBack");
+        if (back) back.href = "leaderboard.html?t=" + encodeURIComponent(KEY) + "#sponsors";
+        if (f) f.hidden = true;
+        if (i) i.hidden = true;
+        if (d) d.hidden = false;
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function setStatus(msg, kind) {
+        if (!status) return;
+        status.textContent = msg || "";
+        status.className = "sp__status" + (kind === "error" ? " is-error" : "");
+      }
+      function escText(s) { return String(s == null ? "" : s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
+      function escAttr(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+    })();
+  </script>
+</body>
+</html>
