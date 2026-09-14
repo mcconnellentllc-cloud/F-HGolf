@@ -545,11 +545,6 @@
       // the KEY, no flash of default styling.
       var IS_FIRE = /^\s*haxtun\s*fire/i.test(KEY);
       if (IS_FIRE) {
-        // Apply the theme class to BOTH <html> and <body> so any cached
-        // CSS variant that only matches one of them still activates the
-        // Fire palette. Also update the mobile browser chrome color and
-        // the loading placeholder text so viewers see the Fire identity
-        // even before signup records arrive from Airtable.
         try { document.documentElement.classList.add("theme-fire"); } catch (e) {}
         try { document.body.classList.add("theme-fire"); } catch (e) {}
         try {
@@ -560,33 +555,58 @@
           var bod = document.getElementById("dispBody");
           if (bod) bod.innerHTML = '<p class="disp__empty-msg" style="color:#fff;">Loading Fire Department leaderboard&hellip;</p>';
         } catch (e) {}
-        // Belt-and-suspenders CSS override injected at runtime. If any
-        // upstream cached stylesheet is missing the theme-fire rules,
-        // this !important block still forces the fundamental red/black/
-        // white identity so a viewer never sees the F&H green/gold on
-        // a Fire tournament again.
+        // Inject Fire-specific CSS at runtime with `!important` rules that
+        // beat every default `.disp__*` selector regardless of what CSS a
+        // viewer's browser cached. This is the single source of truth for
+        // the Fire palette on the leaderboard — if you change these colors
+        // you're changing the palette. Same-file inline <style> is treated
+        // as unreliable because a stale cached copy can be missing the
+        // theme-fire rules entirely.
         try {
           var s = document.createElement("style");
           s.textContent =
-            "body.theme-fire, html.theme-fire body {" +
+            "html.theme-fire, html.theme-fire body {" +
               "background: radial-gradient(ellipse at top, #2a0a0a 0%, #0a0a0a 65%) !important;" +
               "color: #fff !important;" +
             "}" +
             "body.theme-fire .disp__hero {" +
-              "background: linear-gradient(180deg, #000 0%, #1a0000 100%) !important;" +
+              "background: linear-gradient(180deg, #000 0%, #180000 55%, #2a0000 100%) !important;" +
               "border-bottom: 5px solid #c8102e !important;" +
+              "box-shadow: 0 4px 0 #000, 0 5px 0 #c8102e !important;" +
             "}" +
-            "body.theme-fire .disp__eyebrow { color: #fff !important; }" +
-            "body.theme-fire .disp__title { color: #fff !important; }" +
+            "body.theme-fire .disp__eyebrow { color: #fff !important; letter-spacing: 0.32em !important; }" +
+            "body.theme-fire .disp__title { color: #fff !important; text-shadow: 0 2px 0 #7a0a1a, 0 4px 0 #000 !important; }" +
+            "body.theme-fire .disp__sub { color: #fff !important; text-transform: uppercase !important; letter-spacing: 0.15em !important; font-style: normal !important; font-weight: 800 !important; }" +
+            "body.theme-fire .disp__logo { box-shadow: 0 0 0 3px #000, 0 0 0 6px #c8102e !important; }" +
             "body.theme-fire .disp__nav { background: #000 !important; border-bottom: 1px solid #7a0a1a !important; }" +
             "body.theme-fire .disp__nav a { background: rgba(200,16,46,0.10) !important; color: #fff !important; border-color: rgba(200,16,46,0.4) !important; }" +
             "body.theme-fire .disp__nav a.is-here { background: rgba(200,16,46,0.32) !important; color: #fff !important; border-color: #c8102e !important; }" +
-            "body.theme-fire .lb-tabs { background: #000 !important; }" +
+            "body.theme-fire .lb-tabs { background: #000 !important; border-bottom: 1px solid #7a0a1a !important; }" +
             "body.theme-fire .lb-tab { background: rgba(200,16,46,0.10) !important; color: #fff !important; border-color: rgba(200,16,46,0.4) !important; }" +
             "body.theme-fire .lb-tab.is-active { background: rgba(200,16,46,0.32) !important; color: #fff !important; border-color: #c8102e !important; }" +
             "body.theme-fire .disp__qrbtn { background: #c8102e !important; color: #fff !important; }" +
+            "body.theme-fire .disp__foot { background: #000 !important; color: rgba(255,255,255,0.75) !important; border-top: 1px solid rgba(200,16,46,0.35) !important; }" +
+            "body.theme-fire .lbd { background: linear-gradient(180deg, rgba(200,16,46,0.06), rgba(255,255,255,0.03)) !important; border: 1px solid rgba(200,16,46,0.28) !important; border-top: 3px solid #7a0a1a !important; border-left: 4px solid #c8102e !important; }" +
+            "body.theme-fire .lbd__name { color: #fff !important; text-transform: uppercase !important; letter-spacing: 0.04em !important; }" +
+            "body.theme-fire .lbd__meta { color: rgba(255,255,255,0.7) !important; text-transform: uppercase !important; letter-spacing: 0.1em !important; font-size: 0.78em !important; }" +
+            "body.theme-fire .lbd th { color: rgba(255,255,255,0.72) !important; border-bottom-color: rgba(200,16,46,0.35) !important; }" +
+            "body.theme-fire .lbd td b { color: #c8102e !important; }" +
+            "body.theme-fire .disp__empty-msg { color: #fff !important; }" +
             "";
           document.head.appendChild(s);
+        } catch (e) {}
+        // Rewrite the eyebrow so the Fire Dept identity is the first
+        // thing viewers read, even if the current cached CSS is missing
+        // .theme-fire-strip or the fire badges. Uses inline styles so no
+        // external stylesheet is required.
+        try {
+          var eye = document.querySelector(".disp__eyebrow");
+          if (eye) eye.innerHTML =
+            '<span style="display:inline-block;font-weight:800;letter-spacing:0.28em;color:#fff;">' +
+              '&#9733; HAXTUN VOLUNTEER FIRE DEPARTMENT &#9733;' +
+            '</span>';
+          var sub = document.getElementById("dispSub");
+          if (sub) sub.innerHTML = 'Golf Tournament Fundraiser &middot; F&amp;H Golf Course';
         } catch (e) {}
       }
 
