@@ -2111,13 +2111,58 @@
           + '<label class="fmt-row fmt-extra__name"><span>Name</span><input type="text" data-k="name" maxlength="60" placeholder="Mulligans" /></label>'
           + '<label class="fmt-row fmt-extra__price"><span>Price / player</span><input type="number" data-k="price" min="0" step="1" placeholder="5" /></label>'
           + '<label class="fmt-row fmt-row--chk fmt-extra__track" title="If on, the captain gets a &quot;Use one&quot; button on the scoring page and the leaderboard shows how many remain. Turn OFF for physical items (String, ball drops) that can&#39;t be tracked mid-round."><input type="checkbox" data-k="track"' + trackChecked + ' /><span>Trackable</span></label>'
-          + '<button type="button" class="btn btn--solid fmt-extra__rm" title="Remove this extra">Remove</button>';
+          + '<button type="button" class="btn btn--primary fmt-extra__save" title="Save this extra now — commits every extra on the tab to Airtable so the Check-In tab picks up the checkbox column immediately">Save extra</button>'
+          + '<button type="button" class="btn btn--solid fmt-extra__rm" title="Remove this extra">Remove</button>'
+          + '<span class="fmt-extra__status" role="status" aria-live="polite"></span>';
         var nameEl = row.querySelector('[data-k="name"]'); if (nameEl) nameEl.value = e.name || "";
         var priceEl = row.querySelector('[data-k="price"]'); if (priceEl && e.price) priceEl.value = String(e.price);
         row.querySelector(".fmt-extra__rm").addEventListener("click", function () {
           if (row.parentNode) row.parentNode.removeChild(row);
         });
+        // Per-row Save wires directly to the Extras JSON slice of the
+        // Format save — no need to scroll to "Save format" at the bottom
+        // of the tab. On success it re-renders the Check-In roster so
+        // the operator sees the new checkbox column appear immediately.
+        row.querySelector(".fmt-extra__save").addEventListener("click", function () {
+          _fmtSaveExtrasOnly(row.querySelector(".fmt-extra__status"));
+        });
         return row;
+      }
+      // Save just the Extras JSON slice — same endpoint the Format-wide
+      // save uses, but only sends Extras JSON. Fast, targeted, and
+      // triggers the Check-In roster re-render so the mulligan (or
+      // whatever extra) checkbox column shows up without a page reload.
+      function _fmtSaveExtrasOnly(statusEl) {
+        if (!getKey()) { if (statusEl) { statusEl.textContent = "Sign in first."; statusEl.className = "fmt-extra__status is-error"; } return; }
+        _fmtWriteExtrasToHidden();
+        var hidden = document.getElementById("fmtExtrasJson");
+        var payload = hidden ? String(hidden.value || "[]") : "[]";
+        if (statusEl) { statusEl.textContent = "Saving…"; statusEl.className = "fmt-extra__status"; }
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "config-write", tournament: KEY, fields: { "Extras JSON": payload } }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.ok) {
+              if (_tcConfigCache) _tcConfigCache["Extras JSON"] = payload;
+              // Same auto-strip warning surfacing pattern the other tabs use.
+              if (j.warning) {
+                if (statusEl) { statusEl.textContent = "⚠ Not saved: " + j.warning; statusEl.className = "fmt-extra__status is-error"; }
+                return;
+              }
+              if (statusEl) { statusEl.textContent = "Saved ✓ — now available on Check-In"; statusEl.className = "fmt-extra__status is-ok"; }
+              // Repaint the Check-In roster so the new/removed checkbox
+              // column shows up immediately without a page reload.
+              try { if (scAllCache && scAllCache.length) renderRoster(scAllCache); } catch (e) {}
+              try { renderPL(); } catch (e) {}
+              setTimeout(function () { if (statusEl) { statusEl.textContent = ""; statusEl.className = "fmt-extra__status"; } }, 3500);
+            } else {
+              if (statusEl) { statusEl.textContent = (j && j.error) || "Save failed."; statusEl.className = "fmt-extra__status is-error"; }
+            }
+          })
+          .catch(function () { if (statusEl) { statusEl.textContent = "Network error saving."; statusEl.className = "fmt-extra__status is-error"; } });
       }
       // List DOM → hidden JSON just before save. Blank rows (no name AND
       // no price) are dropped so an accidental "+ Add extra" click doesn't

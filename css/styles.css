@@ -2381,12 +2381,20 @@ body.modal-open { overflow: hidden; }
    Remove button on the right; layout mirrors .fmt-cart for visual
    consistency but is a simpler two-column grid. */
 .fmt-extras { display: flex; flex-direction: column; gap: 0.55rem; margin: 0.4rem 0; }
-.fmt-extra { border: 1px solid var(--line); border-left: 3px solid var(--primary-green); border-radius: 8px; padding: 0.55rem 0.8rem; background: #fafaf7; display: grid; grid-template-columns: 2fr 1fr auto auto; gap: 0.7rem; align-items: end; }
+.fmt-extra { border: 1px solid var(--line); border-left: 3px solid var(--primary-green); border-radius: 8px; padding: 0.55rem 0.8rem; background: #fafaf7; display: grid; grid-template-columns: 2fr 1fr auto auto auto; grid-template-areas: "name price track save remove" "status status status status status"; gap: 0.55rem 0.7rem; align-items: end; }
 .fmt-extra .fmt-row { margin: 0; }
-.fmt-extra__track { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.55rem; border: 1px solid var(--line); border-radius: 6px; background: #fff; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+.fmt-extra__name   { grid-area: name; }
+.fmt-extra__price  { grid-area: price; }
+.fmt-extra__track  { grid-area: track; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.55rem; border: 1px solid var(--line); border-radius: 6px; background: #fff; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
 .fmt-extra__track input { margin: 0; }
-.fmt-extra__rm { font-size: 0.82rem; padding: 0.35rem 0.75rem; }
-@media (max-width: 640px) { .fmt-extra { grid-template-columns: 1fr 1fr; } .fmt-extra__track { grid-column: 1 / -1; } .fmt-extra__rm { grid-column: 1 / -1; justify-self: end; } }
+.fmt-extra__save   { grid-area: save; font-size: 0.82rem; padding: 0.4rem 0.85rem; }
+.fmt-extra__rm     { grid-area: remove; font-size: 0.82rem; padding: 0.35rem 0.75rem; }
+.fmt-extra__status { grid-area: status; font-size: 0.82rem; color: var(--muted, #7a7663); min-height: 1.05rem; margin-top: 0.15rem; }
+.fmt-extra__status.is-ok { color: var(--primary-green, #17472A); font-weight: 700; }
+.fmt-extra__status.is-error { color: var(--danger, #b11e2d); font-weight: 700; }
+@media (max-width: 640px) {
+  .fmt-extra { grid-template-columns: 1fr 1fr; grid-template-areas: "name name" "price track" "save remove" "status status"; }
+}
 
 /* Check-In — per-player extras checkboxes. Same pill shape as .ci-meal;
    wraps below the name if there are many extras on narrow cards. */
