@@ -445,7 +445,6 @@
     <nav class="lb-tabs" id="lbTabs" aria-label="Tournament sections" hidden>
       <button class="lb-tab is-active" type="button" data-view="leaderboard">Leaderboard</button>
       <button class="lb-tab" type="button" data-view="sponsors">Sponsors</button>
-      <button class="lb-tab" type="button" data-view="donors">Donors</button>
       <button class="lb-tab" type="button" data-view="auction">Auction</button>
     </nav>
 
@@ -469,9 +468,6 @@
          time a chip is opened — cached in memory for the session. -->
     <section class="lb-panel" id="lbSponsors" data-view="sponsors" hidden>
       <p class="disp__empty-msg">Loading sponsors&hellip;</p>
-    </section>
-    <section class="lb-panel" id="lbDonors" data-view="donors" hidden>
-      <p class="disp__empty-msg">Loading donors&hellip;</p>
     </section>
     <section class="lb-panel" id="lbAuction" data-view="auction" hidden>
       <p class="disp__empty-msg">Loading auction&hellip;</p>
@@ -703,9 +699,11 @@
         if (banner) banner.setAttribute("aria-hidden", "false");
         var stats = document.getElementById("fireStats");
         if (stats) {
+          // Sponsors + Donors merged (2026-09-14). One count of everyone
+          // on the wall, cash or in-kind, replaces the earlier two
+          // stat tiles that split by whether a tier was set.
           stats.innerHTML = ''
-            + '<div class="fire-stat"><div class="fire-stat__l">Sponsors</div><div class="fire-stat__n">' + donors.filter(function (d) { return String(d.tier || "").trim(); }).length + '</div></div>'
-            + '<div class="fire-stat"><div class="fire-stat__l">Donors</div><div class="fire-stat__n">' + donors.length + '</div></div>'
+            + '<div class="fire-stat"><div class="fire-stat__l">Sponsors</div><div class="fire-stat__n">' + donors.length + '</div></div>'
             + '<div class="fire-stat"><div class="fire-stat__l">Items Sold</div><div class="fire-stat__n">' + sold + '</div></div>'
             + '<div class="fire-stat"><div class="fire-stat__l">Auction $</div><div class="fire-stat__n">' + _lbEsc(_lbMoney(auctionRaised)) + '</div></div>';
           stats.setAttribute("aria-hidden", "false");
@@ -794,19 +792,6 @@
             }).join("")
           + _lbBecomeSponsorCta();
       }
-      function _lbRenderDonors(fields) {
-        var host = document.getElementById("lbDonors");
-        var all = _lbParseDonors(fields);
-        var untagged = all.filter(function (d) { return !String(d.tier || "").trim(); });
-        if (!untagged.length && !all.length) { host.innerHTML = '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Donors</div><h2 class="lb-panel__title">Thank you to our donors</h2></div><p class="disp__empty-msg">Donor list coming soon.</p>'; return; }
-        // Show ALL donors on the Donors tab (including tiered) so it's a
-        // complete honor roll, but visually flat — grouping heading only
-        // when both untagged and tiered donors exist.
-        host.innerHTML = ''
-          + '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Donors</div><h2 class="lb-panel__title">Thank you to every donor</h2><p class="lb-panel__blurb">Every contribution, cash or in-kind, made this day happen.</p></div>'
-          + '<div class="lb-tiles">' + all.map(_lbTile).join("") + '</div>'
-          + _lbBecomeSponsorCta();
-      }
       function _lbRenderAuction(fields) {
         var host = document.getElementById("lbAuction");
         var items = [];
@@ -850,11 +835,15 @@
           + '<div class="lb-au-grid">' + grid + '</div>';
       }
       function _lbOpenView(view) {
+        // Sponsors/Donors merged (2026-09-14) — treat the legacy
+        // "donors" view as an alias so an old shared link or a hash
+        // that hasn't been refreshed still opens the unified sponsor
+        // wall instead of dropping into a blank panel.
+        if (view === "donors") view = "sponsors";
         _lbSetView(view);
         if (view === "leaderboard") return;
         _lbLoadConfig().then(function (fields) {
           if (view === "sponsors") _lbRenderSponsors(fields);
-          else if (view === "donors") _lbRenderDonors(fields);
           else if (view === "auction") _lbRenderAuction(fields);
         });
       }
@@ -868,8 +857,10 @@
         // Donors / Auction chips switch instantly on first tap instead of
         // waiting on a cold network round-trip.
         try { _lbLoadConfig(); } catch (e) {}
-        // Honor #sponsors / #donors / #auction hash on first load so a
-        // shared link goes straight to the intended view.
+        // Honor #sponsors / #auction hash on first load so a shared
+        // link goes straight to the intended view. #donors is a legacy
+        // alias (Sponsors and Donors merged 2026-09-14) — _lbOpenView
+        // rewrites it to sponsors so old links keep working.
         try {
           var hash = String(location.hash || "").replace(/^#/, "");
           if (hash && ["sponsors", "donors", "auction"].indexOf(hash) !== -1) {
