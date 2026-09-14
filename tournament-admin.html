@@ -161,8 +161,10 @@
               <legend>Money</legend>
               <p class="fmt-note">Per-player expenses that drive the whole workbook. Change any value here — the Leaderboard, Calcutta, Payout, and $ Summary tabs pick it up immediately. Values auto-save as you edit.</p>
               <div id="fmtCalcMoneyMount" class="fmt-calc-mount"></div>
-              <div class="fmt-actions" style="justify-content:flex-start;">
+              <div class="fmt-actions" style="justify-content:flex-start; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                <button type="button" class="btn btn--primary" id="calcMoneySave" title="Persist these money values and refresh Payout / Leaderboard / Calcutta / $ Summary">Save &amp; update</button>
                 <button type="button" class="btn btn--solid" id="calcReset" title="Reset every money / flight / calcutta value to defaults">Reset calculations to defaults</button>
+                <span class="ci__status" id="calcMoneyStatus" role="status" aria-live="polite" style="min-width:8rem;"></span>
               </div>
             </fieldset>
 
@@ -6112,13 +6114,40 @@
               var text = "Saved " + j.updated + " ✓";
               // Surface any silently-stripped fields (Seat, Slot, Hole, etc.)
               // so an operator sees when a save "succeeded" but didn't
-              // actually persist the field they cared about.
-              if (j.warning) text += " — " + j.warning;
-              if (msg) msg.textContent = text;
+              // actually persist the field they cared about. prMsg lives at
+              // the top of the Pairings tab — operators editing the pool
+              // way down the page never see it — so on a stripped-field
+              // warning we also fire an alert() so the failure isn't lost.
+              // Same treatment for outright failure. Both are actionable:
+              // the operator needs to add the missing field on the Signups
+              // table in Airtable before pairings can persist.
+              if (j.warning) {
+                text += " — " + j.warning;
+                if (msg) msg.textContent = text;
+                try {
+                  alert("Pairings saved, but Airtable is missing field(s) — " + j.warning
+                    + "\n\nUntil those field(s) are added on the Tournament Signups table in Airtable, placements will not stick. Add the missing field(s) and try again.");
+                } catch (e) {}
+              } else {
+                if (msg) msg.textContent = text;
+              }
               loadRoster();
-            } else if (msg) { msg.textContent = (j && j.error) || "Save failed."; }
+            } else {
+              var errText = (j && j.error) || "Save failed.";
+              if (msg) msg.textContent = errText;
+              try {
+                alert("Pairings save failed: " + errText
+                  + (j && j.strippedFields && j.strippedFields.length
+                      ? "\n\nStripped fields: " + j.strippedFields.join(", ")
+                      : "")
+                  + "\n\nRefresh the page and try again. If it keeps failing, the Tournament Signups table may be missing Hole / Slot / Seat / Start fields.");
+              } catch (e) {}
+            }
           })
-          .catch(function () { if (msg) msg.textContent = "Network error saving."; });
+          .catch(function () {
+            if (msg) msg.textContent = "Network error saving.";
+            try { alert("Pairings save failed: network error. Check your connection and try again."); } catch (e) {}
+          });
       }
       // Force-commit every team's current Hole/Slot/Seat/Start to Airtable.
       // The escape hatch when pairings look right in the UI but revert on
@@ -10783,6 +10812,31 @@
         renderCalcForm();
         var cs = document.getElementById("calcSave"); if (cs) cs.addEventListener("click", saveCalc);
         var cr = document.getElementById("calcReset"); if (cr) cr.addEventListener("click", function () { try { localStorage.removeItem(CALCK); } catch (e) {} renderCalcForm(); PARS = CALC_DEFAULTS.pars.slice(); });
+        // Explicit "Save & update" for the Money section — inputs already
+        // auto-persist on every keystroke via refreshTotals(), but staff
+        // asked for a deliberate button so they can (a) SEE the save
+        // happen with a confirmation, and (b) force a rebuild of every
+        // downstream tab (P&L / Payout / Leaderboard / Calcutta / $
+        // Summary / Check-In roster) in one click when a fee change
+        // needs to propagate everywhere immediately.
+        var cms = document.getElementById("calcMoneySave");
+        if (cms) cms.addEventListener("click", function () {
+          var st = document.getElementById("calcMoneyStatus");
+          if (st) { st.textContent = "Saving…"; st.className = "ci__status"; }
+          try { saveCalc(); } catch (e) {}
+          // saveCalc() re-runs P&L / Payout / Calcutta / Leaderboard. Also
+          // rebuild the Check-In roster so fee columns pick up new
+          // Entry / Cart / Meal / Surcharge values, and re-render the
+          // Money card's own live formula so the summary tile at the top
+          // matches the just-saved values.
+          try { if (window.__fhActive === "check" && typeof renderRoster === "function" && scAllCache) renderRoster(scAllCache); } catch (e) {}
+          try { renderCalcForm(); } catch (e) {}
+          if (st) {
+            st.textContent = "Saved ✓ — Payout, Leaderboard, Calcutta refreshed";
+            st.className = "ci__status is-ok";
+            setTimeout(function () { st.textContent = ""; st.className = "ci__status"; }, 3500);
+          }
+        });
 
         var card = document.getElementById("twCardLink");
         if (card && window.FH_PAY_URL) card.href = window.FH_PAY_URL;
