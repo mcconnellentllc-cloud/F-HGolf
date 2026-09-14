@@ -58,6 +58,28 @@
         <p><a class="btn btn--primary" href="admin.html">Go to Staff Portal &rarr;</a></p>
       </div>
 
+      <!-- Phantom-tournament guard. When the URL's ?t= doesn't match any
+           tournament the site actually knows about (js/tournaments.js
+           FH_TMETA), we render this loud banner instead of silently
+           writing saves to a nonexistent Airtable row that will never be
+           read from again. Every "Mulligans / donors don't persist"
+           complaint in prior sessions traced back to this exact case:
+           the operator typed / autocompleted a URL that named a
+           tournament that isn't real, saves succeeded but disappeared.
+           Populated by the KEY-check block at the top of the workbook
+           init function. -->
+      <div id="twPhantom" class="tw-phantom" hidden role="alert" aria-live="polite">
+        <div class="tw-phantom__box">
+          <div class="tw-phantom__eyebrow">⚠ Phantom tournament URL</div>
+          <h2 class="tw-phantom__title">This URL doesn't match any real tournament</h2>
+          <p class="tw-phantom__body">You landed on <code id="twPhantomKey"></code>, which isn't in the site's tournament list. Anything you save here will disappear because it never lands on an Airtable row the workbook or public pages read from.</p>
+          <p class="tw-phantom__suggest" id="twPhantomSuggest" hidden></p>
+          <div class="tw-phantom__actions">
+            <a class="btn btn--primary" href="admin.html#sec-tournaments">&larr; Back to the Staff Portal</a>
+          </div>
+        </div>
+      </div>
+
       <div id="twPanel" hidden>
 
         <!-- Excel-style workbook tabs -->
@@ -1291,6 +1313,46 @@
       var KEY = param("t");
       var TMETA = window.FH_TMETA || {};
       var META = TMETA[KEY] || null;
+      // Phantom-URL guard. If the operator lands on a `?t=` that isn't
+      // a real tournament (typo, autocomplete of a stale URL, old
+      // bookmark, etc.), refuse to run the workbook — otherwise every
+      // save just writes to an Airtable row nobody reads from. Suggest
+      // the closest real match by base name so one click puts them on
+      // the right tournament.
+      try {
+        if (KEY && !META && Object.keys(TMETA).length) {
+          var phantomBox = document.getElementById("twPhantom");
+          var phantomKey = document.getElementById("twPhantomKey");
+          var suggest = document.getElementById("twPhantomSuggest");
+          if (phantomKey) phantomKey.textContent = KEY;
+          // Best-guess suggestion: find a TMETA key whose base name
+          // (everything before the parenthesis) matches KEY's base name
+          // case-insensitively. Works even when the operator only fumbled
+          // the date suffix (Haxtun Fire (Sept 2019) → Haxtun Fire (Sept 19)).
+          try {
+            var baseOf = function (k) { return String(k || "").replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase(); };
+            var wanted = baseOf(KEY);
+            var closest = null;
+            Object.keys(TMETA).forEach(function (k) {
+              if (closest) return;
+              if (baseOf(k) === wanted && !TMETA[k].tbd) closest = k;
+            });
+            if (closest && suggest) {
+              suggest.hidden = false;
+              suggest.innerHTML = 'Did you mean <a class="tw-phantom__link" href="tournament-admin.html?t=' + encodeURIComponent(closest) + '">' + closest.replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</a>? Click it to open the real tournament.';
+            }
+          } catch (_) {}
+          if (phantomBox) phantomBox.hidden = false;
+          // Also hide the sign-in gate + the panel so nothing under this
+          // banner tricks the operator into thinking they can just save
+          // and everything will be fine.
+          var _gate = document.getElementById("twGate"); if (_gate) _gate.hidden = true;
+          var _panel = document.getElementById("twPanel"); if (_panel) _panel.hidden = true;
+          throw new Error("phantom-url");
+        }
+      } catch (e) {
+        if (e && e.message === "phantom-url") return;
+      }
       // Founders is the only 2-wave tournament at F&H. A body class carries
       // that fact so CSS can show/hide founders-only controls (Shotgun
       // starts picker, wave chip row, per-team wave dropdown, AM/PM print
