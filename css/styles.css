@@ -2726,6 +2726,7 @@ body.theme-fire .au-add__field input:focus { outline-color: #c8102e; }
 .au-empty { color: var(--muted, #7a7663); font-style: italic; padding: 1rem; background: #faf8f2; border-radius: 8px; }
 .au-clerk { display: flex; flex-direction: column; gap: 0.4rem; }
 .au-clerk__row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(14rem, 1.4fr) minmax(0, 2.2fr) auto;
   grid-template-areas: "item bid acts";
@@ -2735,6 +2736,41 @@ body.theme-fire .au-add__field input:focus { outline-color: #c8102e; }
   background: #fff;
   border: 1px solid var(--line, #e6e2d8);
   border-radius: 10px;
+}
+.au-clerk__close {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.4rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1px solid rgba(200, 16, 46, 0.35);
+  background: rgba(200, 16, 46, 0.08);
+  color: #c8102e;
+  border-radius: 50%;
+  font: 800 1.05rem/1 system-ui, sans-serif;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 2;
+}
+.au-clerk__close:hover, .au-clerk__close:focus-visible {
+  background: #c8102e;
+  color: #fff;
+  border-color: #c8102e;
+  outline: none;
+}
+.btn.au-clerk__remove {
+  background: #fff;
+  color: #c8102e;
+  border: 1px solid rgba(200, 16, 46, 0.4);
+  font-weight: 800;
+}
+.btn.au-clerk__remove:hover, .btn.au-clerk__remove:focus-visible {
+  background: #c8102e;
+  color: #fff;
+  border-color: #c8102e;
 }
 .au-clerk__row.is-sold { background: rgba(27, 94, 32, 0.05); border-left: 4px solid var(--primary-green, #1B5E20); }
 .au-clerk__itemcell { grid-area: item; display: flex; gap: 0.5rem; align-items: center; min-width: 0; padding-top: 0.55rem; }

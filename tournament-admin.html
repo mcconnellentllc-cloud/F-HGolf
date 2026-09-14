@@ -3098,6 +3098,7 @@
                   + '</div>';
                 var b = it.sold || {};
                 return '<div class="au-clerk__row' + (sold ? ' is-sold' : '') + '" data-au-row="' + esc(it.id) + '">'
+                  + '<button type="button" class="au-clerk__close" data-au-remove="' + esc(it.id) + '" title="Remove this item" aria-label="Remove item">&times;</button>'
                   + itemMeta
                   + '<div class="au-clerk__bid">'
                   +   '<label class="au-clerk__field au-clerk__field--buyer">'
@@ -3119,7 +3120,7 @@
                   + '</div>'
                   + '<div class="au-clerk__acts">'
                   +   (sold ? '<button type="button" class="btn btn--solid btn--small" data-au-receipt="' + esc(it.id) + '">' + (receiptSent ? 'Re-send receipt' : 'Send receipt') + '</button>' : '<span class="au-clerk__hint">enter amount</span>')
-                  +   '<button type="button" class="btn btn--ghost btn--small" data-au-remove="' + esc(it.id) + '">Remove</button>'
+                  +   '<button type="button" class="btn au-clerk__remove btn--small" data-au-remove="' + esc(it.id) + '">Remove item</button>'
                   + '</div>'
                   + (sold && receiptSent ? '<div class="au-clerk__sent">Receipt sent ' + esc(String(receiptSent).slice(0, 16).replace("T", " ")) + '</div>' : '')
                   + '</div>';
