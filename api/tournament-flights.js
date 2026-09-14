@@ -30,8 +30,8 @@ module.exports = async (req, res) => {
   const TABLE = process.env.TOURNAMENTS_TABLE || "Tournament Signups";
   const CFG_TABLE = process.env.CONFIG_TABLE || "Tournament Config";
   if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) return res.status(500).json({ ok: false, error: "Not configured." });
-  const auth = require("./_auth")(req);
-  if (!auth) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  const callerAuth = require("./_auth")(req);
+  if (!callerAuth) return res.status(401).json({ ok: false, error: "Unauthorized" });
 
   let body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { body = {}; } }
@@ -39,6 +39,11 @@ module.exports = async (req, res) => {
 
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}`;
   const cfgUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(CFG_TABLE)}`;
+  // Airtable auth headers — renamed from `auth` to unshadow the caller-auth
+  // check above. Duplicate `const auth` used to throw a SyntaxError at
+  // module load, which crashed EVERY request to this endpoint with
+  // FUNCTION_INVOCATION_FAILED — that was the "network error" staff kept
+  // seeing on Pairings save + autofill.
   const auth = { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" };
   const clean = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
