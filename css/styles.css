@@ -2138,10 +2138,16 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
    dropdown into an earlier `auto` column and shrink it to icon width.
    Without this, a couples tournament with meals hidden + no extras
    yet loaded ends up with the method in column 2's auto slot. */
+/* Column 2 is the extras strip (Mulligans / String / etc. when the
+   Format tab declares them). Placed to the LEFT of the captain star so
+   the operator can tick Mulligans without hunting past the star + meals
+   column — the two most common per-player toggles now sit side-by-side
+   with the name. Empty on tournaments with no extras configured;
+   :empty on .ci-p__extras collapses the column visually. */
 .ci-p > .ci-p__name   { grid-column: 1; }
-.ci-p > .ci-p__cap    { grid-column: 2; }
-.ci-p > .ci-meal      { grid-column: 3; }
-.ci-p > .ci-p__extras { grid-column: 4; }
+.ci-p > .ci-p__extras { grid-column: 2; }
+.ci-p > .ci-p__cap    { grid-column: 3; }
+.ci-p > .ci-meal      { grid-column: 4; }
 .ci-p > .ci-p__method { grid-column: 5; }
 /* On narrow cards the extras strip drops to its own full-width row so it
    doesn't crush the meals / method columns. */
