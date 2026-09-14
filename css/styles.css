@@ -2684,8 +2684,8 @@ body.pp-print-cards { background: #fff; }
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1.4fr) auto;
   grid-template-areas:
-    "name    tier   amount  thanks  contact contact"
-    "website website logo   logo    preview submit";
+    "name    tier    amount  thanks  contact  paid"
+    "website website logo    logo    preview  submit";
   gap: 0.7rem 0.85rem;
   align-items: end;
 }
@@ -2694,6 +2694,7 @@ body.pp-print-cards { background: #fff; }
 .dn-add__field--amount  { grid-area: amount; }
 .dn-add__field--thanks  { grid-area: thanks; }
 .dn-add__field--contact { grid-area: contact; }
+.dn-add__field--paid    { grid-area: paid; align-self: end; padding-bottom: 0.55rem; }
 .dn-add__field--website { grid-area: website; }
 .dn-add__field--logo    { grid-area: logo; }
 .dn-add__preview        { grid-area: preview; }
@@ -2705,6 +2706,7 @@ body.pp-print-cards { background: #fff; }
       "name    name"
       "tier    amount"
       "thanks  contact"
+      "paid    paid"
       "website website"
       "logo    preview"
       "submit  submit";
@@ -2713,7 +2715,7 @@ body.pp-print-cards { background: #fff; }
 @media (max-width: 560px) {
   .dn-add {
     grid-template-columns: 1fr;
-    grid-template-areas: "name" "tier" "amount" "thanks" "contact" "website" "logo" "preview" "submit";
+    grid-template-areas: "name" "tier" "amount" "thanks" "contact" "paid" "website" "logo" "preview" "submit";
   }
 }
 .dn-add__field { display: block; min-width: 0; }
@@ -2741,6 +2743,14 @@ body.pp-print-cards { background: #fff; }
 .dn-tile__amt { display: inline-block; padding: 0.12rem 0.5rem; border-radius: 999px; font: 700 0.68rem/1.4 system-ui, sans-serif; letter-spacing: 0.04em; background: var(--primary-green, #1B5E20); color: #fff; }
 .dn-tile__thanks { margin: 0 0 0.25rem 0; font-size: 0.85rem; color: var(--ink, #2a2418); line-height: 1.35; }
 .dn-tile__contact { margin: 0; font-size: 0.78rem; color: var(--muted, #7a7663); }
+.dn-tile__paid { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px; font: 800 0.68rem/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; user-select: none; border: 1px solid transparent; }
+.dn-tile__paid--on  { background: #17472A; color: #fff; }
+.dn-tile__paid--on:hover  { background: #0d3018; }
+.dn-tile__paid--off { background: #fbe9ec; color: #b11e2d; border-color: rgba(177,30,45,0.35); }
+.dn-tile__paid--off:hover { background: #b11e2d; color: #fff; }
+.dn-add__field--chk { display: inline-flex; align-items: center; gap: 0.4rem; }
+.dn-add__field--chk input[type="checkbox"] { width: 1rem; height: 1rem; }
+.dn-add__field--chk span { display: inline; font-weight: 700; color: var(--ink, #2a2418); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72rem; margin: 0; }
 .dn-tile__site { margin: 0.35rem 0 0; font-size: 0.82rem; }
 .dn-tile__site a { color: var(--primary-green, #17472A); font-weight: 700; text-decoration: none; word-break: break-all; }
 .dn-tile__site a:hover { text-decoration: underline; }
