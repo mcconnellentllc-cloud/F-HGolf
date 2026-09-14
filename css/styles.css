@@ -2588,16 +2588,22 @@ body.tw-founders .tw-single-wave-only { display: none !important; }
    red top bar + dashed side/bottom borders as the trim guide.
    ============================================================================ */
 .pp-pool { border: 1px solid var(--line, #e6e2d8); border-radius: 12px; padding: 0.9rem 1rem 1rem; background: var(--paper-2, #faf7ef); margin: 0.5rem 0 1rem; }
-.pp-add { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.55rem; align-items: end; }
-@media (max-width: 700px) { .pp-add { grid-template-columns: 1fr; } }
+.pp-add { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto auto; gap: 0.55rem; align-items: end; }
+@media (max-width: 900px) { .pp-add { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 500px) { .pp-add { grid-template-columns: 1fr; } }
 .pp-add__field { display: block; }
 .pp-add__field span { display: block; font: 700 0.66rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted, #7a7663); margin-bottom: 0.25rem; }
 .pp-add__field input { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; }
+.pp-add__field input[type="file"] { padding: 0.3rem 0; font: 0.85rem system-ui, sans-serif; }
+.pp-add__preview { width: 2.75rem; height: 2.75rem; border: 1px dashed var(--line, #e6e2d8); border-radius: 8px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.pp-add__preview:not(:empty) { border-style: solid; }
+.pp-add__preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pp-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.85rem; min-height: 2rem; }
 .pp-chip { position: relative; padding: 0.5rem 0.75rem 0.55rem; border: 1.5px solid var(--line, #e6e2d8); background: #fff; border-radius: 10px; cursor: grab; user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 8rem; max-width: 14rem; }
 .pp-chip:active { cursor: grabbing; }
 .pp-chip.is-dragging { opacity: 0.4; }
 .pp-chip.is-assigned { opacity: 0.55; background: var(--paper-2, #faf7ef); }
+.pp-chip__photo { display: block; width: 100%; max-width: 8rem; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; margin-bottom: 0.4rem; background: #f6f4ef; }
 .pp-chip__prize { font-weight: 700; color: #222; font-size: 0.95rem; line-height: 1.15; }
 .pp-chip__sponsor { display: block; font: 700 0.7rem/1.2 system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--red-deep, #7a1a1a); margin-top: 0.15rem; }
 .pp-chip__donor { display: block; font: 500 0.7rem/1.2 ui-monospace, "SF Mono", Menlo, monospace; color: var(--muted, #7a7663); margin-top: 0.1rem; }
@@ -2627,7 +2633,9 @@ body.tw-founders .tw-single-wave-only { display: none !important; }
 .pcard__holelbl { font: 700 0.7rem/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #222; }
 .pcard__holenum { font: 500 40px/1 Georgia, serif; color: var(--red, #c8102e); font-variant-numeric: tabular-nums; }
 .pcard__contest { flex: 1; text-align: right; font: 700 0.95rem/1.1 system-ui, sans-serif; text-transform: uppercase; color: #222; letter-spacing: 0.03em; }
-.pcard__prize { text-align: center; margin: 0.85rem 0 0.35rem 0; font: 700 20px/1.15 system-ui, sans-serif; color: #222; }
+.pcard__photo { display: flex; justify-content: center; align-items: center; margin: 0.65rem 0 0.15rem 0; }
+.pcard__photo img { max-width: 100%; max-height: 5.5rem; object-fit: contain; border-radius: 4px; background: #fff; }
+.pcard__prize { text-align: center; margin: 0.55rem 0 0.35rem 0; font: 700 20px/1.15 system-ui, sans-serif; color: #222; }
 .pcard__thanks { text-align: center; margin: 0 0 0.15rem 0; font: 400 italic 0.9rem/1 Georgia, serif; color: var(--muted, #7a7663); }
 .pcard__sponsor { text-align: center; margin: 0.15rem 0 0.35rem 0; font: 800 1.5rem/1.1 system-ui, sans-serif; text-transform: uppercase; color: var(--red, #c8102e); letter-spacing: 0.02em; }
 .pcard__donor { text-align: center; margin: 0; font: 500 0.68rem/1.15 ui-monospace, monospace; text-transform: uppercase; color: var(--muted, #7a7663); letter-spacing: 0.08em; }
@@ -2670,6 +2678,14 @@ body.pp-print-cards { background: #fff; }
     border-radius: 0; box-shadow: none; page-break-inside: avoid; break-inside: avoid;
     display: flex; flex-direction: column;
   }
+  /* Prize photo on the 5x5 print card — kept short so the sponsor line
+     underneath doesn't crowd off the bottom edge. Forces color/image
+     print in Chromium so the photo actually reaches the paper. */
+  body.pp-print-cards .pcard__photo img {
+    max-height: 1.3in;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
   body.pp-print-cards .pcard:nth-of-type(2n) { page-break-after: always; break-after: page; }
   @page { size: letter portrait; margin: 0.4in; }
 }
@@ -2698,7 +2714,12 @@ body.pp-print-cards { background: #fff; }
 .dn-add__field--website { grid-area: website; }
 .dn-add__field--logo    { grid-area: logo; }
 .dn-add__preview        { grid-area: preview; }
-.dn-add__submit         { grid-area: submit; align-self: end; }
+.dn-add__actions        { grid-area: submit; align-self: end; display: flex; flex-direction: column; gap: 0.35rem; }
+.dn-add__actions .btn   { width: 100%; }
+/* Editing state: the whole form gets a soft amber left border so the
+   operator can't miss that the primary button will overwrite an
+   existing sponsor instead of appending a fresh one. */
+.dn-add--editing { border-left: 4px solid var(--brass, #a37f30); padding-left: 0.85rem; }
 @media (max-width: 900px) {
   .dn-add {
     grid-template-columns: 1fr 1fr;
@@ -2782,8 +2803,14 @@ body.theme-fire .donor__site a { color: #fff; }
 .au-add__field input:focus { outline: 2px solid var(--primary-green, #1B5E20); outline-offset: 1px; }
 .au-add__field--name span::after { content: " *"; color: var(--red-deep, #7a1a1a); }
 .au-add__field--photo input[type="file"] { font: 0.85rem system-ui, sans-serif; padding: 0.35rem 0; }
-.au-add__preview { width: 3.25rem; height: 3.25rem; border: 1px dashed var(--line, #e6e2d8); border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fff; overflow: hidden; }
-.au-add__preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.au-add__preview { min-width: 3.25rem; min-height: 3.25rem; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+.au-add__preview:empty { border: 1px dashed var(--line, #e6e2d8); border-radius: 8px; background: #fff; }
+.au-add__pending { position: relative; width: 3.25rem; height: 3.25rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; overflow: hidden; background: #fff; display: block; }
+.au-add__pending img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.au-add__pendingrm { position: absolute; top: -0.35rem; right: -0.35rem; width: 1.1rem; height: 1.1rem; padding: 0; border-radius: 999px; border: 1px solid rgba(0,0,0,0.25); background: #fff; color: #444; font: 700 0.85rem/1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+.au-add__pendingrm:hover { background: #c8102e; color: #fff; border-color: #7a1a1a; }
+.au-clerk__thumbwrap { position: relative; display: inline-block; flex-shrink: 0; }
+.au-clerk__thumbplus { position: absolute; right: -0.25rem; bottom: -0.25rem; background: rgba(27,94,32,0.95); color: #fff; font: 700 0.65rem/1 system-ui, sans-serif; padding: 0.1rem 0.3rem; border-radius: 999px; letter-spacing: 0.02em; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
 .au-add__submit .btn { width: 100%; }
 /* Fire theme swaps the panel accent to red so the workbook operator
    sees at a glance that this is the Fire-only tab. */
@@ -2913,5 +2940,5 @@ body.theme-fire .wb-tabs { border-bottom-color: #c8102e !important; }
 .tab-howto b { color: var(--primary-green, #1B5E20); }
 body.theme-fire .tab-howto { border-left-color: #c8102e; background: #fdf3f3; }
 body.theme-fire .tab-howto b { color: #c8102e; }
-.dn-tile__actions { grid-column: 2; justify-self: start; }
+.dn-tile__actions { grid-column: 2; justify-self: start; display: flex; gap: 0.35rem; flex-wrap: wrap; }
 .dn-tile__actions .btn { padding: 0.25rem 0.55rem; font-size: 0.75rem; }

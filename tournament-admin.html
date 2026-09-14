@@ -591,6 +591,8 @@
               <label class="pp-add__field"><span>Prize</span><input type="text" id="ppAddPrize" maxlength="120" required placeholder="e.g. Sleeve of Titleists" /></label>
               <label class="pp-add__field"><span>Sponsor</span><input type="text" id="ppAddSponsor" maxlength="120" placeholder="e.g. Acme Feed &amp; Seed" /></label>
               <label class="pp-add__field"><span>Donated by</span><input type="text" id="ppAddDonor" maxlength="120" placeholder="e.g. John Doe" /></label>
+              <label class="pp-add__field"><span>Photo (optional)</span><input type="file" id="ppAddPhoto" accept="image/*" /></label>
+              <div class="pp-add__preview" id="ppAddPreview" aria-hidden="true"></div>
               <button type="submit" class="btn btn--primary">Add prize</button>
             </form>
             <div class="pp-chips" id="ppChips" aria-label="Available prizes — drag onto a hole"></div>
@@ -650,7 +652,10 @@
               </div>
             </label>
             <div class="dn-add__preview" id="dnAddPreview" aria-hidden="true"></div>
-            <button type="submit" class="btn btn--primary dn-add__submit" id="dnAddBtn">Add sponsor</button>
+            <div class="dn-add__actions">
+              <button type="submit" class="btn btn--primary dn-add__submit" id="dnAddBtn">Add sponsor</button>
+              <button type="button" class="btn btn--ghost dn-add__cancel" id="dnEditCancel" hidden>Cancel edit</button>
+            </div>
           </form>
 
           <h4 class="dn-h">Sponsor wall</h4>
@@ -686,7 +691,7 @@
             <label class="au-add__field"><span>Donor</span><input type="text" id="auAddDonor" maxlength="120" placeholder="e.g. Haxtun Fire Dept." /></label>
             <label class="au-add__field au-add__field--floor"><span>Floor $</span><input type="number" id="auAddFloor" min="0" step="1" placeholder="0" /></label>
             <label class="au-add__field au-add__field--desc"><span>Description</span><input type="text" id="auAddDesc" maxlength="240" placeholder="Short blurb shown on the item card" /></label>
-            <label class="au-add__field au-add__field--photo"><span>Photo (optional)</span><input type="file" id="auAddPhoto" accept="image/*" /></label>
+            <label class="au-add__field au-add__field--photo"><span>Photos (optional &mdash; up to 2)</span><input type="file" id="auAddPhoto" accept="image/*" multiple /></label>
             <div class="au-add__preview" id="auAddPreview" aria-hidden="true"></div>
             <div class="au-add__submit"><button type="submit" class="btn btn--primary" id="auAddBtn">Add item</button></div>
           </form>
@@ -2616,15 +2621,27 @@
       var _pinState = { prizes: [], cards: [] };
       var _pinLoaded = false;
       var _pinDirty = false;
+      var _pinPendingPhoto = "";
       function _pinDefaultCards() {
         var out = []; for (var i = 1; i <= 9; i++) out.push({ hole: i, contest: "", prize: "", sponsor: "", contact: "" });
         return out;
+      }
+      // Look up the photo attached to the prize a card is assigned to.
+      // Photos live on the pool entry, not the card — so a rename or a
+      // re-upload propagates automatically to every card that uses it.
+      function _pinPhotoFor(prizeName) {
+        if (!prizeName) return "";
+        for (var i = 0; i < _pinState.prizes.length; i++) {
+          if (_pinState.prizes[i].prize === prizeName) return _pinState.prizes[i].photo || "";
+        }
+        return "";
       }
       function _pinNormalize(raw) {
         var s = { prizes: [], cards: _pinDefaultCards() };
         if (raw && typeof raw === "object") {
           if (Array.isArray(raw.prizes)) s.prizes = raw.prizes.filter(Boolean).map(function (p) {
-            return { prize: String(p.prize || "").slice(0, 120), sponsor: String(p.sponsor || "").slice(0, 120), contact: String(p.contact || "").slice(0, 120) };
+            var photo = (typeof p.photo === "string" && p.photo.indexOf("data:image/") === 0) ? p.photo : "";
+            return { prize: String(p.prize || "").slice(0, 120), sponsor: String(p.sponsor || "").slice(0, 120), contact: String(p.contact || "").slice(0, 120), photo: photo };
           });
           if (Array.isArray(raw.cards) && raw.cards.length) {
             var byHole = {}; raw.cards.forEach(function (c) { if (c && c.hole) byHole[c.hole] = c; });
@@ -2694,6 +2711,22 @@
       function _pinPrizeIsAssigned(prizeName) {
         return _pinState.cards.some(function (c) { return c.prize && c.prize === prizeName; });
       }
+      // Uses the auction tab's resize helper — same 400px / JPEG q0.6
+      // ceiling so a nine-hole board of prize photos stays well inside
+      // Airtable's 100KB long-text budget.
+      function _pinHandlePhotoPick(input) {
+        var preview = document.getElementById("ppAddPreview");
+        var file = input.files && input.files[0];
+        if (!file) { _pinPendingPhoto = ""; if (preview) preview.innerHTML = ""; return; }
+        if (file.size > 8 * 1024 * 1024) { _pinStatus("Photo too large (max 8 MB).", "error"); input.value = ""; return; }
+        _pinStatus("Preparing photo…");
+        _auResizePhoto(file, function (dataUri) {
+          if (!dataUri) { _pinStatus("Couldn't read that photo.", "error"); _pinPendingPhoto = ""; if (preview) preview.innerHTML = ""; return; }
+          _pinPendingPhoto = dataUri;
+          if (preview) preview.innerHTML = '<img alt="" src="' + esc(dataUri) + '">';
+          _pinStatus("");
+        });
+      }
       function renderPinPrizes() {
         renderPinChips();
         renderPinMaster();
@@ -2706,6 +2739,7 @@
           var assigned = _pinPrizeIsAssigned(p.prize);
           return '<div class="pp-chip' + (assigned ? " is-assigned" : "") + '" draggable="true" data-idx="' + i + '" title="' + esc(p.prize) + '">'
             + '<button type="button" class="pp-chip__rm" data-idx="' + i + '" aria-label="Remove ' + esc(p.prize) + '">&times;</button>'
+            + (p.photo ? '<img class="pp-chip__photo" alt="" src="' + esc(p.photo) + '">' : '')
             + '<div class="pp-chip__prize">' + esc(p.prize) + '</div>'
             + (p.sponsor ? '<span class="pp-chip__sponsor">' + esc(p.sponsor) + '</span>' : '')
             + (p.contact ? '<span class="pp-chip__donor">Donated by ' + esc(p.contact) + '</span>' : '')
@@ -2759,6 +2793,7 @@
         host.innerHTML = _pinState.cards.map(function (c, ci) {
           var selectedIdx = -1;
           if (c.prize) { for (var i = 0; i < _pinState.prizes.length; i++) if (_pinState.prizes[i].prize === c.prize) { selectedIdx = i; break; } }
+          var cardPhoto = _pinPhotoFor(c.prize);
           return '<article class="pcard" draggable="true" data-hole="' + c.hole + '" data-ci="' + ci + '">'
             + '<img class="pcard__logo" src="images/logo.png" alt="" />'
             + '<div class="pcard__rail">' + esc(evName) + (evDate ? ' &middot; ' + esc(evDate) : '') + ' &middot; F&amp;H Golf Course</div>'
@@ -2766,6 +2801,7 @@
             +   '<div class="pcard__holecell"><span class="pcard__holelbl">Hole</span><span class="pcard__holenum">' + c.hole + '</span></div>'
             +   '<div class="pcard__contest">' + esc(c.contest || (PARS9_PP[c.hole - 1] === 3 ? "Closest to the Pin" : "")) + '</div>'
             + '</div>'
+            + (cardPhoto ? '<div class="pcard__photo"><img alt="" src="' + esc(cardPhoto) + '"></div>' : '')
             + '<div class="pcard__prize">' + (c.prize ? esc(c.prize) : '&nbsp;') + '</div>'
             + (c.sponsor ? '<p class="pcard__thanks">Thank you</p>' : '')
             + '<div class="pcard__sponsor">' + (c.sponsor ? esc(c.sponsor) : '&nbsp;') + '</div>'
@@ -2862,6 +2898,10 @@
       var _dnState = { donors: [] };
       var _dnLoaded = false;
       var _dnPendingLogo = ""; // resized data URI staged for the next add
+      // -1 = adding a new sponsor; >=0 = editing the donor at that index.
+      // Kept in module state so the form-submit handler and the Cancel
+      // button both stay in sync without threading an argument through.
+      var _dnEditingIdx = -1;
       function _dnNormalize(raw) {
         var s = { donors: [] };
         if (raw && typeof raw === "object" && Array.isArray(raw.donors)) {
@@ -3036,6 +3076,7 @@
             +     siteLine
             +   '</div>'
             +   '<div class="dn-tile__actions">'
+            +     '<button type="button" class="btn btn--ghost btn--small" data-dn-edit="' + i + '">Edit</button>'
             +     '<button type="button" class="btn btn--ghost btn--small" data-dn-remove="' + i + '">Remove</button>'
             +   '</div>'
             + '</article>';
@@ -3046,9 +3087,20 @@
             if (!(idx >= 0 && idx < _dnState.donors.length)) return;
             var name = _dnState.donors[idx].name || "this sponsor";
             if (!confirm("Remove " + name + " from the sponsor wall?")) return;
+            // If we removed the row currently being edited, drop out of
+            // edit mode so the form doesn't overwrite whatever donor
+            // slid up into that index on the next submit.
+            if (_dnEditingIdx === idx) _dnCancelEdit();
+            else if (_dnEditingIdx > idx) _dnEditingIdx -= 1;
             _dnState.donors.splice(idx, 1);
             renderDonors();
             _dnStatus("Removed — click Save donors to keep the change.");
+          });
+        });
+        host.querySelectorAll("[data-dn-edit]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var idx = Number(btn.getAttribute("data-dn-edit"));
+            _dnStartEdit(idx);
           });
         });
         // Click the PAID / Unpaid chip on any tile to toggle payment
@@ -3137,7 +3189,8 @@
         var preview = document.getElementById("dnAddPreview");
         var name = nameEl ? nameEl.value.trim() : "";
         if (!name) { _dnStatus("Sponsor name is required.", "error"); if (nameEl) nameEl.focus(); return; }
-        _dnState.donors.push({
+        var isEdit = _dnEditingIdx >= 0 && _dnEditingIdx < _dnState.donors.length;
+        var payload = {
           name: name.slice(0, 120),
           tier: (tierEl ? tierEl.value.trim() : "").slice(0, 80),
           amount: (amountEl ? amountEl.value.trim() : "").slice(0, 60),
@@ -3145,10 +3198,27 @@
           contact: (contactEl ? contactEl.value.trim() : "").slice(0, 160),
           website: (websiteEl ? websiteEl.value.trim() : "").slice(0, 240),
           paid: !!(paidEl && paidEl.checked),
-          logoDataUri: _dnPendingLogo || "",
-          addedAt: new Date().toISOString(),
-        });
+        };
+        if (isEdit) {
+          var existing = _dnState.donors[_dnEditingIdx];
+          // Logo semantics: if the operator staged a new logo, use it; if
+          // they cleared it via the Remove file button (hides Clear +
+          // resets input), use "" to drop; otherwise keep the existing
+          // logo untouched so an edit doesn't accidentally wipe artwork.
+          var keepLogo = existing.logoDataUri || "";
+          var clearBtn = document.getElementById("dnAddLogoClear");
+          var stagedNew = !!_dnPendingLogo;
+          var explicitCleared = clearBtn && clearBtn.hidden && !stagedNew && !logoEl.value;
+          payload.logoDataUri = stagedNew ? _dnPendingLogo : (explicitCleared ? "" : keepLogo);
+          payload.addedAt = existing.addedAt || new Date().toISOString();
+          _dnState.donors[_dnEditingIdx] = payload;
+        } else {
+          payload.logoDataUri = _dnPendingLogo || "";
+          payload.addedAt = new Date().toISOString();
+          _dnState.donors.push(payload);
+        }
         _dnPendingLogo = "";
+        _dnEditingIdx = -1;
         if (nameEl) nameEl.value = "";
         if (tierEl) tierEl.value = "";
         if (amountEl) amountEl.value = "";
@@ -3160,8 +3230,62 @@
         if (preview) preview.innerHTML = "";
         var clr = document.getElementById("dnAddLogoClear");
         if (clr) clr.hidden = true;
+        _dnUpdateFormMode();
         renderDonors();
-        _dnStatus("Added — click Save donors to keep the change.");
+        _dnStatus(isEdit ? "Updated — click Save donors to keep the change." : "Added — click Save donors to keep the change.");
+      }
+      // Populate the top add-form from an existing tile so the operator
+      // can tweak details without a Remove + re-add dance. Scrolls the
+      // form into view because the tile clicked may be well below the
+      // fold on a long sponsor wall.
+      function _dnStartEdit(idx) {
+        if (!(idx >= 0 && idx < _dnState.donors.length)) return;
+        var d = _dnState.donors[idx];
+        _dnEditingIdx = idx;
+        var nameEl = document.getElementById("dnAddName"); if (nameEl) nameEl.value = d.name || "";
+        var tierEl = document.getElementById("dnAddTier"); if (tierEl) tierEl.value = d.tier || "";
+        var amountEl = document.getElementById("dnAddAmount"); if (amountEl) amountEl.value = d.amount || "";
+        var thanksEl = document.getElementById("dnAddThanks"); if (thanksEl) thanksEl.value = d.thankYou || "";
+        var contactEl = document.getElementById("dnAddContact"); if (contactEl) contactEl.value = d.contact || "";
+        var websiteEl = document.getElementById("dnAddWebsite"); if (websiteEl) websiteEl.value = d.website || "";
+        var paidEl = document.getElementById("dnAddPaid"); if (paidEl) paidEl.checked = !!d.paid;
+        var logoEl = document.getElementById("dnAddLogo"); if (logoEl) logoEl.value = "";
+        _dnPendingLogo = "";
+        var preview = document.getElementById("dnAddPreview");
+        if (preview) {
+          if (d.logoDataUri) preview.innerHTML = '<img alt="current logo — pick a new file to replace" title="current logo — pick a new file to replace" src="' + esc(d.logoDataUri) + '">';
+          else preview.innerHTML = "";
+        }
+        var clr = document.getElementById("dnAddLogoClear");
+        if (clr) clr.hidden = !d.logoDataUri;
+        _dnUpdateFormMode();
+        _dnStatus("Editing " + (d.name || "sponsor") + " — change fields above, then click Update sponsor.");
+        var form = document.getElementById("dnAddForm");
+        if (form && form.scrollIntoView) form.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (nameEl && nameEl.focus) nameEl.focus();
+      }
+      function _dnCancelEdit() {
+        _dnEditingIdx = -1;
+        _dnPendingLogo = "";
+        var ids = ["dnAddName","dnAddTier","dnAddAmount","dnAddThanks","dnAddContact","dnAddWebsite"];
+        ids.forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ""; });
+        var paidEl = document.getElementById("dnAddPaid"); if (paidEl) paidEl.checked = false;
+        var logoEl = document.getElementById("dnAddLogo"); if (logoEl) logoEl.value = "";
+        var preview = document.getElementById("dnAddPreview"); if (preview) preview.innerHTML = "";
+        var clr = document.getElementById("dnAddLogoClear"); if (clr) clr.hidden = true;
+        _dnUpdateFormMode();
+        _dnStatus("");
+      }
+      // Swap the submit button label + show/hide the Cancel edit button so
+      // the operator can tell at a glance which mode the form is in.
+      function _dnUpdateFormMode() {
+        var isEdit = _dnEditingIdx >= 0;
+        var addBtn = document.getElementById("dnAddBtn");
+        if (addBtn) addBtn.textContent = isEdit ? "Update sponsor" : "Add sponsor";
+        var cancelBtn = document.getElementById("dnEditCancel");
+        if (cancelBtn) cancelBtn.hidden = !isEdit;
+        var form = document.getElementById("dnAddForm");
+        if (form) form.classList.toggle("dn-add--editing", isEdit);
       }
       // Convenience: when the operator picks a preset tier that has a
       // dollar amount in parentheses (e.g. "Fire Donor ($250)"), auto-
@@ -3179,16 +3303,23 @@
 
       // ---- Auction --------------------------------------------------
       // Fire-only feature. Data model: { items: [{ id, name, description,
-      // donor, floor, photoDataUri, addedAt, sold: {buyerName,
-      // buyerEmail, buyerPhone, amount, soldAt, receiptSentAt} }] }
+      // donor, floor, photos: [dataUri, dataUri], addedAt, sold:
+      // {buyerName, buyerEmail, buyerPhone, amount, soldAt,
+      // receiptSentAt} }] }. Older records used a single `photoDataUri`
+      // field; the normalizer promotes those to a one-element `photos`
+      // array on load so nothing rewrites Airtable until Save runs.
       // Piled into `Auction Items JSON` on Tournament Config so no new
       // Airtable table is needed. Photos are resized in the browser
       // (400px, JPEG q0.6) so a ~20-item auction stays under the
-      // 100KB long-text ceiling. Clerk mode is a live spreadsheet-y
-      // table; hitting Save persists the whole array in one write.
+      // 100KB long-text ceiling. Two photos per item roughly doubles
+      // the payload each item contributes — the operator sees a loud
+      // "Too much data" error and can drop a photo or item when they
+      // hit the cap. Clerk mode is a live spreadsheet-y table; hitting
+      // Save persists the whole array in one write.
       var _auState = { items: [] };
       var _auLoaded = false;
-      var _auPendingPhoto = "";
+      var _auPendingPhotos = [];
+      var AU_MAX_PHOTOS = 2;
       function _auIsFire() { return /^\s*haxtun\s*fire/i.test(String(KEY || "")); }
       function _auStatus(msg, kind) {
         var el = document.getElementById("auStatus"); if (!el) return;
@@ -3212,13 +3343,21 @@
               // Treat as unsold if there's no amount AND no buyer.
               if (!sold.amount && !sold.buyerName) sold = null;
             }
+            var photos = [];
+            if (Array.isArray(it.photos)) {
+              photos = it.photos.filter(function (p) {
+                return typeof p === "string" && p.indexOf("data:image/") === 0;
+              }).slice(0, AU_MAX_PHOTOS);
+            } else if (typeof it.photoDataUri === "string" && it.photoDataUri.indexOf("data:image/") === 0) {
+              photos = [it.photoDataUri];
+            }
             return {
               id: String(it.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 8))).slice(0, 40),
               name: String(it.name || "").slice(0, 120),
               description: String(it.description || "").slice(0, 240),
               donor: String(it.donor || "").slice(0, 120),
               floor: Number(it.floor) || 0,
-              photoDataUri: (typeof it.photoDataUri === "string" && it.photoDataUri.indexOf("data:image/") === 0) ? it.photoDataUri : "",
+              photos: photos,
               addedAt: String(it.addedAt || ""),
               sold: sold,
             };
@@ -3314,8 +3453,12 @@
             + items.map(function (it) {
                 var sold = it.sold && (it.sold.amount || it.sold.buyerName);
                 var receiptSent = it.sold && it.sold.receiptSentAt;
-                var photo = it.photoDataUri
-                  ? '<img alt="" class="au-clerk__thumb" src="' + esc(it.photoDataUri) + '">'
+                var photoList = Array.isArray(it.photos) ? it.photos : [];
+                var photo = photoList.length
+                  ? '<span class="au-clerk__thumbwrap">'
+                    + '<img alt="" class="au-clerk__thumb" src="' + esc(photoList[0]) + '">'
+                    + (photoList.length > 1 ? '<span class="au-clerk__thumbplus" aria-label="' + photoList.length + ' photos">+' + (photoList.length - 1) + '</span>' : '')
+                    + '</span>'
                   : '';
                 var itemMeta = ''
                   + '<div class="au-clerk__itemcell">'
@@ -3411,17 +3554,51 @@
         };
         reader.readAsDataURL(file);
       }
-      function _auHandlePhotoPick(input) {
+      function _auRenderPendingPhotos() {
         var preview = document.getElementById("auAddPreview");
-        var file = input.files && input.files[0];
-        if (!file) { _auPendingPhoto = ""; if (preview) preview.innerHTML = ""; return; }
-        if (file.size > 8 * 1024 * 1024) { _auStatus("Photo too large (max 8 MB).", "error"); input.value = ""; return; }
-        _auStatus("Preparing photo…");
-        _auResizePhoto(file, function (dataUri) {
-          if (!dataUri) { _auStatus("Couldn't read that photo.", "error"); _auPendingPhoto = ""; if (preview) preview.innerHTML = ""; return; }
-          _auPendingPhoto = dataUri;
-          if (preview) preview.innerHTML = '<img alt="" src="' + esc(dataUri) + '">';
-          _auStatus("");
+        if (!preview) return;
+        if (!_auPendingPhotos.length) { preview.innerHTML = ""; return; }
+        preview.innerHTML = _auPendingPhotos.map(function (uri, i) {
+          return '<span class="au-add__pending">'
+            + '<img alt="" src="' + esc(uri) + '">'
+            + '<button type="button" class="au-add__pendingrm" data-au-pending="' + i + '" aria-label="Remove pending photo ' + (i + 1) + '">&times;</button>'
+            + '</span>';
+        }).join("");
+        Array.prototype.forEach.call(preview.querySelectorAll("[data-au-pending]"), function (btn) {
+          btn.addEventListener("click", function () {
+            var i = Number(btn.getAttribute("data-au-pending"));
+            _auPendingPhotos.splice(i, 1);
+            _auRenderPendingPhotos();
+          });
+        });
+      }
+      function _auHandlePhotoPick(input) {
+        var files = input.files ? Array.prototype.slice.call(input.files) : [];
+        if (!files.length) return; // keep whatever is already staged
+        var oversize = files.filter(function (f) { return f.size > 8 * 1024 * 1024; });
+        if (oversize.length) { _auStatus("Photo too large (max 8 MB).", "error"); input.value = ""; return; }
+        var slotsLeft = AU_MAX_PHOTOS - _auPendingPhotos.length;
+        if (slotsLeft <= 0) {
+          _auStatus("Already staged " + AU_MAX_PHOTOS + " photos — remove one to add another.", "error");
+          input.value = "";
+          return;
+        }
+        var toResize = files.slice(0, slotsLeft);
+        var dropped = files.length - toResize.length;
+        _auStatus("Preparing photo" + (toResize.length > 1 ? "s" : "") + "…");
+        var remaining = toResize.length;
+        toResize.forEach(function (file) {
+          _auResizePhoto(file, function (dataUri) {
+            remaining--;
+            if (dataUri) _auPendingPhotos.push(dataUri);
+            if (remaining === 0) {
+              _auRenderPendingPhotos();
+              input.value = "";
+              if (!_auPendingPhotos.length) _auStatus("Couldn't read that photo.", "error");
+              else if (dropped) _auStatus("Added " + toResize.length + " — dropped " + dropped + " over the " + AU_MAX_PHOTOS + "-photo limit.", "error");
+              else _auStatus("");
+            }
+          });
         });
       }
       function _auAddFromForm(ev) {
@@ -3441,11 +3618,11 @@
           description: (descEl ? descEl.value.trim() : "").slice(0, 240),
           donor: (donorEl ? donorEl.value.trim() : "").slice(0, 120),
           floor: Number(floorEl ? floorEl.value : 0) || 0,
-          photoDataUri: _auPendingPhoto || "",
+          photos: _auPendingPhotos.slice(0, AU_MAX_PHOTOS),
           addedAt: new Date().toISOString(),
           sold: null,
         });
-        _auPendingPhoto = "";
+        _auPendingPhotos = [];
         if (nameEl) nameEl.value = "";
         if (donorEl) donorEl.value = "";
         if (floorEl) floorEl.value = "";
@@ -11706,11 +11883,19 @@
           if (_pinState.prizes.some(function (p) { return p.prize.toLowerCase() === prize.toLowerCase(); })) {
             _pinStatus("A prize by that name is already in the pool.", "error"); return;
           }
-          _pinState.prizes.push({ prize: prize, sponsor: sponsor, contact: contact });
-          _pinDirty = true; document.getElementById("ppAddPrize").value = ""; document.getElementById("ppAddSponsor").value = ""; document.getElementById("ppAddDonor").value = "";
+          _pinState.prizes.push({ prize: prize, sponsor: sponsor, contact: contact, photo: _pinPendingPhoto || "" });
+          _pinPendingPhoto = "";
+          _pinDirty = true;
+          document.getElementById("ppAddPrize").value = "";
+          document.getElementById("ppAddSponsor").value = "";
+          document.getElementById("ppAddDonor").value = "";
+          var ppPhotoInput = document.getElementById("ppAddPhoto"); if (ppPhotoInput) ppPhotoInput.value = "";
+          var ppPreview = document.getElementById("ppAddPreview"); if (ppPreview) ppPreview.innerHTML = "";
           document.getElementById("ppAddPrize").focus();
           renderPinPrizes(); _pinStatus("Added — remember to Save.", "ok");
         });
+        var ppAddPhoto = document.getElementById("ppAddPhoto");
+        if (ppAddPhoto) ppAddPhoto.addEventListener("change", function () { _pinHandlePhotoPick(ppAddPhoto); });
         var ppSave = document.getElementById("ppSave");
         if (ppSave) ppSave.addEventListener("click", savePinPrizes);
         var ppPrintMaster = document.getElementById("ppPrintMaster");
@@ -11731,6 +11916,8 @@
         });
         var dnAddForm = document.getElementById("dnAddForm");
         if (dnAddForm) dnAddForm.addEventListener("submit", _dnAddFromForm);
+        var dnEditCancel = document.getElementById("dnEditCancel");
+        if (dnEditCancel) dnEditCancel.addEventListener("click", _dnCancelEdit);
         var dnAddLogo = document.getElementById("dnAddLogo");
         if (dnAddLogo) dnAddLogo.addEventListener("change", function () { _dnHandleFilePick(dnAddLogo); });
         var dnAddLogoClear = document.getElementById("dnAddLogoClear");
