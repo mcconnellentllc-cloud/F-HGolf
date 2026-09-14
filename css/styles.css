@@ -2658,12 +2658,51 @@ body.pp-print-cards { background: #fff; }
 }
 
 /* Donors tab — sponsor wall (workbook + public recap page share tile styles). */
-.dn-add { display: grid; grid-template-columns: 1fr 1fr 1fr auto auto; gap: 0.55rem 0.75rem; align-items: end; }
-@media (max-width: 900px) { .dn-add { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 560px) { .dn-add { grid-template-columns: 1fr; } }
-.dn-add__field { display: block; }
-.dn-add__field span { display: block; font: 700 0.66rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted, #7a7663); margin-bottom: 0.25rem; }
+/* Named-area grid so the identity fields (Name, Website) get wider
+   columns than the shorter money/tier fields. Old layout was five equal
+   1fr tracks — Sponsor Name and Website were roughly one-third the width
+   of Tier, cutting labels off ("SPONSOR / NAME **") and only showing a
+   few characters of the actual value. */
+.dn-add {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1.4fr) auto;
+  grid-template-areas:
+    "name    tier   amount  thanks  contact contact"
+    "website website logo   logo    preview submit";
+  gap: 0.7rem 0.85rem;
+  align-items: end;
+}
+.dn-add__field--name    { grid-area: name; }
+.dn-add__field--tier    { grid-area: tier; }
+.dn-add__field--amount  { grid-area: amount; }
+.dn-add__field--thanks  { grid-area: thanks; }
+.dn-add__field--contact { grid-area: contact; }
+.dn-add__field--website { grid-area: website; }
+.dn-add__field--logo    { grid-area: logo; }
+.dn-add__preview        { grid-area: preview; }
+.dn-add__submit         { grid-area: submit; align-self: end; }
+@media (max-width: 900px) {
+  .dn-add {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "name    name"
+      "tier    amount"
+      "thanks  contact"
+      "website website"
+      "logo    preview"
+      "submit  submit";
+  }
+}
+@media (max-width: 560px) {
+  .dn-add {
+    grid-template-columns: 1fr;
+    grid-template-areas: "name" "tier" "amount" "thanks" "contact" "website" "logo" "preview" "submit";
+  }
+}
+.dn-add__field { display: block; min-width: 0; }
+.dn-add__field span { display: block; font: 700 0.66rem/1 system-ui, sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted, #7a7663); margin-bottom: 0.25rem; white-space: nowrap; }
 .dn-add__field input[type="text"] { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; }
+.dn-add__field select { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--line, #e6e2d8); border-radius: 8px; font: inherit; background: #fff; }
 .dn-add__field--name span::after { content: " *"; color: var(--red-deep, #7a1a1a); }
 .dn-add__field--logo input[type="file"] { font: 0.85rem system-ui, sans-serif; }
 .dn-add__logo-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }

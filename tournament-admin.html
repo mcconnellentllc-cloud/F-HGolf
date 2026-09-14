@@ -609,16 +609,16 @@
 
           <form id="dnAddForm" class="dn-add" autocomplete="off">
             <label class="dn-add__field dn-add__field--name"><span>Sponsor name *</span><input type="text" id="dnAddName" maxlength="120" required placeholder="e.g. Haxtun Volunteer Fire Dept." /></label>
-            <label class="dn-add__field"><span>Tier</span><select id="dnAddTier"><option value="">— Other (custom) —</option></select></label>
-            <label class="dn-add__field"><span>Amount or item</span><input type="text" id="dnAddAmount" maxlength="60" placeholder="e.g. $50, or &lsquo;Sleeve of Titleists&rsquo;" /></label>
-            <label class="dn-add__field"><span>Thank-you note</span><input type="text" id="dnAddThanks" maxlength="200" placeholder="e.g. Serving our community for over 100 years" /></label>
-            <label class="dn-add__field"><span>Contact / donated by</span><input type="text" id="dnAddContact" maxlength="160" placeholder="e.g. Marc Bornhoft &mdash; 970-580-2913" /></label>
+            <label class="dn-add__field dn-add__field--tier"><span>Tier</span><select id="dnAddTier"><option value="">— Other (custom) —</option></select></label>
+            <label class="dn-add__field dn-add__field--amount"><span>Amount or item</span><input type="text" id="dnAddAmount" maxlength="60" placeholder="e.g. $50, or &lsquo;Sleeve of Titleists&rsquo;" /></label>
+            <label class="dn-add__field dn-add__field--thanks"><span>Thank-you note</span><input type="text" id="dnAddThanks" maxlength="200" placeholder="e.g. Serving our community for over 100 years" /></label>
+            <label class="dn-add__field dn-add__field--contact"><span>Contact / donated by</span><input type="text" id="dnAddContact" maxlength="160" placeholder="e.g. Marc Bornhoft &mdash; 970-580-2913" /></label>
             <!-- type="text", not "url" — the browser's URL validator
                  rejects bare hostnames like "haxtunfire.org" and blocks
                  the form. Our _dnNormalizeUrl helper prepends https://
                  on save + on render, so bare hostnames are the norm and
                  must be allowed through submission. -->
-            <label class="dn-add__field"><span>Website (optional)</span><input type="text" id="dnAddWebsite" maxlength="240" placeholder="e.g. haxtunfire.org" inputmode="url" autocapitalize="off" spellcheck="false" /></label>
+            <label class="dn-add__field dn-add__field--website"><span>Website (optional)</span><input type="text" id="dnAddWebsite" maxlength="240" placeholder="e.g. haxtunfire.org" inputmode="url" autocapitalize="off" spellcheck="false" /></label>
             <label class="dn-add__field dn-add__field--logo">
               <span>Logo (optional)</span>
               <div class="dn-add__logo-row">
@@ -627,7 +627,7 @@
               </div>
             </label>
             <div class="dn-add__preview" id="dnAddPreview" aria-hidden="true"></div>
-            <button type="submit" class="btn btn--primary" id="dnAddBtn">Add sponsor</button>
+            <button type="submit" class="btn btn--primary dn-add__submit" id="dnAddBtn">Add sponsor</button>
           </form>
 
           <h4 class="dn-h">Sponsor wall</h4>
@@ -2774,10 +2774,27 @@
       };
       _DONOR_TIERS_BY_KEY[String(KEY || "")] = /^\s*haxtun\s*fire/i.test(String(KEY || ""))
         ? [
-            { label: "Fire Donor ($250)", value: "Fire Donor ($250)" },
-            { label: "Department Donor ($100)", value: "Department Donor ($100)" },
+            { label: "Fire ($250)", value: "Fire ($250)" },
+            { label: "Department ($100)", value: "Department ($100)" },
           ]
         : [];
+      // One-time migration for existing donor rows saved under the old
+      // "Fire Donor ($250)" / "Department Donor ($100)" labels — rewrite
+      // to the new label so the sponsor wall chip reads correctly. The
+      // rewrite happens in-memory on load; the operator's next Save
+      // donors persists it.
+      var _DONOR_TIER_MIGRATIONS = {
+        "Fire Donor ($250)": "Fire ($250)",
+        "Department Donor ($100)": "Department ($100)",
+      };
+      function _dnApplyTierMigrations() {
+        if (!_dnState || !Array.isArray(_dnState.donors)) return;
+        _dnState.donors.forEach(function (d) {
+          if (!d) return;
+          var mapped = _DONOR_TIER_MIGRATIONS[String(d.tier || "")];
+          if (mapped) d.tier = mapped;
+        });
+      }
       function _dnTiersForThisTournament() {
         return _DONOR_TIERS_BY_KEY[String(KEY || "")] || [];
       }
@@ -2805,6 +2822,7 @@
         var cachedRaw = _tcConfigCache && _tcConfigCache["Donors JSON"];
         if (cachedRaw != null) {
           try { _dnState = _dnNormalize(JSON.parse(cachedRaw || "{}")); } catch (e) { _dnState = _dnNormalize(null); }
+          _dnApplyTierMigrations();
           _dnLoaded = true; _dnStatus(""); renderDonors(); return;
         }
         fetch(FH_API.url("/api/tournament-signups?config=" + encodeURIComponent(KEY)))
@@ -2812,6 +2830,7 @@
           .then(function (j) {
             var raw = j && j.record && j.record.fields && j.record.fields["Donors JSON"];
             try { _dnState = _dnNormalize(JSON.parse(raw || "{}")); } catch (e) { _dnState = _dnNormalize(null); }
+            _dnApplyTierMigrations();
             _dnLoaded = true; _dnStatus(""); renderDonors();
           })
           .catch(function () { _dnState = _dnNormalize(null); _dnLoaded = true; _dnStatus("Couldn't load — starting fresh.", "error"); renderDonors(); });
