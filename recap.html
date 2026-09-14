@@ -78,6 +78,12 @@
     .donor__name { margin: 0 0 0.15rem; font: 700 1rem/1.2 "Source Sans 3", system-ui, sans-serif; color: var(--ink); word-wrap: break-word; }
     .donor__thanks { margin: 0 0 0.2rem; font-size: 0.85rem; color: var(--ink); line-height: 1.35; }
     .donor__contact { margin: 0; font-size: 0.75rem; color: var(--muted); }
+    .donor__chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0 0 0.35rem; }
+    .donor__amt { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px; background: var(--gold); color: #0b1a10; font: 700 0.72rem/1.4 "Source Sans 3", system-ui, sans-serif; letter-spacing: 0.03em; }
+    .donor-group { margin-bottom: 2rem; }
+    .donor-group:last-child { margin-bottom: 0; }
+    .donor-group__hd { font-family: "Fraunces", Georgia, serif; font-weight: 700; color: var(--gold); font-size: clamp(1.15rem, 2vw, 1.45rem); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.85rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--line); }
+    .donor-group__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
   </style>
 </head>
 <body>
@@ -116,6 +122,7 @@
     <footer class="recap__foot"><span id="recapUpdated">&nbsp;</span></footer>
   </main>
 
+  <script src="js/theme-fire.js"></script>
   <script src="js/api.js"></script>
   <script>
     (function () {
@@ -216,20 +223,48 @@
         try { var parsed = JSON.parse(raw || "{}"); if (parsed && Array.isArray(parsed.donors)) list = parsed.donors; } catch (e) {}
         list = list.filter(function (d) { return d && d.name; });
         if (!list.length) { section.hidden = true; grid.innerHTML = ""; return; }
-        grid.innerHTML = list.map(function (d) {
+        // Group by tier — preserves first-seen order across tiers so
+        // "Fire Donor ($250)" tiles cluster first, then "Department
+        // Donor ($100)", then anything else (with a small "chip amount"
+        // shown on each tile). Empty-tier donors land under "Other
+        // Sponsors" so their custom amount is still visible.
+        var order = [];
+        var buckets = {};
+        list.forEach(function (d) {
+          var key = String(d.tier || "").trim() || "__other__";
+          if (!buckets[key]) { buckets[key] = []; order.push(key); }
+          buckets[key].push(d);
+        });
+        function tile(d) {
           var logo = d.logoDataUri && typeof d.logoDataUri === "string" && d.logoDataUri.indexOf("data:image/") === 0
             ? '<div class="donor__logo"><img alt="" src="' + esc(d.logoDataUri) + '"></div>'
             : '<div class="donor__logo donor__logo--empty" aria-hidden="true">' + esc((d.name || "?").slice(0, 1).toUpperCase()) + '</div>';
+          var amt = d.amount ? '<span class="donor__amt">' + esc(d.amount) + '</span>' : "";
           return ''
             + '<article class="donor">'
             +   logo
             +   '<div class="donor__body">'
             +     '<h3 class="donor__name">' + esc(d.name) + '</h3>'
+            +     (amt ? '<div class="donor__chips">' + amt + '</div>' : "")
             +     (d.thankYou ? '<p class="donor__thanks">' + esc(d.thankYou) + '</p>' : "")
             +     (d.contact ? '<p class="donor__contact">' + esc(d.contact) + '</p>' : "")
             +   '</div>'
             + '</article>';
-        }).join("");
+        }
+        // If there's only one bucket AND it's the untitled one, skip the
+        // grouping heading entirely — no need to say "Other Sponsors" on
+        // a tournament that doesn't use tiers at all.
+        if (order.length === 1 && order[0] === "__other__") {
+          grid.innerHTML = buckets["__other__"].map(tile).join("");
+        } else {
+          grid.innerHTML = order.map(function (key) {
+            var heading = key === "__other__" ? "Other Sponsors" : key;
+            return '<section class="donor-group">'
+              + '<h3 class="donor-group__hd">' + esc(heading) + '</h3>'
+              + '<div class="donor-group__grid">' + buckets[key].map(tile).join("") + '</div>'
+              + '</section>';
+          }).join("");
+        }
         section.hidden = false;
       }
 
@@ -242,6 +277,20 @@
           var display = (fields && (fields["Display Name"] || fields.displayName)) || "";
           applyTitle(display);
           renderDonorWall(fields);
+          // Haxtun Fire recap gets an "In Honor of the Haxtun Volunteer
+          // Fire Department" dedication box above the recap body, from
+          // an optional Airtable field or a default tribute. FH_FIRE is
+          // set by js/theme-fire.js and only turns on when KEY matches.
+          if (window.FH_FIRE && window.FH_FIRE.isFire && typeof window.FH_FIRE.injectDedication === "function") {
+            var article = document.querySelector(".recap");
+            if (article) {
+              var custom = fields && (fields["Dedication"] || fields["Fire Dedication"]);
+              window.FH_FIRE.injectDedication(article, {
+                side: "before",
+                body: (custom && String(custom).trim()) || undefined,
+              });
+            }
+          }
         })
         .catch(function () { applyTitle(""); });
 
