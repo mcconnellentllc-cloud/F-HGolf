@@ -52,6 +52,12 @@
     }
 
     .disp__body { flex: 1; padding: clamp(0.5rem, 1.4vw, 1rem) clamp(0.8rem, 2vw, 1.6rem) 3rem; display: grid; gap: clamp(0.6rem, 1.5vw, 1.2rem); grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr)); }
+    /* `.disp__body { display: grid }` overrides the UA-level
+       `[hidden] { display: none }`, so a plain `el.hidden = true` from
+       the tab switcher never actually hides the leaderboard body when
+       switching to Sponsors/Donors/Auction. Same for `.lb-panel` if
+       someone gives it a `display` rule later. Force hidden to win. */
+    .disp__body[hidden], .lb-panel[hidden] { display: none !important; }
     .lbd { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: clamp(0.7rem, 1.3vw, 1rem); }
     .lbd__hdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.6rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--line); }
     .lbd__name { font-family: "Fraunces", Georgia, serif; font-weight: 700; margin: 0; font-size: clamp(1.3rem, 2vw, 1.9rem); }
