@@ -1507,9 +1507,26 @@
         collectedTotal = cashTotal + checkTotal + cardTotal;
         // Extra-meals headcount for the kitchen — sum across the field.
         var extraMeals = recs.reduce(function (s, r) { var v = (r.fields || {})["Extra Meals"]; return s + (typeof v === "number" && v > 0 ? v : 0); }, 0);
+        // Rental-cart demand for the pro shop — sum per-player cart shares
+        // across every seat. 0 = own cart, 0.5 = sharing, 1 = full rental,
+        // so the sum is literally "how many club carts do we need to hand
+        // out." Always visible in the Check-In summary so the shop can
+        // eyeball demand without opening a card. Ceil the sum so a lone
+        // half-share still surfaces as 1 cart needed (half a cart doesn't
+        // exist physically).
+        var cartShareSum = 0;
+        recs.forEach(function (r) {
+          var f = r.fields || {};
+          for (var i = 1; i <= 4; i++) {
+            var v = f["Player " + i + " Cart Share"];
+            if (typeof v === "number" && v > 0) cartShareSum += v;
+          }
+        });
+        var cartsNeeded = Math.ceil(cartShareSum);
         var el = document.getElementById("twSummary");
         if (el) el.innerHTML = "<strong>" + paidCount + " / " + players + "</strong> players paid · <strong>"
           + money(collectedTotal) + "</strong> collected"
+          + ' · 🛺 <strong>' + cartsNeeded + '</strong> rental cart' + (cartsNeeded === 1 ? '' : 's') + ' needed'
           + (extraMeals ? ' · <strong>' + extraMeals + '</strong> extra meals for the kitchen' : "");
         renderPL();
       }
@@ -5391,20 +5408,24 @@
           var f = r.fields || {};
           return f["Tournament"] === KEY && !f["Alternate"];
         });
-        var total = 0;
+        // Source of truth: sum of per-player cart shares across the field.
+        // 0 = own cart, 0.5 = sharing, 1 = full rental — sum → actual carts.
+        // Ceil so a lone half-share still counts as 1 cart to hand out.
+        var shareSum = 0;
         var borrowed = {};
         recs.forEach(function (r) {
           var f = r.fields || {};
-          var n = typeof f["Rentals Needed"] === "number"
-            ? f["Rentals Needed"]
-            : (String(f["Cart Type"] || "").toLowerCase() === "rental" ? 1 : 0);
-          if (n > 0) total += n;
+          for (var i = 1; i <= 4; i++) {
+            var v = f["Player " + i + " Cart Share"];
+            if (typeof v === "number" && v > 0) shareSum += v;
+          }
           var assign = String(f["Cart Assignment"] || "").trim();
           if (assign.toLowerCase().indexOf("borrowed:") === 0) {
             var name = assign.slice("borrowed:".length).trim();
             if (name) borrowed[name] = true;
           }
         });
+        var total = Math.ceil(shareSum);
         if (!total && !Object.keys(borrowed).length) { host.hidden = true; host.textContent = ""; return; }
         var inv = Number((_tcConfigCache && _tcConfigCache["Rental Carts"]) || 0);
         var club = Math.min(total, inv > 0 ? inv : total);
