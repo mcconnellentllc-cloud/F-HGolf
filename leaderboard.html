@@ -318,6 +318,18 @@
       font-size: clamp(0.85rem, 1.2vw, 1.05rem);
       margin: 0.55em 0 0;
     }
+    /* Tagline-only variant (no dollar total). Fire Department asked
+       for the running total to come off the public leaderboard, so
+       the label grows into the space the amount used to fill. */
+    .fire-total--tagline .fire-total__label {
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 800;
+      font-size: clamp(1.4rem, 3vw, 2.2rem);
+      letter-spacing: 0.02em;
+      text-transform: none;
+      text-shadow: 0 2px 0 #000, 0 3px 10px rgba(0,0,0,0.45);
+      margin: 0;
+    }
     @media (max-width: 640px) {
       .fire-total__inner { grid-template-columns: 1fr; }
       .fire-total__side { display: none; }
@@ -418,19 +430,18 @@
       <svg class="fire-badge"><use href="#fireBadge" /></svg>
     </div>
 
-    <!-- Fundraiser total banner. Copy uses Haxtun's actual town motto
-         ("A small town with a big heart" — Haxtun Chamber of Commerce)
-         rather than invented "ferocity of fire" language. Every phrase
-         here is grounded in something publicly true about the town or
-         the department: they are a Volunteer department, they serve
-         Phillips County, and their community identifies as small-town
-         with a big heart. -->
-    <div class="fire-total" id="fireTotalBanner" aria-hidden="true">
+    <!-- Fundraiser tagline banner. The Fire Department asked us NOT
+         to display a running dollar total on the public leaderboard
+         or watch board (2026-09-14), so the "Raised for the Haxtun
+         Volunteer Fire Department" tile with its live dollar amount
+         is intentionally removed. The tagline stays — it grounds the
+         identity ("A small town with a big heart" is Haxtun's actual
+         Chamber of Commerce motto) without disclosing revenue. -->
+    <div class="fire-total fire-total--tagline" id="fireTotalBanner" aria-hidden="true">
       <div class="fire-total__inner">
         <div class="fire-total__side" aria-hidden="true"><svg class="fire-badge"><use href="#fireBadge" /></svg></div>
         <div class="fire-total__mid">
-          <div class="fire-total__label">Raised for the Haxtun Volunteer Fire Department</div>
-          <div class="fire-total__amt" id="fireTotalAmt">$0</div>
+          <div class="fire-total__label">Haxtun Volunteer Fire Department Golf Tournament</div>
           <div class="fire-total__sub">&ldquo;A small town with a big heart&rdquo; &mdash; every dollar backs the neighbors who answer the call.</div>
         </div>
         <div class="fire-total__side" aria-hidden="true"><svg class="fire-badge"><use href="#fireBadge" /></svg></div>
@@ -673,10 +684,11 @@
           .catch(function () { _lbConfigInFlight = null; _lbConfigCache = {}; return _lbConfigCache; });
         return _lbConfigInFlight;
       }
-      // Sum sponsor/donor amounts (parsing "$250", "$1,000", etc.) and
-      // auction sold amounts into the running "Raised" total. Skips any
-      // amount that isn't a number so a "Sleeve of Titleists" line doesn't
-      // poison the counter.
+      // Fire watch-board stats. The Fire Department asked us NOT to
+       // display running dollar totals on the public leaderboard (see
+       // #fireTotalBanner comment above), so this tile row shows counts
+       // only — Sponsors count and Items Sold count — never a raised
+       // amount or an auction dollar figure.
       function _lbUpdateFireStats(fields) {
         var donors = _lbParseDonors(fields);
         var items = [];
@@ -685,27 +697,15 @@
           var parsed = JSON.parse(raw || "{}");
           if (parsed && Array.isArray(parsed.items)) items = parsed.items.filter(function (i) { return i && i.name; });
         } catch (e) {}
-        var auctionRaised = items.reduce(function (s, i) { return s + ((i.sold && Number(i.sold.amount)) || 0); }, 0);
-        var donorTotal = donors.reduce(function (s, d) {
-          var raw = String(d.amount || "").replace(/[^\d.]/g, "");
-          var n = Number(raw);
-          return s + (isFinite(n) && n > 0 ? n : 0);
-        }, 0);
         var sold = items.filter(function (i) { return i.sold && i.sold.amount; }).length;
-        var totalRaised = auctionRaised + donorTotal;
-        var amt = document.getElementById("fireTotalAmt");
-        if (amt) amt.textContent = _lbMoney(totalRaised);
         var banner = document.getElementById("fireTotalBanner");
         if (banner) banner.setAttribute("aria-hidden", "false");
         var stats = document.getElementById("fireStats");
         if (stats) {
-          // Sponsors + Donors merged (2026-09-14). One count of everyone
-          // on the wall, cash or in-kind, replaces the earlier two
-          // stat tiles that split by whether a tier was set.
           stats.innerHTML = ''
             + '<div class="fire-stat"><div class="fire-stat__l">Sponsors</div><div class="fire-stat__n">' + donors.length + '</div></div>'
-            + '<div class="fire-stat"><div class="fire-stat__l">Items Sold</div><div class="fire-stat__n">' + sold + '</div></div>'
-            + '<div class="fire-stat"><div class="fire-stat__l">Auction $</div><div class="fire-stat__n">' + _lbEsc(_lbMoney(auctionRaised)) + '</div></div>';
+            + '<div class="fire-stat"><div class="fire-stat__l">Auction items</div><div class="fire-stat__n">' + items.length + '</div></div>'
+            + '<div class="fire-stat"><div class="fire-stat__l">Items sold</div><div class="fire-stat__n">' + sold + '</div></div>';
           stats.setAttribute("aria-hidden", "false");
         }
       }
@@ -804,10 +804,12 @@
         var soldCount = items.filter(function (i) { return i.sold && i.sold.amount; }).length;
         var pledged = items.reduce(function (s, i) { return s + ((i.sold && i.sold.amount) || 0); }, 0);
         var summary = ''
+          // "Raised" tile removed per Fire Department request — no
+          // running revenue totals on the public leaderboard. Counts
+          // only.
           + '<div class="lb-au-summary">'
           +   '<div class="lb-au-stat"><div class="lb-au-stat__l">Items</div><div class="lb-au-stat__n">' + items.length + '</div></div>'
           +   '<div class="lb-au-stat"><div class="lb-au-stat__l">Sold</div><div class="lb-au-stat__n">' + soldCount + '</div></div>'
-          +   '<div class="lb-au-stat"><div class="lb-au-stat__l">Raised</div><div class="lb-au-stat__n">' + _lbEsc(_lbMoney(pledged)) + '</div></div>'
           + '</div>';
         var grid = items.map(function (it) {
           var photo = it.photoDataUri && String(it.photoDataUri).indexOf("data:image/") === 0
