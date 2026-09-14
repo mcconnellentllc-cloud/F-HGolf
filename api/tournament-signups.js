@@ -630,6 +630,42 @@ module.exports = async (req, res) => {
             console.error("live-mint player-lookup error", e);
           }
         }
+        // Second fallback: no linked Player record at all (walk-up signups,
+        // legacy imports, teams whose Player link was never set). Look up
+        // the captain by NAME in the Players table using the same case-
+        // insensitive match upsertPlayerCard uses. If we find one with an
+        // email, use it AND link + back-fill the signup so the next mint
+        // hits the linked-record path immediately. Previously the operator
+        // had to switch captain then switch back to force a name-based
+        // Players lookup — this closes that gap.
+        if (!captainEmail && captainName) {
+          const playersTable = process.env.PLAYERS_TABLE || "Players";
+          try {
+            const safe = captainName.replace(/"/g, '\\"');
+            const filter = `LOWER({Name})=LOWER("${safe}")`;
+            const listUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(playersTable)}?filterByFormula=${encodeURIComponent(filter)}&pageSize=1`;
+            const lr = await fetch(listUrl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+            if (lr.ok) {
+              const ld = await lr.json();
+              const match = (ld.records || [])[0];
+              const mEmail = String((match && match.fields && match.fields["Email"]) || "").trim();
+              if (mEmail) {
+                captainEmail = mEmail;
+                // Back-fill both the email AND the Player link so subsequent
+                // mints resolve via the fast linked-record path.
+                const backfill = { "Email": mEmail };
+                if (match && match.id) backfill["Player"] = [match.id];
+                fetch(sigUrl, {
+                  method: "PATCH",
+                  headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ fields: backfill, typecast: true }),
+                }).catch((e) => console.error("live-mint name-lookup backfill failed", e));
+              }
+            }
+          } catch (e) {
+            console.error("live-mint name-lookup error", e);
+          }
+        }
         let token = rotate ? "" : String(f["Live Token"] || "").trim();
         if (!token) {
           token = require("crypto").randomBytes(16).toString("hex");
