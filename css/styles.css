@@ -2159,7 +2159,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 /* Small "Payment method" header row above the first player row so the
    operator sees what the dropdown column IS before they touch it. Same
    grid template as .ci-p so the label lines up over column 5. */
-.ci-p-hdr { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(6.5rem, 8.5rem); gap: 0.4rem 0.6rem; padding: 0 0 0.4rem; font: 800 0.68rem/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border-bottom: 1.5px solid var(--line); margin-bottom: 0.25rem; }
+.ci-p-hdr { display: grid; grid-template-columns: minmax(6.5rem, 1fr) auto auto auto minmax(6.5rem, 8.5rem); gap: 0.4rem 0.6rem; padding: 0 0 0.4rem; font: 800 0.7rem/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); border-bottom: 1.5px solid var(--line); margin-bottom: 0.25rem; }
 .ci-p-hdr__method { text-align: left; grid-column: 5; padding-left: 0.3in; }
 @media (max-width: 720px) {
   .ci-p-hdr { grid-template-columns: minmax(6.5rem, 1fr) auto auto minmax(6.5rem, 8.5rem); }
@@ -2188,11 +2188,11 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-p__surcharge { grid-column: 1 / -1; justify-self: end; display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; background: rgba(139, 28, 37, 0.1); color: #7d1218; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; }
 
 /* Inline paid / cart pill checkboxes on the player row + cart line. */
-.ci-check { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 0.78rem; font-weight: 700; color: var(--muted); cursor: pointer; user-select: none; white-space: nowrap; }
+.ci-check { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 0.78rem; font-weight: 700; color: var(--ink); cursor: pointer; user-select: none; white-space: nowrap; }
 .ci-check input { width: 0.95rem; height: 0.95rem; margin: 0; cursor: pointer; accent-color: var(--primary-green); }
 .ci-check:has(input:checked) { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
 .ci-check:has(input:checked) small { color: rgba(255,255,255,0.85); }
-.ci-check small { color: var(--muted); font-weight: 400; font-size: 0.7rem; }
+.ci-check small { color: var(--ink); font-weight: 400; font-size: 0.7rem; opacity: 0.85; }
 
 /* Extra-meal number input on each player row. */
 .ci-meal { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 0.78rem; font-weight: 700; color: var(--muted); }
@@ -2223,7 +2223,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-cartline--need { padding-top: 0.5rem; padding-bottom: 0.5rem; border-top: none; background: #fdfbe8; }
 .ci-cartline--need .ci-cart-need { padding: 0.35rem 0.55rem; border: 1px solid #d4a017; border-radius: 6px; font: inherit; font-size: 0.85rem; font-weight: 700; background: #fff; color: #6b4d00; }
 .ci-cartline--need .ci-cart-need:focus { border-color: var(--primary-green); outline: none; box-shadow: 0 0 0 2px rgba(27,94,32,0.15); }
-.ci-cartline__lbl { text-transform: uppercase; letter-spacing: 0.09em; font-size: 0.7rem; font-weight: 800; color: var(--muted); margin-right: 0.3rem; }
+.ci-cartline__lbl { text-transform: uppercase; letter-spacing: 0.09em; font-size: 0.72rem; font-weight: 800; color: var(--ink); margin-right: 0.3rem; }
 .ci-check--cart { font-size: 0.75rem; padding: 0.22rem 0.55rem; }
 
 /* Footer redesigned for hierarchy — totals block on top, Take Payment
@@ -2233,7 +2233,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-card__ft { display: flex; flex-direction: column; gap: 0.55rem; padding: 0.7rem 1rem 0.85rem; background: var(--paper-2); }
 .ci-tots { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; align-items: baseline; }
 .ci-tot { display: flex; flex-direction: column; align-items: flex-start; }
-.ci-tot small { color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.62rem; font-weight: 800; margin-bottom: 0.1rem; }
+.ci-tot small { color: var(--ink); text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.68rem; font-weight: 800; margin-bottom: 0.1rem; }
 .ci-tot b { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; line-height: 1; }
 .ci-tot--paid b { color: var(--primary-green); }
 .ci-tot--owe b { color: var(--red-deep); }
