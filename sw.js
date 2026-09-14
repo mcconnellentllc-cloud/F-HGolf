@@ -1,7 +1,7 @@
 /* F&H Golf Course — service worker.
    Network-first so the live site is always fresh online; falls back to a small
    cached shell when offline. Enables "Add to Home Screen" / installability. */
-var CACHE = "fh-cache-v371";
+var CACHE = "fh-cache-v372";
 var SHELL = ["./", "./index.html", "./css/styles.css", "./js/main.js", "./images/logo.png", "./tournaments.html", "./history.html", "./founders-flights.html", "./founders-calcutta-display.html", "./founders-leaderboard-display.html", "./founders-rules.html", "./founders-recap.html", "./admin-people.html", "./live.html", "./leaderboard.html", "./couples-rules.html", "./recap.html", "./couples-leaderboard-display.html", "./player.html", "./score-round.html", "./tournament-rules.html", "./js/tournament-rules.js", "./js/theme-fire.js", "./auction.html"];
 
 self.addEventListener("install", function (e) {
@@ -18,9 +18,22 @@ self.addEventListener("activate", function (e) {
   self.clients.claim();
 });
 
+// Pages that must NEVER serve from cache — inline per-tournament theming
+// (leaderboard.html branches on Haxtun Fire vs. every other tournament).
+// If we serve a stale copy after a deploy, the fire palette disappears
+// and viewers see the F&H green/gold. Force network-only for these.
+var NEVER_CACHE = /\/(leaderboard|auction|recap|tournament-rules)\.html(\?|$)/i;
+
 self.addEventListener("fetch", function (e) {
   var req = e.request;
   if (req.method !== "GET") return; // never touch form POSTs, etc.
+  var url = req.url || "";
+  if (NEVER_CACHE.test(url)) {
+    e.respondWith(fetch(req, { cache: "no-store" }).catch(function () {
+      return caches.match(req).then(function (m) { return m || caches.match("./index.html"); });
+    }));
+    return;
+  }
   e.respondWith(
     fetch(req)
       .then(function (res) {
