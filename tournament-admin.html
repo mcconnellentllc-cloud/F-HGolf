@@ -129,9 +129,24 @@
               <label class="fmt-row"><span>Location</span><input type="text" name="Location" placeholder="F&amp;H Golf Course" /></label>
               <div class="fmt-grid">
                 <label class="fmt-row"><span>Start date</span><input type="date" name="Start Date" /></label>
+                <label class="fmt-row"><span>Start time (public display)</span><input type="text" name="Start Time Display" placeholder="9:00 AM shotgun" /></label>
                 <label class="fmt-row"><span>End date</span><input type="date" name="End Date" /></label>
                 <label class="fmt-row"><span>Reg opens</span><input type="date" name="Reg Opens" /></label>
                 <label class="fmt-row"><span>Reg closes</span><input type="date" name="Reg Closes" /></label>
+              </div>
+              <p class="fmt-note">Start time is a free-text public-display value — "9:00 AM shotgun", "Tee times 8–11 AM", etc. Feeds the shareable advertising copy below and the public tournament card. Separate from the shotgun-picker time which powers Pairings internally.</p>
+            </fieldset>
+
+            <fieldset class="fmt-set">
+              <legend>Advertising &amp; social share</legend>
+              <p class="fmt-note">Auto-generated from the fields above (name, date + time, format, entry fee, location). Click <b>Refresh copy</b> to rebuild from current values, <b>Copy for social</b> to grab it for Facebook / X / Instagram, or the share buttons for a direct Facebook post / SMS.</p>
+              <label class="fmt-row"><span>Copy-paste for social media</span><textarea id="fmtAdText" rows="6" placeholder="Fill in the fields above, then click Refresh copy."></textarea></label>
+              <div class="fmt-actions" style="justify-content:flex-start; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                <button type="button" class="btn btn--solid" id="fmtAdRefresh" title="Regenerate the ad copy from the current Format fields">Refresh copy</button>
+                <button type="button" class="btn btn--primary" id="fmtAdCopy" title="Copy the ad text to your clipboard for pasting into Facebook / X / Instagram">Copy for social</button>
+                <a href="#" class="btn btn--solid" id="fmtAdFb" target="_blank" rel="noopener" title="Open a pre-filled Facebook share dialog">Share on Facebook</a>
+                <a href="#" class="btn btn--solid" id="fmtAdSms" title="Open your phone's Messages app pre-filled">Text a friend</a>
+                <span class="ci__status" id="fmtAdStatus" role="status" aria-live="polite" style="min-width:6rem;"></span>
               </div>
             </fieldset>
 
@@ -2036,6 +2051,7 @@
         _fmtHydrateShotgun(f["Waves JSON"]);
         _fmtHydrateHighlights(f["Highlights"]);
         _fmtHydrateExtras(f["Extras JSON"]);
+        try { _fmtRebuildAdCopy(); } catch (e) {}
         // Flight From only matters on 1-day tournaments (coin-flip Out
         // vs In). Hide the row on 2-day events so operators don't accidentally
         // change the flight basis for a 36-hole tournament.
@@ -2397,6 +2413,99 @@
           out["Handicap Basis"] = (hb.value === "tournament") ? "tournament" : "day1";
         }
         return out;
+      }
+      // ---- Advertising / social share generator ---------------------
+      // Reads the Format form's visible values and builds a copy-paste
+      // ad block plus share URLs. Not tied to save — the operator can
+      // preview the copy without hitting Save format first.
+      function _fmtReadableDate(iso) {
+        if (!iso) return "";
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+        if (!m) return String(iso);
+        var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        var mo = Number(m[2]); var day = Number(m[3]); var yr = m[1];
+        return (months[mo - 1] || m[2]) + " " + day + ", " + yr;
+      }
+      function _fmtBuildAdCopy() {
+        var form = document.getElementById("fmtForm"); if (!form) return { text: "", url: "" };
+        var get = function (name) {
+          var el = form.querySelector('[name="' + name + '"]');
+          return el ? String(el.value || "").trim() : "";
+        };
+        var displayName = get("Name") || (KEY.replace(/\s*\([^)]*\)\s*$/, "").trim());
+        var startDate = _fmtReadableDate(get("Start Date"));
+        var startTime = get("Start Time Display");
+        var playStyle = get("Play Style");
+        var perTeam = get("Players Per Team");
+        var location = get("Location") || "F&H Golf Course";
+        var blurb = get("Blurb");
+        var slug = get("Public Slug");
+        var teamCap = get("Team Cap");
+        var money = loadCalc();
+        var entryPP = Number(money.entryPP) || 0;
+        var entryPerTeam = perTeam ? (entryPP * Number(perTeam)) : 0;
+        // Compose format line ("4-man Scramble" / "2-man Bulldog" / etc.).
+        var formatLine = "";
+        if (perTeam && playStyle) formatLine = perTeam + "-man " + playStyle;
+        else if (playStyle) formatLine = playStyle;
+        else if (perTeam) formatLine = perTeam + "-man";
+        var lines = [];
+        lines.push("⛳ " + displayName + " ⛳");
+        if (blurb) lines.push(blurb);
+        lines.push("");
+        var whenLine = [startDate, startTime].filter(Boolean).join(" · ");
+        if (whenLine) lines.push("📅 " + whenLine);
+        if (location) lines.push("📍 " + location);
+        if (formatLine) lines.push("🏌️ " + formatLine);
+        if (entryPP > 0) {
+          var entryLine = "💵 $" + entryPP + " per player";
+          if (entryPerTeam > 0) entryLine += " ($" + entryPerTeam + " per team)";
+          lines.push(entryLine);
+        }
+        if (teamCap && Number(teamCap) > 0) lines.push("👥 First " + teamCap + " teams — sign up before it fills up!");
+        lines.push("");
+        var url = slug
+          ? ("https://fandhgolf.com/t/" + slug)
+          : ("https://fandhgolf.com/tournaments.html?t=" + encodeURIComponent(KEY));
+        lines.push("🔗 Register: " + url);
+        return { text: lines.join("\n"), url: url };
+      }
+      function _fmtRebuildAdCopy() {
+        var built = _fmtBuildAdCopy();
+        var ta = document.getElementById("fmtAdText");
+        if (ta) ta.value = built.text;
+        var fb = document.getElementById("fmtAdFb");
+        if (fb) fb.setAttribute("href", "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(built.url));
+        var sms = document.getElementById("fmtAdSms");
+        if (sms) sms.setAttribute("href", "sms:?&body=" + encodeURIComponent(built.text));
+        var st = document.getElementById("fmtAdStatus");
+        if (st) { st.textContent = "Copy refreshed ✓"; setTimeout(function () { st.textContent = ""; }, 1500); }
+      }
+      function _fmtCopyAdCopy() {
+        var ta = document.getElementById("fmtAdText"); if (!ta) return;
+        var st = document.getElementById("fmtAdStatus");
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(ta.value).then(function () {
+              if (st) { st.textContent = "Copied ✓"; setTimeout(function () { st.textContent = ""; }, 1600); }
+            });
+            return;
+          }
+        } catch (e) {}
+        // Fallback for pages / browsers without clipboard API.
+        try { ta.select(); document.execCommand("copy"); ta.setSelectionRange(0, 0);
+          if (st) { st.textContent = "Copied ✓"; setTimeout(function () { st.textContent = ""; }, 1600); }
+        } catch (e) {
+          if (st) { st.textContent = "Copy failed — long-press the text and copy manually."; }
+        }
+      }
+      function _fmtShareAdFacebook() {
+        // href is already set by _fmtRebuildAdCopy; the anchor's default
+        // target=_blank behavior opens the Facebook sharer. No preventDefault.
+      }
+      function _fmtShareAdSms() {
+        // Same — sms: href is pre-populated on refresh; the browser hands
+        // off to the phone's Messages app.
       }
       function saveFormat() {
         _fmtWriteShotgunToHidden();
@@ -12054,6 +12163,19 @@
         });
         var fmtSave = document.getElementById("fmtSave");
         if (fmtSave) fmtSave.addEventListener("click", saveFormat);
+        // ---- Advertising / social share wiring ----
+        var fmtAdRefresh = document.getElementById("fmtAdRefresh");
+        if (fmtAdRefresh) fmtAdRefresh.addEventListener("click", _fmtRebuildAdCopy);
+        var fmtAdCopy = document.getElementById("fmtAdCopy");
+        if (fmtAdCopy) fmtAdCopy.addEventListener("click", _fmtCopyAdCopy);
+        var fmtAdFb = document.getElementById("fmtAdFb");
+        if (fmtAdFb) fmtAdFb.addEventListener("click", _fmtShareAdFacebook);
+        var fmtAdSms = document.getElementById("fmtAdSms");
+        if (fmtAdSms) fmtAdSms.addEventListener("click", _fmtShareAdSms);
+        // Auto-refresh the ad copy the first time the Format tab renders
+        // so the operator sees something useful without hunting for the
+        // Refresh button.
+        try { _fmtRebuildAdCopy(); } catch (e) {}
         // ---- Pin Prizes wiring ----
         var ppAddForm = document.getElementById("ppAddForm");
         if (ppAddForm) ppAddForm.addEventListener("submit", function (e) {
