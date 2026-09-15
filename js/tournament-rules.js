@@ -159,12 +159,18 @@
   // container that already has the outer scaffolding (heading + description).
   function buildTournamentRules(cfg, key) {
     cfg = cfg || {};
-    var perTeam = Number(cfg["Players Per Team"]) || 2;
-    var rounds = Number(cfg["Rounds"]) || 1;
-    var waves = parseWaves(cfg["Waves JSON"]);
+    // Accept both Airtable-field-name properties ("Players Per Team",
+    // "Waves JSON", ...) from tournament-rules.html and camelCase
+    // properties (perTeam, waves, ...) from live.html. Whichever the
+    // caller sends, we resolve to the same shape below.
+    var perTeam = Number(cfg["Players Per Team"] || cfg.perTeam) || 2;
+    var rounds = Number(cfg["Rounds"] || cfg.rounds) || 1;
+    var wavesRaw = cfg["Waves JSON"];
+    var waves = typeof wavesRaw === "string" ? parseWaves(wavesRaw)
+              : (Array.isArray(cfg.waves) ? cfg.waves.filter(function (w) { return w && (w.time || w.label); }) : []);
     if (!waves.length) waves = [{ label: "AM", time: "" }];
-    var calcutta = coerceBool(cfg["Calcutta Enabled"]);
-    var playStyle = String(cfg["Play Style"] || "").toLowerCase();
+    var calcutta = coerceBool(cfg["Calcutta Enabled"] != null ? cfg["Calcutta Enabled"] : cfg.calcutta);
+    var playStyle = String(cfg["Play Style"] || cfg.playStyle || cfg.format || "").toLowerCase();
     var keyLower = String(key || "").toLowerCase();
 
     // Route by Play Style first; fall back to name-based heuristics for
@@ -185,4 +191,8 @@
   }
 
   window.FH_RULES = { buildTournamentRules: buildTournamentRules };
+  // Also expose at window.buildTournamentRules so callers that predate
+  // the FH_RULES namespace (live.html's Rules tab) find the function
+  // where they expect it.
+  window.buildTournamentRules = buildTournamentRules;
 })();
