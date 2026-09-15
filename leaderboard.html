@@ -177,8 +177,11 @@
        line on either side of the "LIVE LEADERBOARD" text, so the identity
        reads clearly on the TV without an external image asset. */
     .fire-badge { display: inline-block; width: 1.6em; height: 1.6em; vertical-align: middle; flex-shrink: 0; }
-    .fire-badge__cross { fill: var(--fire-red); stroke: #000; stroke-width: 4; }
+    .fire-badge__cross { fill: var(--fire-red); stroke: #000; stroke-width: 4; stroke-linejoin: miter; }
     .fire-badge__inner { fill: #000; }
+    /* Helmet silhouette is now a two-piece path (dome + brim). Font
+       properties left in for backwards compat with older cached
+       versions of the SVG that still use a <text> element. */
     .fire-badge__glyph { fill: #fff; font-family: "Fraunces", Georgia, serif; font-weight: 800; font-size: 30px; text-anchor: middle; }
 
     /* Decorative flame divider that sits above the tournament tiles. Only
@@ -397,11 +400,15 @@
     <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
       <defs>
         <symbol id="fireBadge" viewBox="0 0 100 100">
-          <!-- Traditional 8-point fire-service maltese cross. Path outline
-               kept simple so it prints and scales at any size. -->
-          <path class="fire-badge__cross" d="M50 2 L60 25 L75 15 L85 25 L75 35 L98 45 L98 55 L75 65 L85 75 L75 85 L60 75 L50 98 L40 75 L25 85 L15 75 L25 65 L2 55 L2 45 L25 35 L15 25 L25 15 L40 25 Z" />
-          <circle class="fire-badge__inner" cx="50" cy="50" r="18" />
-          <text class="fire-badge__glyph" x="50" y="60">H</text>
+          <!-- Proper 4-armed Volunteer Fire Department Maltese cross.
+               Each arm ends in a V-notch (the "8 points" of the
+               traditional firefighter emblem). Center medallion holds
+               a simplified fireman-helmet silhouette (dome + brim). -->
+          <path class="fire-badge__cross" d="M40 40 L30 5 L50 20 L70 5 L60 40 L95 30 L80 50 L95 70 L60 60 L70 95 L50 80 L30 95 L40 60 L5 70 L20 50 L5 30 Z" />
+          <circle class="fire-badge__inner" cx="50" cy="50" r="16" />
+          <!-- Dome + brim silhouette — reads as a fireman's helmet at
+               any size without pretending to be photorealistic. -->
+          <path class="fire-badge__glyph" d="M40 55 Q40 42 50 42 Q60 42 60 55 Z M35 55 L65 55 L65 60 L35 60 Z" />
         </symbol>
       </defs>
     </svg>

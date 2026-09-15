@@ -159,9 +159,12 @@
         + '<svg aria-hidden="true" focusable="false" width="0" height="0">'
         +   '<defs>'
         +     '<symbol id="fireBadge" viewBox="0 0 100 100">'
-        +       '<path class="fire-badge__cross" d="M50 2 L60 25 L75 15 L85 25 L75 35 L98 45 L98 55 L75 65 L85 75 L75 85 L60 75 L50 98 L40 75 L25 85 L15 75 L25 65 L2 55 L2 45 L25 35 L15 25 L25 15 L40 25 Z" />'
-        +       '<circle class="fire-badge__inner" cx="50" cy="50" r="18" />'
-        +       '<text class="fire-badge__glyph" x="50" y="60">H</text>'
+        // Proper 4-armed Volunteer Fire Department Maltese cross with a
+        // helmet silhouette (dome + brim) in the center medallion, in
+        // place of the earlier "H" glyph.
+        +       '<path class="fire-badge__cross" d="M40 40 L30 5 L50 20 L70 5 L60 40 L95 30 L80 50 L95 70 L60 60 L70 95 L50 80 L30 95 L40 60 L5 70 L20 50 L5 30 Z" />'
+        +       '<circle class="fire-badge__inner" cx="50" cy="50" r="16" />'
+        +       '<path class="fire-badge__glyph" d="M40 55 Q40 42 50 42 Q60 42 60 55 Z M35 55 L65 55 L65 60 L35 60 Z" />'
         +     '</symbol>'
         +   '</defs>'
         + '</svg>';
