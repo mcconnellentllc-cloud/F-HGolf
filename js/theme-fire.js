@@ -176,7 +176,7 @@
   function injectStrip(anchor, opts) {
     if (!anchor || !anchor.parentNode) return;
     opts = opts || {};
-    var label = opts.label || "Haxtun’s Volunteer Firefighters · Phillips County, Colorado";
+    var label = opts.label || "Haxtun’s Volunteer Firefighters · Haxtun, Colorado";
     var strip = document.createElement("div");
     strip.className = "fire-strip";
     strip.setAttribute("aria-hidden", "true");
