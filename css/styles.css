@@ -2756,7 +2756,13 @@ body.pp-print-cards { background: #fff; }
 .dn-note { color: var(--muted, #7a7663); font-size: 0.85rem; margin: 0 0 0.65rem 0; }
 .dn-empty { color: var(--muted, #7a7663); font-style: italic; padding: 1rem; background: #faf8f2; border-radius: 8px; }
 .dn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.85rem; }
-.dn-tile { display: grid; grid-template-columns: 4.25rem 1fr; grid-template-rows: auto auto; gap: 0.5rem 0.75rem; align-items: start; padding: 0.75rem; border: 1px solid var(--line, #e6e2d8); border-radius: 10px; background: #fff; }
+.dn-tile { display: grid; grid-template-columns: 4.25rem 1fr; grid-template-rows: auto auto; gap: 0.5rem 0.75rem; align-items: start; padding: 0.75rem; border: 1px solid var(--line, #e6e2d8); border-radius: 10px; background: #fff; cursor: grab; user-select: none; transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.dn-tile:active { cursor: grabbing; }
+.dn-tile.is-dragging { opacity: 0.4; }
+.dn-tile.is-drop-target { outline: 2px dashed var(--primary-green, #1B5E20); outline-offset: 2px; box-shadow: 0 4px 10px rgba(23,71,42,0.15); }
+body.theme-fire .dn-tile.is-drop-target { outline-color: #c8102e; box-shadow: 0 4px 10px rgba(200,16,46,0.2); }
+.dn-tile__body, .dn-tile__site a, .dn-tile__actions button, .dn-tile__paid { cursor: default; }
+.dn-tile__site a, .dn-tile__actions button, .dn-tile__paid { user-select: auto; }
 .dn-tile__logo { grid-row: 1 / span 2; width: 4.25rem; height: 4.25rem; border-radius: 8px; overflow: hidden; background: #f7f4ea; display: flex; align-items: center; justify-content: center; }
 .dn-tile__logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .dn-tile__logo--empty { color: var(--primary-green, #1B5E20); font: 700 1.6rem/1 Fraunces, Georgia, serif; }

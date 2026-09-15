@@ -118,7 +118,10 @@
         <section class="noms wb-sheet" data-sheet="format" id="twFormat" aria-label="Tournament Format" hidden>
           <div class="noms__bar">
             <h3 class="noms__title">Tournament Format</h3>
-            <span id="fmtStatus" class="checkin-add__msg" role="status" aria-live="polite"></span>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+              <button type="button" class="btn btn--solid" id="fmtSaveTop" title="Save every Format field to Airtable — same as the button at the bottom">Save format</button>
+              <span id="fmtStatus" class="checkin-add__msg" role="status" aria-live="polite" style="min-width:6rem;"></span>
+            </div>
           </div>
           <p class="scaffold__desc">Configure the shape of this tournament. Powers the shareable public card; later, the same values will drive Pairings, Scoring, and Calcutta so every event is self-describing.</p>
           <form id="fmtForm" class="fmt-form" onsubmit="return false;">
@@ -675,7 +678,7 @@
           </form>
 
           <h4 class="dn-h">Sponsor wall</h4>
-          <p class="dn-note">Drag isn't needed &mdash; order is the order you added them. Use <strong>Remove</strong> to drop a sponsor.</p>
+          <p class="dn-note"><strong>Drag a tile</strong> to reorder — that same order shows on the public sponsor wall. Use <strong>Remove</strong> to drop a sponsor.</p>
           <div class="dn-grid" id="dnGrid" aria-live="polite"></div>
         </section>
 
@@ -3270,7 +3273,7 @@
             ? '<p class="dn-tile__site"><a href="' + esc(siteUrl) + '" target="_blank" rel="noopener">' + esc(String(d.website).replace(/^https?:\/\//i, "")) + ' &rarr;</a></p>'
             : "";
           return ''
-            + '<article class="dn-tile" data-idx="' + i + '">'
+            + '<article class="dn-tile" data-idx="' + i + '" draggable="true">'
             +   logo
             +   '<div class="dn-tile__body">'
             +     '<h5 class="dn-tile__name">' + esc(d.name) + '</h5>'
@@ -3285,6 +3288,46 @@
             +   '</div>'
             + '</article>';
         }).join("");
+        // Drag-to-reorder. Tile grabs the source index on dragstart and
+        // splices the donor array on drop; auto-save fires so the new
+        // order lands in Airtable without a manual button click. Edit
+        // buttons + Remove buttons stop the drag from starting so
+        // clicking them still works.
+        host.querySelectorAll(".dn-tile__actions button, [data-dn-paid-toggle]").forEach(function (el) {
+          el.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+        });
+        host.querySelectorAll(".dn-tile").forEach(function (tile) {
+          tile.addEventListener("dragstart", function (e) {
+            tile.classList.add("is-dragging");
+            var idx = Number(tile.getAttribute("data-idx"));
+            e.dataTransfer.setData("text/plain", String(idx));
+            e.dataTransfer.effectAllowed = "move";
+          });
+          tile.addEventListener("dragend", function () { tile.classList.remove("is-dragging"); });
+          tile.addEventListener("dragover", function (e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            tile.classList.add("is-drop-target");
+          });
+          tile.addEventListener("dragleave", function () { tile.classList.remove("is-drop-target"); });
+          tile.addEventListener("drop", function (e) {
+            e.preventDefault();
+            tile.classList.remove("is-drop-target");
+            var from = Number(e.dataTransfer.getData("text/plain"));
+            var to = Number(tile.getAttribute("data-idx"));
+            if (!isFinite(from) || !isFinite(to) || from === to) return;
+            var moved = _dnState.donors.splice(from, 1)[0];
+            _dnState.donors.splice(to, 0, moved);
+            // Keep edit mode pointing at the same sponsor after the move
+            // so the form doesn't overwrite whoever slid into that index.
+            if (_dnEditingIdx === from) _dnEditingIdx = to;
+            else if (from < _dnEditingIdx && _dnEditingIdx <= to) _dnEditingIdx -= 1;
+            else if (to <= _dnEditingIdx && _dnEditingIdx < from) _dnEditingIdx += 1;
+            renderDonors();
+            _dnScheduleSave();
+            _dnStatus("Reordered — saving…");
+          });
+        });
         host.querySelectorAll("[data-dn-remove]").forEach(function (btn) {
           btn.addEventListener("click", function () {
             var idx = Number(btn.getAttribute("data-dn-remove"));
@@ -12176,6 +12219,8 @@
         });
         var fmtSave = document.getElementById("fmtSave");
         if (fmtSave) fmtSave.addEventListener("click", saveFormat);
+        var fmtSaveTop = document.getElementById("fmtSaveTop");
+        if (fmtSaveTop) fmtSaveTop.addEventListener("click", saveFormat);
         // ---- Advertising / social share wiring ----
         var fmtAdRefresh = document.getElementById("fmtAdRefresh");
         if (fmtAdRefresh) fmtAdRefresh.addEventListener("click", _fmtRebuildAdCopy);
