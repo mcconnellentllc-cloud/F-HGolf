@@ -2449,25 +2449,38 @@
         if (perTeam && playStyle) formatLine = perTeam + "-man " + playStyle;
         else if (playStyle) formatLine = playStyle;
         else if (perTeam) formatLine = perTeam + "-man";
+        // Advertising bullets — the operator's Highlights textarea, one
+        // line per bullet. Empty lines skipped so the ad reads clean.
+        var highlightsEl = document.getElementById("fmtHighlightsText");
+        var bullets = [];
+        if (highlightsEl) {
+          bullets = String(highlightsEl.value || "").split(/\r?\n/)
+            .map(function (l) { return l.trim(); })
+            .filter(Boolean);
+        }
         var lines = [];
-        lines.push("⛳ " + displayName + " ⛳");
+        lines.push(displayName.toUpperCase());
         if (blurb) lines.push(blurb);
         lines.push("");
-        var whenLine = [startDate, startTime].filter(Boolean).join(" · ");
-        if (whenLine) lines.push("📅 " + whenLine);
-        if (location) lines.push("📍 " + location);
-        if (formatLine) lines.push("🏌️ " + formatLine);
+        if (startDate) lines.push("When: " + startDate + (startTime ? " — " + startTime : ""));
+        else if (startTime) lines.push("When: " + startTime);
+        if (location) lines.push("Where: " + location);
+        if (formatLine) lines.push("Format: " + formatLine);
         if (entryPP > 0) {
-          var entryLine = "💵 $" + entryPP + " per player";
+          var entryLine = "Entry: $" + entryPP + " per player";
           if (entryPerTeam > 0) entryLine += " ($" + entryPerTeam + " per team)";
           lines.push(entryLine);
         }
-        if (teamCap && Number(teamCap) > 0) lines.push("👥 First " + teamCap + " teams — sign up before it fills up!");
+        if (teamCap && Number(teamCap) > 0) lines.push("Field: first " + teamCap + " teams — sign up before it fills up.");
+        if (bullets.length) {
+          lines.push("");
+          bullets.forEach(function (b) { lines.push("• " + b); });
+        }
         lines.push("");
         var url = slug
           ? ("https://fandhgolf.com/t/" + slug)
           : ("https://fandhgolf.com/tournaments.html?t=" + encodeURIComponent(KEY));
-        lines.push("🔗 Register: " + url);
+        lines.push("Register: " + url);
         return { text: lines.join("\n"), url: url };
       }
       function _fmtRebuildAdCopy() {
