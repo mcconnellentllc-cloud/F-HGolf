@@ -39,7 +39,21 @@
         { label: "Past events", href: "history.html?name=Couple%27s%20Tournament" }
       ]
     },
-    "Haxtun Fire (Sept 19, 2026)": { end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble" },
+    "Haxtun Fire (Sept 19, 2026)": {
+      end: "2026-09-19", cap: 22, unit: "teams", team: 4, format: "4-man scramble",
+      // Public nav chips on the Fire card — same fan-out pattern as
+      // Couples, pointed at the generic per-tournament pages (they all
+      // read ?t=<KEY>). Sign Up is rendered separately by the shared
+      // signup control; each of these opens in the same tab so the
+      // browser back button returns to the tournaments page.
+      links: [
+        { label: "Rules", href: "tournament-rules.html?t=Haxtun%20Fire%20(Sept%2019%2C%202026)" },
+        { label: "Live leaderboard", href: "leaderboard.html?t=Haxtun%20Fire%20(Sept%2019%2C%202026)" },
+        { label: "Sponsors", href: "sponsor.html?t=Haxtun%20Fire%20(Sept%2019%2C%202026)" },
+        { label: "Auction", href: "auction.html?t=Haxtun%20Fire%20(Sept%2019%2C%202026)" },
+        { label: "Past events", href: "history.html?name=Haxtun%20Fire" }
+      ]
+    },
     "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)" },
     "Hole 8 Raffle Contest": { team: 1, format: "tee shot into the circle on #8", fee: "$5/person · $20/team", note: "2 entries max · two winners" },
 
