@@ -80,7 +80,7 @@
         <nav class="portal-nav" aria-label="Staff sections">
           <a class="pcard" href="#sec-employees"><span class="pcard__ic">&#129489;&#8205;&#128188;</span><span class="pcard__t">Employees</span><span class="pcard__s">Info &amp; hour tracking</span><span class="pcard__soon">Soon</span></a>
           <a class="pcard" href="#sec-members"><span class="pcard__ic">&#128100;</span><span class="pcard__t">Members</span><span class="pcard__s">Cards &amp; past years</span><span class="pcard__soon">Soon</span></a>
-          <a class="pcard" href="#sec-search-people"><span class="pcard__ic">&#128269;</span><span class="pcard__t">Search People</span><span class="pcard__s">Find anyone fast</span></a>
+          <a class="pcard" href="#sec-search-people"><span class="pcard__ic">&#128269;</span><span class="pcard__t">Players Admin</span><span class="pcard__s">Search, edit &amp; clean up</span></a>
           <a class="pcard" href="#sec-activity"><span class="pcard__ic">&#128200;</span><span class="pcard__t">Activity</span><span class="pcard__s">Live site usage</span></a>
           <a class="pcard" href="#sec-tournaments"><span class="pcard__ic">&#9971;</span><span class="pcard__t">Tournaments</span><span class="pcard__s">Run every event</span></a>
           <a class="pcard" href="#sec-fundraisers"><span class="pcard__ic">&#127881;</span><span class="pcard__t">Fund Raisers</span><span class="pcard__s">Drives &amp; events</span><span class="pcard__soon">Soon</span></a>
@@ -100,12 +100,12 @@
           <p class="scaffold__desc">Every member on a card, showing current status and <strong>past-years history</strong> (dues, leagues, participation). We'll get here after the tournament tools are solid.</p>
         </section>
 
-        <section class="noms" id="sec-search-people" aria-label="Search people">
+        <section class="noms" id="sec-search-people" aria-label="Players admin">
           <div class="noms__bar">
-            <h3 class="noms__title">Search People <span class="noms__count" id="spCount"></span></h3>
+            <h3 class="noms__title">Players Admin <span class="noms__count" id="spCount"></span></h3>
             <a class="btn btn--solid" href="admin-people.html">Open full People page &rarr;</a>
           </div>
-          <p class="tm__intro">Type a name, phone, or email to jump to any member, player, or past player. Results narrow as you type; click one to see contact info.</p>
+          <p class="tm__intro">Type a name, phone, or email to find any member, player, or past player. Click a result to see contact info, edit their record, or delete duplicates and stale accounts.</p>
           <div class="sp-search">
             <input type="search" id="spInput" class="sp-search__input" placeholder="Start typing a name, phone, or email…" autocomplete="off" spellcheck="false" />
             <div id="spResults" class="sp-results" role="listbox" hidden></div>
@@ -673,18 +673,12 @@
         host.hidden = false;
         if (hint) hint.textContent = "Showing " + shown.length + (matches.length > shown.length ? " of " + matches.length : "") + " match" + (matches.length === 1 ? "" : "es") + ".";
       }
-      function spOpenDetail(id) {
-        var detail = document.getElementById("spDetail");
-        var results = document.getElementById("spResults");
-        var p = null;
-        for (var i = 0; i < _spAll.length; i++) if (_spAll[i].id === id) { p = _spAll[i]; break; }
-        if (!p || !detail) return;
-        _spSelectedId = id;
+      function spRenderView(p) {
         var addr = [p.street, [p.city, p.state].filter(Boolean).join(", "), p.zip].filter(Boolean).join(" · ");
-        detail.innerHTML = ''
+        return ''
           + '<div class="sp-detail__head">'
           +   '<h4 class="sp-detail__name">' + esc(p.name || "(no name)") + (p.member ? ' <span class="sp-badge">member</span>' : "") + '</h4>'
-          +   '<button type="button" class="btn btn--solid sp-detail__close" id="spDetailClose">Close</button>'
+          +   '<button type="button" class="btn btn--solid sp-detail__close" data-sp-close>Close</button>'
           + '</div>'
           + '<dl class="sp-detail__grid">'
           +   (p.phone ? '<dt>Phone</dt><dd><a href="tel:' + esc(p.phone) + '">' + esc(p.phone) + '</a></dd>' : '<dt>Phone</dt><dd class="sp-detail__blank">—</dd>')
@@ -692,14 +686,157 @@
           +   (addr ? '<dt>Address</dt><dd>' + esc(addr) + '</dd>' : '')
           +   (p.notes ? '<dt>Notes</dt><dd>' + esc(p.notes) + '</dd>' : '')
           + '</dl>'
-          + '<p class="sp-detail__foot"><a class="btn btn--primary" href="admin-people.html">Edit in People &rarr;</a></p>';
+          + '<div class="sp-detail__actions">'
+          +   '<button type="button" class="btn btn--primary" data-sp-edit>Edit</button>'
+          +   '<button type="button" class="btn sp-btn-danger" data-sp-delete>Delete</button>'
+          + '</div>'
+          + '<p class="sp-detail__status" data-sp-status></p>';
+      }
+      function spRenderEdit(p) {
+        function row(label, name, val, type) {
+          type = type || "text";
+          return '<label class="sp-edit__row"><span>' + esc(label) + '</span>'
+            + '<input type="' + type + '" name="' + esc(name) + '" value="' + esc(val || "") + '" /></label>';
+        }
+        return ''
+          + '<div class="sp-detail__head">'
+          +   '<h4 class="sp-detail__name">Edit &mdash; ' + esc(p.name || "(no name)") + '</h4>'
+          +   '<button type="button" class="btn btn--solid sp-detail__close" data-sp-cancel>Cancel</button>'
+          + '</div>'
+          + '<form class="sp-edit" onsubmit="return false;">'
+          +   '<div class="sp-edit__grid">'
+          +     row("Name", "name", p.name)
+          +     row("Phone", "phone", p.phone, "tel")
+          +     row("Email", "email", p.email, "email")
+          +     row("Street", "street", p.street)
+          +     row("City", "city", p.city)
+          +     row("State", "state", p.state)
+          +     row("Zip", "zip", p.zip)
+          +     '<label class="sp-edit__row sp-edit__row--chk"><input type="checkbox" name="member"' + (p.member ? " checked" : "") + ' /><span>Member</span></label>'
+          +   '</div>'
+          +   '<label class="sp-edit__row sp-edit__row--full"><span>Notes</span><textarea name="notes" rows="3">' + esc(p.notes || "") + '</textarea></label>'
+          +   '<div class="sp-detail__actions">'
+          +     '<button type="button" class="btn btn--primary" data-sp-save>Save changes</button>'
+          +     '<button type="button" class="btn btn--solid" data-sp-cancel>Cancel</button>'
+          +   '</div>'
+          +   '<p class="sp-detail__status" data-sp-status></p>'
+          + '</form>';
+      }
+      function spOpenDetail(id) {
+        var detail = document.getElementById("spDetail");
+        var results = document.getElementById("spResults");
+        var p = null;
+        for (var i = 0; i < _spAll.length; i++) if (_spAll[i].id === id) { p = _spAll[i]; break; }
+        if (!p || !detail) return;
+        _spSelectedId = id;
+        detail.innerHTML = spRenderView(p);
         detail.hidden = false;
         if (results) { results.hidden = true; results.innerHTML = ""; }
-        var closeBtn = document.getElementById("spDetailClose");
-        if (closeBtn) closeBtn.addEventListener("click", function () {
-          detail.hidden = true; detail.innerHTML = "";
-          var input = document.getElementById("spInput");
-          if (input) { input.value = ""; input.focus(); }
+      }
+      function _spFind(id) {
+        for (var i = 0; i < _spAll.length; i++) if (_spAll[i].id === id) return _spAll[i];
+        return null;
+      }
+      function _spSetStatus(msg, isErr) {
+        var el = document.querySelector("#spDetail [data-sp-status]");
+        if (el) { el.textContent = msg || ""; el.classList.toggle("is-err", !!isErr); }
+      }
+      function _spReloadInto(p, updatedFields) {
+        // Update local cache row from server response.
+        var f = updatedFields || {};
+        p.name = String(f.Name != null ? f.Name : p.name || "");
+        p.phone = String(f.Phone != null ? f.Phone : p.phone || "");
+        p.phoneDigits = _spNormPhone(p.phone);
+        p.email = String(f.Email != null ? f.Email : p.email || "");
+        p.street = String(f.Street != null ? f.Street : p.street || "");
+        p.city = String(f.City != null ? f.City : p.city || "");
+        p.state = String(f.State != null ? f.State : p.state || "");
+        p.zip = String(f.Zip != null ? f.Zip : p.zip || "");
+        p.notes = String(f.Notes != null ? f.Notes : p.notes || "");
+        if (f.Member != null) p.member = !!f.Member;
+        p._hay = (p.name + " " + p.phone + " " + p.email + " " + p.city + " " + p.state).toLowerCase();
+      }
+      // Delegated actions on the detail block — view, edit form, save, delete.
+      var _spDetail = document.getElementById("spDetail");
+      if (_spDetail) {
+        _spDetail.addEventListener("click", function (e) {
+          var t = e.target && e.target.closest ? e.target : null;
+          if (!t) return;
+          if (t.closest("[data-sp-close]") || t.closest("[data-sp-cancel]")) {
+            if (t.closest("[data-sp-cancel]") && _spSelectedId) {
+              // Cancel edit → go back to view
+              var p = _spFind(_spSelectedId);
+              if (p) { _spDetail.innerHTML = spRenderView(p); return; }
+            }
+            _spDetail.hidden = true; _spDetail.innerHTML = ""; _spSelectedId = "";
+            var input = document.getElementById("spInput");
+            if (input) { input.value = ""; input.focus(); }
+            return;
+          }
+          if (t.closest("[data-sp-edit]")) {
+            var p2 = _spFind(_spSelectedId); if (!p2) return;
+            _spDetail.innerHTML = spRenderEdit(p2);
+            var first = _spDetail.querySelector('input[name="name"]');
+            if (first) first.focus();
+            return;
+          }
+          if (t.closest("[data-sp-save]")) {
+            var p3 = _spFind(_spSelectedId); if (!p3) return;
+            var form = _spDetail.querySelector("form.sp-edit"); if (!form) return;
+            var payload = { id: p3.id };
+            Array.prototype.forEach.call(form.querySelectorAll("input, textarea"), function (el) {
+              var n = el.getAttribute("name"); if (!n) return;
+              if (el.type === "checkbox") { payload.member = !!el.checked; return; }
+              payload[n] = String(el.value || "").trim();
+            });
+            _spSetStatus("Saving…", false);
+            fetch(FH_API.url("/api/players"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+              body: JSON.stringify(payload)
+            })
+              .then(function (r) { return r.json().catch(function () { return {}; }); })
+              .then(function (j) {
+                if (!j || !j.ok) { _spSetStatus((j && j.error) || "Save failed.", true); return; }
+                _spReloadInto(p3, j.fields || {});
+                _spDetail.innerHTML = spRenderView(p3);
+                _spSetStatus("Saved.", false);
+              })
+              .catch(function () { _spSetStatus("Network error.", true); });
+            return;
+          }
+          if (t.closest("[data-sp-delete]")) {
+            var p4 = _spFind(_spSelectedId); if (!p4) return;
+            var ok = confirm(
+              "Are you sure you want to delete \"" + (p4.name || "(no name)") + "\"?\n\n"
+              + "This removes the player record from the Players table.\n"
+              + "Any tournament sign-ups they've made will remain but won't\n"
+              + "be linked to a Player row anymore.\n\n"
+              + "This can't be undone."
+            );
+            if (!ok) return;
+            _spSetStatus("Deleting…", false);
+            fetch(FH_API.url("/api/players"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+              body: JSON.stringify({ action: "delete", id: p4.id })
+            })
+              .then(function (r) { return r.json().catch(function () { return {}; }); })
+              .then(function (j) {
+                if (!j || !j.ok) { _spSetStatus((j && j.error) || "Delete failed.", true); return; }
+                // Remove from local cache and close detail
+                _spAll = _spAll.filter(function (x) { return x.id !== p4.id; });
+                var spCount = document.getElementById("spCount");
+                if (spCount) spCount.textContent = _spAll.length ? "(" + _spAll.length + ")" : "";
+                _spDetail.hidden = true; _spDetail.innerHTML = ""; _spSelectedId = "";
+                var input = document.getElementById("spInput");
+                if (input) { input.value = ""; input.focus(); }
+                var hint = document.getElementById("spHint");
+                if (hint) hint.textContent = "Deleted. " + _spAll.length + " people remain.";
+              })
+              .catch(function () { _spSetStatus("Network error.", true); });
+            return;
+          }
         });
       }
       var _spInput = document.getElementById("spInput");

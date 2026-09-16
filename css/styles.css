@@ -2981,3 +2981,18 @@ body.theme-fire .tab-howto b { color: #c8102e; }
 .sp-detail__grid dd a { color: var(--primary-green, #1B5E20); }
 .sp-detail__blank { color: var(--muted, #7a7663); }
 .sp-detail__foot { margin: 0.5rem 0 0; }
+
+/* Players Admin — inline edit + delete on the portal card ---------- */
+.sp-detail__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.35rem; }
+.sp-detail__status { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--muted, #7a7663); min-height: 1.1em; }
+.sp-detail__status.is-err { color: var(--red-deep, #7a1a1a); }
+.sp-btn-danger { background: #fff; color: var(--red-deep, #7a1a1a); border: 1px solid rgba(177,30,45,0.45); padding: 0.35rem 0.85rem; border-radius: 6px; font: inherit; cursor: pointer; }
+.sp-btn-danger:hover { background: #fbe6e6; border-color: var(--red-deep, #7a1a1a); }
+.sp-edit__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.55rem 0.75rem; }
+.sp-edit__row { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; }
+.sp-edit__row > span { font-weight: 700; color: var(--muted, #7a7663); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.68rem; }
+.sp-edit__row input[type="text"], .sp-edit__row input[type="tel"], .sp-edit__row input[type="email"], .sp-edit__row textarea { width: 100%; padding: 0.4rem 0.55rem; border: 1px solid var(--line, #d5cfbe); border-radius: 6px; font: inherit; font-size: 0.9rem; background: #fff; color: var(--ink, #2a2418); }
+.sp-edit__row textarea { resize: vertical; }
+.sp-edit__row--chk { flex-direction: row; align-items: center; gap: 0.4rem; }
+.sp-edit__row--chk > span { text-transform: none; font-size: 0.9rem; color: var(--ink, #2a2418); letter-spacing: 0; font-weight: 500; }
+.sp-edit__row--full { grid-column: 1 / -1; margin-top: 0.5rem; }

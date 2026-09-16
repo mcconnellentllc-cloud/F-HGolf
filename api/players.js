@@ -15,8 +15,8 @@
 
 module.exports = async (req, res) => {
   if (require("./_cors")(req, res)) return;
-  if (req.method !== "GET" && req.method !== "POST") {
-    res.setHeader("Allow", "GET, POST");
+  if (req.method !== "GET" && req.method !== "POST" && req.method !== "DELETE") {
+    res.setHeader("Allow", "GET, POST, DELETE");
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
@@ -26,7 +26,7 @@ module.exports = async (req, res) => {
   // Accept either the real admin key or a tournament-scoped staff token
   // so a staff link on tournament-admin.html can still resolve names
   // when promoting captains. Staff tokens don't get to WRITE to the
-  // Players table — only read (GET). POSTs still require admin.
+  // Players table — only read (GET). Writes and deletes still require admin.
   const auth = require("./_auth")(req);
   if (!auth) return res.status(401).json({ ok: false, error: "Unauthorized" });
   if (req.method !== "GET" && auth.mode === "staff") {
@@ -83,10 +83,25 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, count: out.length, records: out });
     }
 
-    // POST — create or update
+    // DELETE — remove a Player record.
+    // Also honored via POST { action: "delete", id: "recXXX" } so a plain
+    // browser fetch works everywhere (some CDN/proxies mishandle DELETE).
     let body = req.body;
     if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { body = {}; } }
     body = body || {};
+
+    if (req.method === "DELETE" || (req.method === "POST" && body.action === "delete")) {
+      const delId = (req.method === "DELETE" ? (req.query && req.query.id) : body.id) || "";
+      if (!delId || typeof delId !== "string") return res.status(400).json({ ok: false, error: "Missing id." });
+      const r = await fetch(`${base}/${encodeURIComponent(delId)}`, { method: "DELETE", headers: authRead });
+      const detail = await r.text();
+      if (!r.ok) {
+        if (notReady(r.status, detail)) return res.status(200).json({ ok: false, notReady: true });
+        console.error("players delete error", r.status, detail);
+        return res.status(502).json({ ok: false, error: "Could not delete player." });
+      }
+      return res.status(200).json({ ok: true, id: delId, deleted: true });
+    }
 
     const fields = {};
     if (typeof body.name === "string") fields.Name = clean(body.name, 120);
