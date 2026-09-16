@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Tournaments — F&amp;H Golf Course</title>
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1B5E20" />
+  <link rel="apple-touch-icon" href="images/icon-180.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <header class="nav" id="top">
+    <div class="nav__inner">
+      <a href="index.html" class="nav__brand" aria-label="F&H Golf Course home">
+        <img class="nav__mark" src="images/logo.png" alt="" aria-hidden="true" />
+        <span class="nav__wordmark">
+          <span class="nav__name">F&amp;H Golf Course</span>
+          <span class="nav__tagline">Staff Portal</span>
+        </span>
+      </a>
+      <nav class="nav__links">
+        <a href="admin.html">&larr; Staff Portal</a>
+        <a href="index.html">View public site &rarr;</a>
+        <a href="#" id="adminLogout" hidden>Lock</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero hero--strip">
+    <div class="hero__inner">
+      <div class="hero__content">
+        <p class="hero__kicker">Staff Only</p>
+        <h1 class="hero__title">Tournaments</h1>
+        <p class="hero__subtitle">Run every F&H event — rosters, pairings, scorecards, leaderboards.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--alt">
+    <div class="container admin">
+
+      <div class="admin-gate" id="adminGate">
+        <h2>Enter password</h2>
+        <p>This area is for F&amp;H staff and board members.</p>
+        <form class="form" id="adminLogin" autocomplete="off">
+          <label class="form__field" style="text-align:left;">
+            <span class="form__label">Password</span>
+            <input type="password" id="adminPass" name="password" autocomplete="current-password" />
+          </label>
+          <div class="form__actions" style="justify-content:center;">
+            <button type="submit" class="btn btn--primary">Unlock</button>
+            <span class="form__status is-error" id="adminErr" role="alert"></span>
+          </div>
+        </form>
+      </div>
+
+      <div id="adminPanel" hidden>
+        <section class="noms" id="sec-tournaments" aria-label="Tournament manager">
+          <div class="noms__bar">
+            <h3 class="noms__title">Tournaments <span class="noms__count" id="tmCount"></span></h3>
+            <div class="noms__toolbar">
+              <label class="tm-season">
+                <span class="tm-season__label">Season</span>
+                <select id="tmSeason" class="tm-season__select" aria-label="Filter tournament cards by season"></select>
+              </label>
+              <button class="btn btn--solid" type="button" id="tmRefresh">Refresh</button>
+            </div>
+          </div>
+          <p class="tm__intro">One card per tournament in the picked season. Open a tournament to manage its roster, flights, scorecards &amp; leaderboard, and to email everyone signed up. Formats carry over year to year, so each event can be reused season after season.</p>
+          <div id="tmYears"><p class="noms__msg">Loading tournaments…</p></div>
+        </section>
+
+        <!-- Send invites modal — opens from the Send invites button on
+             every non-past tournament card. -->
+        <div id="inviteModal" class="pm-modal" hidden aria-hidden="true">
+          <div class="pm-modal__backdrop" data-inv-close="1"></div>
+          <div class="pm-modal__panel" role="dialog" aria-modal="true" aria-labelledby="invTitle" style="max-width:48rem;">
+            <div class="pm-modal__head">
+              <h3 id="invTitle">Send invites</h3>
+              <button type="button" class="pm-modal__close" data-inv-close="1" aria-label="Close">&times;</button>
+            </div>
+            <div class="pm-modal__body">
+              <p id="invStatus" style="margin:0;color:var(--muted);">Loading recipients…</p>
+              <div id="invMeta" style="font-size:0.9rem;color:var(--muted);"></div>
+              <p style="margin:0;font-size:0.85rem;color:var(--muted);">Preview (rendered for the first recipient — every send is personalized to that recipient's first name):</p>
+              <iframe id="invPreview" title="Invite preview" style="width:100%;height:52vh;border:1px solid var(--line);border-radius:8px;background:#fff;"></iframe>
+              <p id="invSendStatus" role="status" aria-live="polite" style="margin:0;font-size:0.9rem;color:var(--muted);"></p>
+            </div>
+            <div class="pm-modal__foot">
+              <button type="button" class="btn btn--ghost" data-inv-close="1">Cancel</button>
+              <button type="button" class="btn btn--primary" id="invSend" disabled>Send to 0 recipients</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <a href="index.html" class="site-footer__marklink"><img class="site-footer__mark" src="images/logo.png" alt="F&H Golf Course logo" /></a>
+        <div>
+          <div class="site-footer__name">F&amp;H Golf Course</div>
+          <p class="site-footer__tag">Staff Portal</p>
+        </div>
+      </div>
+      <div>
+        <h4>Go to</h4>
+        <ul>
+          <li><a href="admin.html">Staff Portal</a></li>
+          <li><a href="index.html">Public site</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="site-footer__bottom">
+      <span>&copy; 2026 F&amp;H Golf Course — F&amp;H Park &amp; Recreation District. Fleming, Colorado.</span>
+      <span>Staff Portal</span>
+    </div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script src="js/tournaments.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
