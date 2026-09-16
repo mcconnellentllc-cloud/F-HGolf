@@ -1,8 +1,8 @@
 /* F&H Golf Course — service worker.
    Network-first so the live site is always fresh online; falls back to a small
    cached shell when offline. Enables "Add to Home Screen" / installability. */
-var CACHE = "fh-cache-v407";
-var SHELL = ["./", "./index.html", "./css/styles.css", "./js/main.js", "./images/logo.png", "./tournaments.html", "./history.html", "./founders-flights.html", "./founders-calcutta-display.html", "./founders-leaderboard-display.html", "./founders-rules.html", "./founders-recap.html", "./admin-people.html", "./live.html", "./leaderboard.html", "./couples-rules.html", "./recap.html", "./couples-leaderboard-display.html", "./player.html", "./score-round.html", "./tournament-rules.html", "./js/tournament-rules.js", "./js/theme-fire.js", "./auction.html", "./sponsor.html"];
+var CACHE = "fh-cache-v408";
+var SHELL = ["./", "./index.html", "./css/styles.css", "./js/main.js", "./js/admin.js", "./images/logo.png", "./tournaments.html", "./history.html", "./founders-flights.html", "./founders-calcutta-display.html", "./founders-leaderboard-display.html", "./founders-rules.html", "./founders-recap.html", "./admin.html", "./admin-people.html", "./admin-tournaments.html", "./admin-carts.html", "./admin-signups.html", "./admin-activity.html", "./admin-nominations.html", "./admin-treasurer.html", "./admin-external.html", "./live.html", "./leaderboard.html", "./couples-rules.html", "./recap.html", "./couples-leaderboard-display.html", "./player.html", "./score-round.html", "./tournament-rules.html", "./js/tournament-rules.js", "./js/theme-fire.js", "./auction.html", "./sponsor.html"];
 
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL).catch(function () {}); }));

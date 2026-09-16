@@ -2996,3 +2996,7 @@ body.theme-fire .tab-howto b { color: #c8102e; }
 .sp-edit__row--chk { flex-direction: row; align-items: center; gap: 0.4rem; }
 .sp-edit__row--chk > span { text-transform: none; font-size: 0.9rem; color: var(--ink, #2a2418); letter-spacing: 0; font-weight: 500; }
 .sp-edit__row--full { grid-column: 1 / -1; margin-top: 0.5rem; }
+
+/* Non-clickable portal card (Soon scaffolds) ---------------------- */
+span.pcard, .pcard--soon-card { cursor: default; opacity: 0.7; }
+span.pcard:hover, .pcard--soon-card:hover { transform: none; box-shadow: var(--shadow-sm); }
