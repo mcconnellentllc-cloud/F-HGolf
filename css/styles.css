@@ -1565,6 +1565,7 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .pr-team { display: flex; flex-direction: column; padding: 0.5rem 0.6rem; border-radius: 8px; background: #fff; border: 1px solid var(--line); cursor: grab; user-select: none; text-align: left; }
 .pr-team:hover { border-color: var(--primary-green); }
 .pr-team.is-drag { opacity: 0.35; cursor: grabbing; }
+.pr-team.is-drop-seat { box-shadow: 0 0 0 3px var(--brass, #a37b3d), 0 2px 6px rgba(0,0,0,0.08); border-color: var(--brass, #a37b3d); background: #fffdf4; }
 .pr-team__hd { border-bottom: 1px solid var(--line); margin-bottom: 0.3rem; padding-bottom: 0.25rem; display: flex; align-items: baseline; gap: 0.5rem; }
 .pr-team__num { font-family: var(--font-display); font-weight: 800; font-size: 0.95rem; color: var(--ink); }
 /* Day 1 gross chip — only rendered in Day 2 view, sits to the right of
