@@ -216,10 +216,12 @@
     body.live-fire .sp-tile { border-left-color: #c8102e; }
     body.live-fire .btab.on { color: #c8102e; border-top-color: #c8102e; background: rgba(200,16,46,0.08); }
 
-    /* Rotating sponsor strip — sits just above the bottom nav tabs
-       on the scoring + leaderboard views. Every 7 seconds, and on
-       every score save, the current sponsor advances. Fills a whole
-       round with impressions for every business supporting the day. */
+    /* Rotating sponsor strip — sits directly beneath the Scorecard /
+       Leaderboard tab row on the scoring + leaderboard views. Every 7
+       seconds, and on every score save, the current sponsor advances.
+       Fills a whole round with impressions for every business
+       supporting the day. Legacy `.sp-scroll` alone stuck to the
+       bottom; add `.sp-scroll--top` for the top-of-view placement. */
     .sp-scroll {
       position: sticky; bottom: env(safe-area-inset-bottom, 0);
       z-index: 4;
@@ -230,6 +232,12 @@
       min-height: 2.2rem;
       overflow: hidden;
     }
+    .sp-scroll.sp-scroll--top {
+      position: static; bottom: auto;
+      border-top: 0;
+      border-bottom: 1px solid var(--line, #e6e2d8);
+    }
+    body.live-fire .sp-scroll.sp-scroll--top { border-bottom-color: rgba(200,16,46,0.35); }
     .sp-scroll__lbl { font: 800 0.6rem/1 system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted, #7a7663); flex-shrink: 0; }
     .sp-scroll__body { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; transition: opacity 0.35s ease; }
     .sp-scroll__body.is-fading { opacity: 0; }
@@ -889,6 +897,13 @@
           +   '<button class="tab ' + (STATE.tab === "score" ? "on" : "") + '" type="button" data-tab="score">Scorecard</button>'
           +   '<button class="tab ' + (STATE.tab === "lb" ? "on" : "") + '" type="button" data-tab="lb">Leaderboard</button>'
           + '</div>'
+          // Rotating sponsor strip. Sits directly under the Scorecard /
+          // Leaderboard tabs so it's visible above the fold on both
+          // views. Only shows on score + leaderboard tabs — the
+          // Rules/Sponsors tabs already surface sponsors in full.
+          // Hidden until the first sponsor lands so an empty round
+          // doesn't leave an orphaned gray bar.
+          + ((STATE.tab === "score" || STATE.tab === "lb") ? '<div class="sp-scroll sp-scroll--top" id="spScroll" aria-label="Tournament sponsor" hidden><span class="sp-scroll__lbl">Sponsor</span><span class="sp-scroll__body" id="spScrollBody"></span></div>' : "")
           + '<main class="body">'
           + (STATE.tab === "score" ? renderScorecard(multiDay)
              : STATE.tab === "lb" ? renderLeaderboard()
@@ -896,12 +911,6 @@
              : STATE.tab === "sponsors" ? renderSponsors()
              : renderScorecard(multiDay))
           + '</main>'
-          // Rotating sponsor strip. Only shows on score + leaderboard
-          // tabs — the Rules/Sponsors tabs already surface sponsors in
-          // full, so no need to double-render there. Hidden until the
-          // first sponsor lands so an empty round doesn't leave an
-          // orphaned gray bar.
-          + ((STATE.tab === "score" || STATE.tab === "lb") ? '<div class="sp-scroll" id="spScroll" aria-label="Tournament sponsor" hidden><span class="sp-scroll__lbl">Sponsor</span><span class="sp-scroll__body" id="spScrollBody"></span></div>' : "")
           // Bottom nav — Rules + Sponsors. Sticky on the phone so
           // players can jump to them from any point in a round without
           // scrolling all the way back up.
