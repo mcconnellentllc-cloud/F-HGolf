@@ -80,6 +80,7 @@
         <nav class="portal-nav" aria-label="Staff sections">
           <a class="pcard" href="#sec-employees"><span class="pcard__ic">&#129489;&#8205;&#128188;</span><span class="pcard__t">Employees</span><span class="pcard__s">Info &amp; hour tracking</span><span class="pcard__soon">Soon</span></a>
           <a class="pcard" href="#sec-members"><span class="pcard__ic">&#128100;</span><span class="pcard__t">Members</span><span class="pcard__s">Cards &amp; past years</span><span class="pcard__soon">Soon</span></a>
+          <a class="pcard" href="#sec-search-people"><span class="pcard__ic">&#128269;</span><span class="pcard__t">Search People</span><span class="pcard__s">Find anyone fast</span></a>
           <a class="pcard" href="#sec-activity"><span class="pcard__ic">&#128200;</span><span class="pcard__t">Activity</span><span class="pcard__s">Live site usage</span></a>
           <a class="pcard" href="#sec-tournaments"><span class="pcard__ic">&#9971;</span><span class="pcard__t">Tournaments</span><span class="pcard__s">Run every event</span></a>
           <a class="pcard" href="#sec-fundraisers"><span class="pcard__ic">&#127881;</span><span class="pcard__t">Fund Raisers</span><span class="pcard__s">Drives &amp; events</span><span class="pcard__soon">Soon</span></a>
@@ -97,6 +98,20 @@
         <section class="noms scaffold" id="sec-members" aria-label="Members">
           <div class="noms__bar"><h3 class="noms__title">Members <span class="tw-tag">In development</span></h3></div>
           <p class="scaffold__desc">Every member on a card, showing current status and <strong>past-years history</strong> (dues, leagues, participation). We'll get here after the tournament tools are solid.</p>
+        </section>
+
+        <section class="noms" id="sec-search-people" aria-label="Search people">
+          <div class="noms__bar">
+            <h3 class="noms__title">Search People <span class="noms__count" id="spCount"></span></h3>
+            <a class="btn btn--solid" href="admin-people.html">Open full People page &rarr;</a>
+          </div>
+          <p class="tm__intro">Type a name, phone, or email to jump to any member, player, or past player. Results narrow as you type; click one to see contact info.</p>
+          <div class="sp-search">
+            <input type="search" id="spInput" class="sp-search__input" placeholder="Start typing a name, phone, or email…" autocomplete="off" spellcheck="false" />
+            <div id="spResults" class="sp-results" role="listbox" hidden></div>
+          </div>
+          <div id="spDetail" class="sp-detail" hidden></div>
+          <p class="sp-hint" id="spHint">Loading people…</p>
         </section>
 
         <section class="noms" id="sec-activity" aria-label="Site activity">
@@ -570,6 +585,149 @@
           + tile("Player Cards", pl.total || 0, (p.distinctPlayers || 0) + " have made a payment")
           + tile("Tournament sign-ups", su.field || 0, (su.alternate || 0) + " on alternate list");
       }
+
+      // ---- Search People (portal quick-find) ---------------------------
+      // Loads the full Players table once (same source as admin-people.html)
+      // and does client-side prefix / substring matching on Name, Phone, and
+      // Email so keystrokes feel instant. Selecting a result reveals a
+      // small detail block with contact info + a link to the full People
+      // page for edits.
+      var _spAll = [];
+      var _spLoaded = false;
+      var _spSelectedId = "";
+      function _spNormPhone(s) { return String(s || "").replace(/\D+/g, ""); }
+      function loadSearchPeople() {
+        var hint = document.getElementById("spHint");
+        var input = document.getElementById("spInput");
+        if (_spLoaded) return;
+        if (hint) hint.textContent = "Loading people…";
+        fetch(FH_API.url("/api/players"), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) {
+              if (hint) hint.textContent = (j && j.error) || "Couldn't load people.";
+              return;
+            }
+            _spAll = (j.records || []).map(function (r) {
+              var f = r.fields || {};
+              return {
+                id: r.id,
+                name: String(f.Name || ""),
+                phone: String(f.Phone || ""),
+                phoneDigits: _spNormPhone(f.Phone),
+                email: String(f.Email || ""),
+                city: String(f.City || ""),
+                state: String(f.State || ""),
+                street: String(f.Street || ""),
+                zip: String(f.Zip || ""),
+                member: !!f.Member,
+                notes: String(f.Notes || ""),
+                _hay: (String(f.Name || "") + " " + String(f.Phone || "") + " " + String(f.Email || "") + " " + String(f.City || "") + " " + String(f.State || "")).toLowerCase()
+              };
+            });
+            _spLoaded = true;
+            var spCount = document.getElementById("spCount");
+            if (spCount) spCount.textContent = _spAll.length ? "(" + _spAll.length + ")" : "";
+            if (hint) hint.textContent = _spAll.length ? "Ready — type to search " + _spAll.length + " people." : "No people yet.";
+            if (input) input.disabled = false;
+          })
+          .catch(function () {
+            if (hint) hint.textContent = "Network error loading people.";
+          });
+      }
+      function spRenderResults(query) {
+        var host = document.getElementById("spResults");
+        var hint = document.getElementById("spHint");
+        if (!host) return;
+        var q = String(query || "").trim().toLowerCase();
+        var qDigits = _spNormPhone(query);
+        if (!q) { host.hidden = true; host.innerHTML = ""; if (hint) hint.textContent = _spLoaded ? ("Ready — type to search " + _spAll.length + " people.") : "Loading people…"; return; }
+        var matches = _spAll.filter(function (p) {
+          if (p._hay.indexOf(q) !== -1) return true;
+          if (qDigits && p.phoneDigits && p.phoneDigits.indexOf(qDigits) !== -1) return true;
+          return false;
+        });
+        // Sort: exact-name-prefix first, then any-name-prefix, then substring.
+        matches.sort(function (a, b) {
+          var an = a.name.toLowerCase(), bn = b.name.toLowerCase();
+          var ap = an.indexOf(q) === 0 ? 0 : 1;
+          var bp = bn.indexOf(q) === 0 ? 0 : 1;
+          if (ap !== bp) return ap - bp;
+          if (an !== bn) return an < bn ? -1 : 1;
+          return 0;
+        });
+        var shown = matches.slice(0, 20);
+        if (!shown.length) {
+          host.innerHTML = '<div class="sp-result sp-result--empty">No matches.</div>';
+          host.hidden = false;
+          if (hint) hint.textContent = "0 matches.";
+          return;
+        }
+        host.innerHTML = shown.map(function (p) {
+          var sub = [p.phone, p.email, [p.city, p.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ");
+          return '<button type="button" class="sp-result" role="option" data-id="' + esc(p.id) + '">'
+            + '<span class="sp-result__name">' + esc(p.name || "(no name)") + (p.member ? ' <span class="sp-badge">member</span>' : "") + '</span>'
+            + (sub ? '<span class="sp-result__sub">' + esc(sub) + '</span>' : '')
+            + '</button>';
+        }).join("");
+        host.hidden = false;
+        if (hint) hint.textContent = "Showing " + shown.length + (matches.length > shown.length ? " of " + matches.length : "") + " match" + (matches.length === 1 ? "" : "es") + ".";
+      }
+      function spOpenDetail(id) {
+        var detail = document.getElementById("spDetail");
+        var results = document.getElementById("spResults");
+        var p = null;
+        for (var i = 0; i < _spAll.length; i++) if (_spAll[i].id === id) { p = _spAll[i]; break; }
+        if (!p || !detail) return;
+        _spSelectedId = id;
+        var addr = [p.street, [p.city, p.state].filter(Boolean).join(", "), p.zip].filter(Boolean).join(" · ");
+        detail.innerHTML = ''
+          + '<div class="sp-detail__head">'
+          +   '<h4 class="sp-detail__name">' + esc(p.name || "(no name)") + (p.member ? ' <span class="sp-badge">member</span>' : "") + '</h4>'
+          +   '<button type="button" class="btn btn--solid sp-detail__close" id="spDetailClose">Close</button>'
+          + '</div>'
+          + '<dl class="sp-detail__grid">'
+          +   (p.phone ? '<dt>Phone</dt><dd><a href="tel:' + esc(p.phone) + '">' + esc(p.phone) + '</a></dd>' : '<dt>Phone</dt><dd class="sp-detail__blank">—</dd>')
+          +   (p.email ? '<dt>Email</dt><dd><a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a></dd>' : '<dt>Email</dt><dd class="sp-detail__blank">—</dd>')
+          +   (addr ? '<dt>Address</dt><dd>' + esc(addr) + '</dd>' : '')
+          +   (p.notes ? '<dt>Notes</dt><dd>' + esc(p.notes) + '</dd>' : '')
+          + '</dl>'
+          + '<p class="sp-detail__foot"><a class="btn btn--primary" href="admin-people.html">Edit in People &rarr;</a></p>';
+        detail.hidden = false;
+        if (results) { results.hidden = true; results.innerHTML = ""; }
+        var closeBtn = document.getElementById("spDetailClose");
+        if (closeBtn) closeBtn.addEventListener("click", function () {
+          detail.hidden = true; detail.innerHTML = "";
+          var input = document.getElementById("spInput");
+          if (input) { input.value = ""; input.focus(); }
+        });
+      }
+      var _spInput = document.getElementById("spInput");
+      if (_spInput) {
+        _spInput.addEventListener("input", function () {
+          if (!_spLoaded) loadSearchPeople();
+          spRenderResults(this.value);
+        });
+        _spInput.addEventListener("focus", function () { if (!_spLoaded) loadSearchPeople(); });
+      }
+      var _spResults = document.getElementById("spResults");
+      if (_spResults) {
+        _spResults.addEventListener("click", function (e) {
+          var btn = e.target && e.target.closest ? e.target.closest(".sp-result") : null;
+          if (!btn) return;
+          var id = btn.getAttribute("data-id"); if (!id) return;
+          spOpenDetail(id);
+        });
+      }
+      // Close results dropdown when clicking outside.
+      document.addEventListener("click", function (e) {
+        var host = document.getElementById("spResults");
+        var input = document.getElementById("spInput");
+        if (!host || host.hidden) return;
+        if (!e.target || (e.target !== input && !host.contains(e.target) && !input.contains(e.target))) {
+          host.hidden = true;
+        }
+      });
 
       // ==== Send invites (preview + per-recipient send) ====================
       // Wired to every non-past tournament card via .tm-inv click delegation
@@ -1056,7 +1214,7 @@
         gate.hidden = authed;
         panel.hidden = !authed;
         if (logout) logout.hidden = !authed;
-        if (authed) { buildManager([]); loadNominations(); loadTournaments(); loadCourseCarts(); loadTournamentConfigs(); loadSiteStats(); }
+        if (authed) { buildManager([]); loadNominations(); loadTournaments(); loadCourseCarts(); loadTournamentConfigs(); loadSiteStats(); loadSearchPeople(); }
       }
       show(_readAuth(FLAG) === "1");
 
