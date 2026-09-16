@@ -95,11 +95,17 @@ async function upsertPlayerCard({ name, email, phone }, env) {
     const ld = await lr.json();
     const existing = (ld.records || [])[0];
     if (existing) {
+      // Players table is the master list — treat the existing row as
+      // authoritative. Only FILL blanks from the signup form; never
+      // overwrite an email or phone that's already on file. The email
+      // on file is what the player-facing magic-link flow uses to prove
+      // ownership when they edit their own card, so a different person
+      // signing up with the same name can't silently take over the row.
       const cur = existing.fields || {};
       const patch = {};
-      if (email && String(cur.Email || "").toLowerCase() !== String(email).toLowerCase()) patch.Email = email;
-      if (phone && String(cur.Phone || "") !== String(phone)) patch.Phone = phone;
-      if (!Object.keys(patch).length) return; // nothing changed
+      if (email && !String(cur.Email || "").trim()) patch.Email = email;
+      if (phone && !String(cur.Phone || "").trim()) patch.Phone = phone;
+      if (!Object.keys(patch).length) return; // nothing new to fill
       await fetch(`${base}/${existing.id}`, {
         method: "PATCH", headers: authWrite,
         body: JSON.stringify({ fields: patch, typecast: true }),
