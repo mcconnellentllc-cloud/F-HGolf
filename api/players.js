@@ -1,5 +1,10 @@
 // Vercel serverless function — Players table CRUD (staff only, admin-key).
-// Canonical customer records: one row per person, deduped across tournaments.
+// The Players table is the MASTER LIST — one row per person, deduped
+// across tournaments. Create rejects duplicate names (case-insensitive)
+// so a signup or an operator can't accidentally add a second row for
+// someone who's already in the list. Editing an existing player is the
+// dedup path; the player-facing magic-link flow in player-card.js lets
+// them edit their own row via the email on file as the security anchor.
 //
 //   GET  /api/players                   -> list all
 //   GET  /api/players?id=recXXX         -> fetch one
@@ -131,6 +136,27 @@ module.exports = async (req, res) => {
 
     // Create — need at least Name to avoid empty phantom records
     if (!fields.Name) return res.status(400).json({ ok: false, error: "Name is required for a new player." });
+    // Players table is the master list — reject duplicate names
+    // (case-insensitive). If a player with that name already exists,
+    // the operator should Edit the existing row instead of adding a
+    // second one. Search / merge tools on admin-people.html handle
+    // the cleanup cases where an old row got duplicated.
+    try {
+      const safeName = fields.Name.replace(/"/g, '\\"');
+      const dupUrl = `${base}?filterByFormula=${encodeURIComponent(`LOWER({Name})=LOWER("${safeName}")`)}&pageSize=1`;
+      const dr = await fetch(dupUrl, { headers: authRead });
+      if (dr.ok) {
+        const dd = await dr.json();
+        const existing = (dd.records || [])[0];
+        if (existing) {
+          return res.status(409).json({
+            ok: false,
+            error: "There's already a Player Card by that name. Search for \"" + fields.Name + "\" and edit that row instead.",
+            existingId: existing.id,
+          });
+        }
+      }
+    } catch (e) { /* fall through — Airtable outage shouldn't block a create */ }
     const r = await fetch(base, { method: "POST", headers: authWrite, body: JSON.stringify({ records: [{ fields }], typecast: true }) });
     const detail = await r.text();
     if (!r.ok) {
