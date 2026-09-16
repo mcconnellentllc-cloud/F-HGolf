@@ -85,7 +85,8 @@
       }
 
       function renderTournaments(records) {
-        if (!records || !records.length) { touList.innerHTML = '<p class="noms__msg">No sign-ups yet.</p>'; touCount.textContent = ""; return; }
+        if (!touList) return;
+        if (!records || !records.length) { touList.innerHTML = '<p class="noms__msg">No sign-ups yet.</p>'; if (touCount) touCount.textContent = ""; return; }
         touCount.textContent = "(" + records.length + ")";
         var groups = {};
         records.forEach(function (rec) {
@@ -167,16 +168,33 @@
       // without a second network round-trip.
       var _touRecords = [];
       function loadTournaments() {
-        if (!touList) return;
-        touList.innerHTML = '<p class="noms__msg">Loading sign-ups…</p>';
+        // Two consumers share the same fetch: the Sign-ups page's
+        // #touList and the Tournaments page's #tmYears (via
+        // buildManager). Only one of those DOM roots exists on any
+        // given page after the cards-only refactor, so we run the
+        // fetch whenever EITHER is present and guard each write.
+        var tmYearsEl = document.getElementById("tmYears");
+        if (!touList && !tmYearsEl) return;
+        if (touList) touList.innerHTML = '<p class="noms__msg">Loading sign-ups…</p>';
         fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
-            if (res.j && res.j.ok) { _touRecords = res.j.records || []; renderTournaments(res.j.records); buildManager(res.j.records); }
-            else if (res.status === 401) { touList.innerHTML = '<p class="noms__msg">Session expired — click <strong>Lock</strong> and sign in again.</p>'; buildManager([]); }
-            else { touList.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load sign-ups.") + "</p>"; buildManager([]); }
+            if (res.j && res.j.ok) {
+              _touRecords = res.j.records || [];
+              if (touList) renderTournaments(res.j.records);
+              buildManager(res.j.records);
+            } else if (res.status === 401) {
+              if (touList) touList.innerHTML = '<p class="noms__msg">Session expired — click <strong>Lock</strong> and sign in again.</p>';
+              buildManager([]);
+            } else {
+              if (touList) touList.innerHTML = '<p class="noms__msg">' + esc((res.j && res.j.error) || "Couldn't load sign-ups.") + "</p>";
+              buildManager([]);
+            }
           })
-          .catch(function () { touList.innerHTML = '<p class="noms__msg">Network error loading sign-ups.</p>'; buildManager([]); });
+          .catch(function () {
+            if (touList) touList.innerHTML = '<p class="noms__msg">Network error loading sign-ups.</p>';
+            buildManager([]);
+          });
       }
 
       // ---- Site activity stats -----------------------------------------
