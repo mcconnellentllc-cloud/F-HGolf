@@ -7350,7 +7350,36 @@
         payload = _dAssign(payload);
         fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: [payload] }) })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
-          .then(function (res) { if (res.j && res.j.ok) { loadRoster(); } else if (statusEl) { statusEl.textContent = (res.j && res.j.error) || "Couldn't save."; } })
+          .then(function (res) {
+            var j = res.j || {};
+            if (j.ok) {
+              // Single-team drag save. Same auto-strip risk as the batch
+              // save (positionSaveMany): if the Tournament Signups table
+              // is missing Hole / Slot / Seat / Start, Airtable silently
+              // drops those fields, the save "succeeds", but the next
+              // loadRoster() shows the team unplaced again. Operator sees
+              // teams "wigging out" from placed to unplaced with no cause.
+              // Surface the warning via alert() so it can't be missed.
+              if (j.warning) {
+                if (statusEl) statusEl.textContent = "Saved, but stripped: " + j.warning;
+                try {
+                  alert("Move saved, but Airtable is missing field(s) — " + j.warning
+                    + "\n\nUntil those field(s) are added on the Tournament Signups table in Airtable, placements will not stick and teams will appear to unseat themselves. Add the missing field(s) and try again.");
+                } catch (e) {}
+              }
+              loadRoster();
+            } else {
+              var errText = (j && j.error) || "Couldn't save.";
+              if (statusEl) statusEl.textContent = errText;
+              try {
+                alert("Move failed: " + errText
+                  + (j && j.strippedFields && j.strippedFields.length
+                      ? "\n\nStripped fields: " + j.strippedFields.join(", ")
+                      : "")
+                  + "\n\nThe Tournament Signups table may be missing Hole / Slot / Seat / Start fields.");
+              } catch (e) {}
+            }
+          })
           .catch(function () { if (statusEl) statusEl.textContent = "Network error."; });
       }
       function positionSaveMany(assignments) {
