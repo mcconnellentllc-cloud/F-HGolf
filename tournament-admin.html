@@ -7963,6 +7963,32 @@
             prDrag = null;
           });
         });
+        // Seat-level drop targets — enable swap-on-drop. Dropping directly
+        // on another team's card swaps the two teams (the dragged team
+        // takes that seat, the displaced team takes the dragged team's
+        // source seat, or Unplaced if the drag started from the pool).
+        // Dropping on an empty seat places the team in that specific seat.
+        // stopPropagation() keeps the zone-level handler from firing.
+        Array.prototype.forEach.call(board.querySelectorAll(".pr-tee .pr-team[data-seat]"), function (slot) {
+          slot.addEventListener("dragover", function (e) {
+            if (!prDrag) return;
+            if (slot.getAttribute("data-id") === prDrag.id) return; // self — let dragend clean up
+            e.preventDefault();
+            e.stopPropagation();
+            try { e.dataTransfer.dropEffect = "move"; } catch (err) {}
+            slot.classList.add("is-drop-seat");
+            var tee = slot.closest(".pr-tee"); if (tee) tee.classList.remove("is-drop");
+          });
+          slot.addEventListener("dragleave", function () { slot.classList.remove("is-drop-seat"); });
+          slot.addEventListener("drop", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            slot.classList.remove("is-drop-seat");
+            if (!prDrag) return;
+            handleSeatDrop(slot, prDrag);
+            prDrag = null;
+          });
+        });
         // Move-to dropdown per team card. Picks a specific seat by
         // value "<hole><slot><seat>", e.g. "3A1" = Hole 3, Tee A, seat 1.
         // Empty value → Unplaced. If a team already sits at the target
@@ -8037,10 +8063,36 @@
           if (!id || id === drag.id) { tgtSeat = s; break; }
         }
         if (!tgtSeat) {
-          setMsg("Hole " + tgtHole + " Tee " + tgtSlot + " is full — free a seat first, or pick a seat from a team's dropdown.");
+          setMsg("Hole " + tgtHole + " Tee " + tgtSlot + " is full — drop directly onto a team card to swap them, or free a seat first.");
           return;
         }
         positionSaveMany([{ id: drag.id, hole: tgtHole, slot: tgtSlot, seat: tgtSeat, start: tgtWave }]);
+      }
+      // Seat-level drop — target is a specific .pr-team card inside a tee.
+      // If the seat is occupied by a different team, swap the two: the
+      // dragged team takes the target seat, the displaced team takes the
+      // drag source's seat (or Unplaced if the drag started from the pool).
+      // If the seat is empty, place the team directly in that seat.
+      function handleSeatDrop(slot, drag) {
+        var tee = slot.closest(".pr-tee");
+        if (!tee) return;
+        var tgtHole = Number(tee.getAttribute("data-hole"));
+        var tgtSlot = tee.getAttribute("data-slot");
+        var tgtWave = tee.getAttribute("data-wave") || drag.srcWave;
+        var tgtSeat = Number(slot.getAttribute("data-seat"));
+        if (!tgtSeat) return;
+        var occupantId = slot.getAttribute("data-id") || "";
+        if (occupantId === drag.id) return; // dropping onto self
+        if (drag.srcHole === tgtHole && drag.srcSlot === tgtSlot && drag.srcSeat === tgtSeat && drag.srcWave === tgtWave) return;
+        var assignments = [{ id: drag.id, hole: tgtHole, slot: tgtSlot, seat: tgtSeat, start: tgtWave }];
+        if (occupantId) {
+          if (drag.srcHole && drag.srcSlot && drag.srcSeat) {
+            assignments.push({ id: occupantId, hole: drag.srcHole, slot: drag.srcSlot, seat: drag.srcSeat, start: drag.srcWave || tgtWave });
+          } else {
+            assignments.push({ id: occupantId, hole: "", slot: "", seat: "", start: drag.srcWave || tgtWave });
+          }
+        }
+        positionSaveMany(assignments);
       }
       // Teams that belong to a wave. Two-wave tournaments filter on the
       // Start field; single-wave tournaments (Format Waves = 1) put every
