@@ -55,7 +55,9 @@
       ]
     },
     "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)" },
-    "Hole 8 Raffle Contest": { team: 1, format: "tee shot into the circle on #8", fee: "$5/person · $20/team", note: "2 entries max · two winners" },
+    // Hole 8 Raffle Contest removed from the public tournaments page
+    // per operator request (2026-09-15). Kept out of TMETA so a stale
+    // signup form dropdown option can't route back to it.
 
     // ----- Next-year TBD placeholders -----
     // The thank-you email's "Reserve my spot for next year" CTA points at
