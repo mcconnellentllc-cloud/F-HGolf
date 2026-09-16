@@ -3000,3 +3000,7 @@ body.theme-fire .tab-howto b { color: #c8102e; }
 /* Non-clickable portal card (Soon scaffolds) ---------------------- */
 span.pcard, .pcard--soon-card { cursor: default; opacity: 0.7; }
 span.pcard:hover, .pcard--soon-card:hover { transform: none; box-shadow: var(--shadow-sm); }
+
+/* People page Delete button ---------------------------------------- */
+.ppl-btn-danger { background: #fff; color: var(--red-deep, #7a1a1a); border: 1px solid rgba(177,30,45,0.45); padding: 0.4rem 0.9rem; border-radius: 6px; font: inherit; cursor: pointer; margin-right: auto; }
+.ppl-btn-danger:hover { background: #fbe6e6; border-color: var(--red-deep, #7a1a1a); }

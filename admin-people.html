@@ -109,6 +109,7 @@
       </div>
       <div class="pv-modal__foot">
         <span class="pv-modal__status" id="pplEditStatus"></span>
+        <button type="button" class="btn ppl-btn-danger" id="pplEditDelete">Delete player</button>
         <button type="button" class="btn btn--solid" data-close="1">Cancel</button>
         <button type="button" class="btn btn--primary" id="pplEditSave">Save</button>
       </div>
@@ -359,6 +360,39 @@
             _dupeCache = null;
             render();
             closeEdit();
+          })
+          .catch(function () { editStatus.textContent = "Network error."; });
+      });
+
+      // Delete player. Confirms first, then hits DELETE /api/players (the
+      // endpoint also honors POST { action: "delete", id } for
+      // proxy-friendliness — we use POST here).
+      document.getElementById("pplEditDelete").addEventListener("click", function () {
+        if (!editingId) return;
+        var rec = null;
+        for (var i = 0; i < all.length; i++) if (all[i].id === editingId) { rec = all[i]; break; }
+        var name = (rec && rec.fields && rec.fields.Name) || "(no name)";
+        var ok = confirm(
+          "Are you sure you want to delete \"" + name + "\"?\n\n"
+          + "This removes the player record from the Players table.\n"
+          + "Any tournament sign-ups they've made will remain but won't\n"
+          + "be linked to a Player row anymore.\n\n"
+          + "This can't be undone."
+        );
+        if (!ok) return;
+        editStatus.textContent = "Deleting…";
+        fetch(FH_API.url("/api/players"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "delete", id: editingId })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) { editStatus.textContent = (j && j.error) || "Delete failed."; return; }
+            all = all.filter(function (x) { return x.id !== editingId; });
+            _dupeCache = null;
+            closeEdit();
+            render();
           })
           .catch(function () { editStatus.textContent = "Network error."; });
       });
