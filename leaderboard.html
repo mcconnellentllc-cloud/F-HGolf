@@ -899,8 +899,22 @@
           if (!(items[_ci].sold && items[_ci].sold.amount)) { currentIdx = _ci; break; }
         }
         var grid = items.map(function (it, idx) {
-          var photo = it.photoDataUri && String(it.photoDataUri).indexOf("data:image/") === 0
-            ? '<img class="lb-au-card__photo" alt="" src="' + _lbEsc(it.photoDataUri) + '">'
+          // Photos moved from a single `photoDataUri` to a `photos` array
+          // when multi-photo auctions shipped. The public leaderboard
+          // shows the first photo; fall back to the legacy field for
+          // older auction JSON blobs that never got re-saved.
+          var photoSrc = "";
+          if (Array.isArray(it.photos)) {
+            for (var _pi = 0; _pi < it.photos.length; _pi++) {
+              var _p = it.photos[_pi];
+              if (typeof _p === "string" && _p.indexOf("data:image/") === 0) { photoSrc = _p; break; }
+            }
+          }
+          if (!photoSrc && typeof it.photoDataUri === "string" && it.photoDataUri.indexOf("data:image/") === 0) {
+            photoSrc = it.photoDataUri;
+          }
+          var photo = photoSrc
+            ? '<img class="lb-au-card__photo" alt="" src="' + _lbEsc(photoSrc) + '">'
             : '<div class="lb-au-card__photo lb-au-card__photo--empty">No photo</div>';
           var chips = [];
           if (it.floor) chips.push('<span class="lb-au-card__chip lb-au-card__chip--floor">Floor ' + _lbEsc(_lbMoney(it.floor)) + '</span>');
