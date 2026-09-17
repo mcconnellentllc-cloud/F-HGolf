@@ -48,11 +48,16 @@
     .au-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
     .au-card__photo { width: 100%; aspect-ratio: 4/3; object-fit: cover; background: #000; display: block; }
     .au-card__photo--empty { display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.35); font: 800 1.2rem/1 "Fraunces", Georgia, serif; letter-spacing: 0.2em; text-transform: uppercase; }
-    /* Two-photo layout: big lead image with a small inset thumbnail so
-       bidders can see a second angle without a lightbox click. */
-    .au-card__photo--multi { position: relative; width: 100%; aspect-ratio: 4/3; background: #000; }
-    .au-card__photo-main { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-    .au-card__photo-thumb { position: absolute; right: 0.5rem; bottom: 0.5rem; width: 32%; max-width: 128px; aspect-ratio: 1/1; object-fit: cover; border-radius: 6px; border: 2px solid rgba(255,255,255,0.85); box-shadow: 0 2px 8px rgba(0,0,0,0.45); background: #000; }
+    /* Multi-photo layout: big lead image with a row of clickable
+       thumbnails underneath so bidders can flip through every angle
+       without opening a lightbox. Up to 6 photos per item. */
+    .au-card__photo-wrap { display: flex; flex-direction: column; }
+    .au-card__photo--main { aspect-ratio: 4/3; object-fit: cover; background: #000; }
+    .au-card__thumbs { display: flex; gap: 0.35rem; padding: 0.4rem 0.5rem; background: rgba(0,0,0,0.35); overflow-x: auto; }
+    .au-card__thumb { flex: 0 0 auto; width: 48px; height: 48px; padding: 0; border: 2px solid transparent; border-radius: 4px; background: #000; cursor: pointer; overflow: hidden; }
+    .au-card__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .au-card__thumb.is-active { border-color: var(--gold, #c8a24a); box-shadow: 0 0 0 2px rgba(200,162,74,0.4); }
+    .au-card__thumb:hover { border-color: rgba(255,255,255,0.6); }
     .au-card__body { padding: 0.85rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
     .au-card__name { font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 1.2rem; margin: 0; color: #fff; line-height: 1.2; }
     .au-card__desc { color: rgba(255,255,255,0.82); font-size: 0.92rem; line-height: 1.35; margin: 0; }
@@ -204,11 +209,16 @@
           } else if (photoList.length === 1) {
             photo = '<img class="au-card__photo" alt="" src="' + esc(photoList[0]) + '">';
           } else {
-            // Two photos — big lead image, a smaller thumbnail beside it
-            // so bidders can see both angles without opening a lightbox.
-            photo = '<div class="au-card__photo au-card__photo--multi">'
-              + '<img class="au-card__photo-main" alt="" src="' + esc(photoList[0]) + '">'
-              + '<img class="au-card__photo-thumb" alt="" src="' + esc(photoList[1]) + '">'
+            // Multiple photos — big lead image with a strip of smaller
+            // thumbnails underneath so bidders can see every angle
+            // without opening a lightbox. Clicking a thumb swaps it
+            // into the main slot (wired below).
+            var thumbs = photoList.map(function (p, i) {
+              return '<button type="button" class="au-card__thumb' + (i === 0 ? ' is-active' : '') + '" data-au-thumb="' + i + '"><img alt="" src="' + esc(p) + '"></button>';
+            }).join("");
+            photo = '<div class="au-card__photo-wrap" data-au-photowrap>'
+              + '<img class="au-card__photo au-card__photo--main" data-au-main alt="" src="' + esc(photoList[0]) + '">'
+              + '<div class="au-card__thumbs">' + thumbs + '</div>'
               + '</div>';
           }
           // Public view — never expose winning amounts or buyer identity.
@@ -234,6 +244,18 @@
             +   '</div>'
             + '</article>';
         }).join("");
+        // Wire thumbnail clicks: swap the picked photo into the main slot.
+        grid.querySelectorAll("[data-au-photowrap]").forEach(function (wrap) {
+          var main = wrap.querySelector("[data-au-main]");
+          wrap.querySelectorAll("[data-au-thumb]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              var img = btn.querySelector("img");
+              if (!img || !main) return;
+              main.src = img.src;
+              wrap.querySelectorAll("[data-au-thumb]").forEach(function (b) { b.classList.toggle("is-active", b === btn); });
+            });
+          });
+        });
       }
 
       // Fetch config for the auction items + tournament display name.
