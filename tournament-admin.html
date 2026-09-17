@@ -710,7 +710,7 @@
             <label class="au-add__field"><span>Donor</span><input type="text" id="auAddDonor" maxlength="120" placeholder="e.g. Haxtun Fire Dept." /></label>
             <label class="au-add__field au-add__field--floor"><span>Floor $</span><input type="number" id="auAddFloor" min="0" step="1" placeholder="0" /></label>
             <label class="au-add__field au-add__field--desc"><span>Description</span><input type="text" id="auAddDesc" maxlength="240" placeholder="Short blurb shown on the item card" /></label>
-            <label class="au-add__field au-add__field--photo"><span>Photos (optional &mdash; up to 6)</span><input type="file" id="auAddPhoto" accept="image/*" multiple /></label>
+            <label class="au-add__field au-add__field--photo"><span>Photos (optional &mdash; up to 5)</span><input type="file" id="auAddPhoto" accept="image/*" multiple /></label>
             <div class="au-add__preview" id="auAddPreview" aria-hidden="true"></div>
             <div class="au-add__submit">
               <button type="submit" class="btn btn--primary" id="auAddBtn">Add item</button>
@@ -3581,7 +3581,7 @@
       var _auState = { items: [] };
       var _auLoaded = false;
       var _auPendingPhotos = [];
-      var AU_MAX_PHOTOS = 6;
+      var AU_MAX_PHOTOS = 5;
       // Which auction item is currently being edited (by id). "" = adding
       // a fresh item. On Edit the add-form is filled with the item's
       // current values and submit becomes Update.
@@ -3814,7 +3814,7 @@
                   + '</div>'
                   + '<div class="au-clerk__acts">'
                   +   (sold ? '<button type="button" class="btn btn--solid btn--small" data-au-receipt="' + esc(it.id) + '">' + (receiptSent ? 'Re-send receipt' : 'Send receipt') + '</button>' : '<span class="au-clerk__hint">enter amount</span>')
-                  +   '<button type="button" class="btn btn--ghost btn--small" data-au-edit="' + esc(it.id) + '">Edit</button>'
+                  +   '<button type="button" class="btn btn--solid btn--small" data-au-edit="' + esc(it.id) + '">Edit</button>'
                   +   '<button type="button" class="btn au-clerk__remove btn--small" data-au-remove="' + esc(it.id) + '">Remove item</button>'
                   + '</div>'
                   + (sold && receiptSent ? '<div class="au-clerk__sent">Receipt sent ' + esc(String(receiptSent).slice(0, 16).replace("T", " ")) + '</div>' : '')
@@ -4055,10 +4055,12 @@
           editing.description = (descEl ? descEl.value.trim() : "").slice(0, 240);
           editing.donor = (donorEl ? donorEl.value.trim() : "").slice(0, 120);
           editing.floor = Number(floorEl ? floorEl.value : 0) || 0;
-          // Photo semantics on edit: staging new photos replaces the
-          // set; leaving pending empty keeps the existing photos so a
-          // pure text edit doesn't wipe artwork.
-          if (_auPendingPhotos.length) editing.photos = _auPendingPhotos.slice(0, AU_MAX_PHOTOS);
+          // Photo semantics on edit: pending is seeded with the item's
+          // current photos on _auStartEdit, so it's always the source
+          // of truth here — a text-only edit still has the originals,
+          // adding a new file appended, and clicking × on a preview
+          // dropped one from the set.
+          editing.photos = _auPendingPhotos.slice(0, AU_MAX_PHOTOS);
         } else {
           _auState.items.push({
             id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
@@ -4089,22 +4091,20 @@
         var item = _auState.items.filter(function (i) { return i.id === id; })[0];
         if (!item) return;
         _auEditingId = id;
-        _auPendingPhotos = [];
+        // Seed the pending-photos array with the item's current photos so
+        // picking new files APPENDS to them (up to the cap) rather than
+        // replacing the whole set. Each photo in the preview strip gets
+        // its own remove (×) button, so an operator who does want to
+        // drop one can still take it out before saving.
+        _auPendingPhotos = (Array.isArray(item.photos) ? item.photos.slice(0, AU_MAX_PHOTOS) : []);
         var nameEl = document.getElementById("auAddName"); if (nameEl) nameEl.value = item.name || "";
         var donorEl = document.getElementById("auAddDonor"); if (donorEl) donorEl.value = item.donor || "";
         var floorEl = document.getElementById("auAddFloor"); if (floorEl) floorEl.value = item.floor || "";
         var descEl = document.getElementById("auAddDesc"); if (descEl) descEl.value = item.description || "";
         var photoEl = document.getElementById("auAddPhoto"); if (photoEl) photoEl.value = "";
-        var preview = document.getElementById("auAddPreview");
-        if (preview) {
-          if (item.photos && item.photos.length) {
-            preview.innerHTML = item.photos.map(function (uri) {
-              return '<span class="au-add__pending"><img alt="current photo — pick new files to replace" title="current photo — pick new files to replace" src="' + esc(uri) + '"></span>';
-            }).join("");
-          } else preview.innerHTML = "";
-        }
+        _auRenderPendingPhotos();
         _auUpdateFormMode();
-        _auStatus("Editing " + (item.name || "item") + " — change fields, then Update item. Picking new photos replaces the current ones.");
+        _auStatus("Editing " + (item.name || "item") + " — change fields, then Update item. New photos ADD to the current ones (× to drop a photo).");
         var form = document.getElementById("auAddForm");
         if (form && form.scrollIntoView) form.scrollIntoView({ behavior: "smooth", block: "start" });
         if (nameEl && nameEl.focus) nameEl.focus();
