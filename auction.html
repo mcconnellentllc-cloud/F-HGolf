@@ -168,18 +168,23 @@
         } catch (e) {}
       });
 
-      function render(items) {
+      function render(items, started) {
         if (!items.length) {
           grid.innerHTML = '<p class="au-empty">No auction items yet. Check back before the tournament for a full list.</p>';
           return;
         }
-        // "Current item" = first unsold item from the top of the list.
-        // The clerk hammers items top-down; when a price lands on the
-        // current item, it flips SOLD and the next unsold one takes
-        // over. -1 = every item sold (auction closed).
+        // "Current item" = first unsold item from the top of the list,
+        // shown only after the auctioneer flips the Start-auction toggle
+        // in the workbook. Before start, no item is highlighted so
+        // viewers see the full list without a premature "Now up for bid"
+        // chip. After start, the clerk hammers items top-down; when a
+        // price lands on the current item, it flips SOLD and the next
+        // unsold one takes over. -1 = auction not started, or all sold.
         var currentIdx = -1;
-        for (var _ci = 0; _ci < items.length; _ci++) {
-          if (!(items[_ci].sold && items[_ci].sold.amount)) { currentIdx = _ci; break; }
+        if (started) {
+          for (var _ci = 0; _ci < items.length; _ci++) {
+            if (!(items[_ci].sold && items[_ci].sold.amount)) { currentIdx = _ci; break; }
+          }
         }
         grid.innerHTML = items.map(function (it, idx) {
           // Support both the new `photos` array and legacy `photoDataUri`
@@ -240,9 +245,14 @@
           applyTitle(display);
           var raw = fields && fields["Auction Items JSON"];
           var items = [];
-          try { var parsed = JSON.parse(raw || "{}"); if (parsed && Array.isArray(parsed.items)) items = parsed.items; } catch (e) {}
+          var started = false;
+          try {
+            var parsed = JSON.parse(raw || "{}");
+            if (parsed && Array.isArray(parsed.items)) items = parsed.items;
+            if (parsed && typeof parsed === "object") started = !!parsed.started;
+          } catch (e) {}
           items = items.filter(function (i) { return i && i.name; });
-          render(items);
+          render(items, started);
           if (!items.length && foot) foot.textContent = "This auction is being set up. Items will appear here soon.";
         })
         .catch(function () {

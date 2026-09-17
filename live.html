@@ -1393,14 +1393,20 @@
         STATE.spIdx = (STATE.spIdx + 1) % list.length;
         paintSponsorScroll();
       }
-      // Start a 7-second rotation while the scoring or leaderboard tab
-      // is open. Cleared on re-render (which happens whenever the tab
-      // changes or scores update) and restarted only on the two tabs
-      // that show the strip.
+      // 7-second rotation while the Scorecard or Leaderboard tab is open.
+      // Idempotent: if a timer is already running on a valid tab, leave
+      // it alone so a mid-cycle re-render (from the 20s live-poll refresh
+      // or a score save) can't reset the countdown and stretch the
+      // current sponsor's slot to ~14–16s while the next one gets its
+      // full 7. Every sponsor now gets one equal 7-second slot per lap.
       function startSponsorRotation() {
-        if (STATE.spTimer) { clearInterval(STATE.spTimer); STATE.spTimer = null; }
-        if (STATE.tab !== "score" && STATE.tab !== "lb") return;
-        if (!_sponsorList().length) return;
+        var onValidTab = STATE.tab === "score" || STATE.tab === "lb";
+        var hasSponsors = _sponsorList().length > 0;
+        if (!onValidTab || !hasSponsors) {
+          if (STATE.spTimer) { clearInterval(STATE.spTimer); STATE.spTimer = null; }
+          return;
+        }
+        if (STATE.spTimer) return; // already ticking — don't restart
         STATE.spTimer = setInterval(advanceSponsor, 7000);
       }
 

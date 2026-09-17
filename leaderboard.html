@@ -873,10 +873,12 @@
       function _lbRenderAuction(fields) {
         var host = document.getElementById("lbAuction");
         var items = [];
+        var started = false;
         try {
           var raw = fields && fields["Auction Items JSON"];
           var parsed = JSON.parse(raw || "{}");
           if (parsed && Array.isArray(parsed.items)) items = parsed.items.filter(function (i) { return i && i.name; });
+          if (parsed && typeof parsed === "object") started = !!parsed.started;
         } catch (e) {}
         if (!items.length) { host.innerHTML = '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Auction</div><h2 class="lb-panel__title">Live auction</h2></div><p class="disp__empty-msg">Auction items coming soon.</p>'; return; }
         var soldCount = items.filter(function (i) { return i.sold && i.sold.amount; }).length;
@@ -890,13 +892,18 @@
           +   '<div class="lb-au-stat"><div class="lb-au-stat__l">Sold</div><div class="lb-au-stat__n">' + soldCount + '</div></div>'
           + '</div>';
         // "Current item" = first item from the top whose sold.amount is
-        // empty. The clerk hammers items top-down; the moment a price
-        // is entered, that item flips to SOLD and the next unsold one
-        // takes over. -1 means every item has already sold (auction
-        // done).
+        // empty, once the auctioneer has flipped the Start-auction toggle
+        // in the workbook. Before the auctioneer starts, no item is
+        // highlighted so viewers see the full list without a premature
+        // "Now up for bid" chip. After start, the clerk hammers items
+        // top-down; the moment a price is entered, that item flips to
+        // SOLD and the next unsold one takes over. -1 means either the
+        // auction hasn't started yet or every item has already sold.
         var currentIdx = -1;
-        for (var _ci = 0; _ci < items.length; _ci++) {
-          if (!(items[_ci].sold && items[_ci].sold.amount)) { currentIdx = _ci; break; }
+        if (started) {
+          for (var _ci = 0; _ci < items.length; _ci++) {
+            if (!(items[_ci].sold && items[_ci].sold.amount)) { currentIdx = _ci; break; }
+          }
         }
         var grid = items.map(function (it, idx) {
           // Photos moved from a single `photoDataUri` to a `photos` array
