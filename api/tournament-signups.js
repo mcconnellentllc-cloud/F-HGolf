@@ -1328,15 +1328,20 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Admin burst-coalescing cache — serve the last payload if it's under
-  // ADMIN_CACHE_MS old. Not authoritative across container boundaries
-  // (each warm Vercel instance has its own memory), but a big help within
-  // a single instance during check-in / auction rush.
-  if (isAdmin && _adminCache && (Date.now() - _adminCacheAt) < ADMIN_CACHE_MS) {
-    res.setHeader("Cache-Control", "private, max-age=1");
-    res.setHeader("X-FH-Cache", "hit");
-    return res.status(200).json(_adminCache);
-  }
+  // Admin burst-coalescing cache — DISABLED. The 1500ms window was long
+  // enough to serve a pre-save snapshot back to an operator who saved
+  // a pairing and immediately reloaded the roster, which looked like
+  // teams "unseating themselves" on the Pairings tab. Writes go through
+  // a DIFFERENT function (/api/tournament-flights), so there's no clean
+  // way to invalidate this read cache from the write side within the
+  // Vercel warm-container model. Correctness beats a tiny perf win —
+  // let every admin read fetch fresh from Airtable. Public reads still
+  // use the edge cache (below) since they're for scoreboard display.
+  // if (isAdmin && _adminCache && (Date.now() - _adminCacheAt) < ADMIN_CACHE_MS) {
+  //   res.setHeader("Cache-Control", "private, max-age=1");
+  //   res.setHeader("X-FH-Cache", "hit");
+  //   return res.status(200).json(_adminCache);
+  // }
 
   try {
     const records = [];
@@ -1363,7 +1368,7 @@ module.exports = async (req, res) => {
     // fresh enough that new scores/buyers show up on the TV promptly. Admin
     // gets a 1-second browser cache so mashing Refresh doesn't storm the API.
     if (!isAdmin) res.setHeader("Cache-Control", "public, s-maxage=10, stale-while-revalidate=30");
-    else res.setHeader("Cache-Control", "private, max-age=1");
+    else res.setHeader("Cache-Control", "private, no-store, max-age=0"); // fresh reads for the workbook
     const payload = { ok: true, count: out.length, records: out };
     if (!isAdmin) payload.totals = buildTotals(records);
     // Public auction state — read from the Tournament Config table so the
