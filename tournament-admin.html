@@ -720,6 +720,13 @@
 
           <h4 class="au-h">Clerk &mdash; live bidding sheet</h4>
           <p class="au-note">One row per item. Enter the winning buyer&rsquo;s <b>name</b> + <b>email</b> + <b>phone</b> + <b>winning amount</b>, then hit <b>Save auction</b>. Click <b>Send receipt</b> to email the buyer confirmation. Rows highlight green as SOLD once an amount is entered.</p>
+          <!-- Auction start/end toggle. Nothing shows "Now up for bid" on
+               the public leaderboard until the auctioneer flips this on.
+               Flip it off after the last item sells so the badge clears. -->
+          <div class="au-startbar" id="auStartBar">
+            <button type="button" class="btn au-startbtn" id="auToggleStart">Start auction</button>
+            <span class="au-startstate" id="auStartState">Not started &mdash; public leaderboard shows items only, no &ldquo;Now up for bid&rdquo; badge.</span>
+          </div>
           <div class="au-clerk" id="auClerk" aria-live="polite"></div>
 
           <h4 class="au-h">Totals</h4>
@@ -3586,7 +3593,8 @@
         el.className = "ci__status" + (kind === "error" ? " is-error" : kind === "ok" ? " is-ok" : "");
       }
       function _auNormalize(raw) {
-        var s = { items: [] };
+        var s = { items: [], started: false };
+        if (raw && typeof raw === "object") s.started = !!raw.started;
         if (raw && typeof raw === "object" && Array.isArray(raw.items)) {
           s.items = raw.items.filter(Boolean).map(function (it) {
             var sold = null;
@@ -3715,6 +3723,20 @@
       function renderAuction() {
         var openBtn = document.getElementById("auOpenPublic");
         if (openBtn) openBtn.setAttribute("href", "auction.html?t=" + encodeURIComponent(KEY));
+        // Paint the start-toggle button + state text from _auState.started
+        var startBtn = document.getElementById("auToggleStart");
+        var startState = document.getElementById("auStartState");
+        var startBar = document.getElementById("auStartBar");
+        if (startBtn) {
+          startBtn.textContent = _auState.started ? "End auction" : "Start auction";
+          startBtn.classList.toggle("au-startbtn--live", !!_auState.started);
+        }
+        if (startState) {
+          startState.textContent = _auState.started
+            ? "Live — the top unsold item shows “Now up for bid” on the public leaderboard. Enter an amount to advance to the next item."
+            : "Not started — public leaderboard shows items only, no “Now up for bid” badge.";
+        }
+        if (startBar) startBar.classList.toggle("au-startbar--live", !!_auState.started);
         var host = document.getElementById("auClerk"); if (!host) return;
         var items = _auState.items || [];
         // Buyer name autofill — pool of every roster name in this
@@ -12524,6 +12546,18 @@
         if (auAddPhoto) auAddPhoto.addEventListener("change", function () { _auHandlePhotoPick(auAddPhoto); });
         var auSave = document.getElementById("auSave");
         if (auSave) auSave.addEventListener("click", saveAuction);
+        // Start / End the auction. Confirms the End direction (accidental
+        // clicks would clear the "Now up for bid" badge mid-event).
+        var auToggleStart = document.getElementById("auToggleStart");
+        if (auToggleStart) auToggleStart.addEventListener("click", function () {
+          if (_auState.started) {
+            if (!confirm("End the auction? The public leaderboard will stop highlighting a \"Now up for bid\" item.")) return;
+          }
+          _auState.started = !_auState.started;
+          renderAuction();
+          _auScheduleSave();
+          _auStatus(_auState.started ? "Auction started — saving…" : "Auction ended — saving…", "ok");
+        });
         var auShareFb = document.getElementById("auShareFb");
         if (auShareFb) auShareFb.addEventListener("click", _auShareFacebook);
         var auCopyLink = document.getElementById("auCopyLink");

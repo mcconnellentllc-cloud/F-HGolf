@@ -3004,3 +3004,13 @@ span.pcard:hover, .pcard--soon-card:hover { transform: none; box-shadow: var(--s
 /* People page Delete button ---------------------------------------- */
 .ppl-btn-danger { background: #fff; color: var(--red-deep, #7a1a1a); border: 1px solid rgba(177,30,45,0.45); padding: 0.4rem 0.9rem; border-radius: 6px; font: inherit; cursor: pointer; margin-right: auto; }
 .ppl-btn-danger:hover { background: #fbe6e6; border-color: var(--red-deep, #7a1a1a); }
+
+/* Auction Start/End toggle (workbook Auction tab) ------------------ */
+.au-startbar { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; padding: 0.6rem 0.85rem; margin: 0.35rem 0 0.75rem; background: var(--paper-2, #faf7ef); border: 1px dashed var(--line, #d5cfbe); border-radius: 8px; }
+.au-startbar--live { background: rgba(200,16,46,0.06); border-style: solid; border-color: rgba(200,16,46,0.35); }
+.au-startbtn { padding: 0.5rem 1rem; font-weight: 700; background: var(--red, #c8102e); color: #fff; border: 1px solid var(--red-deep, #7a1a1a); border-radius: 999px; cursor: pointer; }
+.au-startbtn:hover { background: var(--red-deep, #7a1a1a); }
+.au-startbtn--live { background: #fff; color: var(--red-deep, #7a1a1a); border-color: var(--red-deep, #7a1a1a); }
+.au-startbtn--live:hover { background: #fbe6e6; }
+.au-startstate { font-size: 0.85rem; color: var(--muted, #7a7663); flex: 1 1 260px; }
+.au-startbar--live .au-startstate { color: var(--red-deep, #7a1a1a); }
