@@ -274,6 +274,14 @@
     @media (prefers-reduced-motion: reduce) { .lb-au-card--now { animation: none; } }
     .lb-au-card__photo { width: 100%; aspect-ratio: 4/3; object-fit: cover; background: #000; display: block; }
     .lb-au-card__photo--empty { display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.35); font: 800 1rem/1 "Fraunces", Georgia, serif; letter-spacing: 0.2em; text-transform: uppercase; }
+    /* Multi-photo: lead image with a clickable thumbnail strip so
+       viewers can flip through every angle of the item. */
+    .lb-au-card__photo-wrap { display: flex; flex-direction: column; }
+    .lb-au-card__thumbs { display: flex; gap: 0.35rem; padding: 0.4rem 0.5rem; background: rgba(0,0,0,0.35); overflow-x: auto; }
+    .lb-au-card__thumb { flex: 0 0 auto; width: 44px; height: 44px; padding: 0; border: 2px solid transparent; border-radius: 4px; background: #000; cursor: pointer; overflow: hidden; }
+    .lb-au-card__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .lb-au-card__thumb.is-active { border-color: #c8102e; box-shadow: 0 0 0 2px rgba(200,16,46,0.4); }
+    .lb-au-card__thumb:hover { border-color: rgba(255,255,255,0.6); }
     .lb-au-card__body { padding: 0.85rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
     .lb-au-card__name { font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 1.2rem; margin: 0; color: #fff; line-height: 1.2; }
     .lb-au-card__desc { color: rgba(255,255,255,0.82); font-size: 0.9rem; line-height: 1.35; margin: 0; }
@@ -907,22 +915,32 @@
         }
         var grid = items.map(function (it, idx) {
           // Photos moved from a single `photoDataUri` to a `photos` array
-          // when multi-photo auctions shipped. The public leaderboard
-          // shows the first photo; fall back to the legacy field for
-          // older auction JSON blobs that never got re-saved.
-          var photoSrc = "";
+          // when multi-photo auctions shipped. Show a lead image plus a
+          // clickable thumb strip when there's more than one photo.
+          // Fall back to the legacy field for older blobs never re-saved.
+          var photoList = [];
           if (Array.isArray(it.photos)) {
-            for (var _pi = 0; _pi < it.photos.length; _pi++) {
-              var _p = it.photos[_pi];
-              if (typeof _p === "string" && _p.indexOf("data:image/") === 0) { photoSrc = _p; break; }
-            }
+            photoList = it.photos.filter(function (p) {
+              return typeof p === "string" && p.indexOf("data:image/") === 0;
+            });
           }
-          if (!photoSrc && typeof it.photoDataUri === "string" && it.photoDataUri.indexOf("data:image/") === 0) {
-            photoSrc = it.photoDataUri;
+          if (!photoList.length && typeof it.photoDataUri === "string" && it.photoDataUri.indexOf("data:image/") === 0) {
+            photoList = [it.photoDataUri];
           }
-          var photo = photoSrc
-            ? '<img class="lb-au-card__photo" alt="" src="' + _lbEsc(photoSrc) + '">'
-            : '<div class="lb-au-card__photo lb-au-card__photo--empty">No photo</div>';
+          var photo;
+          if (!photoList.length) {
+            photo = '<div class="lb-au-card__photo lb-au-card__photo--empty">No photo</div>';
+          } else if (photoList.length === 1) {
+            photo = '<img class="lb-au-card__photo" alt="" src="' + _lbEsc(photoList[0]) + '">';
+          } else {
+            var thumbs = photoList.map(function (p, i) {
+              return '<button type="button" class="lb-au-card__thumb' + (i === 0 ? ' is-active' : '') + '" data-au-thumb="' + i + '"><img alt="" src="' + _lbEsc(p) + '"></button>';
+            }).join("");
+            photo = '<div class="lb-au-card__photo-wrap" data-au-photowrap>'
+              + '<img class="lb-au-card__photo" data-au-main alt="" src="' + _lbEsc(photoList[0]) + '">'
+              + '<div class="lb-au-card__thumbs">' + thumbs + '</div>'
+              + '</div>';
+          }
           var chips = [];
           if (it.floor) chips.push('<span class="lb-au-card__chip lb-au-card__chip--floor">Floor ' + _lbEsc(_lbMoney(it.floor)) + '</span>');
           if (it.donor) chips.push('<span class="lb-au-card__chip">Donated by ' + _lbEsc(it.donor) + '</span>');
@@ -948,6 +966,18 @@
           + '<div class="lb-panel__hd"><div class="lb-panel__eyebrow">Live Auction</div><h2 class="lb-panel__title">Bid for Haxtun&rsquo;s Volunteer Firefighters</h2><p class="lb-panel__blurb">Every dollar backs the neighbors who answer the call for a small town with a big heart.</p></div>'
           + summary
           + '<div class="lb-au-grid">' + grid + '</div>';
+        // Thumbnail click → swap into main slot on each auction card.
+        host.querySelectorAll("[data-au-photowrap]").forEach(function (wrap) {
+          var main = wrap.querySelector("[data-au-main]");
+          wrap.querySelectorAll("[data-au-thumb]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+              var img = btn.querySelector("img");
+              if (!img || !main) return;
+              main.src = img.src;
+              wrap.querySelectorAll("[data-au-thumb]").forEach(function (b) { b.classList.toggle("is-active", b === btn); });
+            });
+          });
+        });
       }
       function _lbOpenView(view) {
         // Sponsors/Donors merged (2026-09-14) — treat the legacy
