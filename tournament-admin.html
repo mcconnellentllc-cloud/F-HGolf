@@ -3783,6 +3783,9 @@
               // failure mode on this endpoint is almost always payload
               // size (the field name itself has been verified for years).
               var detail = String((j && j.detail) || "");
+              // Log the actual server + Airtable detail so we can
+              // diagnose why the retry ladder didn't fix the save.
+              try { console.error("[auction save] tier", tier, "failed:", j); } catch (e) {}
               if (tier + 1 < _AU_SHRINK_TIERS.length) {
                 _auTrySave(tier + 1);
                 return;
@@ -3790,6 +3793,12 @@
               var reason = (j && j.error) || "Save failed.";
               if (/exceeds the maximum length|value too long|string is too long|payload|too large|100000/i.test(detail)) {
                 reason = "The auction is too big for one Airtable field even after shrinking photos. Remove a photo or an item.";
+              } else if (detail) {
+                // Non-size error survived every retry — surface Airtable's
+                // actual message (trimmed) so the operator sees the real
+                // problem instead of the generic "Could not save."
+                var short = detail.replace(/\s+/g, " ").slice(0, 240);
+                reason = reason + " (Airtable said: " + short + ")";
               }
               _auStatus(reason, "error");
             }
