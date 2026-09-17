@@ -1,7 +1,7 @@
 /* F&H Golf Course — service worker.
    Network-first so the live site is always fresh online; falls back to a small
    cached shell when offline. Enables "Add to Home Screen" / installability. */
-var CACHE = "fh-cache-v423";
+var CACHE = "fh-cache-v424";
 var SHELL = ["./", "./index.html", "./css/styles.css", "./js/main.js", "./js/admin.js", "./images/logo.png", "./tournaments.html", "./history.html", "./founders-flights.html", "./founders-calcutta-display.html", "./founders-leaderboard-display.html", "./founders-rules.html", "./founders-recap.html", "./admin.html", "./admin-people.html", "./admin-tournaments.html", "./admin-carts.html", "./admin-signups.html", "./admin-activity.html", "./admin-nominations.html", "./admin-treasurer.html", "./admin-external.html", "./live.html", "./leaderboard.html", "./couples-rules.html", "./recap.html", "./couples-leaderboard-display.html", "./player.html", "./score-round.html", "./tournament-rules.html", "./js/tournament-rules.js", "./js/theme-fire.js", "./auction.html", "./sponsor.html"];
 
 self.addEventListener("install", function (e) {
@@ -23,11 +23,21 @@ self.addEventListener("activate", function (e) {
 // If we serve a stale copy after a deploy, the fire palette disappears
 // and viewers see the F&H green/gold. Force network-only for these.
 var NEVER_CACHE = /\/(leaderboard|auction|recap|tournament-rules|sponsor|tournament-admin|admin)\.html(\?|$)/i;
+// /api/ responses are dynamic (rosters, pairings, scores). Caching them
+// causes Pairings placements to look like they've "reverted" after a
+// drag save: positionSaveMany writes to Airtable, loadRoster fetches,
+// and the SW hands back a cached pre-save response — the Pairings tab
+// then sees no team placed and triggers silent autofill. Bypass cache.
+var API_BYPASS = /\/api\//i;
 
 self.addEventListener("fetch", function (e) {
   var req = e.request;
   if (req.method !== "GET") return; // never touch form POSTs, etc.
   var url = req.url || "";
+  if (API_BYPASS.test(url)) {
+    e.respondWith(fetch(req, { cache: "no-store" }));
+    return;
+  }
   if (NEVER_CACHE.test(url)) {
     e.respondWith(fetch(req, { cache: "no-store" }).catch(function () {
       return caches.match(req).then(function (m) { return m || caches.match("./index.html"); });

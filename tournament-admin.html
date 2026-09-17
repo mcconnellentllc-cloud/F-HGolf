@@ -7582,6 +7582,10 @@
       }
       function positionSaveMany(assignments) {
         var msg = document.getElementById("prMsg"); if (msg) msg.textContent = "Saving " + assignments.length + " move" + (assignments.length === 1 ? "" : "s") + "…";
+        // Flag the session as operator-managed the moment they touch
+        // Pairings. Silent autofill on the next render() will honor
+        // this even if a stale fetch says nothing is placed.
+        try { window.__prSessionSaved = true; } catch (e) {}
         assignments = assignments.map(_dAssign);
         fetch(FH_API.url("/api/tournament-flights"), { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": getKey() }, body: JSON.stringify({ assignments: assignments }) })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
@@ -8061,7 +8065,12 @@
             // silent autofill's pair-preferring pass. Operators who want
             // to clean up leftover trios after removing teams can hit
             // the Autofill button explicitly.
-            if (!anyPlaced) autofillWave(w.k, /*silent=*/true);
+            // Extra safety net: even if the fetched state came back
+            // stale and says nothing is placed, if the operator has
+            // dragged or picked a placement THIS session, skip silent
+            // autofill. Their intent was manual; a stale fetch
+            // shouldn't be allowed to reshuffle their work.
+            if (!anyPlaced && !window.__prSessionSaved) autofillWave(w.k, /*silent=*/true);
           });
         }, 60);
       }
