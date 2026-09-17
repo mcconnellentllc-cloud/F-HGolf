@@ -1647,9 +1647,18 @@
         // eyeball demand without opening a card. Ceil the sum so a lone
         // half-share still surfaces as 1 cart needed (half a cart doesn't
         // exist physically).
+        // Prefer the team's explicit "Rentals Needed" (the numeric
+        // dropdown on Check-In) when the operator has set one — that's
+        // the intent. Fall back to summing "Player X Cart Share" pills
+        // for legacy teams that never got a Rentals Needed value.
         var cartShareSum = 0;
         recs.forEach(function (r) {
           var f = r.fields || {};
+          var stored = f["Rentals Needed"];
+          if (typeof stored === "number" && stored >= 0) {
+            cartShareSum += Math.max(0, Math.floor(stored));
+            return;
+          }
           for (var i = 1; i <= 4; i++) {
             var v = f["Player " + i + " Cart Share"];
             if (typeof v === "number" && v > 0) cartShareSum += v;
@@ -6387,16 +6396,24 @@
           var f = r.fields || {};
           return f["Tournament"] === KEY && !f["Alternate"];
         });
-        // Source of truth: sum of per-player cart shares across the field.
-        // 0 = own cart, 0.5 = sharing, 1 = full rental — sum → actual carts.
-        // Ceil so a lone half-share still counts as 1 cart to hand out.
+        // Source of truth: prefer the team's explicit "Rentals Needed"
+        // dropdown on Check-In. Fall back to summing "Player X Cart
+        // Share" pills for legacy rows that never got a Rentals
+        // Needed value. 0 = own cart, 0.5 = sharing, 1 = full rental
+        // — sum → actual carts. Ceil so a lone half-share still
+        // counts as 1 cart to hand out.
         var shareSum = 0;
         var borrowed = {};
         recs.forEach(function (r) {
           var f = r.fields || {};
-          for (var i = 1; i <= 4; i++) {
-            var v = f["Player " + i + " Cart Share"];
-            if (typeof v === "number" && v > 0) shareSum += v;
+          var stored = f["Rentals Needed"];
+          if (typeof stored === "number" && stored >= 0) {
+            shareSum += Math.max(0, Math.floor(stored));
+          } else {
+            for (var i = 1; i <= 4; i++) {
+              var v = f["Player " + i + " Cart Share"];
+              if (typeof v === "number" && v > 0) shareSum += v;
+            }
           }
           var assign = String(f["Cart Assignment"] || "").trim();
           if (assign.toLowerCase().indexOf("borrowed:") === 0) {
