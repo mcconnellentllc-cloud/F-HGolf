@@ -3717,12 +3717,36 @@
         if (openBtn) openBtn.setAttribute("href", "auction.html?t=" + encodeURIComponent(KEY));
         var host = document.getElementById("auClerk"); if (!host) return;
         var items = _auState.items || [];
-        if (!items.length) { host.innerHTML = '<p class="au-empty">No items yet. Add one above.</p>'; }
+        // Buyer name autofill — pool of every roster name in this
+        // tournament (Player Name + Team / Partners) plus any past
+        // buyers already recorded on this auction. Datalist is
+        // shared by every row's buyer input via list="auBuyerList".
+        var _auBuyerSeen = {}, _auBuyerNames = [];
+        function _auAddBuyerName(n) {
+          n = String(n || "").trim(); if (!n) return;
+          var k = n.toLowerCase();
+          if (_auBuyerSeen[k]) return;
+          _auBuyerSeen[k] = true;
+          _auBuyerNames.push(n);
+        }
+        (typeof scAllCache !== "undefined" ? scAllCache : []).forEach(function (r) {
+          var f = r.fields || {};
+          _auAddBuyerName(f["Player Name"]);
+          String(f["Team / Partners"] || "").split(/\s*[\/,&]\s*|\s+and\s+/i).forEach(_auAddBuyerName);
+        });
+        items.forEach(function (it) {
+          if (it && it.sold && it.sold.buyerName) _auAddBuyerName(it.sold.buyerName);
+        });
+        _auBuyerNames.sort(function (a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
+        var buyerListHtml = '<datalist id="auBuyerList">'
+          + _auBuyerNames.map(function (n) { return '<option value="' + esc(n) + '"></option>'; }).join("")
+          + '</datalist>';
+        if (!items.length) { host.innerHTML = buyerListHtml + '<p class="au-empty">No items yet. Add one above.</p>'; }
         else {
           // Two-row bid block per item: buyer + amount live on top so the
           // clerk types them at hammer time, email + phone sit underneath
           // for after the auction closes (receipt send + pickup contact).
-          host.innerHTML = ''
+          host.innerHTML = buyerListHtml
             + items.map(function (it) {
                 var sold = it.sold && (it.sold.amount || it.sold.buyerName);
                 var receiptSent = it.sold && it.sold.receiptSentAt;
@@ -3751,7 +3775,7 @@
                   + '<div class="au-clerk__bid">'
                   +   '<label class="au-clerk__field au-clerk__field--buyer">'
                   +     '<span>Buyer</span>'
-                  +     '<input type="text" data-au-buyer placeholder="Buyer name" value="' + esc(b.buyerName || "") + '" />'
+                  +     '<input type="text" data-au-buyer list="auBuyerList" autocomplete="off" placeholder="Buyer name" value="' + esc(b.buyerName || "") + '" />'
                   +   '</label>'
                   +   '<label class="au-clerk__field au-clerk__field--amount">'
                   +     '<span>Amount</span>'
@@ -3814,6 +3838,113 @@
         host.querySelectorAll("[data-au-buyer], [data-au-amount], [data-au-email], [data-au-phone]").forEach(function (inp) {
           inp.addEventListener("input", function () { _auCollectFromDom(); _auScheduleSave(); });
         });
+        // Buyer-name pick → prefill email from the roster / Players
+        // card. Buyers are almost always players; typing "John Smith"
+        // (or picking from the datalist) drops their email straight
+        // into the receipt field so the clerk doesn't chase it down.
+        host.querySelectorAll("[data-au-buyer]").forEach(function (inp) {
+          function tryPrefill() {
+            var row = inp.closest("[data-au-row]"); if (!row) return;
+            var emailEl = row.querySelector("[data-au-email]");
+            if (!emailEl || String(emailEl.value || "").trim()) return; // don't overwrite typed value
+            var name = String(inp.value || "").trim();
+            if (!name) return;
+            var email = _auEmailForName(name);
+            if (email) {
+              emailEl.value = email;
+              _auCollectFromDom();
+              _auScheduleSave();
+            } else {
+              // Roster / signup didn't have one — fall back to the
+              // Players table (partner names live there even when the
+              // signup form only captured the captain's email).
+              _auLookupPlayerEmail(name, function (found) {
+                if (!found) return;
+                if (String(emailEl.value || "").trim()) return; // clerk typed one meanwhile
+                emailEl.value = found;
+                _auCollectFromDom();
+                _auScheduleSave();
+              });
+            }
+          }
+          inp.addEventListener("change", tryPrefill);
+          inp.addEventListener("blur", tryPrefill);
+        });
+        // Email typed on the row → attach it to that buyer's Player
+        // card if the card has no email on file. The Players table is
+        // the master list; blank contact fields get filled here so
+        // next year's tournament already knows how to reach them. We
+        // never overwrite an existing email (that's the security anchor
+        // for the magic-link self-edit flow).
+        host.querySelectorAll("[data-au-email]").forEach(function (inp) {
+          inp.addEventListener("blur", function () {
+            var row = inp.closest("[data-au-row]"); if (!row) return;
+            var buyerEl = row.querySelector("[data-au-buyer]");
+            var name = buyerEl ? String(buyerEl.value || "").trim() : "";
+            var email = String(inp.value || "").trim();
+            if (!name || !email) return;
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+            _auMaybeAttachEmailToPlayer(name, email);
+          });
+        });
+      }
+      // Helpers for the Auction clerk buyer autofill / save-back. Live
+      // outside renderAuction so a re-render doesn't rebuild them.
+      function _auEmailForName(name) {
+        var target = String(name || "").trim().toLowerCase();
+        if (!target) return "";
+        var cache = (typeof scAllCache !== "undefined" ? scAllCache : []);
+        for (var i = 0; i < cache.length; i++) {
+          var f = cache[i].fields || {};
+          if (String(f["Player Name"] || "").trim().toLowerCase() === target) {
+            return String(f["Email"] || "").trim();
+          }
+        }
+        return "";
+      }
+      // Debounced lookup cache for the Players table. Keyed by lowercase
+      // name so a repeat lookup during the same auction night is free.
+      var _auPlayerEmailCache = {};
+      function _auLookupPlayerEmail(name, cb) {
+        var key = String(name || "").trim().toLowerCase();
+        if (!key) { cb(""); return; }
+        if (_auPlayerEmailCache.hasOwnProperty(key)) { cb(_auPlayerEmailCache[key]); return; }
+        fetch(FH_API.url("/api/players?name=" + encodeURIComponent(name)), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            var email = "";
+            if (j && j.ok) {
+              var rec = (j.records || [])[0];
+              if (rec) email = String((rec.fields || {}).Email || "").trim();
+            }
+            _auPlayerEmailCache[key] = email;
+            cb(email);
+          })
+          .catch(function () { cb(""); });
+      }
+      function _auMaybeAttachEmailToPlayer(name, email) {
+        // Look up the Player row; if it exists and Email is blank,
+        // PATCH the email onto it. Silent on failure — this is a
+        // best-effort convenience, not a required auction save.
+        fetch(FH_API.url("/api/players?name=" + encodeURIComponent(name)), { headers: { "x-admin-key": getKey() } })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok) return;
+            var rec = (j.records || [])[0];
+            if (!rec) return; // not in Players — do NOT create, would risk duplicate on a slightly different name
+            var cur = String((rec.fields || {}).Email || "").trim();
+            if (cur) { _auPlayerEmailCache[name.toLowerCase()] = cur; return; } // don't overwrite the security anchor
+            return fetch(FH_API.url("/api/players"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+              body: JSON.stringify({ id: rec.id, email: email }),
+            })
+              .then(function (r) { return r.json().catch(function () { return {}; }); })
+              .then(function (j2) {
+                if (j2 && j2.ok) _auPlayerEmailCache[name.toLowerCase()] = email;
+              });
+          })
+          .catch(function () {});
       }
       function _auResizePhoto(file, cb) {
         var MAX = 400, Q = 0.6;
