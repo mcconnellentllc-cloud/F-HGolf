@@ -1,19 +1,13 @@
 /* Resolves where the API lives.
 
-   fandhgolf.com and its www subdomain are served by Vercel now (used to be
-   GitHub Pages), so /api routes work same-origin there — no need for the
-   cross-origin hop through f-h-golf.vercel.app that used to be required when
-   the marketing site was on GitHub Pages. That hop broke when the vercel.app
-   alias got out of sync with production (ERR_FAILED on tournament-admin's
-   Fire config load), so treat any custom domain we know is on Vercel as
-   same-origin. Preview deployments (*.vercel.app) and localhost are also
-   same-origin. Fall back to the cross-origin API base for any unrecognized
-   host (e.g. a static mirror). */
+   The public site is served from GitHub Pages (fandhgolf.com), which is a
+   static host and cannot run the /api serverless functions — a POST there
+   returns 405. Those functions only exist on Vercel. So when we're NOT on
+   Vercel (or localhost), point API calls at the Vercel deployment; otherwise
+   use a same-origin relative path. */
 (function () {
   var h = location.hostname;
-  var sameOrigin = /(^|\.)vercel\.app$/.test(h)
-    || /(^|\.)fandhgolf\.com$/i.test(h)
-    || h === "localhost" || h === "127.0.0.1";
+  var sameOrigin = /(^|\.)vercel\.app$/.test(h) || h === "localhost" || h === "127.0.0.1";
   var base = sameOrigin ? "" : "https://f-h-golf.vercel.app";
   window.FH_API = {
     base: base,
