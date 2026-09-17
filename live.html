@@ -192,7 +192,11 @@
       --brass-soft:   #fdecef;
     }
     @media (prefers-color-scheme: dark) {
-      body.live-fire {
+      /* Skip when the page forced light (Fire tournament pins itself
+         to the light palette via html[data-theme="light"]), so the OS
+         dark preference doesn't drag the red accents to their
+         darker-mode variants. */
+      :root:not([data-theme="light"]) body.live-fire {
         --green:        #ff6b7a;
         --green-strong: #ff6b7a;
         --green-soft:   #3a0f14;
@@ -634,15 +638,16 @@
             STATE.tournament = j.tournament || "";
             STATE.config = j.config || {};
             STATE.field = j.field || [];
-            // Haxtun Fire tournaments get the red-on-dark Fire theme,
-            // matching the leaderboard's Fire identity. Force dark
-            // regardless of the device's prefers-color-scheme so the
-            // scorecard reads the same on a phone in Light mode and a
-            // desktop in Auto — the Fire tournament is always Fire.
+            // Haxtun Fire tournaments get the red accents on the Rules /
+            // Sponsors panels + bottom-tab highlight, matching the
+            // leaderboard's Fire identity. Force LIGHT regardless of
+            // the device's prefers-color-scheme so the scorecard reads
+            // the same on a phone in Dark mode and a desktop in Light —
+            // the Fire tournament is always the light-paper Fire look.
             try {
               if (/^\s*haxtun\s*fire/i.test(String(STATE.tournament || ""))) {
-                document.body.classList.add("live-fire", "dark");
-                document.documentElement.setAttribute("data-theme", "dark");
+                document.body.classList.add("live-fire");
+                document.documentElement.setAttribute("data-theme", "light");
               }
             } catch (e) {}
             // Fetch Donors JSON for the Sponsors tab. Separate call
