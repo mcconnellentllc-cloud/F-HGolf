@@ -634,12 +634,15 @@
             STATE.tournament = j.tournament || "";
             STATE.config = j.config || {};
             STATE.field = j.field || [];
-            // Haxtun Fire tournaments get a subtle red accent on the
-            // Rules / Sponsors panels + bottom-tab highlight, matching
-            // the leaderboard's Fire theme so the two identities agree.
+            // Haxtun Fire tournaments get the red-on-dark Fire theme,
+            // matching the leaderboard's Fire identity. Force dark
+            // regardless of the device's prefers-color-scheme so the
+            // scorecard reads the same on a phone in Light mode and a
+            // desktop in Auto — the Fire tournament is always Fire.
             try {
               if (/^\s*haxtun\s*fire/i.test(String(STATE.tournament || ""))) {
-                document.body.classList.add("live-fire");
+                document.body.classList.add("live-fire", "dark");
+                document.documentElement.setAttribute("data-theme", "dark");
               }
             } catch (e) {}
             // Fetch Donors JSON for the Sponsors tab. Separate call
