@@ -4183,37 +4183,66 @@
       }
 
       // Copy-paste prompt for the operator to feed into a talk-to-text or
-      // GPT project. Keeping it as a function so the shape is edit-in-place
-      // if we tweak the recap section structure later.
+      // GPT project. Built per tournament so the display name, year, and
+      // section list actually match the event: Founders is multi-day
+      // with Calcutta, Fire is single-day with an auction and a
+      // fundraising total, everything else is single-day flight play.
       function recapProjectsPrompt() {
-        return ""
-          + "Please return the 2026 Founders Tournament recap as plain text\n"
+        // "Haxtun Fire (Sept 19, 2026)" -> "Haxtun Fire"
+        // "Founder's Tournament (Aug 8-9)" -> "Founder's Tournament"
+        var name = String(KEY || "").replace(/\s*\(.*?\)\s*$/, "").trim() || "Tournament";
+        // Year: prefer the tournament's date if we know it, else current.
+        var year = new Date().getFullYear();
+        try {
+          var endStr = (META && META.end) || "";
+          var yr = parseInt(String(endStr).slice(0, 4), 10);
+          if (yr) year = yr;
+        } catch (e) {}
+        var cfg = _tcConfigCache || {};
+        var isMultiDay = Number(cfg["Rounds"] || 1) >= 2;
+        var hasCalcutta = String(cfg["Calcutta Enabled"] || "").toLowerCase() === "on";
+        var hasAuction = (typeof _auIsFire === "function") ? _auIsFire() : false;
+        var span = isMultiDay ? "weekend" : "day";
+        var grossPeriod = isMultiDay ? "2-day gross" : "gross";
+        var out = ""
+          + "Please return the " + year + " " + name + " recap as plain text\n"
           + "in the exact structure below. No preamble, no closing note --\n"
           + "just the sections. Blank line between paragraphs. Use `**bold**`\n"
           + "for names and dollar figures.\n"
           + "\n"
-          + "# 2026 Founder's Tournament Recap\n"
+          + "# " + year + " " + name + " Recap\n"
           + "\n"
-          + "A 2-3 sentence overview of the weekend -- vibe, weather, turnout.\n"
+          + "A 2-3 sentence overview of the " + span + " -- vibe, weather, turnout.\n"
           + "\n"
           + "## Champion\n"
-          + "Team + their 2-day gross.\n"
+          + "Team + their " + grossPeriod + ".\n"
           + "\n"
           + "## Flight winners\n"
           + "- **Champ Flight** -- 1st: Team A (gross), 2nd: Team B, 3rd: Team C\n"
           + "- **1st Flight**  -- 1st: ..., 2nd: ..., 3rd: ...\n"
           + "- **2nd Flight**  -- 1st: ..., 2nd: ..., 3rd: ...\n"
           + "- **3rd Flight**  -- 1st: ..., 2nd: ..., 3rd: ...\n"
-          + "\n"
-          + "## Calcutta highlights\n"
-          + "Total pool, biggest buy, notable finishes -- who bought a champion.\n"
-          + "\n"
-          + "## Highlights of the weekend\n"
+          + "\n";
+        if (hasCalcutta) {
+          out += "## Calcutta highlights\n"
+            + "Total pool, biggest buy, notable finishes -- who bought a champion.\n"
+            + "\n";
+        }
+        if (hasAuction) {
+          out += "## Auction highlights\n"
+            + "Standout items + winning bids. Call out donors and top buyers in **bold**.\n"
+            + "\n"
+            + "## Fundraising total\n"
+            + "Combined auction + sponsor total for the beneficiary. Use **bold** on the final figure.\n"
+            + "\n";
+        }
+        out += "## Highlights of the " + span + "\n"
           + "- Standout shots, long drives, closest-to-pin, dramatic comebacks.\n"
           + "- Include names in **bold**. One bullet per moment.\n"
           + "\n"
           + "## Thanks\n"
           + "Sponsors, volunteers, the pro shop, the kitchen -- one paragraph.\n";
+        return out;
       }
 
       // Cached history archives — populated on first History tab open (or
@@ -12410,8 +12439,12 @@
         } catch (e) {}
         var rCopy = document.getElementById("recapCopyBrief");
         if (rCopy) rCopy.addEventListener("click", function () {
+          // Always rebuild from live config — the operator may have flipped
+          // Calcutta/Auction on the Format tab after the Recap tab first
+          // rendered, and we want the copied prompt to match reality.
+          var txt = recapProjectsPrompt();
           var code = document.getElementById("recapBriefCode");
-          var txt = code ? code.textContent : recapProjectsPrompt();
+          if (code) code.textContent = txt; // keep the visible preview in sync
           if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(txt).then(function () {
               rCopy.textContent = "Copied ✓";
