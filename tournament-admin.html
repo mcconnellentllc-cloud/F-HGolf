@@ -3238,12 +3238,11 @@
         if (_dnAutoTimer) { clearTimeout(_dnAutoTimer); _dnAutoTimer = null; }
         if (!getKey()) { _dnStatus("Sign in first.", "error"); return; }
         var payload = JSON.stringify(_dnState);
-        // Airtable long-text fields accept large payloads (well past the
-        // 100k UI hint); the practical ceiling is per-record size around
-        // 2 MB. 500k here is roughly 25–35 downsized logos at 300×300 /
-        // Q0.65 — plenty for a sponsor wall — while still refusing a
-        // request big enough to blow the record size.
-        if (payload.length > 500000) { _dnStatus("Too many logos — remove one or use a smaller image.", "error"); return; }
+        // Airtable long-text hard-limit is ~100,000 characters per field
+        // via the API. Guard just under so we reject with a clear
+        // message locally instead of letting Airtable return the
+        // generic "Could not save the config."
+        if (payload.length > 95000) { _dnStatus("Too many logos — remove one or use a smaller image.", "error"); return; }
         _dnStatus("Saving…");
         fetch(FH_API.url("/api/tournament-signups"), {
           method: "POST",
@@ -3675,10 +3674,68 @@
         // the operator doesn't lose in-progress typing.
         _auCollectFromDom();
         var payload = JSON.stringify(_auState);
-        // Same reasoning as saveDonors — Airtable long-text can hold well
-        // past 100k, so bump to 500k. Auction items usually have 1–2
-        // photos each; this fits ~25 items comfortably.
-        if (payload.length > 500000) { _auStatus("Too much data — remove a photo or item.", "error"); return; }
+        // Airtable long-text hard-limit is ~100,000 characters per field
+        // via the API. If the payload is over budget, try re-shrinking
+        // every photo through the smaller resize pipeline (240 / Q0.55)
+        // in place — older photos were saved at 400 / Q0.6 and stack up
+        // fast, so a shrink pass often reclaims enough room to fit
+        // without the operator removing anything.
+        if (payload.length > 95000) {
+          _auStatus("Shrinking photos to fit…");
+          _auShrinkAllPhotos(function () {
+            var payload2 = JSON.stringify(_auState);
+            if (payload2.length > 95000) {
+              _auStatus("Too much data — remove a photo or item.", "error");
+              return;
+            }
+            _auSubmitConfig(payload2);
+          });
+          return;
+        }
+        _auSubmitConfig(payload);
+      }
+      // Walk every item's photos, re-decode each data URI into an
+      // <img>, redraw through the aggressive resize canvas, and put
+      // the smaller data URI back. Async because Image.onload is; cb
+      // fires after all items are done.
+      function _auShrinkAllPhotos(cb) {
+        var jobs = [];
+        (_auState.items || []).forEach(function (it) {
+          if (!Array.isArray(it.photos)) return;
+          it.photos.forEach(function (p, i) {
+            if (typeof p !== "string" || p.indexOf("data:image/") !== 0) return;
+            jobs.push({ item: it, idx: i, uri: p });
+          });
+        });
+        if (!jobs.length) { cb(); return; }
+        var remaining = jobs.length;
+        var MAX = 240, Q = 0.55;
+        jobs.forEach(function (job) {
+          var img = new Image();
+          img.onload = function () {
+            var w = img.naturalWidth, h = img.naturalHeight;
+            if (!w || !h) { remaining--; if (!remaining) cb(); return; }
+            var scale = Math.min(1, MAX / w, MAX / h);
+            var cw = Math.round(w * scale), ch = Math.round(h * scale);
+            var cvs = document.createElement("canvas");
+            cvs.width = cw; cvs.height = ch;
+            var ctx = cvs.getContext("2d");
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, cw, ch);
+            ctx.drawImage(img, 0, 0, cw, ch);
+            try {
+              var smaller = cvs.toDataURL("image/jpeg", Q);
+              if (smaller && smaller.length < job.uri.length) {
+                job.item.photos[job.idx] = smaller;
+              }
+            } catch (e) {}
+            remaining--;
+            if (!remaining) cb();
+          };
+          img.onerror = function () { remaining--; if (!remaining) cb(); };
+          img.src = job.uri;
+        });
+      }
+      function _auSubmitConfig(payload) {
         _auStatus("Saving…");
         fetch(FH_API.url("/api/tournament-signups"), {
           method: "POST",
@@ -3698,7 +3755,17 @@
               else _auStatus("Saved ✓", "ok");
               renderAuction(); // repaint totals + SOLD styling
             } else {
-              _auStatus((j && j.error) || "Save failed.", "error");
+              // Surface Airtable's actual reason when it's a size /
+              // length rejection so the operator knows the item has too
+              // much photo data rather than staring at the generic
+              // "Could not save the config." The endpoint includes the
+              // Airtable detail in `j.detail` on the 502 path.
+              var reason = (j && j.error) || "Save failed.";
+              var detail = String((j && j.detail) || "");
+              if (/exceeds the maximum length|value too long|string is too long|payload/i.test(detail)) {
+                reason = "The auction is too big for one Airtable field. Remove a photo or an item (photos are the bulk of the payload).";
+              }
+              _auStatus(reason, "error");
             }
           })
           .catch(function () { _auStatus("Network error saving.", "error"); });
@@ -3978,7 +4045,15 @@
           .catch(function () {});
       }
       function _auResizePhoto(file, cb) {
-        var MAX = 400, Q = 0.6;
+        // Aggressive downsize so a multi-item auction fits in Airtable's
+        // long-text field limit (~100k chars per value). The public
+        // display shows a card thumb + a small strip of secondary
+        // thumbs — 240px is plenty of pixels; quality 0.55 keeps JPEG
+        // artifacts invisible at that size. Typical per-photo output
+        // lands around 6–14 KB base64 vs. 20–35 KB at the old
+        // 400/0.6 preset, so a 2-item × 4-photo auction goes from
+        // ~200 KB down to ~80 KB and fits the field.
+        var MAX = 240, Q = 0.55;
         var reader = new FileReader();
         reader.onerror = function () { cb(""); };
         reader.onload = function () {
