@@ -3667,38 +3667,60 @@
         if (_auAutoTimer) clearTimeout(_auAutoTimer);
         _auAutoTimer = setTimeout(function () { _auAutoTimer = null; saveAuction(); }, 1200);
       }
+      // Progressively smaller resize presets. Each save-retry uses the
+      // next tier if the previous one still didn't fit Airtable's
+      // 100k-char long-text field. First entry matches the fresh-photo
+      // resize preset so a first-save with normal-sized photos is a
+      // no-op re-encode when nothing is oversized.
+      var _AU_SHRINK_TIERS = [
+        { max: 240, q: 0.55 },
+        { max: 200, q: 0.5 },
+        { max: 160, q: 0.45 },
+        { max: 120, q: 0.4 }
+      ];
       function saveAuction() {
         if (_auAutoTimer) { clearTimeout(_auAutoTimer); _auAutoTimer = null; }
         if (!getKey()) { _auStatus("Sign in first.", "error"); return; }
         // Pull any pending clerk edits from the DOM into state first so
         // the operator doesn't lose in-progress typing.
         _auCollectFromDom();
+        _auTrySave(0);
+      }
+      // Attempt the save at shrink tier N. On failure, escalate: shrink
+      // every photo to the next-smaller preset and retry until either
+      // Airtable accepts or we exhaust the tiers.
+      function _auTrySave(tier) {
         var payload = JSON.stringify(_auState);
-        // Airtable long-text hard-limit is ~100,000 characters per field
-        // via the API. If the payload is over budget, try re-shrinking
-        // every photo through the smaller resize pipeline (240 / Q0.55)
-        // in place — older photos were saved at 400 / Q0.6 and stack up
-        // fast, so a shrink pass often reclaims enough room to fit
-        // without the operator removing anything.
-        if (payload.length > 95000) {
-          _auStatus("Shrinking photos to fit…");
-          _auShrinkAllPhotos(function () {
+        // If the current payload is over budget OR we're on a retry,
+        // shrink every photo through this tier's preset first. Tier 0
+        // triggers a shrink only when the payload is over 95k, so a
+        // normal first save with reasonably-sized photos skips the
+        // canvas round-trip entirely.
+        var preset = _AU_SHRINK_TIERS[tier] || _AU_SHRINK_TIERS[_AU_SHRINK_TIERS.length - 1];
+        var needShrink = payload.length > 95000 || tier > 0;
+        if (needShrink) {
+          _auStatus(tier === 0 ? "Shrinking photos to fit…" : "Trying smaller photos…");
+          _auShrinkAllPhotos(preset.max, preset.q, function () {
             var payload2 = JSON.stringify(_auState);
+            if (payload2.length > 95000 && tier + 1 < _AU_SHRINK_TIERS.length) {
+              _auTrySave(tier + 1);
+              return;
+            }
             if (payload2.length > 95000) {
               _auStatus("Too much data — remove a photo or item.", "error");
               return;
             }
-            _auSubmitConfig(payload2);
+            _auSubmitConfig(payload2, tier);
           });
           return;
         }
-        _auSubmitConfig(payload);
+        _auSubmitConfig(payload, tier);
       }
       // Walk every item's photos, re-decode each data URI into an
       // <img>, redraw through the aggressive resize canvas, and put
       // the smaller data URI back. Async because Image.onload is; cb
       // fires after all items are done.
-      function _auShrinkAllPhotos(cb) {
+      function _auShrinkAllPhotos(MAX, Q, cb) {
         var jobs = [];
         (_auState.items || []).forEach(function (it) {
           if (!Array.isArray(it.photos)) return;
@@ -3709,7 +3731,6 @@
         });
         if (!jobs.length) { cb(); return; }
         var remaining = jobs.length;
-        var MAX = 240, Q = 0.55;
         jobs.forEach(function (job) {
           var img = new Image();
           img.onload = function () {
@@ -3735,7 +3756,7 @@
           img.src = job.uri;
         });
       }
-      function _auSubmitConfig(payload) {
+      function _auSubmitConfig(payload, tier) {
         _auStatus("Saving…");
         fetch(FH_API.url("/api/tournament-signups"), {
           method: "POST",
@@ -3755,15 +3776,20 @@
               else _auStatus("Saved ✓", "ok");
               renderAuction(); // repaint totals + SOLD styling
             } else {
-              // Surface Airtable's actual reason when it's a size /
-              // length rejection so the operator knows the item has too
-              // much photo data rather than staring at the generic
-              // "Could not save the config." The endpoint includes the
-              // Airtable detail in `j.detail` on the 502 path.
-              var reason = (j && j.error) || "Save failed.";
+              // Any non-ok response is treated as a size-related
+              // rejection: bump to the next shrink tier and retry.
+              // Airtable's error messages for "value too long" vary and
+              // aren't reliably regex-matchable, but the practical
+              // failure mode on this endpoint is almost always payload
+              // size (the field name itself has been verified for years).
               var detail = String((j && j.detail) || "");
-              if (/exceeds the maximum length|value too long|string is too long|payload/i.test(detail)) {
-                reason = "The auction is too big for one Airtable field. Remove a photo or an item (photos are the bulk of the payload).";
+              if (tier + 1 < _AU_SHRINK_TIERS.length) {
+                _auTrySave(tier + 1);
+                return;
+              }
+              var reason = (j && j.error) || "Save failed.";
+              if (/exceeds the maximum length|value too long|string is too long|payload|too large|100000/i.test(detail)) {
+                reason = "The auction is too big for one Airtable field even after shrinking photos. Remove a photo or an item.";
               }
               _auStatus(reason, "error");
             }
