@@ -6973,7 +6973,16 @@
         var list = document.getElementById("twRoster");
         var isEmpty = !list || !list.querySelector(".ci-grid, .noms__row");
         if (isEmpty && list) list.innerHTML = '<p class="noms__msg">Loading roster…</p>';
-        fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() } })
+        // cache: no-store — critical for Pairings. Every drag/dropdown
+        // save calls loadRoster right after the write, and if the
+        // fetch returns a stale cached body (browser HTTP cache or an
+        // edge cache in front of Vercel), scAllCache is populated with
+        // the PRE-save placements. The Pairings tab's initial-setup
+        // autofill trigger reads `anyPlaced` from that stale state,
+        // sees nothing placed, and reshuffles the whole wave — which
+        // looks to the operator like teams "unseating themselves and
+        // reverting to autofill." Bust the cache on every load.
+        fetch(FH_API.url("/api/tournament-signups"), { headers: { "x-admin-key": getKey() }, cache: "no-store" })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, j: j }; }); })
           .then(function (res) {
             if (res.j && res.j.ok) {
