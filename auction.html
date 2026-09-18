@@ -42,6 +42,16 @@
     .share { display: flex; justify-content: center; gap: 0.5rem; padding: 1rem; flex-wrap: wrap; }
     .share__btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; border-radius: 999px; background: var(--gold); color: #0b1a10; border: none; font: 700 0.9rem/1 inherit; letter-spacing: 0.03em; cursor: pointer; text-decoration: none; }
     .share__btn:hover { background: #fff; }
+    /* Call-in bidders panel — three tap-to-call cards for people
+       who want to phone in a bid instead of showing up in person. */
+    .au-callin { max-width: 78rem; width: 100%; margin: 0 auto; padding: 0.5rem clamp(1rem, 2vw, 2rem) 0.75rem; text-align: center; }
+    .au-callin__h { font-family: "Fraunces", Georgia, serif; color: #fff; font-size: clamp(1.25rem, 3vw, 1.7rem); margin: 0.25rem 0 0.15rem; letter-spacing: 0.01em; }
+    .au-callin__lead { color: rgba(255,255,255,0.75); margin: 0 0 0.85rem; font-size: 0.95rem; }
+    .au-callin__list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; }
+    .au-callin__card { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; padding: 0.7rem 0.9rem; background: var(--panel, rgba(255,255,255,0.06)); border: 1px solid var(--line, rgba(255,255,255,0.15)); border-left: 4px solid var(--red, #c8102e); border-radius: 10px; color: #fff; text-decoration: none; transition: background 0.15s ease, transform 0.15s ease; }
+    .au-callin__card:hover, .au-callin__card:active { background: rgba(200,16,46,0.14); transform: translateY(-1px); }
+    .au-callin__name { font-weight: 700; font-size: 1rem; color: #fff; }
+    .au-callin__phone { font: 700 1.05rem/1 "Fraunces", Georgia, serif; color: var(--gold, #c8a24a); letter-spacing: 0.02em; }
 
     .au { flex: 1; max-width: 78rem; width: 100%; margin: 0 auto; padding: 1rem clamp(1rem, 2vw, 2rem) 3rem; }
     .au-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr)); gap: 1rem; }
@@ -111,6 +121,16 @@
       <button class="share__btn" type="button" id="shareCopy">Copy link</button>
     </div>
 
+    <!-- Call-in bidders panel. Populated per tournament by the script
+         below (currently: Haxtun Fire organizers). Hidden when the
+         tournament key doesn't have contacts on file, so the block
+         doesn't render an empty header for non-Fire auctions. -->
+    <section class="au-callin" id="auCallin" aria-label="Call in a bid" hidden>
+      <h2 class="au-callin__h">Can't make it in person? Call in a bid.</h2>
+      <p class="au-callin__lead">One of the organizers will place the bid for you.</p>
+      <div class="au-callin__list" id="auCallinList"></div>
+    </section>
+
     <section class="au" aria-label="Auction items">
       <div class="au-grid" id="auGrid">
         <p class="au-empty">Loading auction items&hellip;</p>
@@ -145,6 +165,38 @@
       navLb.href = "leaderboard.html?t=" + encodeURIComponent(KEY);
       navRc.href = "recap.html?t=" + encodeURIComponent(KEY);
       document.title = KEY + " — Auction | F&H Golf Course";
+
+      // Call-in bidder contacts. Keyed by tournament so future auctions
+      // can list their own organizers without touching auction rendering.
+      // Match is case-insensitive on the leading tournament name so a
+      // key rename like "Haxtun Fire (Sept 19, 2026)" -> "Haxtun Fire"
+      // still routes.
+      var CALLIN_CONTACTS = {
+        "haxtun fire": [
+          { name: "Marc Bornhoft", phone: "970-580-2913" },
+          { name: "Mike Davis",    phone: "970-520-1902" },
+          { name: "Wyatt Buccelli", phone: "303-913-0817" }
+        ]
+      };
+      (function renderCallin() {
+        var host = document.getElementById("auCallin");
+        var list = document.getElementById("auCallinList");
+        if (!host || !list) return;
+        var short = String(KEY || "").toLowerCase().replace(/\s*\(.*?\)\s*$/, "").trim();
+        var contacts = null;
+        Object.keys(CALLIN_CONTACTS).forEach(function (k) {
+          if (short.indexOf(k) === 0) contacts = CALLIN_CONTACTS[k];
+        });
+        if (!contacts || !contacts.length) return;
+        list.innerHTML = contacts.map(function (c) {
+          var digits = String(c.phone || "").replace(/\D+/g, "");
+          return '<a class="au-callin__card" href="tel:' + esc(digits) + '">'
+            + '<span class="au-callin__name">' + esc(c.name) + '</span>'
+            + '<span class="au-callin__phone">' + esc(c.phone) + '</span>'
+            + '</a>';
+        }).join("");
+        host.hidden = false;
+      })();
 
       function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
       function money(n) { n = Number(n) || 0; return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
