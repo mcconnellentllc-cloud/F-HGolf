@@ -1109,8 +1109,43 @@
         });
         return out;
       }
-      function d1g(r) { var f = r.fields || {}; return (f["Day1 Scores"] && typeof f["Day1 Gross"] === "number") ? f["Day1 Gross"] : null; }
-      function d2g(r) { var f = r.fields || {}; return (f["Day2 Scores"] && typeof f["Day2 Gross"] === "number") ? f["Day2 Gross"] : null; }
+      // Return the team's current Day 1 gross. Prefers the completed
+      // "Day1 Gross" number (only set by tournament-score.js once all
+      // 18 holes are entered), then falls back to a live running sum
+      // of whatever hole scores have been written to "Day1 Scores" so
+      // partial rounds show up on the leaderboard as they're scored.
+      // Same shape for d2g. thru(r, day) returns how many holes are in.
+      function _sumScores(raw) {
+        if (raw == null || raw === "") return null;
+        try {
+          var arr = typeof raw === "string" ? JSON.parse(raw) : raw;
+          if (!Array.isArray(arr)) return null;
+          var s = 0, holes = 0;
+          for (var i = 0; i < arr.length; i++) {
+            var n = Number(arr[i]);
+            if (isFinite(n) && n > 0) { s += n; holes++; }
+          }
+          return holes ? { gross: s, holes: holes } : null;
+        } catch (e) { return null; }
+      }
+      function d1g(r) {
+        var f = r.fields || {};
+        if (typeof f["Day1 Gross"] === "number") return f["Day1 Gross"];
+        var partial = _sumScores(f["Day1 Scores"]);
+        return partial ? partial.gross : null;
+      }
+      function d2g(r) {
+        var f = r.fields || {};
+        if (typeof f["Day2 Gross"] === "number") return f["Day2 Gross"];
+        var partial = _sumScores(f["Day2 Scores"]);
+        return partial ? partial.gross : null;
+      }
+      function d1thru(r) {
+        var f = r.fields || {};
+        if (typeof f["Day1 Gross"] === "number") return 18;
+        var partial = _sumScores(f["Day1 Scores"]);
+        return partial ? partial.holes : 0;
+      }
 
       function rankPlaces(rows, key, outField) {
         var scored = rows.slice().filter(function (r) { return r[key] != null; }).sort(function (a, b) { return a[key] - b[key]; });
@@ -1180,7 +1215,7 @@
             var gross = IS_TWO_DAY
               ? ((d1 != null && d2 != null) ? (d1 + d2) : null)
               : d1;
-            return { id: r.id, name: teamShortNames(f), d1: d1, d2: d2, gross: gross, grossPlace: null };
+            return { id: r.id, name: teamShortNames(f), d1: d1, d2: d2, gross: gross, thru: d1thru(r), grossPlace: null };
           });
           rankPlaces(teamRows, "gross", "grossPlace");
           teamRows.sort(function (a, b) {
@@ -1196,9 +1231,18 @@
               chips.push('<span class="lbd__flag lbd__flag--p' + row.grossPlace + '">' + (ties > 1 ? 'T' : '') + ordinal(row.grossPlace) + ' Gross</span>');
             }
             var placeCell = chips.length ? '<span class="lbd__place-stack">' + chips.join('') + '</span>' : '';
+            // Thru column so viewers can see how many holes each team
+            // has posted. In a shotgun start, all teams start at the
+            // same time, so straight gross ranking + Thru chip lets a
+            // spectator tell "leading by 2 with the same holes played"
+            // from "leading by 2 but 4 fewer holes played."
+            var thruTxt = row.thru
+              ? (row.thru >= 18 ? 'F' : String(row.thru))
+              : '&mdash;';
             return '<tr>'
               + '<td class="lbd__place">' + placeCell + '</td>'
               + '<td class="lbd__team">' + esc(row.name) + '</td>'
+              + '<td>' + thruTxt + '</td>'
               + '<td>' + (row.d1 == null ? '&mdash;' : row.d1) + '</td>'
               + (IS_TWO_DAY ? '<td>' + (row.d2 == null ? '&mdash;' : row.d2) + '</td>' : '')
               + '<td><b>' + (row.gross == null ? '&mdash;' : row.gross) + '</b></td>'
@@ -1209,7 +1253,7 @@
             : recs.length + ' teams · tournament begins Day 1';
           body.innerHTML = '<div class="lbd">'
             + '<div class="lbd__hdr"><h2 class="lbd__name">Field</h2><span class="lbd__meta">' + subtitle + '</span></div>'
-            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th></tr></thead><tbody>'
+            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>Thru</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th></tr></thead><tbody>'
             + body_rows + '</tbody></table></div>';
           return;
         }
