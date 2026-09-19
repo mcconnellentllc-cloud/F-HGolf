@@ -1066,7 +1066,7 @@
         var names = ["Champ", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh"];
         return names[n - 1] || ("Flight " + n);
       }
-      var REFRESH_MS = 15000;
+      var REFRESH_MS = 8000; // shorter poll during a live round; combined with the URL cache-buster in fetchAll, viewers see scores within ~8s of entry
       // Handicap math for Calcutta net scoring is driven by the workbook's
       // Format tab. Defaults keep the Founders behavior (0.8 × D1 delta,
       // HCP applied to Day 2 only) until the Tournament Config load
@@ -1115,7 +1115,17 @@
       }
 
       function fetchAll() {
-        return fetch(FH_API.url("/api/tournament-signups"), { cache: "no-store" })
+        // Cache-buster in the URL. `cache: "no-store"` only tells the
+        // BROWSER not to cache; the public /api/tournament-signups
+        // response is served through Vercel's edge cache with
+        // s-maxage=10, so identical URLs get the same stale body
+        // across viewers for up to 10s + stale-while-revalidate window.
+        // Appending a timestamp makes each poll a unique URL, so every
+        // request goes back to origin and picks up scores as soon as
+        // they're written. Cost is minor: 11-team Fire round polls
+        // every REFRESH_MS ms, ~5-10 uncached hits per minute.
+        var bust = "?_t=" + Date.now();
+        return fetch(FH_API.url("/api/tournament-signups") + bust, { cache: "no-store" })
           .then(function (r) { return r.json(); })
           .then(function (j) { if (!j || !j.ok) throw new Error(j && j.error || "Load failed"); return j.records || []; });
       }
