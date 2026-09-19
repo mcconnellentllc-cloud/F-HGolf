@@ -762,26 +762,44 @@
         return out;
       }
       // Team-wide count of already-used extras — the captain increments
-      // this from their phone. Same shape read/write path so the number
-      // never drifts across screens.
+      // this from their phone. Split into front/back 9 buckets so each
+      // purchased player gets a fresh allotment on the back nine.
+      // Legacy shape (a plain number) is treated as front-9-only usage,
+      // which resets back-9 remaining to a full allotment on migration.
       function usedCounts(raw) {
         var out = {};
         try {
           var obj = JSON.parse(raw || "{}");
           if (!obj || typeof obj !== "object" || Array.isArray(obj)) return out;
           Object.keys(obj).forEach(function (k) {
-            var n = Number(obj[k]);
-            if (isFinite(n) && n > 0) out[k] = Math.floor(n);
+            var v = obj[k];
+            if (v && typeof v === "object" && !Array.isArray(v)) {
+              var f = Number(v.front), b = Number(v.back);
+              out[k] = {
+                front: (isFinite(f) && f > 0) ? Math.floor(f) : 0,
+                back:  (isFinite(b) && b > 0) ? Math.floor(b) : 0,
+              };
+            } else {
+              var n = Number(v);
+              if (isFinite(n) && n > 0) out[k] = { front: Math.floor(n), back: 0 };
+            }
           });
         } catch (e) {}
         return out;
       }
-      // Purchased minus used for a given team + extra name. Never negative.
-      function remainingFor(purchasedRaw, usedRaw, name) {
+      // Purchased minus used for a given team + extra name in the named
+      // half. Each purchased player gets one per 9, so remaining =
+      // purchased − used[half]. Never negative. `half` is "front" or "back".
+      function remainingFor(purchasedRaw, usedRaw, name, half) {
         var p = purchasedCounts(purchasedRaw)[name] || 0;
-        var u = usedCounts(usedRaw)[name] || 0;
-        return Math.max(0, p - u);
+        var u = usedCounts(usedRaw)[name] || { front: 0, back: 0 };
+        var used = (half === "back") ? (u.back || 0) : (u.front || 0);
+        return Math.max(0, p - used);
       }
+      // Half the captain is currently scoring — front nine while the
+      // displayed hole is in holes 1–9 (storage indices 0–8), back nine
+      // otherwise. Drives which allotment the extras card shows.
+      function currentHalf() { return (STATE.holeIdx >= 9) ? "back" : "front"; }
 
       function parseScores(raw) {
         try {
@@ -1166,8 +1184,12 @@
       }
 
       // Extras card — one row per Format-configured extra your team
-      // has any purchases of. Star count = remaining. Tap "Use one"
-      // to burn one; row disappears when there are none left. Renders
+      // has any purchases of. Star count = remaining for the CURRENT
+      // half (front 9 or back 9). Each purchased player gets one per
+      // 9, so the back-nine row starts fresh regardless of front-nine
+      // usage. Tap "Use one" to burn one from the current half; row
+      // reads "All used" for that half when spent (a fresh allotment
+      // shows up when the captain advances to the other nine). Renders
       // NOTHING when the tournament has no extras or the team bought
       // nothing (no visual clutter for tournaments that don't use extras).
       function renderExtrasCard() {
@@ -1176,9 +1198,12 @@
         var t = STATE.team;
         var pMap = purchasedCounts(t.extrasPurchased);
         var uMap = usedCounts(t.extrasUsed);
+        var half = currentHalf();
+        var halfLabel = (half === "back") ? "Back 9" : "Front 9";
         var rows = defs.map(function (d) {
           var bought = pMap[d.name] || 0;
-          var used = uMap[d.name] || 0;
+          var uEntry = uMap[d.name] || { front: 0, back: 0 };
+          var used = (half === "back") ? (uEntry.back || 0) : (uEntry.front || 0);
           if (!bought) {
             // Not purchased for this team — still show a dim placeholder
             // row so the captain sees the mechanic exists. Reminder to
@@ -1190,15 +1215,18 @@
           }
           var remain = Math.max(0, bought - used);
           var stars = remain > 0
-            ? '<span class="extras-row__stars" title="' + remain + ' left of ' + bought + '">' + repeatStr('&#9679;', remain) + '</span>'
-            : '<span class="extras-row__stars extras-row__stars--none">All used</span>';
+            ? '<span class="extras-row__stars" title="' + remain + ' left of ' + bought + ' for ' + halfLabel + '">' + repeatStr('&#9679;', remain) + '</span>'
+            : '<span class="extras-row__stars extras-row__stars--none">All used on ' + halfLabel + '</span>';
           return '<div class="extras-row" data-extra="' + esc(d.name) + '">'
             + '<div class="extras-row__nm">' + esc(d.name) + '</div>'
             + stars
             + '<button type="button" class="extras-row__use" data-use-extra="' + esc(d.name) + '"' + (remain <= 0 ? ' disabled' : '') + '>Use one</button>'
             + '</div>';
         }).join("");
-        return '<div class="extras-card"><div class="extras-card__hd">Extras</div>' + rows + '</div>';
+        return '<div class="extras-card">'
+          + '<div class="extras-card__hd">Extras &middot; ' + halfLabel + ' <small style="font-weight:500;letter-spacing:0.06em;text-transform:none;opacity:0.75;">(1 per player per 9)</small></div>'
+          + rows
+          + '</div>';
       }
       function repeatStr(s, n) { var out = ""; for (var i = 0; i < n; i++) out += s; return out; }
 
@@ -1206,14 +1234,22 @@
       // Leaderboard. One chip per configured extra with remaining > 0.
       // Uses the extra name's first letter as a label so mixed-type
       // strips (e.g. "M ★★★★  S ★★") stay readable at leaderboard scale.
-      // Returns "" for teams with nothing outstanding — no clutter.
+      // Each purchased player gets one per 9, so the total unused is
+      // (purchased * 2) − (used.front + used.back). Returns "" for teams
+      // with nothing outstanding — no clutter.
       function renderExtrasStars(purchasedRaw, usedRaw) {
         var defs = configExtras();
         if (!defs.length) return "";
+        var pMap = purchasedCounts(purchasedRaw);
+        var uMap = usedCounts(usedRaw);
         var chips = defs.map(function (d) {
-          var remain = remainingFor(purchasedRaw, usedRaw, d.name);
+          var bought = pMap[d.name] || 0;
+          if (!bought) return "";
+          var uEntry = uMap[d.name] || { front: 0, back: 0 };
+          var totalUsed = (uEntry.front || 0) + (uEntry.back || 0);
+          var remain = Math.max(0, (bought * 2) - totalUsed);
           if (remain <= 0) return "";
-          return '<span class="lb-extras__type" title="' + esc(d.name) + ' remaining: ' + remain + '">'
+          return '<span class="lb-extras__type" title="' + esc(d.name) + ' remaining: ' + remain + ' (1 per player per 9)">'
             + '<b>' + esc(d.name.charAt(0).toUpperCase()) + '</b>'
             + '<span class="lb-extras__stars">' + repeatStr('&#9679;', remain) + '</span>'
             + '</span>';
@@ -1223,16 +1259,21 @@
       }
 
       // Optimistic increment of the team's Extras Used count for a
-      // given extra name. Bumps the in-memory state, re-renders, then
-      // POSTs the new JSON. Rolls back the number on server error so
-      // the button reflects reality.
+      // given extra name. Bumps the CURRENT-HALF (front/back 9) count
+      // in memory, re-renders, then POSTs the new JSON. Rolls back the
+      // number on server error so the button reflects reality.
       function useExtra(name) {
         var t = STATE.team;
         var uMap = usedCounts(t.extrasUsed);
         var pMap = purchasedCounts(t.extrasPurchased);
-        var remain = Math.max(0, (pMap[name] || 0) - (uMap[name] || 0));
+        var half = currentHalf();
+        var uEntry = uMap[name] || { front: 0, back: 0 };
+        var usedHalf = (half === "back") ? (uEntry.back || 0) : (uEntry.front || 0);
+        var remain = Math.max(0, (pMap[name] || 0) - usedHalf);
         if (remain <= 0) return;
-        uMap[name] = (uMap[name] || 0) + 1;
+        if (half === "back") uEntry.back = (uEntry.back || 0) + 1;
+        else uEntry.front = (uEntry.front || 0) + 1;
+        uMap[name] = uEntry;
         var newJson = JSON.stringify(uMap);
         var prev = t.extrasUsed;
         t.extrasUsed = newJson;
