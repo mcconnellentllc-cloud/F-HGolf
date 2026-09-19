@@ -1017,7 +1017,12 @@
       // the Founders (page's original tournament) keeps its Day 1 / Day 2
       // columns even if config fetch fails. Refreshed on tournament-config
       // load below.
-      var IS_TWO_DAY = true;
+      // Default to a single-day tournament without handicaps — that's
+      // every event on the F&H calendar except Founders. Founders sets
+      // Rounds=2 on its Format config and the two-day handicap columns
+      // switch on below.
+      var IS_TWO_DAY = false;
+      var HAS_HCP = false;
       // Fetch the tournament's Format config once so the h1 + Day 2 column
       // reflect what Format tab said (Display Name + Rounds).
       // Apply the tournament identity to the header from whatever we can
@@ -1055,9 +1060,13 @@
             _applyIdentity(display || KEY, format);
             if (rounds) IS_TWO_DAY = rounds >= 2;
             var hm = Number(f["Handicap Multiplier"]);
-            if (isFinite(hm) && hm > 0) HCP_MULT = hm;
+            if (isFinite(hm) && hm > 0) { HCP_MULT = hm; HAS_HCP = true; }
             var hb = String(f["Handicap Basis"] || "").toLowerCase();
             if (hb === "tournament") HCP_BASIS = "tournament";
+            // Founders is multi-day and by default has handicaps. Any
+            // tournament whose Format config explicitly names a
+            // Handicap Basis (day1 / tournament) also opts in.
+            if (IS_TWO_DAY || hb === "day1" || hb === "tournament") HAS_HCP = true;
           })
           .catch(function () {});
       })();
@@ -1159,11 +1168,11 @@
           var teamCards = recs.map(function (r) {
             var f = r.fields || {};
             var tn = teamNumbers[r.id];
-            return '<tr><td class="lbd__place"></td><td class="lbd__team">' + esc(teamShortNames(f)) + '</td><td>&mdash;</td>' + (IS_TWO_DAY ? '<td>&mdash;</td>' : '') + '<td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+            return '<tr><td class="lbd__place"></td><td class="lbd__team">' + esc(teamShortNames(f)) + '</td><td>&mdash;</td>' + (IS_TWO_DAY ? '<td>&mdash;</td>' : '') + '<td>&mdash;</td>' + (HAS_HCP ? '<td>&mdash;</td><td>&mdash;</td>' : '') + '</tr>';
           }).join("");
           body.innerHTML = '<div class="lbd">'
             + '<div class="lbd__hdr"><h2 class="lbd__name">Field</h2><span class="lbd__meta">' + recs.length + ' teams · tournament begins Day 1</span></div>'
-            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th>' + (HAS_HCP ? '<th>HCP</th><th>Net</th>' : '') + '</tr></thead><tbody>'
             + teamCards + '</tbody></table></div>';
           return;
         }
@@ -1255,15 +1264,15 @@
               + '<td>' + (row.d1 == null ? '&mdash;' : row.d1) + '</td>'
               + (IS_TWO_DAY ? '<td>' + (row.d2 == null ? '&mdash;' : row.d2) + '</td>' : '')
               + '<td><b>' + (row.gross == null ? '&mdash;' : row.gross) + '</b></td>'
-              + '<td>' + (row.hcp == null ? '&mdash;' : row.hcp) + '</td>'
-              + '<td><b>' + (row.net == null ? '&mdash;' : row.net) + '</b></td>'
+              + (HAS_HCP ? '<td>' + (row.hcp == null ? '&mdash;' : row.hcp) + '</td>' : '')
+              + (HAS_HCP ? '<td><b>' + (row.net == null ? '&mdash;' : row.net) + '</b></td>' : '')
               + '</tr>';
           }).join("");
           var metaBits = [fl.rows.length + ' teams'];
           if (fl.leader != null) metaBits.push('leader ' + fl.leader);
           return '<div class="lbd">'
             + '<div class="lbd__hdr"><h2 class="lbd__name">' + esc(fl.name) + ' Flight</h2><span class="lbd__meta">' + metaBits.join(' · ') + '</span></div>'
-            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th>' + (HAS_HCP ? '<th>HCP</th><th>Net</th>' : '') + '</tr></thead><tbody>'
             + trs + '</tbody></table></div>';
         }).join("");
 
@@ -1274,10 +1283,10 @@
           var utrs = una.map(function (r) {
             var f = r.fields || {};
             var tn = teamNumbers[r.id];
-            return '<tr><td class="lbd__place"></td><td class="lbd__team">' + esc(teamShortNames(f)) + '</td><td>&mdash;</td>' + (IS_TWO_DAY ? '<td>&mdash;</td>' : '') + '<td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>';
+            return '<tr><td class="lbd__place"></td><td class="lbd__team">' + esc(teamShortNames(f)) + '</td><td>&mdash;</td>' + (IS_TWO_DAY ? '<td>&mdash;</td>' : '') + '<td>&mdash;</td>' + (HAS_HCP ? '<td>&mdash;</td><td>&mdash;</td>' : '') + '</tr>';
           }).join("");
           html += '<div class="lbd"><div class="lbd__hdr"><h2 class="lbd__name">Unassigned</h2><span class="lbd__meta">' + una.length + ' teams · flights not cut yet</span></div>'
-            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th><th>HCP</th><th>Net</th></tr></thead><tbody>'
+            + '<table><thead><tr><th class="lbd__place">Place</th><th>Team</th><th>D1</th>' + (IS_TWO_DAY ? '<th>D2</th>' : '') + '<th>Gross</th>' + (HAS_HCP ? '<th>HCP</th><th>Net</th>' : '') + '</tr></thead><tbody>'
             + utrs + '</tbody></table></div>';
         }
 
