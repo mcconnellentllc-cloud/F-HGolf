@@ -1650,7 +1650,12 @@
         var assign = _dayAssignment() || { mode: "self" };
         var needsLiveMirror = STATE.tab === "score" && assign.mode !== "self";
         if (!onLb && !needsLiveMirror) return;
-        fetch(FH_API.url("/api/tournament-signups?live=" + encodeURIComponent(TOKEN)), { cache: "no-store" })
+        // URL cache-buster + `cache: no-store`. Same reasoning as the
+        // public leaderboard: the browser directive alone doesn't stop
+        // Vercel's edge cache from serving the same body across polls,
+        // so each request gets a unique URL to force origin fetch and
+        // catch new scores as they're written.
+        fetch(FH_API.url("/api/tournament-signups?live=" + encodeURIComponent(TOKEN)) + "&_t=" + Date.now(), { cache: "no-store" })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
             if (!j || !j.ok) return;
@@ -1673,7 +1678,7 @@
             render();
           })
           .catch(function () {});
-      }, 20000);
+      }, 8000); // 8s poll during the round matches the public leaderboard cadence set in leaderboard.html
 
       load();
     })();
