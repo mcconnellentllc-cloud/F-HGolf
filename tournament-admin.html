@@ -1066,10 +1066,6 @@
       <div class="pm-modal__body">
         <p class="cd-body"><b>Recipients:</b> <span id="typRecipCount">…</span> · <b>Subject:</b> <span id="typSubject" style="font-style:italic;">Loading preview…</span></p>
         <p class="cd-body" style="color:#7a5f00;background:#fff8e1;border:1px solid #f0d67a;padding:0.5rem 0.75rem;border-radius:6px;">This is what every recipient will see. Names and tournament data come from the current workbook state — same as if you sent right now.</p>
-        <label class="cd-body" style="display:flex;align-items:center;gap:0.5rem;background:#fff5f2;border:1px solid #f0bfae;padding:0.5rem 0.75rem;border-radius:6px;margin:0.5rem 0;">
-          <input type="checkbox" id="typApology" />
-          <span><b>Prefix with an apology note</b> — adds a short "the previous email had a mistake, please disregard it" block at the top. Use after a bad send.</span>
-        </label>
         <div style="border:1px solid #ddd;border-radius:8px;overflow:hidden;background:#fff;">
           <iframe id="typFrame" title="Email preview" style="width:100%;height:60vh;border:0;background:#fff;"></iframe>
         </div>
@@ -4618,7 +4614,6 @@
         var nextYearKey = tourneyBase + " (TBD " + (tournamentYear + 1) + ")";
         var signupUrl = "https://fandhgolf.com/tournaments.html?t=" + encodeURIComponent(nextYearKey) + "#signup";
         function buildPreviewPayload() {
-          var apology = !!(document.getElementById("typApology") && document.getElementById("typApology").checked);
           return {
             template: "thankYou",
             preview: true,
@@ -4628,8 +4623,7 @@
             tournamentYear: tournamentYear,
             leaderboardUrl: leaderboardUrl,
             signupUrl: signupUrl,
-            isFounders: isFounders,
-            apology: apology
+            isFounders: isFounders
           };
         }
         function refreshPreview() {
@@ -4656,8 +4650,6 @@
             });
         }
         refreshPreview();
-        var apologyCheckbox = document.getElementById("typApology");
-        if (apologyCheckbox) { apologyCheckbox.checked = false; apologyCheckbox.onchange = refreshPreview; }
         function close() {
           modal.hidden = true; modal.setAttribute("aria-hidden", "true");
           document.body.classList.remove("modal-open");
@@ -4667,16 +4659,15 @@
         document.getElementById("typCancel").onclick = close;
         modal.querySelector(".pm-modal__backdrop").onclick = close;
         sendBtn.onclick = function () {
-          var apology = !!(document.getElementById("typApology") && document.getElementById("typApology").checked);
           close();
-          sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear, apology);
+          sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear);
         };
       }
       // Send one email per recipient, sequentially, with a small delay so
       // Resend's rate limit stays happy. Progress is shown via inline
       // banner; summary alert at the end. Failures are collected and
       // reported by name.
-      function sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear, apology) {
+      function sendThankYouEmails(recipients, tournamentDisplayName, tournamentYear) {
         var btn = document.getElementById("plCommit");
         var origLabel = btn ? btn.textContent : "";
         var sent = 0, failed = [];
@@ -4718,8 +4709,7 @@
               // next year now" flow (deadlines, first-come/first-served,
               // waitlist). Every other tournament sends a generic thanks
               // + "see you next season" — no signup CTA in the email.
-              isFounders: (typeof KEY === "string" && /^Founder/i.test(KEY)),
-              apology: !!apology
+              isFounders: (typeof KEY === "string" && /^Founder/i.test(KEY))
             })
           }).then(function (res) { return res.json().catch(function () { return { ok: false }; }); })
             .then(function (j) { if (j && j.ok) sent++; else failed.push(r.name); })
