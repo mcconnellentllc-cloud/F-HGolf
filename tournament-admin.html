@@ -305,6 +305,7 @@
             <button class="btn btn--primary" type="button" id="ciAddTeamBtn" title="Open the walk-up add-team form and focus the first name field">+ Add team</button>
             <button class="btn btn--solid" type="button" id="ciBulkPay" title="Mark every unpaid player paid with a chosen method">Mark all paid</button>
             <button class="btn btn--solid" type="button" id="ciEmailAllLinks" title="Email every captain with an address on file their live-scoring link">Email scoring links</button>
+            <button class="btn btn--solid" type="button" id="ciEmailLeaderboard" title="Email the live leaderboard link to every partner (non-captain) whose email is in the Players master list">Email leaderboard</button>
             <button class="btn btn--solid" type="button" id="twRefresh">Refresh</button>
           </div>
 
@@ -7306,6 +7307,37 @@
       }
       // Bulk: email every team in this tournament that has a captain Email
       // on file. Sequential to stay under Resend + Airtable rate limits.
+      // One-click blast of the live leaderboard URL to every partner
+      // (non-captain) in this tournament whose email is on the Players
+      // master list. Captains are excluded — they got the personalized
+      // scoring link from "Email scoring links" — so nobody who already
+      // has the scoring link gets pinged again with just the leaderboard.
+      function emailLeaderboardLink() {
+        var origin = location.origin.indexOf("vercel") >= 0 ? "https://fandhgolf.com" : location.origin;
+        if (!confirm("Email the live leaderboard link to every partner whose email is in the Players list? (Captains are skipped — they already have the scoring link.)")) return;
+        var btn = document.getElementById("ciEmailLeaderboard");
+        var orig = btn ? btn.textContent : "";
+        if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "email-leaderboard", tournament: KEY, origin: origin }),
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (btn) { btn.disabled = false; btn.textContent = orig || "Email leaderboard"; }
+            if (!j || !j.ok) { alert("Couldn't send: " + ((j && j.error) || "Unknown error.")); return; }
+            var msg = "Sent " + (j.sent || 0) + " leaderboard email" + ((j.sent === 1) ? "" : "s") + ".";
+            if (j.failed) msg += " " + j.failed + " failed" + (j.failedNames && j.failedNames.length ? " (" + j.failedNames.join(", ") + ")" : "") + ".";
+            if (j.note) msg += "\n\n" + j.note;
+            alert(msg);
+          })
+          .catch(function () {
+            if (btn) { btn.disabled = false; btn.textContent = orig || "Email leaderboard"; }
+            alert("Network error while sending the leaderboard emails.");
+          });
+      }
+
       function emailAllScoringLinks() {
         var teams = (scAllCache || []).filter(function (r) {
           var f = r.fields || {};
@@ -13038,6 +13070,8 @@
         if (ciBulkPayBtn) ciBulkPayBtn.addEventListener("click", openCiBulkPay);
         var ciEmailAllBtn = document.getElementById("ciEmailAllLinks");
         if (ciEmailAllBtn) ciEmailAllBtn.addEventListener("click", emailAllScoringLinks);
+        var ciEmailLbBtn = document.getElementById("ciEmailLeaderboard");
+        if (ciEmailLbBtn) ciEmailLbBtn.addEventListener("click", emailLeaderboardLink);
         if (ciBulkModal) {
           Array.prototype.forEach.call(ciBulkModal.querySelectorAll("[data-close], #cbpClose, #cbpCancel"), function (el) {
             el.addEventListener("click", closeCiBulkPay);
