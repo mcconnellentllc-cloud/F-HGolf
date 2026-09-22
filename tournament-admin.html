@@ -5607,6 +5607,9 @@
                 }
                 refreshCardTotals(card);
                 try { renderPL(); } catch (e) {}
+                // Keep the hero "N extra meals for the kitchen" line in
+                // sync with the per-player meal input.
+                try { summarize(scAllCache.filter(function (r) { return (r.fields || {}).Tournament === KEY && !isAltRec(r); })); } catch (e) {}
               }, 400);
             });
           });
@@ -5629,6 +5632,10 @@
             }
             try { renderPL(); } catch (e) {}
             try { _renderCartDemand(); } catch (e) {}
+            // Re-run the top-of-page Check-In summary so the "🛺 N rental
+            // carts needed" line reflects the just-picked value. Without
+            // this the chip below was fresh but the hero line stayed at 0.
+            try { summarize(scAllCache.filter(function (r) { return (r.fields || {}).Tournament === KEY && !isAltRec(r); })); } catch (e) {}
           });
 
           // Group Scorer toggle (per-team). When checked, this captain's
