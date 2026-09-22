@@ -1648,23 +1648,39 @@
         // the intent. Fall back to summing "Player X Cart Share" pills
         // for legacy teams that never got a Rentals Needed value.
         var cartShareSum = 0;
+        // Per-team breakdown for the hover tooltip below — helps the operator
+        // see WHICH teams contributed to the count when the number doesn't
+        // match expectations (e.g. a save was silently auto-stripped).
+        var cartContribs = [];
         recs.forEach(function (r) {
           var f = r.fields || {};
+          var teamName = String(f["Player Name"] || "Team").split(/\s+/).slice(0, 2).join(" ");
           var stored = f["Rentals Needed"];
           if (typeof stored === "number" && stored >= 0) {
-            cartShareSum += Math.max(0, Math.floor(stored));
+            if (stored > 0) {
+              cartShareSum += Math.floor(stored);
+              cartContribs.push(teamName + ": " + Math.floor(stored));
+            }
             return;
           }
+          var legacy = 0;
           for (var i = 1; i <= 4; i++) {
             var v = f["Player " + i + " Cart Share"];
-            if (typeof v === "number" && v > 0) cartShareSum += v;
+            if (typeof v === "number" && v > 0) legacy += v;
+          }
+          if (legacy > 0) {
+            cartShareSum += legacy;
+            cartContribs.push(teamName + ": " + legacy + " (½-share pills)");
           }
         });
         var cartsNeeded = Math.ceil(cartShareSum);
         var el = document.getElementById("twSummary");
+        var cartTip = cartContribs.length
+          ? "Rentals from: " + cartContribs.join(" · ")
+          : "No teams have Rentals Needed set. Set the dropdown on a team's Check-In card, or ask about the 'Rentals Needed' field on Airtable if saves show a warning.";
         if (el) el.innerHTML = "<strong>" + paidCount + " / " + players + "</strong> players paid · <strong>"
           + money(collectedTotal) + "</strong> collected"
-          + ' · 🛺 <strong>' + cartsNeeded + '</strong> rental cart' + (cartsNeeded === 1 ? '' : 's') + ' needed'
+          + ' · <span title="' + esc(cartTip) + '" style="cursor:help;border-bottom:1px dotted currentColor;">🛺 <strong>' + cartsNeeded + '</strong> rental cart' + (cartsNeeded === 1 ? '' : 's') + ' needed</span>'
           + (extraMeals ? ' · <strong>' + extraMeals + '</strong> extra meals for the kitchen' : "");
         renderPL();
       }
