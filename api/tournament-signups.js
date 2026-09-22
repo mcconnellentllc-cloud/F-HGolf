@@ -895,6 +895,133 @@ module.exports = async (req, res) => {
       }
     }
 
+    // ---- Email leaderboard link to non-scorers -------------------
+    //   POST { action: "email-leaderboard", tournament, origin? }
+    // Blast a plain leaderboard link to every partner (non-captain)
+    // in the tournament who has an email on the Players master list.
+    // Captains are excluded — they already got a personalized scoring
+    // link from the Check-In "Email scoring links" button. One email
+    // per unique address; captains' emails on the signup itself are
+    // also excluded so nobody who already has the scoring link gets
+    // pinged twice with the leaderboard URL.
+    if (body.action === "email-leaderboard") {
+      if (!isAdmin) return res.status(401).json({ ok: false, error: "Unauthorized" });
+      const tournament = String(body.tournament || "").trim();
+      if (!tournament) return res.status(400).json({ ok: false, error: "Missing tournament." });
+      const scoped = scopeReject(tournament); if (scoped) return scoped;
+      const origin = (typeof body.origin === "string" && /^https?:\/\//.test(body.origin))
+        ? body.origin.replace(/\/$/, "")
+        : "https://fandhgolf.com";
+      try {
+        // 1) Fetch every non-alt signup in this tournament to collect
+        // partner names (Team / Partners) and captain emails (which we
+        // filter OUT of the leaderboard blast — captains already got
+        // their scoring link separately).
+        const filter = encodeURIComponent(`AND({Tournament}="${tournament.replace(/"/g,'\\"')}", NOT({Alternate}))`);
+        const captainEmails = new Set();
+        const partnerNames = new Set();
+        let offset = "";
+        for (let guard = 0; guard < 20; guard++) {
+          const url = `${listUrl}?filterByFormula=${filter}&pageSize=100${offset ? "&offset=" + encodeURIComponent(offset) : ""}`;
+          const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+          if (!r.ok) return res.status(502).json({ ok: false, error: "Could not load signups." });
+          const j = await r.json();
+          (j.records || []).forEach((rec) => {
+            const f = rec.fields || {};
+            const capEmail = String(f["Email"] || "").trim().toLowerCase();
+            if (capEmail) captainEmails.add(capEmail);
+            String(f["Team / Partners"] || "").split(/\s*\/\s*/).forEach((n) => {
+              const nm = String(n || "").trim();
+              if (nm) partnerNames.add(nm.toLowerCase());
+            });
+          });
+          if (!j.offset) break;
+          offset = j.offset;
+        }
+        if (!partnerNames.size) return res.status(200).json({ ok: true, sent: 0, failed: 0, skipped: 0, note: "No partner names on file to look up." });
+        // 2) Pull the Players master list. Name → email map (case-
+        // insensitive). Skip any name whose email is missing or malformed.
+        const playersTable = process.env.PLAYERS_TABLE || "Players";
+        const nameToEmail = new Map();
+        offset = "";
+        for (let guard = 0; guard < 20; guard++) {
+          const purl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(playersTable)}?pageSize=100${offset ? "&offset=" + encodeURIComponent(offset) : ""}`;
+          const pr = await fetch(purl, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+          if (!pr.ok) break;
+          const pj = await pr.json();
+          (pj.records || []).forEach((rec) => {
+            const pf = rec.fields || {};
+            const nm = String(pf["Name"] || "").trim().toLowerCase();
+            const em = String(pf["Email"] || "").trim();
+            if (nm && em && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) nameToEmail.set(nm, em);
+          });
+          if (!pj.offset) break;
+          offset = pj.offset;
+        }
+        // 3) Match partner names to Players emails. Dedup by email and
+        // skip anyone whose email is already on the captain list —
+        // they got the scoring link, no need to also spam them with
+        // just the leaderboard.
+        const targets = new Map(); // email -> partner display name
+        partnerNames.forEach((n) => {
+          const em = nameToEmail.get(n);
+          if (!em) return;
+          if (captainEmails.has(em.toLowerCase())) return;
+          if (!targets.has(em)) targets.set(em, n);
+        });
+        if (!targets.size) {
+          return res.status(200).json({
+            ok: true, sent: 0, failed: 0, skipped: partnerNames.size,
+            note: "No partners in the Players master list have an email that isn't already a captain's.",
+          });
+        }
+        // 4) Send. Small delay per send so Resend's rate limit stays happy.
+        const key = process.env.RESEND_API_KEY;
+        if (!key) return res.status(500).json({ ok: false, error: "Email service not configured (missing RESEND_API_KEY)." });
+        const from = process.env.RESEND_FROM || "F&H Golf <noreply@fandhgolf.com>";
+        const escHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        const url = `${origin.replace(/\/+$/,"")}/leaderboard.html?t=${encodeURIComponent(tournament)}`;
+        const subject = `Follow along — ${tournament}`;
+        let sent = 0;
+        const failed = [];
+        for (const [email, rawName] of targets) {
+          const cased = rawName.split(/\s+/).map((w) => w ? w[0].toUpperCase() + w.slice(1) : w).join(" ");
+          const first = cased.split(/\s+/)[0] || "there";
+          const html = `
+<p>Hi ${escHtml(first)},</p>
+<p><strong>${escHtml(tournament)}</strong> is under way at F&amp;H. Follow the live leaderboard — scores refresh every few seconds as the round comes in.</p>
+<p><a href="${escHtml(url)}" style="display:inline-block;background:#17472A;color:#f6f2e8;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Open the leaderboard</a></p>
+<p style="font-size:0.85rem;color:#666">Or paste this into your browser:<br><code>${escHtml(url)}</code></p>
+<p>— F&amp;H Golf</p>`;
+          try {
+            const er = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ from, to: [email], subject, html }),
+            });
+            if (er.ok) sent++;
+            else {
+              const detail = await er.text().catch(() => "");
+              console.error("email-leaderboard failed", er.status, detail);
+              failed.push(cased);
+            }
+          } catch (e) {
+            console.error("email-leaderboard error", e);
+            failed.push(cased);
+          }
+          await new Promise((r) => setTimeout(r, 120));
+        }
+        return res.status(200).json({
+          ok: true, sent, failed: failed.length, failedNames: failed,
+          targetCount: targets.size,
+          partnersOnRoster: partnerNames.size,
+        });
+      } catch (e) {
+        console.error("email-leaderboard exception", e);
+        return res.status(500).json({ ok: false, error: "Something went wrong sending the leaderboard emails." });
+      }
+    }
+
     // ---- Auction receipt email ------------------------------------
     //   POST { action: "auction-receipt", tournament, item: {
     //     name, description, donor, amount,
