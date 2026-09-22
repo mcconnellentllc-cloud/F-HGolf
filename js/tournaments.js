@@ -54,7 +54,18 @@
         { label: "Past events", href: "history.html?name=Haxtun%20Fire" }
       ]
     },
-    "Cornfest Tournament (Sept 27)": { end: "2026-09-27", cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)" },
+    "Cornfest Tournament (Sept 27)": {
+      end: "2026-09-27", cap: 22, unit: "teams", team: 2, format: "2-man (2 players per team)",
+      // Public nav chips on the Cornfest card — same pattern as Haxtun.
+      // Rules + Live leaderboard + Past events; Sponsors/Auction not
+      // rendered since Cornfest doesn't run either. Sign Up is drawn
+      // separately by the shared signup control.
+      links: [
+        { label: "Rules", href: "tournament-rules.html?t=Cornfest%20Tournament%20(Sept%2027)" },
+        { label: "Live leaderboard", href: "leaderboard.html?t=Cornfest%20Tournament%20(Sept%2027)" },
+        { label: "Past events", href: "history.html?name=Cornfest%20Tournament" }
+      ]
+    },
     // Hole 8 Raffle Contest removed from the public tournaments page
     // per operator request (2026-09-15). Kept out of TMETA so a stale
     // signup form dropdown option can't route back to it.
