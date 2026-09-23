@@ -567,8 +567,14 @@ img { max-width: 100%; display: block; }
 
 /* Submitted nominations list (in the portal) */
 .noms { max-width: 1000px; margin: 0 auto 2.75rem; }
-.noms__bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
-.noms__title { color: var(--primary-green); font-size: 1.35rem; }
+/* Toolbar row that lives above each workbook tab (Check-In, Pairings,
+   Scores, …). Wraps to a second line at narrow widths so a fifth or
+   sixth action button doesn't spill outside the sheet's border. Title
+   keeps `margin-right: auto` so on a wide screen everything after it
+   still packs to the right edge — same visual as the old space-between
+   layout, but wrap-safe. */
+.noms__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.55rem 0.75rem; margin-bottom: 1rem; }
+.noms__title { color: var(--primary-green); font-size: 1.35rem; margin-right: auto; }
 .noms__count { color: var(--muted); font-weight: 400; font-family: var(--font-body); font-size: 1rem; }
 .noms__list { display: grid; gap: 1rem; }
 .noms__msg { color: var(--muted); }
