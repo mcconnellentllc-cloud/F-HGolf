@@ -254,11 +254,26 @@ async function fetchHistory(claims) {
   [...asCaptain, ...asPartner].forEach((rec) => {
     if (seen.has(rec.id)) return; seen.add(rec.id);
     const f = rec.fields || {};
+    const captainName = String(f["Player Name"] || "").trim();
+    const partners = String(f["Team / Partners"] || "")
+      .split(/\s*\/\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    // Full team roster the client can render as one list: captain first,
+    // then each partner, with per-member flags for "isCaptain" (star) and
+    // "isYou" (highlight the viewer's own name).
+    const members = [{ name: captainName, isCaptain: true, isYou: normalizeName(captainName) === wantedLower }];
+    partners.forEach((n) => {
+      members.push({ name: n, isCaptain: false, isYou: normalizeName(n) === wantedLower });
+    });
     current.push({
       id: rec.id,
       tournament: String(f.Tournament || "").trim(),
-      role: normalizeName(f["Player Name"]) === wantedLower ? "captain" : "teammate",
-      team: String(f["Team / Partners"] || "").trim(),
+      role: normalizeName(captainName) === wantedLower ? "captain" : "teammate",
+      captain: captainName,
+      partners,
+      members,
+      team: String(f["Team / Partners"] || "").trim(), // legacy field, kept for older client bundles
       alternate: !!f.Alternate,
       paid: String(f["Paid?"] || "").trim() || (f["Paid"] ? "Yes" : ""),
     });

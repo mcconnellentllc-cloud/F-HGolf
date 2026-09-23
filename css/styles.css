@@ -320,6 +320,14 @@ img { max-width: 100%; display: block; }
 .schedule__date { flex: 0 0 6rem; font-family: var(--font-display); font-weight: 600; color: var(--red-deep); }
 .schedule__event { color: #2c2d27; font-weight: 600; }
 .schedule__note { max-width: 640px; margin: 1.5rem auto 0; text-align: center; font-size: 0.85rem; color: var(--muted); }
+
+/* Player Card call-to-action on tournaments.html — brass accent
+   panel between the schedule and the sign-up form. Directs players
+   who aren't sure if they're already signed up to look up their card. */
+.pc-cta { background: #fff; border: 1px solid #e5d8ac; border-left: 4px solid #c9a04b; border-radius: 12px; padding: 1rem 1.15rem; box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.04)); }
+.pc-cta__title { margin: 0 0 0.4rem 0; font-family: var(--font-display, Fraunces, Georgia, serif); color: var(--primary-green); font-size: 1.1rem; }
+.pc-cta__body { margin: 0 0 0.75rem 0; color: #333; font-size: 0.95rem; line-height: 1.5; }
+.pc-cta__btn { display: inline-block; }
 .schedule li { flex-wrap: wrap; }
 .schedule__meta { flex-basis: 100%; font-size: 0.85rem; color: var(--muted); margin-top: 0.2rem; font-weight: 600; }
 .schedule__tbd { color: var(--brass, #a37b3d); font-style: italic; font-weight: 500; }
