@@ -2274,6 +2274,13 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-name-wrap { display: inline-flex; align-items: center; gap: 0.3rem; }
 .ci-name { color: var(--primary-green); text-decoration: underline dotted; text-underline-offset: 3px; font-weight: 600; cursor: pointer; }
 .ci-name:hover { text-decoration: underline solid; }
+/* Red flag for a Check-In player row whose name has no email on file.
+   Captain (P1) source of truth is the signup's Email field; partners
+   come from the Players master list. Coloring makes the roster gap
+   obvious at a glance so the operator can fill it in from the Player
+   Card modal. */
+.ci-name--no-email { color: #b3391c; }
+.ci-name--no-email:hover { color: #8a2a12; }
 .ci-rename { background: none; border: none; color: var(--muted); font: inherit; font-size: 0.85rem; cursor: pointer; padding: 0.1rem 0.25rem; border-radius: 4px; opacity: 0.6; }
 .ci-rename:hover { color: var(--primary-green); background: var(--paper-2); opacity: 1; }
 .ci-name-input { padding: 0.3rem 0.45rem; border: 1px solid var(--primary-green); border-radius: 6px; font: inherit; font-weight: 600; min-width: 8rem; max-width: 12rem; }

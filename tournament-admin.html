@@ -5118,17 +5118,36 @@
         return partners.map(function (s) { return String(s || "").trim(); }).join(" / ");
       }
       // Name cell: clickable link opens the Player Card modal; ✎ starts inline rename.
-      function nameCell(role, name) {
-        return '<span class="ci-name-wrap">' + nameCellInner(role, name) + "</span>";
+      // hasEmail (optional) — when explicitly false, paints the name red so
+      // the operator can spot a roster row with no email on file. When
+      // omitted or true, the name renders in the usual green link color.
+      function nameCell(role, name, hasEmail) {
+        return '<span class="ci-name-wrap">' + nameCellInner(role, name, hasEmail) + "</span>";
       }
       // Inner content only — used by startInlineRename to swap the <input>
       // back to a link + pencil without wiping the outer wrap or forcing a
       // full renderRoster / loadRoster cycle.
-      function nameCellInner(role, name) {
+      function nameCellInner(role, name, hasEmail) {
         var display = name || (role === "p2" ? "—" : "(no name)");
         var disabled = (role === "p2" && !name) ? ' style="visibility:hidden"' : "";
-        return '<a href="#" class="ci-name" data-role="' + role + '">' + esc(display) + "</a>"
+        var noEmail = (hasEmail === false && !!name);
+        var cls = "ci-name" + (noEmail ? " ci-name--no-email" : "");
+        var tt = noEmail ? ' title="No email on file — click to add one on the Player Card"' : "";
+        return '<a href="#" class="' + cls + '" data-role="' + role + '"' + tt + '>' + esc(display) + "</a>"
           + '<button type="button" class="ci-rename" data-role="' + role + '" title="Rename inline"' + disabled + ">&#9998;</button>";
+      }
+      // Does this Check-In row have an email we can reach the player at?
+      // P1 (captain) uses the signup's Email field — that's the address
+      // "Email scoring links" writes to. P2/P3/P4 come from the Players
+      // master list, cached in _playersCache. When the cache hasn't loaded
+      // yet, default to "yes" so we don't flash a false-positive red on
+      // the first paint; renderRoster re-runs after the cache lands.
+      function ciRowHasEmail(f, role, name) {
+        if (role === "p1") return !!String((f && f["Email"]) || "").trim();
+        if (!name) return true; // empty slot — no marker
+        if (!_playersCache) return true; // cache pending — treat as unknown
+        var p = _playersCache.byNameLc[String(name).toLowerCase()];
+        return !!(p && String(p.email || "").trim());
       }
       function ciCard(rec, teamNum) {
         var f = rec.fields || {}, pp = teamPlayers(f, rec), isAlt = !!f["Alternate"];
@@ -5237,7 +5256,7 @@
           // This forces the operator to record HOW they paid, not just
           // that they did — no ambiguous "checked but no method" state.
           return '<div class="ci-p" data-role="' + esc(t.role) + '">'
-            + '<div class="ci-p__name">' + nameCell(t.role, t.name) + '</div>'
+            + '<div class="ci-p__name">' + nameCell(t.role, t.name, ciRowHasEmail(f, t.role, t.name)) + '</div>'
             + capCell
             + '<label class="ci-meal" title="Extra meals × ' + money(extraMealFee) + '"><input type="number" min="0" max="10" step="1" class="ci__extra-meal" data-role="' + esc(t.role) + '" value="' + (Number(t.meal) || 0) + '" /><span>Meals</span></label>'
             + extrasCells
@@ -5419,6 +5438,19 @@
         summarize(field);
         renderGolfers(field);
         applyCiFilterChip(CI_FILTERS.wave, CI_FILTERS.paid);
+        // Players master-list cache powers the red-name-if-no-email
+        // marker on P2/P3/P4 rows. Kick off the load whenever it's not
+        // yet cached, and re-render once so the fresh state paints
+        // without the operator having to interact first. One-shot per
+        // page — after the initial re-render, subsequent renderRoster
+        // calls use the cache synchronously.
+        if (!_playersCache && !_playersCacheRepaintPending) {
+          _playersCacheRepaintPending = true;
+          ensurePlayersCache().then(function () {
+            _playersCacheRepaintPending = false;
+            try { renderRoster(scAllCache); } catch (e) {}
+          });
+        }
         if (!recs.length) { list.innerHTML = '<p class="noms__msg">No sign-ups yet. Add a walk-up team above.</p>'; count.textContent = ""; return; }
 
         var filtersActive = CI_FILTERS.wave !== "all" || CI_FILTERS.paid !== "all";
@@ -5883,7 +5915,12 @@
         // re-rendering the roster. Rebuilding the wrap's inner HTML is
         // O(1); loadRoster used to trigger a fetch + 64-card re-render.
         function restoreLink(displayText) {
-          wrap.innerHTML = nameCellInner(role, displayText);
+          // Recompute the has-email flag from the fresh (possibly renamed)
+          // state so the red marker follows the new name.
+          var sf = null;
+          for (var _i = 0; _i < scAllCache.length; _i++) if (scAllCache[_i].id === signupId) { sf = scAllCache[_i].fields || {}; break; }
+          var freshHasEmail = ciRowHasEmail(sf || {}, role, displayText);
+          wrap.innerHTML = nameCellInner(role, displayText, freshHasEmail);
           var newLink = wrap.querySelector(".ci-name");
           if (newLink) newLink.addEventListener("click", function (e) {
             e.preventDefault();
@@ -6270,8 +6307,14 @@
                 // see the new name.
                 for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === linkSignupId) {
                   scAllCache[i].fields = scAllCache[i].fields || {};
-                  if (linkRole === "p1") scAllCache[i].fields["Player Name"] = name;
-                  else scAllCache[i].fields["Team / Partners"] = linkPartners;
+                  if (linkRole === "p1") {
+                    scAllCache[i].fields["Player Name"] = name;
+                    // Captain email is denormalized onto the signup — keep
+                    // the local cache in sync so the red-name check reads
+                    // the fresh value without a re-fetch.
+                    var pmEmailNow2 = String((document.getElementById("pmEmail") || {}).value || "").trim();
+                    scAllCache[i].fields["Email"] = pmEmailNow2 || "";
+                  } else scAllCache[i].fields["Team / Partners"] = linkPartners;
                   scAllCache[i].fields["Player"] = [j.id];
                   break;
                 }
@@ -6283,6 +6326,25 @@
                 if (card) {
                   var nameEl = card.querySelector('.ci-name[data-role="' + linkRole + '"]');
                   if (nameEl) nameEl.textContent = name;
+                }
+                // Refresh the red-name marker after a Player Card save.
+                // If the operator added an email while they were in the
+                // modal, update the local Players cache and drop the
+                // ci-name--no-email class in place. If they cleared it,
+                // add the class back. Same source-of-truth check that
+                // the render uses, so the state stays consistent.
+                var pmEmailForFlag = String((document.getElementById("pmEmail") || {}).value || "").trim();
+                if (_playersCache) {
+                  var pKey = String(name).toLowerCase();
+                  var existing = _playersCache.byNameLc[pKey];
+                  if (existing) existing.email = pmEmailForFlag;
+                  else _playersCache.byNameLc[pKey] = { id: j.id, name: name, email: pmEmailForFlag };
+                }
+                if (nameEl) {
+                  var freshFields = null;
+                  for (var _c = 0; _c < scAllCache.length; _c++) if (scAllCache[_c].id === linkSignupId) { freshFields = scAllCache[_c].fields || {}; break; }
+                  var nowHas = ciRowHasEmail(freshFields || {}, linkRole, name);
+                  nameEl.classList.toggle("ci-name--no-email", nowHas === false && !!name);
                 }
                 // Cascade to other signups sharing this Player row, but
                 // don't wait on it and don't reload — the tab-switch lazy
@@ -10617,6 +10679,7 @@
       // not the seconds a Calcutta card sits open.
       var _playersCache = null; // { byNameLc: { [nameLc]: {id, email, name} }, list: [...] }
       var _playersInFlight = null;
+      var _playersCacheRepaintPending = false; // one-shot renderRoster re-run after cache lands
       function ensurePlayersCache() {
         if (_playersCache) return Promise.resolve(_playersCache);
         if (_playersInFlight) return _playersInFlight;
