@@ -43,6 +43,14 @@
     .pc-hist__link { color: var(--primary-green, #1B5E20); text-decoration: none; border-bottom: 1px dotted var(--primary-green, #1B5E20); }
     .pc-hist__link:hover { border-bottom-style: solid; }
     .pc-hist__m { color: #666; font-size: 0.85rem; margin-top: 2px; }
+    /* Full-team roster on the "You're signed up for" list — captain
+       gets a small brass star; the viewer's own row is bolded so a
+       teammate can find their name in a 4-player scramble at a glance. */
+    .pc-team__cap { color: #c9a04b; font-size: 0.9em; margin-left: 0.15rem; }
+    .pc-team__you { color: #1B5E20; }
+    .pc-team__sep { color: #bbb; margin: 0 0.15rem; }
+    .pc-tag { display: inline-block; padding: 0.05rem 0.4rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; vertical-align: baseline; }
+    .pc-tag--alt { background: #fff5f2; color: #b3391c; border: 1px solid #f0bfae; }
     .pc-empty { color: #888; font-style: italic; font-size: 0.95rem; }
     .pc-signout { color: #999; font-size: 0.85rem; background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline; }
     .pc-signin { max-width: 480px; margin: 2rem auto; }
@@ -580,13 +588,26 @@
           var url = tournamentUrl(name, kind);
           var linked = url ? ('<a class="pc-hist__link" href="' + esc(url) + '">' + esc(name) + '</a>') : esc(name);
           if (kind === "current") {
+            // Prefer the full server-supplied roster (captain + partners
+            // with per-member flags). Falls back to the legacy `team`
+            // string when an old server bundle is still cached.
+            var teamStr = "";
+            if (Array.isArray(it.members) && it.members.length) {
+              teamStr = it.members.map(function (m) {
+                var label = esc(m.name || "?");
+                if (m.isCaptain) label += ' <span class="pc-team__cap" title="Team captain">&#9733;</span>';
+                if (m.isYou)     label = '<b class="pc-team__you">' + label + '</b>';
+                return label;
+              }).join(' <span class="pc-team__sep">/</span> ');
+            } else if (it.team) {
+              teamStr = esc(it.team);
+            }
             var bits = [];
-            if (it.team) bits.push("Team: " + esc(it.team));
-            if (it.role === "captain") bits.push("Captain");
-            if (it.alternate) bits.push("Alternate");
-            if (it.paid) bits.push("Paid: " + esc(it.paid));
+            if (teamStr) bits.push('Team: ' + teamStr);
+            if (it.alternate) bits.push('<span class="pc-tag pc-tag--alt">Alternate list</span>');
+            if (it.paid) bits.push('Paid: ' + esc(it.paid));
             return '<li><div class="pc-hist__t">' + linked + '</div>'
-              + (bits.length ? '<div class="pc-hist__m">' + bits.join(" · ") + '</div>' : '')
+              + (bits.length ? '<div class="pc-hist__m">' + bits.join(' &middot; ') + '</div>' : '')
               + '</li>';
           }
           // past
