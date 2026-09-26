@@ -21,18 +21,28 @@ module.exports = async (req, res) => {
     const counts = {};
     let offset = null;
     for (let page = 0; page < 10; page++) {
-      let url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}?pageSize=100&fields%5B%5D=Tournament`;
+      // Pull the Alternate column alongside Tournament so we can skip
+      // standby entries — those don't hold a slot in the field and
+      // shouldn't count toward the cap. Before this the public card
+      // would flip to "Full" once alternates + field == cap, hiding
+      // legitimately-open spots (e.g. Cornfest showed Full at 29 field
+      // teams because a 30th slot was actually an alternate).
+      let url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(TABLE)}?pageSize=100&fields%5B%5D=Tournament&fields%5B%5D=Alternate`;
       if (offset) url += "&offset=" + encodeURIComponent(offset);
       const r = await fetch(url, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
       if (!r.ok) { console.error("counts read", r.status, await r.text()); break; }
       const data = await r.json();
       (data.records || []).forEach(function (rec) {
-        const t = rec.fields && rec.fields["Tournament"];
+        const f = rec.fields || {};
+        if (f["Alternate"]) return; // standby doesn't hold a field slot
+        const t = f["Tournament"];
         if (t) counts[t] = (counts[t] || 0) + 1;
       });
       offset = data.offset;
       if (!offset) break;
     }
+    // Public cache is intentionally short so a fresh signup or an admin
+    // add/remove shows up on the sign-up page within a minute.
     res.setHeader("Cache-Control", "public, max-age=60");
     return res.status(200).json({ ok: true, counts: counts });
   } catch (e) {
