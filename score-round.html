@@ -145,7 +145,18 @@
       var $ = function (id) { return document.getElementById(id); };
       var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); };
       var LS_TOKEN = "fh_player_token";
-      var LS_DRAFT = "fh_round_draft_v1";
+      // Draft key is namespaced by the current player token so two
+      // players signing into the score-round tool on the same phone
+      // don't inherit each other's in-flight round. Legacy global key
+      // ("fh_round_draft_v1") is cleared once on load so it can't
+      // resurface behind the namespaced check.
+      function draftKey() {
+        var t = (STATE && STATE.token) ? STATE.token : (function () {
+          try { return localStorage.getItem(LS_TOKEN) || ""; } catch (e) { return ""; }
+        })();
+        return t ? ("fh_round_draft_v1:" + t) : "fh_round_draft_v1";
+      }
+      try { if (localStorage.getItem("fh_round_draft_v1")) localStorage.removeItem("fh_round_draft_v1"); } catch (e) {}
 
       // F&H Golf Course is a 9-hole layout: par 4,3,4,4,5,4,4,3,5 (par 36).
       // 18-hole rounds play the 9 twice, so PARS9[i % 9] gives par per hole
@@ -179,19 +190,19 @@
       // Draft: keep the latest in-flight round so a refresh mid-round
       // doesn't lose scores. Cleared on successful save.
       function loadDraft() {
-        try { var raw = localStorage.getItem(LS_DRAFT); if (!raw) return null; return JSON.parse(raw); } catch (e) { return null; }
+        try { var raw = localStorage.getItem(draftKey()); if (!raw) return null; return JSON.parse(raw); } catch (e) { return null; }
       }
       function saveDraft() {
         try {
           if (!STATE.started) return;
-          localStorage.setItem(LS_DRAFT, JSON.stringify({
+          localStorage.setItem(draftKey(), JSON.stringify({
             holes: STATE.holes, tees: STATE.tees, course: STATE.course,
             date: STATE.date, notes: STATE.notes, scores: STATE.scores,
             holeIdx: STATE.holeIdx, ts: Date.now(),
           }));
         } catch (e) {}
       }
-      function clearDraft() { try { localStorage.removeItem(LS_DRAFT); } catch (e) {} }
+      function clearDraft() { try { localStorage.removeItem(draftKey()); } catch (e) {} }
 
       // ---- Boot: verify magic-link token, load player name ----
       if (!STATE.token) return showFatal("Sign in to your Player Card first.", "player.html");

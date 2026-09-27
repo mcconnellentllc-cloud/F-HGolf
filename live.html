@@ -408,6 +408,26 @@
 
     .footer-tip { margin-top: 1.2rem; padding: 0.75rem 0.9rem; background: var(--paper-2); border: 1px dashed var(--line); border-radius: 10px; font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
 
+    /* Tap-to-confirm gate — first paint of the scorecard shows THIS
+       instead of the +/– controls, so the captain has to eyeball the
+       team name + starting slot before entering any scores. Kills the
+       class of bug where a marker-target card was loaded and the
+       captain pumped their own scores into someone else's record.
+       Bright green Confirm button; red mismatch banner appears only
+       when the active card is not the token's own team. */
+    .cg { margin: 0.5rem 0 1rem; padding: 1.1rem 1rem 1.15rem; background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--green-strong); border-radius: 12px; box-shadow: var(--shadow); }
+    .cg__eyebrow { font: 700 0.72rem/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+    .cg__team { font: 700 1.25rem/1.15 Georgia, serif; color: var(--ink); }
+    .cg__players { margin: 0.5rem 0 0.65rem; padding: 0 0 0 1.1rem; color: var(--ink); font: 500 0.95rem/1.4 system-ui, sans-serif; }
+    .cg__players li { margin: 0.15rem 0; }
+    .cg__start { padding: 0.55rem 0.75rem; background: var(--paper-2); border: 1px dashed var(--line); border-radius: 8px; font: 600 0.9rem/1.35 system-ui, sans-serif; color: var(--ink); margin-bottom: 0.9rem; }
+    .cg__warn { padding: 0.75rem 0.9rem; margin: 0 0 0.9rem; background: #fff5f2; border: 1px solid #f0bfae; border-left: 4px solid #b3391c; border-radius: 8px; color: #7a1a1a; font: 500 0.9rem/1.4 system-ui, sans-serif; }
+    .cg__warn b { color: #b3391c; }
+    .cg__switch { display: inline; padding: 0.25rem 0.55rem; margin-left: 0.15rem; background: #b3391c; color: #fff; border: 0; border-radius: 6px; font: 700 0.85rem/1 system-ui, sans-serif; cursor: pointer; }
+    .cg__switch:active { transform: translateY(1px); }
+    .cg__go { display: block; width: 100%; padding: 0.95rem 1rem; background: var(--green-strong); color: var(--paper); border: 0; border-radius: 10px; font: 700 1.05rem/1.2 system-ui, sans-serif; cursor: pointer; }
+    .cg__go:active { transform: translateY(1px); }
+
     /* Marker scoring — banner above the hole card telling the captain
        whose card they're scoring (marker mode) or that someone else
        has the pencil (spectator mode). Brass accent so it reads as
@@ -584,6 +604,14 @@
         // teeMates = full pairing group for display.
         marker: { d1: null, d2: null },
         activeCardId: null,  // signup id currently being scored (from writeTargets)
+        // Tap-to-confirm gate — the scorecard's +/- controls stay hidden
+        // behind a big "This is Team X, starting Hole 5 Slot A — tap to
+        // start scoring" panel until the captain confirms. Prevents a
+        // captain from entering their own scores into someone else's
+        // card in the (rare) marker-scoring case where the loaded card
+        // is not their own team. Set true on any tap-confirm; reset if
+        // the day switch changes which card is active.
+        confirmed: false,
       };
 
       // Shotgun play order for one lap starting from H: [H, H+1, …, 9, 1, …, H-1].
@@ -950,7 +978,54 @@
         startSponsorRotation();
       }
 
+      // Tap-to-confirm gate. Rendered in place of the scorecard on first
+      // paint and after any day/card switch. Names the loaded team, its
+      // players, and its starting hole + slot so the captain can spot a
+      // wrong card before typing scores. When the active card is NOT the
+      // token's own team, adds a red "This is NOT your own team's card"
+      // banner with a switch button, plus a fallback path back to the
+      // captain's own team.
+      function renderConfirmGate() {
+        var active = _active();
+        if (!active) return '<div class="fill"><div><h2>No team assigned yet.</h2><p>Ask the pro shop.</p></div></div>';
+        var isOwn = !STATE.team || active.id === STATE.team.id;
+        var startHole = (typeof active.hole === "number") ? active.hole : null;
+        var slot = String((STATE.day === 2 ? active.d2Slot : active.slot) || "").trim();
+        var start = String((STATE.day === 2 ? active.d2Start : active.start) || "").trim();
+        var playerLines = [active.teamName || ""].concat(
+          String(active.partners || "").split(/\s*\/\s*/).map(function (s) { return s.trim(); })
+        ).filter(Boolean);
+        var mismatchBanner = isOwn ? "" : (
+          '<div class="cg__warn">'
+          + '<b>Heads up.</b> This card belongs to another team on your tee. Only tap Confirm if you are keeping their scores. '
+          + 'If you meant to enter your own team\'s scores, use <button type="button" class="cg__switch" id="cgSwitchOwn">Open my team\'s card</button> instead.'
+          + '</div>'
+        );
+        var startLine = "";
+        if (startHole != null) {
+          startLine = 'Hole ' + startHole + (slot ? ' &middot; Slot ' + esc(slot) : '') + (start ? ' &middot; ' + esc(start) : '');
+        } else {
+          startLine = 'No shotgun assignment on file yet.';
+        }
+        return ''
+          + '<div class="cg">'
+          + '  <div class="cg__eyebrow">Confirm your card</div>'
+          + '  <div class="cg__team">' + esc(active.teamName || "Team") + '</div>'
+          + '  <ul class="cg__players">' + playerLines.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join("") + '</ul>'
+          + '  <div class="cg__start">' + startLine + '</div>'
+          +    mismatchBanner
+          + '  <button type="button" class="cg__go" id="cgConfirm">Tap to confirm and start scoring</button>'
+          + '</div>';
+      }
+
       function renderScorecard(multiDay) {
+        // Tap-to-confirm gate — captain must acknowledge which team's
+        // card is loaded before the +/– controls become tappable. Kills
+        // the class of bug where a captain lands on a marker-target's
+        // card (or is looking at the wrong day) and pumps their team's
+        // scores into someone else's record. Auto-dismissed for the
+        // session on any tap; day/card switches reset it.
+        if (!STATE.confirmed) return (multiDay ? renderDaySwitch() : "") + renderConfirmGate();
         var scores = STATE.scores[STATE.day];
         var par = currentPar();
         var cur = currentScore();
@@ -1616,6 +1691,25 @@
       }
 
       function wire() {
+        // Tap-to-confirm gate. Confirm reveals the scorecard; the
+        // "Open my team's card" escape flips the active card back to
+        // the token's own team (mostly for a stray marker-mode load).
+        var cgBtn = document.getElementById("cgConfirm");
+        if (cgBtn) cgBtn.addEventListener("click", function () {
+          STATE.confirmed = true;
+          render();
+        });
+        var cgSwitch = document.getElementById("cgSwitchOwn");
+        if (cgSwitch) cgSwitch.addEventListener("click", function () {
+          if (STATE.team && STATE.team.id) {
+            STATE.activeCardId = STATE.team.id;
+            STATE.scores[1] = parseScores(STATE.team.day1);
+            STATE.scores[2] = parseScores(STATE.team.day2);
+            STATE.holeIdx = firstBlankInPlayOrder(STATE.day);
+          }
+          STATE.confirmed = true;
+          render();
+        });
         Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function (b) {
           b.addEventListener("click", function () { STATE.tab = b.getAttribute("data-tab"); render(); });
         });
@@ -1627,11 +1721,16 @@
             // its scores before landing on the first blank hole.
             _syncActiveCardForDay();
             STATE.holeIdx = firstBlankInPlayOrder(STATE.day);
+            // Re-gate on day switch — a Founders captain marking
+            // team X on Day 1 might be marking team Y on Day 2, so
+            // force a fresh confirmation.
+            STATE.confirmed = false;
             render();
           });
         });
         // Card switcher (group scorer mode) — pick which tee-mate
-        // to score.
+        // to score. Re-gates before the next hole is tappable so an
+        // accidental swipe doesn't drop scores onto the wrong card.
         Array.prototype.forEach.call(document.querySelectorAll("[data-card]"), function (b) {
           b.addEventListener("click", function () {
             var id = b.getAttribute("data-card");
@@ -1643,6 +1742,7 @@
               STATE.scores[2] = parseScores(active.day2);
             }
             STATE.holeIdx = firstBlankInPlayOrder(STATE.day);
+            STATE.confirmed = false;
             render();
           });
         });
