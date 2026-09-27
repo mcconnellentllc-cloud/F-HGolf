@@ -1198,17 +1198,19 @@
         var flightList = []; for (var _fi = 1; _fi <= maxFl; _fi++) flightList.push(_fi);
         // Detect whether the tournament has actual flights cut yet:
         // any team with a Flight >= 1 counts. If nothing has been cut,
-        // OR the tournament doesn't use handicaps at all (single-day
-        // scramble like Haxtun Fire / Cornfest), render ONE "Field"
-        // section with live gross scores across every team. That way
-        // spectators see the field ordering the moment the first
-        // score lands, without waiting for flights to be assigned.
+        // render ONE "Field" section with live gross scores across
+        // every team so spectators see the field ordering the moment
+        // the first score lands. Once flights are cut we ALWAYS split
+        // into flight sections — handicaps optional. Cornfest (flights
+        // cut, no handicaps) gets flight sections showing gross only;
+        // Founders (flights cut + handicaps) gets flights with HCP/Net
+        // columns as before.
         var anyFlight = recs.some(function (r) {
           var fl = (r.fields || {}).Flight;
           return fl != null && fl !== "" && Number(fl) > 0;
         });
         var anyGross = recs.some(function (r) { return d1g(r) != null; });
-        if (!anyFlight || !HAS_HCP) {
+        if (!anyFlight) {
           var teamRows = recs.map(function (r) {
             var f = r.fields || {};
             var d1 = d1g(r), d2 = d2g(r);
