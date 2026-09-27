@@ -84,12 +84,14 @@ module.exports = async (req, res) => {
         ]);
         const cfgRec = cfgR.ok ? ((await cfgR.json()).records || [])[0] : null;
         const fieldRecs = fieldR.ok ? ((await fieldR.json()).records || []) : [];
-        // Marker Scoring defaults to ON when the config field is undefined
-        // / null (missing on Airtable, new tournament, or auto-stripped
-        // save). Matches the tournament-signups live handler + the
-        // Format-tab checkbox default. Explicit false opts out.
+        // Marker Scoring is OPT-IN. Match the flipped default in
+        // tournament-signups.js — an undefined / null / false field
+        // means the token can only write to its OWN signup. Founders
+        // (the one tournament wanting USGA-style marker scoring) needs
+        // the Format-tab "Marker Scoring Enabled" checkbox explicitly
+        // on. Flipped 2026-09-27 after Cornfest cross-team writes.
         const _msCfg = cfgRec && cfgRec.fields && cfgRec.fields["Marker Scoring Enabled"];
-        const markerScoringEnabled = (_msCfg === undefined || _msCfg === null) ? true : !!_msCfg;
+        const markerScoringEnabled = _msCfg === true;
         const me = marker.stripSignupField(captainRec);
         const stripped = fieldRecs.map(marker.stripSignupField);
         const assignment = marker.computeMarkerAssignment(me, stripped, markerScoringEnabled, dayForAuth);

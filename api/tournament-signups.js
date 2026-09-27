@@ -1184,12 +1184,16 @@ module.exports = async (req, res) => {
           d2AttestTeam:   f["Day2 Attested By Team"]   || "",
         };
       };
-      // Marker Scoring defaults to ON when the config field is undefined /
-      // null (missing on Airtable, new tournament, auto-stripped save).
-      // Matches the Format-tab default so a fresh tournament runs
-      // USGA-style marker scoring out of the box. Explicit false opts out.
+      // Marker Scoring is OPT-IN. The Format-tab checkbox must be
+      // explicitly true — an undefined / null / false field means every
+      // captain scores their own team's card. Flipped from opt-out on
+      // 2026-09-27 after Cornfest captains landed on their tee-mate's
+      // card by default and entered their own team's scores against
+      // the other team's record. Founders (the one tournament that
+      // wants USGA-style A→B marker scoring) needs the Format-tab
+      // "Marker Scoring Enabled" checkbox explicitly on.
       const _msCfg = cfg && cfg.fields && cfg.fields["Marker Scoring Enabled"];
-      const markerScoringEnabled = (_msCfg === undefined || _msCfg === null) ? true : !!_msCfg;
+      const markerScoringEnabled = _msCfg === true;
       const meStripped = stripField(me);
       const fieldStripped = fieldRows.map(stripField);
       // Compute the marker assignment for THIS captain on Day 1 + Day 2.
