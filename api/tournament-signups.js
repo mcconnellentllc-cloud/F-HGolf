@@ -1184,16 +1184,18 @@ module.exports = async (req, res) => {
           d2AttestTeam:   f["Day2 Attested By Team"]   || "",
         };
       };
-      // Marker Scoring is OPT-IN. The Format-tab checkbox must be
-      // explicitly true — an undefined / null / false field means every
-      // captain scores their own team's card. Flipped from opt-out on
-      // 2026-09-27 after Cornfest captains landed on their tee-mate's
-      // card by default and entered their own team's scores against
-      // the other team's record. Founders (the one tournament that
-      // wants USGA-style A→B marker scoring) needs the Format-tab
-      // "Marker Scoring Enabled" checkbox explicitly on.
+      // Marker Scoring is Founders-only. Cornfest, Couples, Haxtun
+      // Fire, and every other tournament always self-score — each
+      // captain writes to their OWN record no matter what the
+      // Format-tab "Marker Scoring Enabled" checkbox says. Hardened
+      // on 2026-09-27 after Cornfest had the checkbox left ON in
+      // Airtable from an earlier session and the A/B tee captains
+      // landed on each other's card. Founders is the one tournament
+      // that uses USGA-style A→B marker scoring; it stays honoring
+      // the checkbox so the Format-tab toggle still works for it.
+      const _isFoundersKey = /^\s*Founder/i.test(tournament);
       const _msCfg = cfg && cfg.fields && cfg.fields["Marker Scoring Enabled"];
-      const markerScoringEnabled = _msCfg === true;
+      const markerScoringEnabled = _isFoundersKey && _msCfg === true;
       const meStripped = stripField(me);
       const fieldStripped = fieldRows.map(stripField);
       // Compute the marker assignment for THIS captain on Day 1 + Day 2.

@@ -84,14 +84,14 @@ module.exports = async (req, res) => {
         ]);
         const cfgRec = cfgR.ok ? ((await cfgR.json()).records || [])[0] : null;
         const fieldRecs = fieldR.ok ? ((await fieldR.json()).records || []) : [];
-        // Marker Scoring is OPT-IN. Match the flipped default in
-        // tournament-signups.js — an undefined / null / false field
-        // means the token can only write to its OWN signup. Founders
-        // (the one tournament wanting USGA-style marker scoring) needs
-        // the Format-tab "Marker Scoring Enabled" checkbox explicitly
-        // on. Flipped 2026-09-27 after Cornfest cross-team writes.
+        // Marker Scoring is Founders-only — matches the same guard in
+        // /api/tournament-signups. Any other tournament's cross-write
+        // is rejected outright regardless of the Format-tab checkbox,
+        // so a stale "Marker Scoring Enabled = true" on Airtable can't
+        // reopen the Cornfest cross-team bug from 2026-09-27.
+        const _isFoundersKey = /^\s*Founder/i.test(tournamentName);
         const _msCfg = cfgRec && cfgRec.fields && cfgRec.fields["Marker Scoring Enabled"];
-        const markerScoringEnabled = _msCfg === true;
+        const markerScoringEnabled = _isFoundersKey && _msCfg === true;
         const me = marker.stripSignupField(captainRec);
         const stripped = fieldRecs.map(marker.stripSignupField);
         const assignment = marker.computeMarkerAssignment(me, stripped, markerScoringEnabled, dayForAuth);
