@@ -34,11 +34,20 @@ function computeMarkerAssignment(me, fieldStripped, markerScoringEnabled, dayKey
   if (!markerScoringEnabled || !me) return baseline;
   const myHole = me[holeKey];
   const myStart = me[startKey];
+  const mySlot = String(me[slotKey] == null ? "" : me[slotKey]);
   if (myHole == null || !myStart) return baseline; // no pairing yet
+  // Group by (hole, slot, start). Two teams share the "same tee" for
+  // marker-scoring purposes only if they're on the same physical hole
+  // AND the same shotgun slot AND the same wave — so Slot A team 1 and
+  // Slot A team 2 mark each other, Slot B team 1 and Slot B team 2 mark
+  // each other, and A never marks B (they're a different foursome).
   const mates = fieldStripped
-    .filter((r) => r[holeKey] === myHole && r[startKey] === myStart)
+    .filter((r) =>
+      r[holeKey] === myHole &&
+      r[startKey] === myStart &&
+      String(r[slotKey] == null ? "" : r[slotKey]) === mySlot
+    )
     .sort((a, b) =>
-      String(a[slotKey]).localeCompare(String(b[slotKey])) ||
       ((a[seatKey] || 0) - (b[seatKey] || 0)) ||
       String(a.id).localeCompare(String(b.id))
     );
