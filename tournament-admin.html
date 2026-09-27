@@ -7361,9 +7361,13 @@
             else if (j.captainEmail && !j.emailed) msg = "Copied link · email to " + j.captainEmail + " failed, text it instead";
             else msg = "No captain email on file — link copied, paste into a text";
             if (statusEl) { statusEl.textContent = msg; statusEl.className = "ci__status"; }
-            // Also prompt so the operator can eyeball / re-copy the URL from
-            // an older browser without clipboard permission.
-            if (!navigator.clipboard) window.prompt("Captain's scoring link (copy and send):", url);
+            // Always show the URL in a native prompt so the operator can
+            // eyeball it (and copy manually if clipboard didn't fire).
+            // Previously we only prompted when navigator.clipboard was
+            // unavailable, which on modern iOS Safari meant the operator
+            // had no way to see the URL to sanity-check it — a problem
+            // when trying to verify a hotfix on the course.
+            try { window.prompt("Captain's scoring link (already on clipboard — copy again if you like, or Cancel):", url); } catch (e) {}
           })
           .catch(function () { if (statusEl) { statusEl.textContent = "Network error minting link."; statusEl.className = "ci__status is-error"; } });
       }
