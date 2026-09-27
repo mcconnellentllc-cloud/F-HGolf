@@ -1184,18 +1184,16 @@ module.exports = async (req, res) => {
           d2AttestTeam:   f["Day2 Attested By Team"]   || "",
         };
       };
-      // Marker Scoring is Founders-only. Cornfest, Couples, Haxtun
-      // Fire, and every other tournament always self-score — each
-      // captain writes to their OWN record no matter what the
-      // Format-tab "Marker Scoring Enabled" checkbox says. Hardened
-      // on 2026-09-27 after Cornfest had the checkbox left ON in
-      // Airtable from an earlier session and the A/B tee captains
-      // landed on each other's card. Founders is the one tournament
-      // that uses USGA-style A→B marker scoring; it stays honoring
-      // the checkbox so the Format-tab toggle still works for it.
-      const _isFoundersKey = /^\s*Founder/i.test(tournament);
+      // Marker Scoring is OPT-IN via the Format-tab "Marker Scoring
+      // Enabled" checkbox. Any tournament with the box checked runs
+      // USGA-style marker scoring — captains mark another team on
+      // their own tee slot, never their own card. See _marker.js for
+      // the grouping: mates share (hole, slot, start), so teams in
+      // Slot A only ever mark other Slot A teams and Slot B teams
+      // only ever mark other Slot B teams (no cross-slot marker
+      // cycle across the same hole).
       const _msCfg = cfg && cfg.fields && cfg.fields["Marker Scoring Enabled"];
-      const markerScoringEnabled = _isFoundersKey && _msCfg === true;
+      const markerScoringEnabled = _msCfg === true;
       const meStripped = stripField(me);
       const fieldStripped = fieldRows.map(stripField);
       // Compute the marker assignment for THIS captain on Day 1 + Day 2.
