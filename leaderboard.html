@@ -1193,9 +1193,16 @@
           (groups[k] = groups[k] || []).push(r);
         });
 
-        // Range grows if staff cut more than 4 flights; default 4 when empty.
-        var maxFl = Math.max(4, Number(Object.keys(groups).reduce(function (m, k) { return Number(k) > m ? Number(k) : m; }, 0)) || 0);
-        var flightList = []; for (var _fi = 1; _fi <= maxFl; _fi++) flightList.push(_fi);
+        // Only render flights that actually have teams assigned. Empty
+        // flight sections used to appear because maxFl was hard-floored
+        // at 4 — a Cornfest cut into 3 flights was displaying an
+        // "Third Flight — no teams" column. Now the list is exactly
+        // the populated flight numbers, ascending.
+        var flightList = Object.keys(groups)
+          .map(Number)
+          .filter(function (n) { return n >= 1 && (groups[n] || []).length > 0; })
+          .sort(function (a, b) { return a - b; });
+        if (!flightList.length) flightList = [1]; // safety when nothing is cut yet
         // Detect whether the tournament has actual flights cut yet:
         // any team with a Flight >= 1 counts. If nothing has been cut,
         // render ONE "Field" section with live gross scores across
