@@ -480,6 +480,14 @@
               <button class="sc-tab ci-fchip" type="button" data-fpaid="unpaid">Unpaid</button>
               <button class="sc-tab ci-fchip" type="button" data-fpaid="paid">Paid</button>
             </div>
+            <!-- Persistent name / team-# search. Lives OUTSIDE #twRoster so
+                 the input value survives every renderRoster() call — old
+                 attachRowFilter toolbar was destroyed on every render, and
+                 tucked inside the Paid & done <details> a matching card
+                 could be hidden while its parent stayed visible. -->
+            <div class="ci-filter-group ci-filter-group--search">
+              <input type="search" id="ciNameSearch" class="ci-name-search" placeholder="Search by player, team # or captain… (e.g. McConnell, 12)" autocomplete="off" aria-label="Search teams by player name or team number" />
+            </div>
           </div>
 
           <div class="noms__list" id="twRoster"><p class="noms__msg">Loading roster…</p></div>
@@ -5968,20 +5976,42 @@
       }
 
       var rosterRecs = [];
-      // Persistent Check-In filters (wave + payment). Restored from
-      // localStorage so a busy operator's chip choices survive across
+      // Persistent Check-In filters (wave + payment + name search). Restored
+      // from localStorage so a busy operator's chip choices survive across
       // reloads and Ctrl+Shift+R.
-      var CI_FILTERS = { wave: "all", paid: "all" };
+      var CI_FILTERS = { wave: "all", paid: "all", name: "" };
       try {
         var _cif = localStorage.getItem("fh:ciFilters:" + KEY);
-        if (_cif) { var _p = JSON.parse(_cif); if (_p && typeof _p === "object") CI_FILTERS = { wave: _p.wave || "all", paid: _p.paid || "all" }; }
+        if (_cif) { var _p = JSON.parse(_cif); if (_p && typeof _p === "object") CI_FILTERS = { wave: _p.wave || "all", paid: _p.paid || "all", name: _p.name || "" }; }
       } catch (e) {}
       function saveCiFilters() { try { localStorage.setItem("fh:ciFilters:" + KEY, JSON.stringify(CI_FILTERS)); } catch (e) {} }
       function applyCiFilterChip(chipWave, chipPaid) {
         Array.prototype.forEach.call(document.querySelectorAll('#ciFilters [data-fwave]'), function (b) { b.classList.toggle("is-active", b.getAttribute("data-fwave") === chipWave); });
         Array.prototype.forEach.call(document.querySelectorAll('#ciFilters [data-fpaid]'), function (b) { b.classList.toggle("is-active", b.getAttribute("data-fpaid") === chipPaid); });
       }
+      // Name search matches against Player Name (captain), Team / Partners
+      // (P2/P3/P4), Notes, Email, and the team's display number so an
+      // operator can type "mcc" and find McConnell in seconds. Team-number
+      // match uses the computeTeamNumbers() ordering so "12" hits Team 12.
+      function _ciNameHay(rec, teamNum) {
+        var f = rec.fields || {};
+        var parts = [
+          f["Player Name"] || "",
+          f["Team / Partners"] || "",
+          f["Email"] || "",
+          f["Notes"] || "",
+          f["Team"] || "",
+        ];
+        if (teamNum != null) {
+          parts.push("team " + teamNum);
+          parts.push(String(teamNum));
+          parts.push(String(teamNum).padStart(2, "0"));
+        }
+        return parts.join(" ").toLowerCase();
+      }
       function ciFilterField(field) {
+        var q = String(CI_FILTERS.name || "").trim().toLowerCase();
+        var teamNumbers = q ? computeTeamNumbers(field) : {};
         return field.filter(function (r) {
           var f = r.fields || {};
           if (CI_FILTERS.wave === "am"   && f.Start !== "8 AM") return false;
@@ -5989,6 +6019,10 @@
           if (CI_FILTERS.wave === "none" && (f.Start === "8 AM" || f.Start === "1 PM")) return false;
           if (CI_FILTERS.paid === "paid"   && !fullyPaid(r)) return false;
           if (CI_FILTERS.paid === "unpaid" && fullyPaid(r))  return false;
+          if (q) {
+            var hay = _ciNameHay(r, teamNumbers[r.id]);
+            if (hay.indexOf(q) === -1) return false;
+          }
           return true;
         });
       }
@@ -6018,16 +6052,16 @@
         }
         if (!recs.length) { list.innerHTML = '<p class="noms__msg">No sign-ups yet. Add a walk-up team above.</p>'; count.textContent = ""; return; }
 
-        var filtersActive = CI_FILTERS.wave !== "all" || CI_FILTERS.paid !== "all";
+        var filtersActive = CI_FILTERS.wave !== "all" || CI_FILTERS.paid !== "all" || String(CI_FILTERS.name || "").trim() !== "";
         var unpaid = field.filter(function (r) { return !fullyPaid(r); });
         var paid = field.filter(fullyPaid);
         count.textContent = "(" + field.length + " · " + paid.length + " paid" + (alts.length ? " · " + alts.length + " alt" : "") + ")";
 
         var html;
         if (filtersActive) {
-          // When any filter chip is on, flatten to a single filtered list
-          // sorted with unpaid first (still what the operator most cares
-          // about) then paid. Alternates fold stays at the bottom.
+          // When any filter is on (chip or name search), flatten to a single
+          // filtered list sorted with unpaid first (still what the operator
+          // most cares about) then paid. Alternates fold stays at the bottom.
           var visible = ciFilterField(field);
           var vUnpaid = visible.filter(function (r) { return !fullyPaid(r); });
           var vPaid = visible.filter(fullyPaid);
@@ -6043,7 +6077,6 @@
         }
         if (alts.length) html += '<details class="ci-fold ci-fold--alt"><summary>Alternates — standby <span>(' + alts.length + ")</span></summary>" + ciTable(alts) + "</details>";
         list.innerHTML = html;
-        attachRowFilter(list, { rowSelector: ".ci-card" });
 
         // One-time global handlers to close any open overflow menu on
         // outside click or Escape. Guard so re-renders don't stack
@@ -13408,6 +13441,21 @@
             try { renderRoster(scAllCache); } catch (e) {}
           });
         });
+        // Persistent name / team-# search input. Debounced so a 4-key
+        // burst ("mcconnell") doesn't rerender four times mid-stroke.
+        var _ciNameEl = document.getElementById("ciNameSearch");
+        if (_ciNameEl) {
+          if (CI_FILTERS.name) _ciNameEl.value = CI_FILTERS.name;
+          var _ciNameTmr = null;
+          _ciNameEl.addEventListener("input", function () {
+            if (_ciNameTmr) clearTimeout(_ciNameTmr);
+            _ciNameTmr = setTimeout(function () {
+              CI_FILTERS.name = _ciNameEl.value || "";
+              saveCiFilters();
+              try { renderRoster(scAllCache); } catch (e) {}
+            }, 120);
+          });
+        }
         // Scores tab switcher (Day 1 / Day 2 / Import CSV).
         Array.prototype.forEach.call(document.querySelectorAll("#scTabs .sc-tab"), function (b) {
           b.addEventListener("click", function () {

@@ -1963,6 +1963,11 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .ci-filter-group { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
 .ci-filter-label { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); margin-right: 0.2rem; }
 .ci-fchip { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
+/* Name / team-# search on the Check-In toolbar. Stretches to fill the
+   filter bar so a stubby "mcc" or a full "McConnell" both feel at home. */
+.ci-filter-group--search { flex: 1 1 22rem; min-width: 16rem; }
+.ci-name-search { width: 100%; padding: 0.5rem 0.8rem; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.95rem; background: #fff; }
+.ci-name-search:focus { border-color: var(--primary-green); outline: none; box-shadow: 0 0 0 3px rgba(27,94,32,0.12); }
 .ci-fold { margin-top: 1rem; background: var(--paper-2); border-radius: 10px; padding: 0.5rem 0.8rem; }
 .ci-fold > summary { cursor: pointer; font-weight: 700; color: var(--primary-green); }
 .ci-fold > summary span { color: var(--muted); font-weight: 400; }
