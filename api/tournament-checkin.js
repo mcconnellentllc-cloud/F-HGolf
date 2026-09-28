@@ -136,6 +136,27 @@ module.exports = async (req, res) => {
   // and for the Buyer's Calcutta payout. Two separate fields on the signup.
   if (typeof body.flightCheck === "string") fields["Flight Check #"] = body.flightCheck ? body.flightCheck.slice(0, 40) : null;
   if (typeof body.calcuttaCheck === "string") fields["Calcutta Check #"] = body.calcuttaCheck ? body.calcuttaCheck.slice(0, 40) : null;
+  // Payout overrides — operator-typed dollar amounts on the Payout tab
+  // that replace the computed flight/Calcutta payout for a specific
+  // team. Empty string clears the override (row falls back to the
+  // computed amount). Values are stored as numbers on the Signup
+  // record so the operator's correction survives a refresh and rides
+  // through to the History snapshot on commit. Fields auto-strip if
+  // the base hasn't grown them yet — see the retry below.
+  if (body.flightPayoutOverride !== undefined) {
+    if (body.flightPayoutOverride === "" || body.flightPayoutOverride === null) fields["Flight Payout Override"] = null;
+    else {
+      const n = Number(body.flightPayoutOverride);
+      if (isFinite(n) && n >= 0 && n <= 100000) fields["Flight Payout Override"] = n;
+    }
+  }
+  if (body.calcuttaPayoutOverride !== undefined) {
+    if (body.calcuttaPayoutOverride === "" || body.calcuttaPayoutOverride === null) fields["Calcutta Payout Override"] = null;
+    else {
+      const n = Number(body.calcuttaPayoutOverride);
+      if (isFinite(n) && n >= 0 && n <= 100000) fields["Calcutta Payout Override"] = n;
+    }
+  }
 
   if (!Object.keys(fields).length) {
     return res.status(400).json({ ok: false, error: "Nothing to update." });
