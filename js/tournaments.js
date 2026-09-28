@@ -456,6 +456,13 @@
         var params = new URLSearchParams(window.location.search);
         var t = params.get("t");
         if (t) {
+          // Reserve-for-next-year links (from thank-you emails) can arrive
+          // in either shape:
+          //   ?t=<current-year KEY>   — legacy emails; that KEY is now past
+          //                             so reroute to the matching TBD placeholder.
+          //   ?t=<next-year TBD KEY>  — current emails; land directly.
+          // Both flows result in the same TBD placeholder being pre-selected
+          // in the dropdown + the "Reserving your spot" note.
           var rerouted = false;
           if (TMETA[t] && isPast(TMETA[t])) {
             var base = t.replace(/\s*\([^)]*\)\s*$/, "").trim();
@@ -467,18 +474,20 @@
             });
             if (tbdKey) { t = tbdKey; rerouted = true; }
           }
-          // If we rerouted onto a TBD 2027 placeholder, the option is
-          // NOT in the dropdown (the 2027 optgroup was pulled while the
-          // 2026 season is still running — nothing 2027 shows up unless
-          // a reserve link brings the visitor here). Inject just the one
-          // needed <option> now so pre-selecting it actually sticks.
-          if (rerouted && TMETA[t] && TMETA[t].tbd && !sel.querySelector('option[value="' + t.replace(/"/g, '\\"') + '"]')) {
+          // "Landed on a TBD placeholder" — either because the URL already
+          // pointed at one (current thank-you emails) or because we just
+          // rerouted a past KEY onto one (legacy thank-you emails).
+          var onTbd = !!(TMETA[t] && TMETA[t].tbd);
+          // TBD placeholders are hidden from the schedule list (and the
+          // sign-up dropdown) while the current season is still running,
+          // so inject the option now so pre-selecting it actually sticks.
+          if (onTbd && !sel.querySelector('option[value="' + t.replace(/"/g, '\\"') + '"]')) {
             var opt = document.createElement("option");
             opt.value = t; opt.textContent = t;
             sel.appendChild(opt);
           }
           if (TMETA[t] && !isPast(TMETA[t])) sel.value = t;
-          if (rerouted) {
+          if (onTbd) {
             var note = document.getElementById("tourneyPrefill");
             if (note) {
               var info = splitKey(t);
