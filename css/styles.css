@@ -2407,6 +2407,23 @@ body.modal-open { overflow: hidden; }
    fields catch the eye. */
 .fmt-row--req > span::after { content: " *"; color: #b3391c; }
 .fmt-row.is-blank input, .fmt-row.is-blank select, .fmt-row.is-blank textarea { border-color: #b3391c !important; }
+/* "Copy from last year" callout at the top of Step 1 — pulls the
+   most recent archived edition of this tournament and offers to
+   pre-fill every Format field. Brass accent panel so it reads as
+   an offer, not a chrome. */
+.fmt-lastyear { background: #fff9ef; border: 1px solid #e5d8ac; border-left: 4px solid #c9a04b; border-radius: 10px; padding: 0.9rem 1.05rem; margin: 0 0 0.9rem; }
+.fmt-lastyear__body { display: flex; flex-wrap: wrap; gap: 0.9rem; align-items: center; justify-content: space-between; }
+.fmt-lastyear__hd { flex: 1 1 24rem; min-width: 0; }
+.fmt-lastyear__eyebrow { display: block; font: 700 0.72rem/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #a07d2a; margin-bottom: 0.35rem; }
+.fmt-lastyear__title { margin: 0 0 0.35rem 0; font-family: var(--font-display, Fraunces, Georgia, serif); color: var(--primary-green); font-size: 1.1rem; }
+.fmt-lastyear__note { margin: 0; color: #4a4235; font-size: 0.85rem; line-height: 1.5; }
+.fmt-lastyear__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+/* Inline "Last year: <value>" hint appended to each fmt-row when a
+   prior archive holds a value for that field. Small, gray, sits
+   directly under the input so the operator can glance-compare
+   without hunting through last year's numbers. */
+.fmt-row__last { display: block; margin-top: 0.2rem; color: var(--muted); font-size: 0.75rem; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.fmt-row--chk .fmt-row__last { display: inline-block; margin-left: 0.4rem; }
 
 .fmt-set { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 1rem 1rem; margin: 0; }
 .fmt-set > legend { font-weight: 700; color: var(--primary-green); padding: 0 0.4rem; }
