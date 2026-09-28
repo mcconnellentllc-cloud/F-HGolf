@@ -82,6 +82,26 @@
 
       <div id="twPanel" hidden>
 
+        <!-- Format-incomplete soft banner (wizard Stage 3). Sits above
+             the workbook tabs so every non-Format tab shows the nag
+             until the operator either finishes Format or dismisses it
+             for the session. sessionStorage keeps dismissal scoped to
+             this browser tab so a new session shows the nag again if
+             Format is still incomplete. -->
+        <div class="fmt-banner" id="fmtIncompleteBanner" role="status" aria-live="polite" hidden>
+          <div class="fmt-banner__body">
+            <div class="fmt-banner__msg">
+              <b>Format setup is incomplete.</b>
+              <span id="fmtBannerCount">0 fields</span> still blank —
+              Check-In, Pairings, Flights, and Payouts all read from Format.
+            </div>
+            <div class="fmt-banner__actions">
+              <button type="button" class="btn btn--primary" id="fmtBannerGo">Finish Format &rarr;</button>
+              <button type="button" class="fmt-banner__x" id="fmtBannerDismiss" aria-label="Dismiss for this session" title="Dismiss for this session">&times;</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Excel-style workbook tabs -->
         <div class="wb-tabs" id="wbTabs" role="tablist">
           <button type="button" class="wb-tab" data-sheet="format" role="tab">Format</button>
@@ -2353,6 +2373,62 @@
           if (msgEl) { msgEl.textContent = "Save failed"; msgEl.className = "fmt-step__msg is-error"; }
         }
       }
+      // ---- Format-incomplete soft banner (wizard Stage 3) ----------
+      // Shows on every non-Format tab when required Format fields are
+      // still blank. Dismissable per-session; the nag comes back on a
+      // fresh browser session if Format still hasn't been finished.
+      var FMT_REQUIRED_ALL = [
+        "Name", "Location", "Start Date", "End Date", "Reg Opens", "Reg Closes", "Public Slug",
+        "Play Style", "Players Per Team", "Rounds", "Team Cap", "Flights", "Start Type"
+      ];
+      function _fmtBannerDismissKey() { return "fh:fmtBannerDismiss:" + (KEY || ""); }
+      function _fmtBannerIsDismissed() {
+        try { return sessionStorage.getItem(_fmtBannerDismissKey()) === "1"; } catch (e) { return false; }
+      }
+      function _fmtBannerCountBlanks() {
+        var cfg = _tcConfigCache || {};
+        var n = 0;
+        FMT_REQUIRED_ALL.forEach(function (name) {
+          var v = cfg[name];
+          if (v === undefined || v === null || String(v).trim() === "") n++;
+        });
+        return n;
+      }
+      function _fmtBannerRender() {
+        var host = document.getElementById("fmtIncompleteBanner"); if (!host) return;
+        var active = window.__fhActive || "";
+        // Never show on the Format tab itself — the wizard already
+        // shows blanks per-step via the red dots on the stepper.
+        if (active === "format") { host.hidden = true; return; }
+        if (_fmtBannerIsDismissed()) { host.hidden = true; return; }
+        // If the config cache hasn't loaded yet, kick it off and
+        // re-render when it arrives. Prevents a flash of the banner
+        // during initial page load when we don't yet know what's blank.
+        if (!_tcConfigCache) {
+          try {
+            ensureConfigCache(function () { try { _fmtBannerRender(); } catch (e) {} });
+          } catch (e) {}
+          host.hidden = true;
+          return;
+        }
+        var n = _fmtBannerCountBlanks();
+        if (n <= 0) { host.hidden = true; return; }
+        var countEl = document.getElementById("fmtBannerCount");
+        if (countEl) countEl.textContent = n + " required field" + (n === 1 ? "" : "s");
+        host.hidden = false;
+      }
+      function _fmtBannerWire() {
+        var bGo = document.getElementById("fmtBannerGo");
+        if (bGo) bGo.addEventListener("click", function () {
+          try { showSheet("format"); } catch (e) {}
+        });
+        var bX = document.getElementById("fmtBannerDismiss");
+        if (bX) bX.addEventListener("click", function () {
+          try { sessionStorage.setItem(_fmtBannerDismissKey(), "1"); } catch (e) {}
+          var host = document.getElementById("fmtIncompleteBanner"); if (host) host.hidden = true;
+        });
+      }
+
       // ---- Last-year archive integration (wizard Stage 2) ----------
       // Fetches every archived tournament for this base name, keeps
       // the most recent, and uses its .config / .calc blocks to
@@ -2977,6 +3053,10 @@
                 // extras revenue lines in the $ Summary.
                 try { if (scAllCache && scAllCache.length) renderRoster(scAllCache); } catch (e) {}
                 try { renderPL(); } catch (e) {}
+                // Repaint the Format-incomplete banner so filling a
+                // required field on the wizard clears the nag on the
+                // other tabs immediately.
+                try { _fmtBannerRender(); } catch (e) {}
               }
               // Definitive confirmation modal — the tiny "Saved ✓" pill next
               // to the tab title is too easy to miss when the operator is
@@ -12924,6 +13004,8 @@
             else if (s === "payout") renderPayout(scAllCache);
             else if (s === "flights") renderBoard(scAllCache);
           } catch (e) {}
+          // Repaint the Format-incomplete soft banner on every tab switch.
+          try { _fmtBannerRender(); } catch (e) {}
         }
         Array.prototype.forEach.call(document.querySelectorAll(".wb-tab"), function (b) {
           b.addEventListener("click", function () { showSheet(b.getAttribute("data-sheet")); });
@@ -13236,6 +13318,8 @@
         try { _fmtWireStepper(); } catch (e) {}
         // Wire the "Copy from last year" callout buttons (Stage 2).
         try { _fmtWireLastYear(); } catch (e) {}
+        // Wire the Format-incomplete soft banner buttons (Stage 3).
+        try { _fmtBannerWire(); } catch (e) {}
         // ---- Advertising / social share wiring ----
         var fmtAdRefresh = document.getElementById("fmtAdRefresh");
         if (fmtAdRefresh) fmtAdRefresh.addEventListener("click", _fmtRebuildAdCopy);
