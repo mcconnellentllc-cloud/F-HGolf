@@ -123,161 +123,254 @@
               <span id="fmtStatus" class="checkin-add__msg" role="status" aria-live="polite" style="min-width:6rem;"></span>
             </div>
           </div>
-          <p class="scaffold__desc">Configure the shape of this tournament. Powers the shareable public card; later, the same values will drive Pairings, Scoring, and Calcutta so every event is self-describing.</p>
+          <p class="scaffold__desc">Set the shape of this tournament in five short steps. Every field powers the rest of the workbook — Pairings, Scores, Payouts — so filling this out first saves rework later.</p>
+
+          <!-- 5-step wizard. Stepper is clickable; each step has its
+               own Save & continue at the bottom that validates required
+               fields before advancing. The underlying inputs are the
+               same as before (same name= attributes, same IDs), so every
+               existing change handler + the shared config-write save
+               path still work as-is. -->
+          <ol class="fmt-stepper" id="fmtStepper" role="tablist" aria-label="Tournament format setup">
+            <li class="fmt-stepper__item is-active" role="tab" data-goto-step="1" tabindex="0">Basics</li>
+            <li class="fmt-stepper__item" role="tab" data-goto-step="2" tabindex="0">Format</li>
+            <li class="fmt-stepper__item" role="tab" data-goto-step="3" tabindex="0">Money</li>
+            <li class="fmt-stepper__item" role="tab" data-goto-step="4" tabindex="0">Payouts</li>
+            <li class="fmt-stepper__item" role="tab" data-goto-step="5" tabindex="0">Share</li>
+          </ol>
+
           <form id="fmtForm" class="fmt-form" onsubmit="return false;">
-            <fieldset class="fmt-set">
-              <legend>Identity &amp; schedule</legend>
-              <label class="fmt-row"><span>Display name</span><input type="text" name="Name" placeholder="Founder's Tournament" /></label>
-              <label class="fmt-row"><span>Blurb</span><textarea name="Blurb" rows="2" placeholder="One line the public sees on the shareable card."></textarea></label>
-              <label class="fmt-row"><span>Location</span><input type="text" name="Location" placeholder="F&amp;H Golf Course" /></label>
-              <div class="fmt-grid">
-                <label class="fmt-row"><span>Start date</span><input type="date" name="Start Date" /></label>
-                <label class="fmt-row"><span>Start time (public display)</span><input type="text" name="Start Time Display" placeholder="9:00 AM shotgun" /></label>
-                <label class="fmt-row"><span>End date</span><input type="date" name="End Date" /></label>
-                <label class="fmt-row"><span>Reg opens</span><input type="date" name="Reg Opens" /></label>
-                <label class="fmt-row"><span>Reg closes</span><input type="date" name="Reg Closes" /></label>
-              </div>
-              <p class="fmt-note">Start time is a free-text public-display value — "9:00 AM shotgun", "Tee times 8–11 AM", etc. Feeds the shareable advertising copy below and the public tournament card. Separate from the shotgun-picker time which powers Pairings internally.</p>
-            </fieldset>
 
-            <fieldset class="fmt-set">
-              <legend>Advertising &amp; social share</legend>
-              <p class="fmt-note">Auto-generated from the fields above (name, date + time, format, entry fee, location). Click <b>Refresh copy</b> to rebuild from current values, <b>Copy for social</b> to grab it for Facebook / X / Instagram, or the share buttons for a direct Facebook post / SMS.</p>
-              <label class="fmt-row"><span>Copy-paste for social media</span><textarea id="fmtAdText" rows="6" placeholder="Fill in the fields above, then click Refresh copy."></textarea></label>
-              <div class="fmt-actions" style="justify-content:flex-start; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-                <button type="button" class="btn btn--solid" id="fmtAdRefresh" title="Regenerate the ad copy from the current Format fields">Refresh copy</button>
-                <button type="button" class="btn btn--primary" id="fmtAdCopy" title="Copy the ad text to your clipboard for pasting into Facebook / X / Instagram">Copy for social</button>
-                <a href="#" class="btn btn--solid" id="fmtAdFb" target="_blank" rel="noopener" title="Open a pre-filled Facebook share dialog">Share on Facebook</a>
-                <a href="#" class="btn btn--solid" id="fmtAdSms" title="Open your phone's Messages app pre-filled">Text a friend</a>
-                <span class="ci__status" id="fmtAdStatus" role="status" aria-live="polite" style="min-width:6rem;"></span>
-              </div>
-            </fieldset>
+            <!-- ==================== STEP 1 · BASICS ==================== -->
+            <div class="fmt-step is-active" data-step="1" role="tabpanel">
+              <fieldset class="fmt-set">
+                <legend>Identity &amp; schedule</legend>
+                <label class="fmt-row fmt-row--req"><span>Display name</span><input type="text" name="Name" placeholder="Founder's Tournament" /></label>
+                <label class="fmt-row"><span>Blurb</span><textarea name="Blurb" rows="2" placeholder="One line the public sees on the shareable card."></textarea></label>
+                <label class="fmt-row fmt-row--req"><span>Location</span><input type="text" name="Location" placeholder="F&amp;H Golf Course" /></label>
+                <div class="fmt-grid">
+                  <label class="fmt-row fmt-row--req"><span>Start date</span><input type="date" name="Start Date" /></label>
+                  <label class="fmt-row"><span>Start time (public display)</span><input type="text" name="Start Time Display" placeholder="9:00 AM shotgun" /></label>
+                  <label class="fmt-row fmt-row--req"><span>End date</span><input type="date" name="End Date" /></label>
+                  <label class="fmt-row fmt-row--req"><span>Reg opens</span><input type="date" name="Reg Opens" /></label>
+                  <label class="fmt-row fmt-row--req"><span>Reg closes</span><input type="date" name="Reg Closes" /></label>
+                </div>
+                <p class="fmt-note">Start time is a free-text public-display value — "9:00 AM shotgun", "Tee times 8–11 AM", etc. Feeds the ad copy on the Share step and the public tournament card. Separate from the shotgun-picker time on the Format step, which powers Pairings internally.</p>
+              </fieldset>
 
-            <fieldset class="fmt-set">
-              <legend>Format &amp; capacity</legend>
-              <div class="fmt-grid">
-                <label class="fmt-row"><span>Play style</span>
-                  <select name="Play Style">
+              <fieldset class="fmt-set">
+                <legend>Public link</legend>
+                <label class="fmt-row fmt-row--req"><span>Public slug</span><input type="text" name="Public Slug" placeholder="august-22-2026-couples-scramble" /></label>
+                <p class="fmt-note">
+                  <b>Format:</b> <code>&lt;month&gt;-&lt;day&gt;-&lt;year&gt;-&lt;event&gt;</code> — all lowercase, spaces become hyphens, no other punctuation.
+                  <br /><b>Example:</b> August 22, 2026 · Couples Scramble &rarr; <code>august-22-2026-couples-scramble</code>
+                  <br /><b>Rule:</b> starting with the date guarantees each year's event has a unique slug even if the tournament name repeats. Never reuse a slug from a prior year — that link is already indexed / shared.
+                </p>
+              </fieldset>
+
+              <div class="fmt-step__nav">
+                <div class="fmt-step__nav-left"></div>
+                <div class="fmt-step__nav-right">
+                  <span class="fmt-step__msg" data-step-msg="1" role="status" aria-live="polite"></span>
+                  <button type="button" class="btn btn--primary" data-step-next="1">Save &amp; continue &rarr;</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ==================== STEP 2 · FORMAT ==================== -->
+            <div class="fmt-step" data-step="2" role="tabpanel">
+              <fieldset class="fmt-set">
+                <legend>Play format</legend>
+                <div class="fmt-grid">
+                  <label class="fmt-row fmt-row--req"><span>Play style</span>
+                    <select name="Play Style">
+                      <option value="">—</option>
+                      <option>Scramble</option><option>Best Ball</option><option>Bulldog</option>
+                      <option>Stroke</option><option>Match</option><option>Couples</option>
+                      <option>Adult+Child</option><option>Junior</option>
+                    </select>
+                  </label>
+                  <label class="fmt-row fmt-row--req"><span>Players per team</span><input type="number" name="Players Per Team" min="1" max="4" /></label>
+                  <label class="fmt-row fmt-row--req"><span>Rounds</span><input type="number" name="Rounds" min="1" max="2" /></label>
+                </div>
+              </fieldset>
+
+              <fieldset class="fmt-set">
+                <legend>Capacity &amp; flights</legend>
+                <div class="fmt-grid">
+                  <label class="fmt-row fmt-row--req"><span>Team cap</span><input type="number" name="Team Cap" min="0" /></label>
+                  <label class="fmt-row fmt-row--req"><span>Flights</span><input type="number" name="Flights" min="0" max="6" /></label>
+                  <label class="fmt-row" id="fmtFlightFromRow" title="Single-day flighting basis. Coin-flip mid-round decides Out vs In; save whichever the coin picked and the leaderboard reflights + resorts off that 9. Ignored when Rounds is 2 — 36-hole tournaments always flight off the Day 1 gross."><span>Flight from</span>
+                    <select name="Flight From">
+                      <option value="">—</option>
+                      <option value="Full 18">Full 18 (Day 1 total)</option>
+                      <option value="Out">Out — Front 9</option>
+                      <option value="In">In — Back 9</option>
+                    </select>
+                  </label>
+                  <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Alternates Allowed" /><span>Alternates allowed once cap is hit</span></label>
+                  <label class="fmt-row fmt-row--chk" id="fmtExtraMealsRow"><input type="checkbox" name="Extra Meals Enabled" /><span>Track extra meals per player (kitchen head count)</span></label>
+                </div>
+              </fieldset>
+
+              <fieldset class="fmt-set">
+                <legend>Tee times</legend>
+                <div class="fmt-grid">
+                  <label class="fmt-row fmt-row--req"><span>Start type</span>
+                    <select name="Start Type">
+                      <option value="">—</option><option>Shotgun</option><option>Tee time</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="fmt-grid fmt-grid--shot">
+                  <label class="fmt-row"><span>Shotgun starts</span>
+                    <select id="fmtShotCount">
+                      <option value="1" selected>1 (one wave)</option>
+                      <option value="2">2 (AM + PM)</option>
+                    </select>
+                  </label>
+                  <label class="fmt-row" id="fmtShotRowAm"><span id="fmtShotLabelAm">AM shotgun time</span><input type="time" id="fmtShotTimeAm" /></label>
+                  <label class="fmt-row" id="fmtShotRowPm"><span>PM shotgun time</span><input type="time" id="fmtShotTimePm" /></label>
+                </div>
+                <input type="hidden" name="Waves JSON" id="fmtWavesJson" />
+                <p class="fmt-note">Marker scoring is a house rule for every F&amp;H tournament — teams always mark another team on their tee slot (pairs mark each other, trios cycle A→B→C→A). No checkbox needed.</p>
+              </fieldset>
+
+              <div class="fmt-step__nav">
+                <div class="fmt-step__nav-left">
+                  <button type="button" class="btn btn--solid" data-step-prev="2">&larr; Back</button>
+                </div>
+                <div class="fmt-step__nav-right">
+                  <span class="fmt-step__msg" data-step-msg="2" role="status" aria-live="polite"></span>
+                  <button type="button" class="btn btn--primary" data-step-next="2">Save &amp; continue &rarr;</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ==================== STEP 3 · MONEY ==================== -->
+            <div class="fmt-step" data-step="3" role="tabpanel">
+              <fieldset class="fmt-set">
+                <legend>Money</legend>
+                <p class="fmt-note">Per-player expenses that drive the whole workbook. Change any value here — the Leaderboard, Calcutta, Payout, and $ Summary tabs pick it up immediately. Values auto-save as you edit.</p>
+                <div id="fmtCalcMoneyMount" class="fmt-calc-mount"></div>
+                <div class="fmt-actions" style="justify-content:flex-start; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                  <button type="button" class="btn btn--primary" id="calcMoneySave" title="Persist these money values and refresh Payout / Leaderboard / Calcutta / $ Summary">Save &amp; update</button>
+                  <button type="button" class="btn btn--solid" id="calcReset" title="Reset every money / flight / calcutta value to defaults">Reset calculations to defaults</button>
+                  <span class="ci__status" id="calcMoneyStatus" role="status" aria-live="polite" style="min-width:8rem;"></span>
+                </div>
+              </fieldset>
+
+              <fieldset class="fmt-set">
+                <legend>Handicap</legend>
+                <div class="fmt-grid">
+                  <label class="fmt-row fmt-row--chk" title="Handicap = (team's flight-basis score − flight leader) × Multiplier. Flight prizes go by gross regardless; HCP only affects Calcutta / net scoring on 2-day tournaments."><input type="checkbox" name="Handicaps Enabled" /><span>Apply handicap</span></label>
+                  <label class="fmt-row">
+                    <span>Handicap multiplier</span>
+                    <input type="number" id="fmtHcpMultiplier" step="0.05" min="0" max="1" />
+                  </label>
+                  <label class="fmt-row">
+                    <span>Handicap basis</span>
+                    <select id="fmtHcpBasis">
+                      <option value="">—</option>
+                      <option value="day1">Day 1 gross − flight leader (HCP applied to Day 2 only)</option>
+                      <option value="tournament">Tournament gross − flight leader (HCP applied to full total)</option>
+                    </select>
+                  </label>
+                </div>
+                <p class="fmt-note">
+                  <b>How Net is calculated:</b>
+                  <b>Day 1 basis</b> — HCP = (team Day-1 gross − flight-leader Day-1 gross) × multiplier. Net = Day 2 gross − HCP. Founders default.
+                  <b>Tournament basis</b> — HCP = (team 2-day gross − flight-leader 2-day gross) × multiplier. Net = 2-day gross − HCP.
+                  <b>Rounding:</b> .1–.4 rounds down; .5–.9 rounds up.
+                </p>
+              </fieldset>
+
+              <fieldset class="fmt-set" id="fmtExtrasSet">
+                <legend>Extras (per-player add-ons)</legend>
+                <p class="fmt-note">Chargeable extras the pro shop sells at check-in — mulligans, string, skins, ball drop, etc. Configure each option here; on the Check-In tab every player row shows a checkbox per extra. Sold quantities roll into the team's total and appear on the $ Summary as separate revenue lines.</p>
+                <div id="fmtExtrasList" class="fmt-extras" role="list"></div>
+                <div class="fmt-actions" style="justify-content:flex-start; gap:0.5rem;">
+                  <button type="button" class="btn btn--solid" id="fmtExtrasAdd" title="Add another extra line item">+ Add extra</button>
+                </div>
+                <input type="hidden" name="Extras JSON" id="fmtExtrasJson" />
+              </fieldset>
+
+              <div class="fmt-step__nav">
+                <div class="fmt-step__nav-left">
+                  <button type="button" class="btn btn--solid" data-step-prev="3">&larr; Back</button>
+                </div>
+                <div class="fmt-step__nav-right">
+                  <span class="fmt-step__msg" data-step-msg="3" role="status" aria-live="polite"></span>
+                  <button type="button" class="btn btn--primary" data-step-next="3">Save &amp; continue &rarr;</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ==================== STEP 4 · PAYOUTS ==================== -->
+            <div class="fmt-step" data-step="4" role="tabpanel">
+              <fieldset class="fmt-set">
+                <legend>Flight payout calculator</legend>
+                <p class="fmt-note">Flight count, prize split, and any custom adjustments (sponsorships, skins pot, range balls). Live formulas below show exactly how the pool becomes each place's check.</p>
+                <div id="fmtCalcFlightMount" class="fmt-calc-mount"></div>
+              </fieldset>
+
+              <fieldset class="fmt-set" id="fmtCalcuttaSet">
+                <legend>Calcutta</legend>
+                <label class="fmt-row fmt-calcutta-toggle">
+                  <span>Calcutta auction</span>
+                  <select id="fmtCalcuttaEnabled">
                     <option value="">—</option>
-                    <option>Scramble</option><option>Best Ball</option><option>Bulldog</option>
-                    <option>Stroke</option><option>Match</option><option>Couples</option>
-                    <option>Adult+Child</option><option>Junior</option>
+                    <option value="off">Disabled — hide Calcutta tabs</option>
+                    <option value="on">Enabled — top-4 net payout per flight</option>
                   </select>
                 </label>
-                <label class="fmt-row"><span>Players per team</span><input type="number" name="Players Per Team" min="1" max="4" /></label>
-                <label class="fmt-row"><span>Rounds</span><input type="number" name="Rounds" min="1" max="2" /></label>
-                <label class="fmt-row"><span>Team cap</span><input type="number" name="Team Cap" min="0" placeholder="0 = unlimited" /></label>
-                <label class="fmt-row"><span>Start type</span>
-                  <select name="Start Type">
-                    <option value="">—</option><option>Shotgun</option><option>Tee time</option>
-                  </select>
-                </label>
-                <label class="fmt-row"><span>Flights</span><input type="number" name="Flights" min="0" max="6" /></label>
-                <label class="fmt-row" id="fmtFlightFromRow" title="Single-day flighting basis. Coin-flip mid-round decides Out vs In; save whichever the coin picked and the leaderboard reflights + resorts off that 9. Ignored when Rounds is 2 — 36-hole tournaments always flight off the Day 1 gross."><span>Flight from</span>
-                  <select name="Flight From">
-                    <option value="Full 18">Full 18 (Day 1 total)</option>
-                    <option value="Out">Out — Front 9</option>
-                    <option value="In">In — Back 9</option>
-                  </select>
-                </label>
-                <label class="fmt-row fmt-row--chk"><input type="checkbox" name="Alternates Allowed" /><span>Alternates allowed once cap is hit</span></label>
-                <label class="fmt-row fmt-row--chk" id="fmtExtraMealsRow"><input type="checkbox" name="Extra Meals Enabled" /><span>Track extra meals per player (kitchen head count)</span></label>
-                <label class="fmt-row fmt-row--chk" title="USGA-style scoring: teams mark opponents' cards. A→B, B→C, C→A. Individual teams can be flagged 'Scores whole group' on their Check-In card to have one captain score everyone on their tee."><input type="checkbox" name="Marker Scoring Enabled" /><span>Marker scoring &mdash; teams mark opponents' cards</span></label>
-                <label class="fmt-row fmt-row--chk" title="When on, each team's handicap = (their flight-basis score − flight leader) × Multiplier (see the Money section for the % — 0.80 = 80% allowable deduction). Flight prizes go by gross regardless; HCP only affects Calcutta / net scoring on 2-day tournaments. Default OFF on new 1-day tournaments (no handicap applied); default ON on 2-day tournaments (Founders)."><input type="checkbox" name="Handicaps Enabled" /><span>Apply handicap (multiplier = allowable deduction %)</span></label>
+                <p class="fmt-note">When disabled, the Calcutta, Calcutta Buyers, and Calcutta Disp workbook tabs are hidden. Turn on for tournaments that auction teams (Founders, etc.).</p>
+                <div id="fmtCalcCalcuttaMount" class="fmt-calc-mount"></div>
+              </fieldset>
+
+              <div class="fmt-step__nav">
+                <div class="fmt-step__nav-left">
+                  <button type="button" class="btn btn--solid" data-step-prev="4">&larr; Back</button>
+                </div>
+                <div class="fmt-step__nav-right">
+                  <span class="fmt-step__msg" data-step-msg="4" role="status" aria-live="polite"></span>
+                  <button type="button" class="btn btn--primary" data-step-next="4">Save &amp; continue &rarr;</button>
+                </div>
               </div>
-              <div class="fmt-grid fmt-grid--shot">
-                <label class="fmt-row"><span>Shotgun starts</span>
-                  <select id="fmtShotCount">
-                    <option value="1" selected>1 (one wave)</option>
-                    <option value="2">2 (AM + PM)</option>
-                  </select>
-                </label>
-                <label class="fmt-row" id="fmtShotRowAm"><span id="fmtShotLabelAm">AM shotgun time</span><input type="time" id="fmtShotTimeAm" value="08:00" /></label>
-                <label class="fmt-row" id="fmtShotRowPm"><span>PM shotgun time</span><input type="time" id="fmtShotTimePm" value="13:00" /></label>
+            </div>
+
+            <!-- ==================== STEP 5 · SHARE ==================== -->
+            <div class="fmt-step" data-step="5" role="tabpanel">
+              <fieldset class="fmt-set">
+                <legend>Public highlights</legend>
+                <label class="fmt-row"><span>Advertising bullets (one per line)</span><textarea id="fmtHighlightsText" rows="4" placeholder="Lunch Included&#10;Breakfast Burritos provided by Haxtun JHS Volleyball&#10;$500 in prizes per flight"></textarea></label>
+                <p class="fmt-note">Rendered as a bullet list on the shareable public card. One line = one highlight. Keep each line short — this is advertising copy.</p>
+                <input type="hidden" name="Highlights" id="fmtHighlightsJson" />
+              </fieldset>
+
+              <fieldset class="fmt-set">
+                <legend>Advertising &amp; social share</legend>
+                <p class="fmt-note">Auto-generated from the fields on the previous steps (name, date + time, format, entry fee, location). Click <b>Refresh copy</b> to rebuild from current values, <b>Copy for social</b> to grab it for Facebook / X / Instagram, or the share buttons for a direct Facebook post / SMS.</p>
+                <label class="fmt-row"><span>Copy-paste for social media</span><textarea id="fmtAdText" rows="6" placeholder="Fill in the fields above, then click Refresh copy."></textarea></label>
+                <div class="fmt-actions" style="justify-content:flex-start; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                  <button type="button" class="btn btn--solid" id="fmtAdRefresh" title="Regenerate the ad copy from the current Format fields">Refresh copy</button>
+                  <button type="button" class="btn btn--primary" id="fmtAdCopy" title="Copy the ad text to your clipboard for pasting into Facebook / X / Instagram">Copy for social</button>
+                  <a href="#" class="btn btn--solid" id="fmtAdFb" target="_blank" rel="noopener" title="Open a pre-filled Facebook share dialog">Share on Facebook</a>
+                  <a href="#" class="btn btn--solid" id="fmtAdSms" title="Open your phone's Messages app pre-filled">Text a friend</a>
+                  <span class="ci__status" id="fmtAdStatus" role="status" aria-live="polite" style="min-width:6rem;"></span>
+                </div>
+              </fieldset>
+
+              <div class="fmt-step__nav">
+                <div class="fmt-step__nav-left">
+                  <button type="button" class="btn btn--solid" data-step-prev="5">&larr; Back</button>
+                </div>
+                <div class="fmt-step__nav-right">
+                  <span class="fmt-step__msg" data-step-msg="5" role="status" aria-live="polite"></span>
+                  <button type="button" class="btn btn--primary" id="fmtSave">Save format</button>
+                  <button type="button" class="btn btn--solid" id="fmtReload">Reload from Airtable</button>
+                </div>
               </div>
-              <input type="hidden" name="Waves JSON" id="fmtWavesJson" />
-            </fieldset>
-
-            <fieldset class="fmt-set">
-              <legend>Money</legend>
-              <p class="fmt-note">Per-player expenses that drive the whole workbook. Change any value here — the Leaderboard, Calcutta, Payout, and $ Summary tabs pick it up immediately. Values auto-save as you edit.</p>
-              <div id="fmtCalcMoneyMount" class="fmt-calc-mount"></div>
-              <div class="fmt-actions" style="justify-content:flex-start; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-                <button type="button" class="btn btn--primary" id="calcMoneySave" title="Persist these money values and refresh Payout / Leaderboard / Calcutta / $ Summary">Save &amp; update</button>
-                <button type="button" class="btn btn--solid" id="calcReset" title="Reset every money / flight / calcutta value to defaults">Reset calculations to defaults</button>
-                <span class="ci__status" id="calcMoneyStatus" role="status" aria-live="polite" style="min-width:8rem;"></span>
-              </div>
-            </fieldset>
-
-            <fieldset class="fmt-set">
-              <legend>Public highlights</legend>
-              <label class="fmt-row"><span>Advertising bullets (one per line)</span><textarea id="fmtHighlightsText" rows="4" placeholder="Lunch Included&#10;Breakfast Burritos provided by Haxtun JHS Volleyball&#10;$500 in prizes per flight"></textarea></label>
-              <p class="fmt-note">Rendered as a bullet list on the shareable public card. One line = one highlight. Keep each line short — this is advertising copy.</p>
-              <input type="hidden" name="Highlights" id="fmtHighlightsJson" />
-            </fieldset>
-
-            <fieldset class="fmt-set" id="fmtExtrasSet">
-              <legend>Extras (per-player add-ons)</legend>
-              <p class="fmt-note">Chargeable extras the pro shop sells at check-in — mulligans, string, skins, ball drop, etc. Configure each option here; on the Check-In tab every player row shows a checkbox per extra. Sold quantities roll into the team's total and appear on the $ Summary as separate revenue lines.</p>
-              <div id="fmtExtrasList" class="fmt-extras" role="list"></div>
-              <div class="fmt-actions" style="justify-content:flex-start; gap:0.5rem;">
-                <button type="button" class="btn btn--solid" id="fmtExtrasAdd" title="Add another extra line item">+ Add extra</button>
-              </div>
-              <input type="hidden" name="Extras JSON" id="fmtExtrasJson" />
-            </fieldset>
-
-            <fieldset class="fmt-set">
-              <legend>Flight payout calculator</legend>
-              <p class="fmt-note">Flight count, prize split, and any custom adjustments (sponsorships, skins pot, range balls). Live formulas below show exactly how the pool becomes each place's check.</p>
-              <div id="fmtCalcFlightMount" class="fmt-calc-mount"></div>
-            </fieldset>
-
-            <fieldset class="fmt-set" id="fmtCalcuttaSet">
-              <legend>Calcutta</legend>
-              <label class="fmt-row fmt-calcutta-toggle">
-                <span>Calcutta auction</span>
-                <select id="fmtCalcuttaEnabled">
-                  <option value="off">Disabled — hide Calcutta tabs</option>
-                  <option value="on">Enabled — top-4 net payout per flight</option>
-                </select>
-              </label>
-              <p class="fmt-note">When disabled, the Calcutta, Calcutta Buyers, and Calcutta Disp workbook tabs are hidden. Turn on for tournaments that auction teams (Founders, etc.).</p>
-
-              <label class="fmt-row">
-                <span>Handicap multiplier</span>
-                <input type="number" id="fmtHcpMultiplier" step="0.05" min="0" max="1" placeholder="0.8" />
-              </label>
-              <label class="fmt-row">
-                <span>Handicap basis</span>
-                <select id="fmtHcpBasis">
-                  <option value="day1">Day 1 gross − flight leader (HCP applied to Day 2 only)</option>
-                  <option value="tournament">Tournament gross − flight leader (HCP applied to full total)</option>
-                </select>
-              </label>
-              <p class="fmt-note">
-                <b>How Net is calculated for Calcutta places:</b><br />
-                <b>Day 1 basis</b> — HCP = (team Day-1 gross − flight-leader Day-1 gross) × multiplier. Net = Day 2 gross − HCP. Founders default.<br />
-                <b>Tournament basis</b> — HCP = (team 2-day gross − flight-leader 2-day gross) × multiplier. Net = 2-day gross − HCP.<br />
-                <b>Rounding:</b> fractional HCP rounds by standard rule — <b>.1–.4 rounds down</b>, <b>.5–.9 rounds up</b>.
-              </p>
-
-              <div id="fmtCalcCalcuttaMount" class="fmt-calc-mount"></div>
-            </fieldset>
-
-            <fieldset class="fmt-set">
-              <legend>Public link</legend>
-              <label class="fmt-row"><span>Public slug</span><input type="text" name="Public Slug" placeholder="august-22-2026-couples-scramble" /></label>
-              <p class="fmt-note">
-                <b>Format:</b> <code>&lt;month&gt;-&lt;day&gt;-&lt;year&gt;-&lt;event&gt;</code> — all lowercase, spaces become hyphens, no other punctuation.
-                <br /><b>Example:</b> August 22, 2026 · Couples Scramble &rarr; <code>august-22-2026-couples-scramble</code>
-                <br /><b>Rule:</b> starting with the date guarantees each year's event has a unique slug even if the tournament name repeats. Never reuse a slug from a prior year — that link is already indexed / shared.
-                <br /><b>Where it goes:</b> once Step 3 ships, the public card lives at <code>fandhgolf.com/t/&lt;slug&gt;</code>.
-              </p>
-            </fieldset>
-
-            <div class="fmt-actions">
-              <button type="button" class="btn btn--primary" id="fmtSave">Save format</button>
-              <button type="button" class="btn btn--solid" id="fmtReload">Reload from Airtable</button>
             </div>
           </form>
 
@@ -2052,29 +2145,22 @@
           })
           .catch(function () { _fmtSetStatus("Network error loading the format.", "error"); });
       }
-      // Airtable → form. Missing record renders blank inputs (new tournament).
+      // Airtable → form. Missing record renders BLANK inputs (new
+      // tournament). Post-2026-09-28 the Format tab is a blank-slate
+      // wizard: no field pre-fills a default — the operator has to
+      // touch every required field explicitly. Prior to this rewrite
+      // we auto-set Marker Scoring, Handicaps Enabled, Handicap
+      // Multiplier (0.8), Handicap Basis (day1), and Calcutta based
+      // on tournament name. Those defaults silently propagated into
+      // saves and misled operators; they're gone now.
       function _fmtApplyRecord(rec) {
         var form = document.getElementById("fmtForm"); if (!form) return;
         var f = (rec && rec.fields) || {};
-        // Checkboxes that default to ON when Airtable returns undefined /
-        // null (missing field, new tournament, auto-stripped save). Add a
-        // name here to make it opt-out instead of opt-in — the box shows
-        // checked on first load and only unchecks when Airtable explicitly
-        // returns false. Same value the API's config-write path sends.
-        var DEFAULT_ON = { "Marker Scoring Enabled": true };
-        // Handicaps default ON for 2-day tournaments (Founders) and OFF
-        // for 1-day (couples etc.) — per operator: 1-day events don't
-        // apply handicap, they play gross. Rounds is read from the same
-        // record so a new tournament with Rounds unset falls into the
-        // 1-day bucket (OFF).
-        var _rounds = Number(f["Rounds"] || 1);
-        var _hcpDefault = _rounds >= 2;
         Array.prototype.forEach.call(form.querySelectorAll("input, select, textarea"), function (el) {
           var name = el.getAttribute("name"); if (!name) return;
           var v = f[name];
           if (el.type === "checkbox") {
-            var defOn = name === "Handicaps Enabled" ? _hcpDefault : !!DEFAULT_ON[name];
-            el.checked = (v === undefined || v === null) ? defOn : !!v;
+            el.checked = v === true;
             return;
           }
           if (v === undefined || v === null) { el.value = ""; return; }
@@ -2084,33 +2170,30 @@
         _fmtHydrateHighlights(f["Highlights"]);
         _fmtHydrateExtras(f["Extras JSON"]);
         try { _fmtRebuildAdCopy(); } catch (e) {}
-        // Flight From only matters on 1-day tournaments (coin-flip Out
-        // vs In). Hide the row on 2-day events so operators don't accidentally
-        // change the flight basis for a 36-hole tournament.
         _applyFlightFromVisibility(Number(f["Rounds"] || 1));
-        // Calcutta is Founders-only at F&H (same pattern as waves and
-        // meals). Every other tournament hides the Calcutta tabs +
-        // Format dropdown unconditionally regardless of what the
-        // "Calcutta Enabled" field says. When (if) another F&H event
-        // ever runs a Calcutta, add its key to the regex in
-        // _applyCalcuttaVisibility below — one place.
+        // Calcutta enabled dropdown — three states: "" (not set,
+        // operator hasn't chosen yet), "on", or "off". Unlike before,
+        // no name-based Founders default when unset.
         var ce = document.getElementById("fmtCalcuttaEnabled");
-        var caOn = _isCalcuttaEnabled();
-        if (ce) ce.value = caOn ? "on" : "off";
-        _applyCalcuttaVisibility(caOn);
-        // Handicap math for Calcutta net scoring. Multiplier defaults 0.8
-        // (Founders long-standing convention); basis defaults to Day 1
-        // gross - flight leader (HCP applied to Day 2 only).
+        if (ce) {
+          var cev = f["Calcutta Enabled"];
+          ce.value = (cev === true || cev === "on") ? "on" : (cev === false || cev === "off") ? "off" : "";
+        }
+        _applyCalcuttaVisibility(_isCalcuttaEnabled());
+        // Handicap fields — blank unless Airtable has an explicit value.
         var hm = document.getElementById("fmtHcpMultiplier");
         if (hm) {
           var hmv = f["Handicap Multiplier"];
-          hm.value = (hmv === undefined || hmv === null || hmv === "") ? "0.8" : String(hmv);
+          hm.value = (hmv === undefined || hmv === null || hmv === "") ? "" : String(hmv);
         }
         var hb = document.getElementById("fmtHcpBasis");
         if (hb) {
           var hbv = f["Handicap Basis"];
-          hb.value = (hbv === "tournament") ? "tournament" : "day1";
+          hb.value = (hbv === "tournament" || hbv === "day1") ? hbv : "";
         }
+        // Repaint per-step validation state (required fields blank →
+        // red border + stepper "has-blanks" dot).
+        try { _fmtPaintStepValidation(); } catch (e) {}
       }
       // Single source of truth for whether this workbook runs a Calcutta.
       // The Format tab checkbox drives everything — tabs, Payout sections,
@@ -2122,7 +2205,145 @@
         var v = _tcConfigCache && _tcConfigCache["Calcutta Enabled"];
         if (v === "on" || v === true) return true;
         if (v === "off" || v === false) return false;
-        return typeof KEY === "string" && /^Founder/i.test(KEY);
+        return false;
+      }
+
+      // ---- Format wizard (Stage 1: 5-step progressive disclosure) ----
+      // Step navigation, per-step validation, and repainting the top
+      // stepper based on which steps have blanks. The underlying form
+      // is the same as the old single-form layout — every input still
+      // has its original name / id, so saveFormat + config-write still
+      // pick up every value regardless of which step it lives on.
+      var _fmtActiveStep = 1;
+      function _fmtStepFields(step) {
+        // Required-field name list per step. Anything with a
+        // fmt-row--req class hits the same rule via the DOM walk below;
+        // this list stays authoritative for the "step is complete"
+        // check so a missing DOM node can't silently pass.
+        return {
+          1: ["Name", "Location", "Start Date", "End Date", "Reg Opens", "Reg Closes", "Public Slug"],
+          2: ["Play Style", "Players Per Team", "Rounds", "Team Cap", "Flights", "Start Type"],
+          3: [],  // Money is a mount component; validated by its own Save & Update.
+          4: [],  // Payout calculators self-validate.
+          5: []   // Share / Highlights are optional.
+        }[step] || [];
+      }
+      function _fmtStepEls(step) {
+        var host = document.querySelector('.fmt-step[data-step="' + step + '"]');
+        return host ? host : null;
+      }
+      function _fmtIsBlank(el) {
+        if (!el) return true;
+        if (el.type === "checkbox") return false; // checkboxes never count as blank
+        return String(el.value == null ? "" : el.value).trim() === "";
+      }
+      function _fmtStepIsComplete(step) {
+        var names = _fmtStepFields(step);
+        for (var i = 0; i < names.length; i++) {
+          var el = document.querySelector('[name="' + names[i] + '"]');
+          if (_fmtIsBlank(el)) return false;
+        }
+        return true;
+      }
+      function _fmtStepBlankFieldEls(step) {
+        // Every fmt-row--req INSIDE this step that's currently blank.
+        var host = _fmtStepEls(step); if (!host) return [];
+        var rows = host.querySelectorAll(".fmt-row--req");
+        var out = [];
+        Array.prototype.forEach.call(rows, function (row) {
+          var el = row.querySelector("input, select, textarea");
+          if (_fmtIsBlank(el)) out.push(row);
+        });
+        return out;
+      }
+      function _fmtPaintStepValidation() {
+        // Clear then re-apply per-row .is-blank and per-stepper-item
+        // .has-blanks / .is-done classes so the operator sees at a
+        // glance what's outstanding.
+        Array.prototype.forEach.call(document.querySelectorAll(".fmt-row.is-blank"), function (r) { r.classList.remove("is-blank"); });
+        for (var step = 1; step <= 5; step++) {
+          var blanks = _fmtStepBlankFieldEls(step);
+          blanks.forEach(function (r) { r.classList.add("is-blank"); });
+          var item = document.querySelector('.fmt-stepper__item[data-goto-step="' + step + '"]');
+          if (!item) continue;
+          item.classList.toggle("has-blanks", blanks.length > 0);
+          // Done = required fields filled AND this isn't the currently-
+          // active step (active step keeps its blue "current" state
+          // instead of the green "done" state).
+          var done = _fmtStepIsComplete(step) && step !== _fmtActiveStep;
+          item.classList.toggle("is-done", done);
+        }
+      }
+      function _fmtShowStep(step) {
+        step = Math.max(1, Math.min(5, Number(step) || 1));
+        _fmtActiveStep = step;
+        Array.prototype.forEach.call(document.querySelectorAll(".fmt-step"), function (s) {
+          s.classList.toggle("is-active", Number(s.getAttribute("data-step")) === step);
+        });
+        Array.prototype.forEach.call(document.querySelectorAll(".fmt-stepper__item"), function (it) {
+          it.classList.toggle("is-active", Number(it.getAttribute("data-goto-step")) === step);
+        });
+        _fmtPaintStepValidation();
+        // Scroll the wizard header into view so the operator sees the
+        // stepper after every advance / back.
+        try {
+          var host = document.getElementById("fmtStepper");
+          if (host && host.scrollIntoView) host.scrollIntoView({ behavior: "smooth", block: "start" });
+        } catch (e) {}
+      }
+      function _fmtStepAdvance(step) {
+        var blanks = _fmtStepBlankFieldEls(step);
+        var msgEl = document.querySelector('[data-step-msg="' + step + '"]');
+        if (blanks.length) {
+          if (msgEl) {
+            msgEl.textContent = blanks.length + " required field" + (blanks.length === 1 ? "" : "s") + " still blank";
+            msgEl.className = "fmt-step__msg is-error";
+          }
+          _fmtPaintStepValidation();
+          try { blanks[0].querySelector("input, select, textarea").focus(); } catch (e) {}
+          return;
+        }
+        if (msgEl) {
+          msgEl.textContent = "Saving…";
+          msgEl.className = "fmt-step__msg";
+        }
+        // Delegate to the same full-form saveFormat used by the top
+        // Save button — steps share one Airtable record so saving any
+        // step saves the whole record. On success, advance to the next
+        // step (or end on Step 5 → stay put).
+        try {
+          saveFormat(function (ok) {
+            if (msgEl) {
+              msgEl.textContent = ok ? "Saved ✓" : "Save failed — check network";
+              msgEl.className = "fmt-step__msg " + (ok ? "is-ok" : "is-error");
+            }
+            if (ok && step < 5) setTimeout(function () { _fmtShowStep(step + 1); }, 400);
+          });
+        } catch (e) {
+          if (msgEl) { msgEl.textContent = "Save failed"; msgEl.className = "fmt-step__msg is-error"; }
+        }
+      }
+      function _fmtWireStepper() {
+        Array.prototype.forEach.call(document.querySelectorAll("[data-goto-step]"), function (b) {
+          b.addEventListener("click", function () { _fmtShowStep(b.getAttribute("data-goto-step")); });
+          b.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); _fmtShowStep(b.getAttribute("data-goto-step")); }
+          });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll("[data-step-next]"), function (b) {
+          b.addEventListener("click", function () { _fmtStepAdvance(Number(b.getAttribute("data-step-next"))); });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll("[data-step-prev]"), function (b) {
+          b.addEventListener("click", function () {
+            var step = Number(b.getAttribute("data-step-prev"));
+            _fmtShowStep(Math.max(1, step - 1));
+          });
+        });
+        // Repaint validation on any input change so the stepper dots
+        // + red borders react live.
+        var form = document.getElementById("fmtForm");
+        if (form) form.addEventListener("input", function () { try { _fmtPaintStepValidation(); } catch (e) {} });
+        if (form) form.addEventListener("change", function () { try { _fmtPaintStepValidation(); } catch (e) {} });
       }
       // Hide/show the Calcutta workbook tabs + the Calcutta payout mount on
       // Format based on whether the tournament runs a Calcutta. When off,
@@ -2552,12 +2773,13 @@
         // Same — sms: href is pre-populated on refresh; the browser hands
         // off to the phone's Messages app.
       }
-      function saveFormat() {
+      function saveFormat(cb) {
         _fmtWriteShotgunToHidden();
         _fmtWriteHighlightsToHidden();
         _fmtWriteExtrasToHidden();
         var payload = _fmtCollectPayload();
         _fmtSetStatus("Saving…");
+        var done = typeof cb === "function" ? cb : function () {};
         fetch(FH_API.url("/api/tournament-signups"), {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
@@ -2596,8 +2818,10 @@
               }
               // Definitive confirmation modal — the tiny "Saved ✓" pill next
               // to the tab title is too easy to miss when the operator is
-              // glancing away after tapping Save.
-              try { openFmtSavedModal(res.j && (res.j.warning || "")); } catch (e) {}
+              // glancing away after tapping Save. Skipped when a callback
+              // is present (wizard-step advance flows its own status message).
+              if (!cb) try { openFmtSavedModal(res.j && (res.j.warning || "")); } catch (e) {}
+              done(true);
               return;
             }
             // Bubble the failure up as a modal — a small red pill next
@@ -2608,13 +2832,15 @@
             var errDetail = (res.j && res.j.detail) || "";
             try { console.error("saveFormat failed:", res.status, errMsg, errDetail); } catch (e) {}
             _fmtSetStatus(errMsg, "error");
-            try { openFmtErrorModal(errMsg, errDetail, res.status); } catch (e) { alert("Save failed: " + errMsg); }
+            if (!cb) try { openFmtErrorModal(errMsg, errDetail, res.status); } catch (e) { alert("Save failed: " + errMsg); }
+            done(false);
           })
           .catch(function (e) {
             var errMsg = "Network error saving — check your connection and try again.";
             try { console.error("saveFormat network error:", e); } catch (_) {}
             _fmtSetStatus(errMsg, "error");
-            try { openFmtErrorModal(errMsg, String(e && e.message || e || ""), 0); } catch (_) { alert(errMsg); }
+            if (!cb) try { openFmtErrorModal(errMsg, String(e && e.message || e || ""), 0); } catch (_) { alert(errMsg); }
+            done(false);
           });
       }
 
@@ -12812,9 +13038,12 @@
           offerThankYouEmailBlast(name, Number(year));
         });
         var fmtSave = document.getElementById("fmtSave");
-        if (fmtSave) fmtSave.addEventListener("click", saveFormat);
+        if (fmtSave) fmtSave.addEventListener("click", function () { saveFormat(); });
         var fmtSaveTop = document.getElementById("fmtSaveTop");
-        if (fmtSaveTop) fmtSaveTop.addEventListener("click", saveFormat);
+        if (fmtSaveTop) fmtSaveTop.addEventListener("click", function () { saveFormat(); });
+        // Wire the Format-tab 5-step wizard (stage 1 of the redesign).
+        // Idempotent — safe to call every tab open.
+        try { _fmtWireStepper(); } catch (e) {}
         // ---- Advertising / social share wiring ----
         var fmtAdRefresh = document.getElementById("fmtAdRefresh");
         if (fmtAdRefresh) fmtAdRefresh.addEventListener("click", _fmtRebuildAdCopy);
