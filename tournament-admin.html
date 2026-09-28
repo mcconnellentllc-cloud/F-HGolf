@@ -437,8 +437,7 @@
             <span class="ci-load-status" id="twLoadStatus" hidden aria-live="polite"></span>
             <button class="btn btn--primary" type="button" id="ciAddTeamBtn" title="Open the walk-up add-team form and focus the first name field">+ Add team</button>
             <button class="btn btn--solid" type="button" id="ciBulkPay" title="Mark every unpaid player paid with a chosen method">Mark all paid</button>
-            <button class="btn btn--solid" type="button" id="ciEmailAllLinks" title="Email every captain with an address on file their live-scoring link">Email scoring links</button>
-            <button class="btn btn--solid" type="button" id="ciEmailLeaderboard" title="Email the live leaderboard link to every partner (non-captain) whose email is in the Players master list">Email leaderboard</button>
+            <button class="btn btn--solid" type="button" id="ciEmailLinksAll" title="One send: scoring link to every captain, live leaderboard link to everyone else on file">Email links (captains + partners)</button>
             <button class="btn btn--solid" type="button" id="twRefresh">Refresh</button>
           </div>
 
@@ -7937,64 +7936,90 @@
           })
           .catch(function () { if (statusEl) { statusEl.textContent = "Network error minting link."; statusEl.className = "ci__status is-error"; } });
       }
-      // Bulk: email every team in this tournament that has a captain Email
-      // on file. Sequential to stay under Resend + Airtable rate limits.
-      // One-click blast of the live leaderboard URL to every partner
-      // (non-captain) in this tournament whose email is on the Players
-      // master list. Captains are excluded — they got the personalized
-      // scoring link from "Email scoring links" — so nobody who already
-      // has the scoring link gets pinged again with just the leaderboard.
-      function emailLeaderboardLink() {
+      // Unified "Email links" flow (Kyle, Sept 2026). One button on the
+      // Check-In bar sends BOTH:
+      //   • a personalized live-scoring link to every team captain on file
+      //   • the live-leaderboard link to every partner (non-captain) on file
+      // in one confirmation, one status readout, one action the operator
+      // can fire the moment the field is set. Captains never get the
+      // leaderboard blast (they already got the scoring link).
+      //
+      // Two building blocks below (captainScoringLinksBatch,
+      // partnerLeaderboardBatch) each return a Promise resolving to
+      // { sent, failed, failedNames?, note?, error? } so the wrapper can
+      // sum the totals for a single toast.
+
+      function captainScoringLinksBatch() {
+        var teams = (scAllCache || []).filter(function (r) {
+          var f = r.fields || {};
+          return f["Tournament"] === KEY && !f["Alternate"] && String(f["Email"] || "").trim();
+        });
+        if (!teams.length) return Promise.resolve({ sent: 0, failed: 0, skipped: "no-captains" });
         var origin = location.origin.indexOf("vercel") >= 0 ? "https://fandhgolf.com" : location.origin;
-        if (!confirm("Email the live leaderboard link to every partner whose email is in the Players list? (Captains are skipped — they already have the scoring link.)")) return;
-        var btn = document.getElementById("ciEmailLeaderboard");
-        var orig = btn ? btn.textContent : "";
-        if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
-        fetch(FH_API.url("/api/tournament-signups"), {
+        return new Promise(function (resolve) {
+          (function next(i, sent, failed) {
+            if (i >= teams.length) { resolve({ sent: sent, failed: failed, total: teams.length }); return; }
+            fetch(FH_API.url("/api/tournament-signups"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+              body: JSON.stringify({ action: "live-mint", signupId: teams[i].id, origin: origin }),
+            })
+              .then(function (r) { return r.json().catch(function () { return {}; }); })
+              .then(function (j) {
+                var ok = j && j.ok && j.emailed;
+                setTimeout(function () { next(i + 1, sent + (ok ? 1 : 0), failed + (ok ? 0 : 1)); }, 120);
+              })
+              .catch(function () { setTimeout(function () { next(i + 1, sent, failed + 1); }, 120); });
+          })(0, 0, 0);
+        });
+      }
+
+      function partnerLeaderboardBatch() {
+        var origin = location.origin.indexOf("vercel") >= 0 ? "https://fandhgolf.com" : location.origin;
+        return fetch(FH_API.url("/api/tournament-signups"), {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
           body: JSON.stringify({ action: "email-leaderboard", tournament: KEY, origin: origin }),
         })
           .then(function (r) { return r.json().catch(function () { return {}; }); })
           .then(function (j) {
-            if (btn) { btn.disabled = false; btn.textContent = orig || "Email leaderboard"; }
-            if (!j || !j.ok) { alert("Couldn't send: " + ((j && j.error) || "Unknown error.")); return; }
-            var msg = "Sent " + (j.sent || 0) + " leaderboard email" + ((j.sent === 1) ? "" : "s") + ".";
-            if (j.failed) msg += " " + j.failed + " failed" + (j.failedNames && j.failedNames.length ? " (" + j.failedNames.join(", ") + ")" : "") + ".";
-            if (j.note) msg += "\n\n" + j.note;
-            alert(msg);
+            if (!j || !j.ok) return { sent: 0, failed: 0, error: (j && j.error) || "Unknown error." };
+            return { sent: j.sent || 0, failed: j.failed || 0, failedNames: j.failedNames || [], note: j.note || "" };
           })
-          .catch(function () {
-            if (btn) { btn.disabled = false; btn.textContent = orig || "Email leaderboard"; }
-            alert("Network error while sending the leaderboard emails.");
-          });
+          .catch(function () { return { sent: 0, failed: 0, error: "Network error." }; });
       }
 
-      function emailAllScoringLinks() {
+      function emailAllLinksUnified() {
         var teams = (scAllCache || []).filter(function (r) {
           var f = r.fields || {};
           return f["Tournament"] === KEY && !f["Alternate"] && String(f["Email"] || "").trim();
         });
-        if (!teams.length) { alert("No captains in this tournament have an email on file yet."); return; }
-        if (!confirm("Email " + teams.length + " captain" + (teams.length === 1 ? "" : "s") + " their live-scoring link now?")) return;
-        var origin = location.origin.indexOf("vercel") >= 0 ? "https://fandhgolf.com" : location.origin;
-        (function next(i, sent, failed) {
-          if (i >= teams.length) {
-            alert("Done. Sent " + sent + " · " + failed + " failed." + (failed ? " Check the console for details." : ""));
-            return;
+        var capCount = teams.length;
+        var msg = "Email links now?\n\n"
+          + "• " + capCount + " team captain" + (capCount === 1 ? "" : "s") + " → live-scoring link\n"
+          + "• Every partner on file → live leaderboard link\n\n"
+          + "Captains are skipped on the leaderboard blast — they already have the scoring link.";
+        if (!confirm(msg)) return;
+        var btn = document.getElementById("ciEmailLinksAll");
+        var orig = btn ? btn.textContent : "";
+        if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
+        Promise.all([captainScoringLinksBatch(), partnerLeaderboardBatch()]).then(function (results) {
+          if (btn) { btn.disabled = false; btn.textContent = orig || "Email links (captains + partners)"; }
+          var cap = results[0], part = results[1];
+          var lines = [];
+          if (cap.skipped === "no-captains") {
+            lines.push("Captains: no captain emails on file — none sent.");
+          } else {
+            lines.push("Captains: sent " + cap.sent + " / " + cap.total + " scoring link" + (cap.total === 1 ? "" : "s") + (cap.failed ? " (" + cap.failed + " failed)" : "") + ".");
           }
-          fetch(FH_API.url("/api/tournament-signups"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
-            body: JSON.stringify({ action: "live-mint", signupId: teams[i].id, origin: origin }),
-          })
-            .then(function (r) { return r.json().catch(function () { return {}; }); })
-            .then(function (j) {
-              var ok = j && j.ok && j.emailed;
-              setTimeout(function () { next(i + 1, sent + (ok ? 1 : 0), failed + (ok ? 0 : 1)); }, 120);
-            })
-            .catch(function () { setTimeout(function () { next(i + 1, sent, failed + 1); }, 120); });
-        })(0, 0, 0);
+          if (part.error) {
+            lines.push("Partners: couldn't send — " + part.error);
+          } else {
+            lines.push("Partners: sent " + part.sent + " leaderboard email" + (part.sent === 1 ? "" : "s") + (part.failed ? " (" + part.failed + " failed" + (part.failedNames && part.failedNames.length ? " — " + part.failedNames.join(", ") : "") + ")" : "") + ".");
+          }
+          if (part.note) lines.push("", part.note);
+          alert(lines.join("\n"));
+        });
       }
 
       function removeTeam(id, statusEl, btn) {
@@ -13873,10 +13898,8 @@
         }
         var ciBulkPayBtn = document.getElementById("ciBulkPay");
         if (ciBulkPayBtn) ciBulkPayBtn.addEventListener("click", openCiBulkPay);
-        var ciEmailAllBtn = document.getElementById("ciEmailAllLinks");
-        if (ciEmailAllBtn) ciEmailAllBtn.addEventListener("click", emailAllScoringLinks);
-        var ciEmailLbBtn = document.getElementById("ciEmailLeaderboard");
-        if (ciEmailLbBtn) ciEmailLbBtn.addEventListener("click", emailLeaderboardLink);
+        var ciEmailLinksAllBtn = document.getElementById("ciEmailLinksAll");
+        if (ciEmailLinksAllBtn) ciEmailLinksAllBtn.addEventListener("click", emailAllLinksUnified);
         if (ciBulkModal) {
           Array.prototype.forEach.call(ciBulkModal.querySelectorAll("[data-close], #cbpClose, #cbpCancel"), function (el) {
             el.addEventListener("click", closeCiBulkPay);
