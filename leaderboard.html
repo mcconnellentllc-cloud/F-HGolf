@@ -1023,6 +1023,10 @@
       // switch on below.
       var IS_TWO_DAY = false;
       var HAS_HCP = false;
+      // Calcutta chips (T1st / T2nd / … Calcutta) are hidden on any tournament
+      // whose Format tab did not opt into a Calcutta. Founders + tournaments
+      // that check "Calcutta Enabled" flip this true when the config loads.
+      var HAS_CALCUTTA = false;
       // Fetch the tournament's Format config once so the h1 + Day 2 column
       // reflect what Format tab said (Display Name + Rounds).
       // Apply the tournament identity to the header from whatever we can
@@ -1067,6 +1071,10 @@
             // tournament whose Format config explicitly names a
             // Handicap Basis (day1 / tournament) also opts in.
             if (IS_TWO_DAY || hb === "day1" || hb === "tournament") HAS_HCP = true;
+            // Calcutta Enabled is a Format-tab checkbox. Airtable serves it
+            // as true / "true" / 1 depending on the client, so coerce loosely.
+            var ce = f["Calcutta Enabled"];
+            HAS_CALCUTTA = ce === true || ce === 1 || String(ce).toLowerCase() === "true";
           })
           .catch(function () {});
       })();
@@ -1339,7 +1347,7 @@
               var ties = fl.rows.filter(function (r) { return r.grossPlace === row.grossPlace; }).length;
               chips.push('<span class="lbd__flag lbd__flag--p' + row.grossPlace + '">' + (ties > 1 ? 'T' : '') + ordinal(row.grossPlace) + ' Gross</span>');
             }
-            if (row.netPlace && row.netPlace <= CALCUTTA_PRIZES) {
+            if (HAS_CALCUTTA && row.netPlace && row.netPlace <= CALCUTTA_PRIZES) {
               var netTies = fl.rows.filter(function (r) { return r.netPlace === row.netPlace; }).length;
               chips.push('<span class="lbd__flag lbd__flag--calc">' + (netTies > 1 ? 'T' : '') + ordinal(row.netPlace) + ' Calcutta</span>');
             }
