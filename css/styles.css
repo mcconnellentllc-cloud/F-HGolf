@@ -2379,6 +2379,35 @@ body.modal-open { overflow: hidden; }
 
 /* Format tab — Tournament Config editor. Compact form, one section per group. */
 .fmt-form { display: flex; flex-direction: column; gap: 1.1rem; padding-top: 0.4rem; }
+
+/* Format-tab wizard — 5-step progressive disclosure. Top stepper is
+   clickable, but Save & continue on each step also advances. Only the
+   active step's fieldset is visible; the rest sit hidden until the
+   operator jumps to them. Same underlying <input name="…"> fields as
+   before, so every existing change handler and the shared config-write
+   save path keep working. */
+.fmt-stepper { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; margin: 0 0 1rem; padding: 0; list-style: none; counter-reset: fmt-step; }
+.fmt-stepper__item { position: relative; padding: 0.5rem 0.55rem 0.5rem 2.1rem; background: var(--paper-2, #f4efe1); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font: 600 0.82rem/1.15 system-ui, sans-serif; color: var(--muted); user-select: none; }
+.fmt-stepper__item::before { counter-increment: fmt-step; content: counter(fmt-step); position: absolute; left: 0.55rem; top: 50%; transform: translateY(-50%); width: 1.35rem; height: 1.35rem; border-radius: 999px; background: #fff; border: 1px solid var(--line); color: var(--muted); text-align: center; line-height: 1.3rem; font-weight: 700; font-size: 0.78rem; }
+.fmt-stepper__item.is-active { background: #fff; border-color: var(--primary-green); color: var(--primary-green); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.fmt-stepper__item.is-active::before { background: var(--primary-green); color: #fff; border-color: var(--primary-green); }
+.fmt-stepper__item.is-done { background: #eef7ef; border-color: #a9d0ac; color: #1b5e20; }
+.fmt-stepper__item.is-done::before { content: "✓"; background: #1b5e20; color: #fff; border-color: #1b5e20; }
+.fmt-stepper__item.has-blanks::after { content: ""; position: absolute; top: 0.35rem; right: 0.4rem; width: 0.5rem; height: 0.5rem; border-radius: 999px; background: #b3391c; box-shadow: 0 0 0 2px #fff; }
+.fmt-step { display: none; }
+.fmt-step.is-active { display: flex; flex-direction: column; gap: 1.1rem; }
+.fmt-step__nav { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: space-between; align-items: center; padding: 0.75rem 0.15rem 0.25rem; border-top: 1px dashed var(--line); }
+.fmt-step__nav-left, .fmt-step__nav-right { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.fmt-step__msg { font-size: 0.82rem; color: var(--muted); min-width: 8rem; }
+.fmt-step__msg.is-error { color: #b3391c; font-weight: 600; }
+.fmt-step__msg.is-ok { color: #1b5e20; font-weight: 600; }
+/* Required-field asterisk. Applied to .fmt-row > span::after via a
+   .fmt-row--req class on the row wrapper. Skips the change of any
+   other visual weight, just adds the red star so blank required
+   fields catch the eye. */
+.fmt-row--req > span::after { content: " *"; color: #b3391c; }
+.fmt-row.is-blank input, .fmt-row.is-blank select, .fmt-row.is-blank textarea { border-color: #b3391c !important; }
+
 .fmt-set { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 1rem 1rem; margin: 0; }
 .fmt-set > legend { font-weight: 700; color: var(--primary-green); padding: 0 0.4rem; }
 .fmt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; }
