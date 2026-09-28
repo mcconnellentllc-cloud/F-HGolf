@@ -1994,14 +1994,18 @@
           else customExpense += total;
         });
         var flightPrizePool = Math.max(0, basePool + addFlight + customIncome - expensesTotal - customExpense);
-        // Each flight pays the FULL pool (not pool / nFlights). Per-flight
-        // budget therefore equals the pool itself. Total flight money out
-        // across all flights = flightPrizePool * nFlights.
-        var perFlightBudget = flightPrizePool;
+        // Universal rule (Kyle, Sept 2026): total flight money paid out
+        // equals the pool — you can only pay out what came in. The pool
+        // is DIVIDED across flights, not multiplied by them. Per-flight
+        // budget = pool / nFlights, and 1st/2nd/3rd within a flight split
+        // that flight's share by the flightSplit percentages. Applies to
+        // every tournament including Founders.
+        var flightsForSplit = Math.max(1, nFlights || 1);
+        var perFlightBudget = flightPrizePool / flightsForSplit;
         var flightPrizes = flightSplit.map(function (pct) {
           return perFlightBudget * (pct / 100);
         });
-        var totalFlightPayout = perFlightBudget * (nFlights || 0);
+        var totalFlightPayout = flightPrizePool;
         var calcuttaPayout = Math.max(0, calcuttaPool - calcuttaCommission);
 
         return {
@@ -2039,8 +2043,9 @@
         var teamCount = m.teamCount, players = m.players;
         var entryIncome = m.entryIncome, calcuttaPool = m.calcuttaPool, totalIncome = m.totalIncome;
         var flightPrizePool = m.flightPrizePool, calcuttaPayout = m.calcuttaPayout, totalPlayerPayouts = m.totalPlayerPayouts;
-        // Total flight money out = per-flight pool × number of flights.
-        var totalFlightPayout = m.totalFlightPayout != null ? m.totalFlightPayout : (flightPrizePool * (m.nFlights || 0));
+        // Total flight money out equals the pool (Kyle, Sept 2026):
+        // pool is divided across flights, never multiplied.
+        var totalFlightPayout = m.totalFlightPayout != null ? m.totalFlightPayout : flightPrizePool;
         var greenFees = m.greenFees, meals = m.meals, otherPerPlayer = m.otherRevenue;
         var calcuttaCommission = m.calcuttaCommission, courseRevenue = m.courseRevenue;
         var entryPP = m.entryPP, greenPP = m.greenPP, mealPP = m.mealPP, otherPP = m.otherPP, comm = m.calcuttaCommissionPct / 100;
@@ -5067,7 +5072,7 @@
           champion: champion,
           teams: m.teamCount,
           players: m.players,
-          totalPool: (m.totalFlightPayout != null ? m.totalFlightPayout : m.flightPrizePool * (m.nFlights || 0)) + m.calcuttaPool,
+          totalPool: (m.totalFlightPayout != null ? m.totalFlightPayout : m.flightPrizePool) + m.calcuttaPool,
           entryIncome: m.entryIncome,
           calcuttaPool: m.calcuttaPool,
           flightPrizePool: m.flightPrizePool,
@@ -12486,7 +12491,7 @@
           + '<div><span>Teams / players</span><b>' + m.teamCount + ' / ' + m.players + '</b></div>'
           + '<div><span>Entry income</span><b>' + money(m.entryIncome) + '</b></div>'
           + '<div><span>Calcutta pool</span><b>' + money(m.calcuttaPool) + '</b></div>'
-          + '<div><span>Prize pool / flight</span><b>' + money(m.flightPrizePool) + '</b></div>'
+          + '<div><span>Total prize pool</span><b>' + money(m.flightPrizePool) + '</b></div>'
           + '<div><span>Flights</span><b>' + nF + '</b></div>'
           + '</div>';
         // Flight checks can only be written after ALL players are marked paid
@@ -12509,15 +12514,20 @@
 
         var placeLabels = ["1st", "2nd", "3rd", "4th", "5th"];
         var flightBudget = m.perFlightBudget;
+        // Payout math (Kyle, Sept 2026): total prize money = pool. Pool is
+        // divided across flights so every flight pays the same 1st/2nd/3rd
+        // amounts from its share. "× N flights" column shows the pool total
+        // (= per-flight × nFlights) as a sanity check that everything adds
+        // back to the pool.
         var flightMoneyCard = ''
           + '<section class="po-card po-card--flight">'
           + '<h4 class="po-card__hdr">Flight money payout</h4>'
-          + '<p class="po-card__sub">Every flight pays the same 1st / 2nd / 3rd amounts. Flight budget: <b>' + _m(flightBudget) + '</b> per flight &middot; ' + m.nFlights + ' flights.</p>'
+          + '<p class="po-card__sub">Total flight pool <b>' + _m(m.flightPrizePool) + '</b> &divide; ' + m.nFlights + ' flights = <b>' + _m(flightBudget) + '</b> per flight. Every flight pays the same 1st / 2nd / 3rd amounts.</p>'
           + '<div class="po-card__grid">'
           +   '<div class="po-card__hd"><b>Place</b></div>'
           +   '<div class="po-card__hd"><b>Split</b></div>'
           +   '<div class="po-card__hd"><b>Per flight</b></div>'
-          +   '<div class="po-card__hd"><b>&times; ' + m.nFlights + ' flights</b></div>'
+          +   '<div class="po-card__hd"><b>All ' + m.nFlights + ' flights</b></div>'
           +   flightPrizes.map(function (amt, i) {
               return ''
                 + '<div class="po-card__lbl">' + placeLabels[i] + '</div>'
@@ -12526,7 +12536,7 @@
                 + '<div class="po-card__amt po-card__amt--tot">' + _m(amt * m.nFlights) + '</div>';
             }).join("")
           + '</div>'
-          + '<div class="po-card__total"><span>Total flight money to pay</span><b>' + _m(m.totalFlightPayout != null ? m.totalFlightPayout : m.flightPrizePool * (m.nFlights || 1)) + '</b></div>'
+          + '<div class="po-card__total"><span>Total flight money to pay</span><b>' + _m(m.totalFlightPayout != null ? m.totalFlightPayout : m.flightPrizePool) + '</b></div>'
           + '</section>';
 
         // Build the Calcutta card by grouping teams on their Flight field
@@ -12968,11 +12978,12 @@
               var lbl = ["1st", "2nd", "3rd"][i] || (i + 1);
               perPlaceHtml += '<span class="calc__prize"><small>' + lbl + '</small><b>' + money(amt) + '</b></span>';
             });
-            var _totalOut = (m.totalFlightPayout != null ? m.totalFlightPayout : m.flightPrizePool * (m.nFlights || 0));
+            var _totalOut = (m.totalFlightPayout != null ? m.totalFlightPayout : m.flightPrizePool);
             ft.innerHTML =
               '<div class="calc__tot-row">'
-              + '<span class="calc__tot calc__tot--pool"><small>Pool per flight</small><b>' + money(m.perFlightBudget) + '</b></span>'
-              + '<span class="calc__tot"><small>&times; ' + m.nFlights + ' flights</small><b>' + money(_totalOut) + '</b></span>'
+              + '<span class="calc__tot"><small>Total flight pool</small><b>' + money(m.flightPrizePool) + '</b></span>'
+              + '<span class="calc__tot"><small>&divide; ' + m.nFlights + ' flights</small><b>' + money(m.perFlightBudget) + '</b></span>'
+              + '<span class="calc__tot calc__tot--pool"><small>Total paid out (all flights)</small><b>' + money(_totalOut) + '</b></span>'
               + '</div><div class="calc__prizes">' + perPlaceHtml + '</div>'
               + (pctSum !== 100 ? '<p class="calc__warn">Split % add to ' + pctSum + '% (should be 100%).</p>' : '');
           }
