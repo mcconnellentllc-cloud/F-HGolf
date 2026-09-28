@@ -785,6 +785,24 @@
               // Players Per Team drives the team-size line under the card.
               var ppt = Number(f["Players Per Team"]);
               if (isFinite(ppt) && ppt > 0) m.team = ppt;
+              // Money-glance inputs. The Calc tab mirrors its money settings
+              // into a "Money JSON" field on save (see saveCalc in
+              // tournament-admin.html), so the season summary strip can
+              // compute cash in / check-to-course / pool per tournament
+              // without a per-tournament fetch. If the field is missing
+              // or empty, the summary row falls back to counts only.
+              m.money = null;
+              try {
+                var mj = f["Money JSON"];
+                if (typeof mj === "string" && mj.trim()) m.money = JSON.parse(mj);
+              } catch (e) {}
+              // Airtable-native Calcutta Enabled — used by the summary row
+              // to decide whether Calcutta pool matters for this tournament.
+              m.calcuttaEnabled = f["Calcutta Enabled"] === true || f["Calcutta Enabled"] === 1 || String(f["Calcutta Enabled"]).toLowerCase() === "true";
+              // Flights count — Airtable-native (typed number), used by the
+              // per-flight math in the summary strip.
+              var fl = Number(f["Flights"]);
+              if (isFinite(fl) && fl > 0) m.flights = fl;
             });
             try { if (typeof loadTournaments === "function") loadTournaments(); else buildManager([]); } catch (e) {}
           })
@@ -914,6 +932,123 @@
       function _tmReadSeason() { try { return localStorage.getItem(_tmSeasonKey) || ""; } catch (e) { return ""; } }
       function _tmWriteSeason(v) { try { localStorage.setItem(_tmSeasonKey, v || ""); } catch (e) {} }
 
+      // ---- Season money glance ----------------------------------------
+      // One row per tournament with signups, paid, $ in, check to course,
+      // and flight pool — plus a season total at the bottom. Reads the
+      // "Money JSON" that tournament-admin.html's saveCalc mirrors to
+      // Airtable. Tournaments without Money JSON on file show counts
+      // only (they haven't had their Calc tab saved since the mirror
+      // shipped).
+      function _tmMoneyForKey(key, records, meta) {
+        var teams = 0, players = 0, paid = 0;
+        var slot = Math.max(1, Math.min(4, Number(meta && meta.team) || 2));
+        (records || []).forEach(function (rec) {
+          var f = rec.fields || {};
+          if (String(f["Tournament"] || "") !== key) return;
+          // Alternates are on standby — exclude from the money row so the
+          // "1 paid of 60" gauge matches what Check-In shows in the field.
+          var alt = f["Alternate"] === true || f["Alternate"] === "true" || f["Alternate"] === 1;
+          if (alt) return;
+          teams++;
+          // Seat 1 = captain (Player Name). Seats 2-N = "/"-split partners
+          // from Team / Partners. Only count seats with a real name.
+          var captain = String(f["Player Name"] || "").trim();
+          var partners = String(f["Team / Partners"] || "").split(/\s*\/\s*/).map(function (s) { return s.trim(); }).filter(Boolean);
+          for (var i = 1; i <= slot; i++) {
+            var name = i === 1 ? captain : (partners[i - 2] || "");
+            if (!name) continue;
+            players++;
+            if (String(f["Player " + i + " Paid"] || "").trim().length) paid++;
+          }
+        });
+        var money = (meta && meta.money) || null;
+        var entryPP = Number((money && money.entryPP) || 0);
+        var greenPP = Number((money && money.greenFeePP) || 0);
+        var mealPP = Number((money && money.mealPP) || 0);
+        var otherPP = Number((money && money.otherPP) || 0);
+        var flatFee = Number((money && money.courseFlatFee) || 0);
+        var entryIn = paid * entryPP;
+        var toCourse = paid * (greenPP + mealPP + otherPP) + (paid > 0 ? flatFee : 0);
+        var pool = Math.max(0, paid * (entryPP - greenPP - mealPP - otherPP) - (paid > 0 ? flatFee : 0));
+        return {
+          teams: teams, players: players, paid: paid,
+          entryIn: entryIn, toCourse: toCourse, pool: pool,
+          hasMoney: !!money && entryPP > 0,
+        };
+      }
+      function _tmMoney(n) { if (n == null) return "—"; return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+      function renderSeasonMoney(ynames, years, T, records) {
+        var host = document.getElementById("tmSeasonMoney");
+        if (!host) return;
+        // Only show on a single-season view — cross-season totals aren't
+        // meaningful (year-over-year comparisons live in History).
+        var real = ynames.filter(function (y) { return y !== "Season-long"; });
+        if (real.length !== 1) { host.hidden = true; host.innerHTML = ""; return; }
+        var y = real[0];
+        var keys = (years[y] || []).slice().sort(function (a, b) {
+          return (T[a].end || "9999").localeCompare(T[b].end || "9999");
+        });
+        if (!keys.length) { host.hidden = true; host.innerHTML = ""; return; }
+        var rows = keys.map(function (k) {
+          var meta = T[k] || {};
+          var info = splitName(k);
+          var m = _tmMoneyForKey(k, records, meta);
+          var moneyCells = m.hasMoney
+            ? '<td class="tm-money__num">' + _tmMoney(m.entryIn) + '</td>'
+              + '<td class="tm-money__num tm-money__num--neg">' + _tmMoney(m.toCourse) + '</td>'
+              + '<td class="tm-money__num tm-money__num--pool">' + _tmMoney(m.pool) + '</td>'
+            : '<td class="tm-money__num tm-money__num--dim" colspan="3" title="Save the Format / Calc tab on this tournament to populate money numbers here.">— open &amp; save Calc —</td>';
+          return '<tr>'
+            + '<td class="tm-money__name"><a href="tournament-admin.html?t=' + encodeURIComponent(k) + '#sec-summary">' + esc(info.name) + '</a>'
+            + (info.date ? ' <span class="tm-money__date">' + esc(info.date) + '</span>' : '') + '</td>'
+            + '<td class="tm-money__num">' + m.teams + '</td>'
+            + '<td class="tm-money__num">' + m.paid + ' / ' + m.players + '</td>'
+            + moneyCells
+            + '</tr>';
+        }).join("");
+        // Season total row — only sums tournaments with money data.
+        var tot = { entryIn: 0, toCourse: 0, pool: 0, teams: 0, players: 0, paid: 0, moneyCount: 0 };
+        keys.forEach(function (k) {
+          var m = _tmMoneyForKey(k, records, T[k] || {});
+          tot.teams += m.teams; tot.players += m.players; tot.paid += m.paid;
+          if (m.hasMoney) { tot.entryIn += m.entryIn; tot.toCourse += m.toCourse; tot.pool += m.pool; tot.moneyCount++; }
+        });
+        var totalRow = '<tr class="tm-money__total">'
+          + '<td class="tm-money__name">Season total (' + keys.length + ' events)</td>'
+          + '<td class="tm-money__num">' + tot.teams + '</td>'
+          + '<td class="tm-money__num">' + tot.paid + ' / ' + tot.players + '</td>'
+          + (tot.moneyCount
+              ? '<td class="tm-money__num">' + _tmMoney(tot.entryIn) + '</td>'
+                + '<td class="tm-money__num tm-money__num--neg">' + _tmMoney(tot.toCourse) + '</td>'
+                + '<td class="tm-money__num tm-money__num--pool">' + _tmMoney(tot.pool) + '</td>'
+              : '<td class="tm-money__num tm-money__num--dim" colspan="3">—</td>')
+          + '</tr>';
+        var missing = keys.length - tot.moneyCount;
+        var footnote = missing > 0
+          ? '<p class="tm-money__note">' + missing + ' tournament' + (missing === 1 ? '' : 's') + ' not counted in totals — open their Calc tab and Save to fill in money numbers.</p>'
+          : '';
+        host.hidden = false;
+        host.innerHTML = ''
+          + '<div class="tm-money__hdr">'
+          +   '<h4 class="tm-money__title">' + esc(y) + ' Season money glance</h4>'
+          +   '<p class="tm-money__sub">Every event’s cash in, check to course, and flight pool for the year at a glance. Click a tournament name to open its $ Summary.</p>'
+          + '</div>'
+          + '<div class="tm-money__scroll">'
+          +   '<table class="tm-money__tbl">'
+          +     '<thead><tr>'
+          +       '<th class="tm-money__name">Tournament</th>'
+          +       '<th class="tm-money__num">Teams</th>'
+          +       '<th class="tm-money__num">Paid / players</th>'
+          +       '<th class="tm-money__num">$ in</th>'
+          +       '<th class="tm-money__num">To course</th>'
+          +       '<th class="tm-money__num">Flight pool</th>'
+          +     '</tr></thead>'
+          +     '<tbody>' + rows + totalRow + '</tbody>'
+          +   '</table>'
+          + '</div>'
+          + footnote;
+      }
+
       function buildManager(records) {
         if (!tmYears) return;
         // Keep the last fetched records so the season picker can re-render
@@ -974,6 +1109,11 @@
         // the operator sees on screen instead of the raw TMETA total.
         var shownCount = ynames.reduce(function (n, y) { return n + (years[y] || []).length; }, 0);
         tmCount.textContent = "(" + shownCount + ")";
+        // Season money glance — renders per-tournament $ in / to course /
+        // pool / net for every tournament in the shown seasons, with a
+        // season total at the bottom. Skips the strip on the "All seasons"
+        // view (too much data) and on Season-long buckets (no dates).
+        try { renderSeasonMoney(ynames, years, T, records || []); } catch (e) {}
         tmYears.innerHTML = ynames.map(function (y) {
           var items = years[y].slice().sort(function (a, b) {
             return (T[a].end || "9999").localeCompare(T[b].end || "9999");

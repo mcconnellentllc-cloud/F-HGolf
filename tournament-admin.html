@@ -13175,6 +13175,27 @@
         // Refresh anything downstream that reads the Calc values live.
         try { renderPL(); } catch (e) {}
         try { renderBoard(scAllCache); renderLeaderboard(scAllCache); renderCalcutta(scAllCache); renderCalcuttaSummary(scAllCache); renderPayout(scAllCache); } catch (e) {}
+        // Mirror the money settings to Airtable so admin-tournaments.html
+        // can compute the season money glance without opening every
+        // tournament. Fire-and-forget — a network failure here does not
+        // undo the local save above. Field auto-strips server-side if
+        // Money JSON hasn't been added to the Tournament Config table,
+        // so this is safe to ship before the schema change lands.
+        try {
+          var _moneyMirror = {
+            entryPP: c.entryPP, greenFeePP: c.greenFeePP, mealPP: c.mealPP,
+            otherPP: c.otherPP, courseFlatFee: c.courseFlatFee,
+            flights: c.flights, flightSplit: c.flightSplit,
+            additionalFlight: c.additionalFlight,
+            calcuttaCommission: c.calcuttaCommission,
+            calcuttaSplit: c.calcuttaSplit
+          };
+          fetch(FH_API.url("/api/tournament-signups"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify({ action: "config-write", tournament: KEY, fields: { "Money JSON": JSON.stringify(_moneyMirror) } }),
+          }).catch(function () {});
+        } catch (e) {}
       }
 
       document.addEventListener("DOMContentLoaded", function () {

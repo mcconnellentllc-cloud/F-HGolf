@@ -74,6 +74,10 @@
             </div>
           </div>
           <p class="tm__intro">One card per tournament in the picked season. Open a tournament to manage its roster, flights, scorecards &amp; leaderboard, and to email everyone signed up. Formats carry over year to year, so each event can be reused season after season.</p>
+          <!-- Season money glance — one row per tournament with a total row.
+               Populated by renderSeasonMoney() in admin.js from the same
+               team records that drive the tournament cards below. -->
+          <div id="tmSeasonMoney" class="tm-money" hidden></div>
           <div id="tmYears"><p class="noms__msg">Loading tournaments…</p></div>
         </section>
 
