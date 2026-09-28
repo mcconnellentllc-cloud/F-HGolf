@@ -1870,14 +1870,34 @@
         // Actual entry payments recorded on Check-In. Flight prize money can
         // only be truly paid out once ALL players are marked paid — the flight
         // pool literally comes from these collected entries.
+        // Also tally by payment method (Cash / Check / Card / Online) so the
+        // $ Summary Income section can break down "entry fees collected"
+        // per method — the treasurer wants to know how much cash to drop
+        // off vs. how much rode the card processor.
         var paidPlayers = 0;
+        var paidByMethod = { cash: 0, check: 0, card: 0, online: 0, other: 0 };
         teams.forEach(function (r) {
           var f = r.fields || {};
           for (var i = 1; i <= slotCount; i++) {
-            if ((f["Player " + i + " Paid"] || "").toString().length > 0) paidPlayers++;
+            var raw = (f["Player " + i + " Paid"] || "").toString();
+            if (!raw.length) continue;
+            paidPlayers++;
+            var mk = raw.toLowerCase();
+            if (mk === "cash") paidByMethod.cash++;
+            else if (mk === "check") paidByMethod.check++;
+            else if (mk === "card") paidByMethod.card++;
+            else if (mk === "online") paidByMethod.online++;
+            else paidByMethod.other++;
           }
         });
         var entryCollected = paidPlayers * entryPP;
+        var entryCollectedByMethod = {
+          cash: paidByMethod.cash * entryPP,
+          check: paidByMethod.check * entryPP,
+          card: paidByMethod.card * entryPP,
+          online: paidByMethod.online * entryPP,
+          other: paidByMethod.other * entryPP
+        };
         var entryIncome = players * entryPP;
         var fullyPaid = paidPlayers >= players && players > 0;
         var calcuttaPool = teams.reduce(function (s, r) { var v = (r.fields || {})["Buy Amount"]; return s + (typeof v === "number" ? v : 0); }, 0);
@@ -1986,7 +2006,9 @@
 
         return {
           cfg: cfg, teams: teams, teamCount: teamCount, players: players,
-          paidPlayers: paidPlayers, entryCollected: entryCollected, fullyPaid: fullyPaid,
+          paidPlayers: paidPlayers, paidByMethod: paidByMethod,
+          entryCollected: entryCollected, entryCollectedByMethod: entryCollectedByMethod,
+          fullyPaid: fullyPaid,
           extraMealsCount: extraMealsCount, extraMealsRevenue: extraMealsRevenue,
           cartRentalsCount: cartRentalsCount, cartRentalRevenue: cartRentalRevenue,
           extrasBreakdown: extrasBreakdown, extrasRevenue: extrasRevenue,
@@ -2058,6 +2080,18 @@
           + '<h4 class="pl__hdr">Income</h4>'
           + row("Entry fees expected (" + players + " × " + money(entryPP) + ")", entryIncome)
           + row("Entry fees collected (" + m.paidPlayers + " / " + players + " paid)", m.entryCollected, m.fullyPaid ? "" : "pl__row--warn")
+          // Per-method breakdown of entry-fee collection. Only render
+          // methods with at least one paid player — a Founders event
+          // with 20 cash + 20 check + 10 card + 0 online prints three
+          // sub-lines, not four. Indented under the parent row so the
+          // treasurer can eyeball how much of each was collected.
+          + ["cash","check","card","online","other"].map(function (mk) {
+              var count = (m.paidByMethod && m.paidByMethod[mk]) || 0;
+              if (!count) return "";
+              var amt = (m.entryCollectedByMethod && m.entryCollectedByMethod[mk]) || 0;
+              var label = mk.charAt(0).toUpperCase() + mk.slice(1);
+              return row("&mdash; " + label + " (" + count + " player" + (count === 1 ? "" : "s") + ")", amt, "pl__row--sub");
+            }).join("")
           + row("Calcutta pool (from buyers)", calcuttaPool)
           + row("Extra meals (" + m.extraMealsCount + " × " + money(m.extraMealFee) + ")", m.extraMealsRevenue)
           + row("Cart rentals (" + m.cartRentalsCount + " × " + money(m.cartFee) + ")", m.cartRentalRevenue)
@@ -12903,8 +12937,23 @@
           if (mt) {
             var otherTotal = m.otherRevenue;
             var courseFlat = m.courseFlatFee || 0;
+            // Per-player math strip — human-readable formula. Reads:
+            //   $75 entry − $30 green − $10 meal = $35 to pool × 60 players = $2,100 pool
+            // The existing calc__tot-row underneath shows the same numbers
+            // in the aggregate; this line is for at-a-glance understanding.
+            var _perPlayer = m.entryPP - m.greenPP - m.mealPP - m.otherPP;
+            var _formula = ''
+              + '<span class="calc__ppf-num">' + money(m.entryPP) + '</span>'
+              + '<small>entry</small>'
+              + (m.greenPP ? ' <span class="calc__ppf-op">&minus;</span> <span class="calc__ppf-num">' + money(m.greenPP) + '</span><small>green</small>' : '')
+              + (m.mealPP ? ' <span class="calc__ppf-op">&minus;</span> <span class="calc__ppf-num">' + money(m.mealPP) + '</span><small>meal</small>' : '')
+              + (m.otherPP ? ' <span class="calc__ppf-op">&minus;</span> <span class="calc__ppf-num">' + money(m.otherPP) + '</span><small>other</small>' : '')
+              + ' <span class="calc__ppf-eq">=</span> <span class="calc__ppf-num calc__ppf-num--pool">' + money(_perPlayer) + '</span><small>to pool per player</small>'
+              + ' <span class="calc__ppf-op">&times;</span> <span class="calc__ppf-num">' + m.players + '</span><small>players</small>'
+              + ' <span class="calc__ppf-eq">=</span> <span class="calc__ppf-num calc__ppf-num--pool">' + money(_perPlayer * m.players) + '</span><small>flight pool</small>';
             mt.innerHTML =
-              '<div class="calc__tot-row">'
+              '<div class="calc__ppf">' + _formula + '</div>'
+              + '<div class="calc__tot-row">'
               + '<span class="calc__tot"><small>Entry in</small><b>' + money(m.entryIncome) + '</b></span>'
               + '<span class="calc__tot calc__tot--neg"><small>To course (green + meal)</small><b>&minus; ' + money(m.greenFees + m.meals) + '</b></span>'
               + (courseFlat ? '<span class="calc__tot calc__tot--neg"><small>Course flat fee</small><b>&minus; ' + money(courseFlat) + '</b></span>' : '')
