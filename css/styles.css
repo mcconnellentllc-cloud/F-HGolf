@@ -2425,6 +2425,18 @@ body.modal-open { overflow: hidden; }
 .fmt-row__last { display: block; margin-top: 0.2rem; color: var(--muted); font-size: 0.75rem; font-weight: 500; letter-spacing: 0; text-transform: none; }
 .fmt-row--chk .fmt-row__last { display: inline-block; margin-left: 0.4rem; }
 
+/* Format-incomplete soft banner (wizard Stage 3). Sits above the
+   workbook tabs; every non-Format tab shows the nag until the operator
+   either finishes Format or dismisses it for the session. Amber accent
+   so it reads as a "hey — fix this soon" prompt, not a blocker. */
+.fmt-banner { background: #fff8e1; border: 1px solid #f0d67a; border-left: 4px solid #c9a04b; border-radius: 8px; padding: 0.55rem 0.75rem; margin: 0.6rem 0.8rem 0; }
+.fmt-banner__body { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.fmt-banner__msg { color: #4a3910; font-size: 0.9rem; line-height: 1.4; flex: 1 1 20rem; min-width: 0; }
+.fmt-banner__msg b { color: #7a5f00; }
+.fmt-banner__actions { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.fmt-banner__x { background: none; border: 0; color: #7a5f00; font-size: 1.35rem; line-height: 1; cursor: pointer; padding: 0.2rem 0.5rem; border-radius: 4px; }
+.fmt-banner__x:hover { background: rgba(122, 95, 0, 0.08); }
+
 .fmt-set { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 1rem 1rem; margin: 0; }
 .fmt-set > legend { font-weight: 700; color: var(--primary-green); padding: 0 0.4rem; }
 .fmt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; }
