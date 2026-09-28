@@ -1055,6 +1055,17 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .calc__tot b { font-family: var(--font-display); font-size: 1.1rem; color: var(--ink); }
 .calc__tot--neg b { color: var(--red-deep); }
 .calc__tot--pool b { color: var(--primary-green); font-size: 1.25rem; }
+/* Per-player formula strip on the Money step — reads like a napkin math
+   line so a first-time operator can see *why* the pool is what it is:
+   "$75 entry − $30 green − $10 meal = $35 to pool × 60 players = $2,100".
+   Sits directly above .calc__tot-row so the aggregate totals right below
+   are the same story restated. */
+.calc__ppf { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.15rem 0.35rem; padding: 0.55rem 0.75rem; margin: 0 0 0.55rem; background: linear-gradient(180deg, #fbfaf3 0%, #f5f2e2 100%); border: 1px solid var(--line); border-radius: 8px; font-size: 0.95rem; line-height: 1.4; }
+.calc__ppf small { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.25rem; }
+.calc__ppf-num { font-family: var(--font-display); color: var(--ink); font-weight: 700; }
+.calc__ppf-op { color: var(--muted); font-weight: 600; }
+.calc__ppf-eq { color: var(--primary-green); font-weight: 800; }
+.calc__ppf-num--pool { color: var(--primary-green); font-size: 1.1rem; }
 .calc__prizes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--line); }
 .calc__prize { display: inline-flex; flex-direction: column; align-items: center; background: var(--paper-2); border-radius: 8px; padding: 0.35rem 0.7rem; min-width: 4.6rem; }
 .calc__prize small { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
@@ -1108,6 +1119,11 @@ tr.is-error .sc-tbl__save { background: var(--red-deep); }
 .pl__row--warn strong { color: #8a5a00; }
 .pl__row--projected strong { color: #8a5a00; }
 .pl__row--projected span::after { content: " · projected"; color: #8a5a00; font-style: italic; font-size: 0.85em; }
+/* Sub-rows on the $ Summary Income / Expense tables — used for the
+   per-payment-method breakdown under "Entry fees collected". Indented,
+   dimmer, smaller so the parent row still reads as the total. */
+.pl__row--sub { padding: 0.35rem 0 0.35rem 1.5rem; font-size: 0.9rem; color: var(--muted); border-bottom: none; }
+.pl__row--sub strong { color: var(--muted); font-weight: 600; }
 
 /* Check-to-course + tournament-ledger blocks. Two clean vertically-stacked
    line-item ledgers with a big total at the bottom so the account can cut
