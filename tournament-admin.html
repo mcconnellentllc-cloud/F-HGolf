@@ -143,6 +143,26 @@
 
             <!-- ==================== STEP 1 · BASICS ==================== -->
             <div class="fmt-step is-active" data-step="1" role="tabpanel">
+              <!-- Copy-from-last-year callout. Populated by
+                   _fmtLoadLastYearArchive on Format tab open. Hidden
+                   when no matching prior-year archive exists for this
+                   tournament's base name (brand-new event) or when the
+                   most recent archive predates the config-snapshotting
+                   change and has no config to copy. -->
+              <aside class="fmt-lastyear" id="fmtLastYearCta" hidden>
+                <div class="fmt-lastyear__body">
+                  <div class="fmt-lastyear__hd">
+                    <span class="fmt-lastyear__eyebrow">Set up from last year</span>
+                    <h4 class="fmt-lastyear__title" id="fmtLastYearTitle">&mdash;</h4>
+                    <p class="fmt-lastyear__note" id="fmtLastYearNote"></p>
+                  </div>
+                  <div class="fmt-lastyear__actions">
+                    <button type="button" class="btn btn--primary" id="fmtLastYearCopy">Copy every setting &rarr;</button>
+                    <button type="button" class="btn btn--ghost" id="fmtLastYearDismiss">Start blank</button>
+                  </div>
+                </div>
+              </aside>
+
               <fieldset class="fmt-set">
                 <legend>Identity &amp; schedule</legend>
                 <label class="fmt-row fmt-row--req"><span>Display name</span><input type="text" name="Name" placeholder="Founder's Tournament" /></label>
@@ -2142,6 +2162,16 @@
             _fmtApplyRecord(j.record);
             _formatLoaded = true;
             _fmtSetStatus(j.record ? "Loaded ✓" : "New tournament — fill in and save.", "ok");
+            // Wizard Stage 2 — fetch the most recent prior-year archive
+            // for this tournament base name in the background so the
+            // "Copy from last year" callout + inline hints appear once
+            // the archive lookup lands. Non-blocking; if there's no
+            // archive or the lookup fails, the wizard just doesn't show
+            // hints (baseline blank-slate experience from Stage 1).
+            try { _fmtLoadLastYearArchive(function () {
+              try { _fmtRenderLastYearBanner(); } catch (e) {}
+              try { _fmtRenderLastYearHints(); } catch (e) {}
+            }); } catch (e) {}
           })
           .catch(function () { _fmtSetStatus("Network error loading the format.", "error"); });
       }
@@ -2323,6 +2353,138 @@
           if (msgEl) { msgEl.textContent = "Save failed"; msgEl.className = "fmt-step__msg is-error"; }
         }
       }
+      // ---- Last-year archive integration (wizard Stage 2) ----------
+      // Fetches every archived tournament for this base name, keeps
+      // the most recent, and uses its .config / .calc blocks to
+      // populate:
+      //   (a) the "Copy from Cornfest 2026" callout at the top of Step 1
+      //   (b) inline "Last year: <value>" hints under every fmt-row
+      // Existing archives predating the config-snapshotting change won't
+      // have .config, so the callout stays hidden and hints don't
+      // render — no data loss, just no hints yet.
+      var _fmtLastYearSnap = null;      // parsed archive Snapshot JSON
+      var _fmtLastYearYear = "";
+      var _fmtLastYearName = "";
+      function _fmtCurrentBaseName() {
+        return String(KEY || "").replace(/\s*\([^)]*\)\s*$/, "").replace(/^\s*/, "").trim();
+      }
+      function _fmtLoadLastYearArchive(cb) {
+        var baseName = _fmtCurrentBaseName();
+        if (!baseName) { cb && cb(false); return; }
+        fetch(FH_API.url("/api/tournament-signups?archives=1"), { cache: "no-store" })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (!j || !j.ok || !Array.isArray(j.records)) { cb && cb(false); return; }
+            var matches = j.records.filter(function (r) {
+              var f = r.fields || {};
+              return String(f.Name || "").toLowerCase() === baseName.toLowerCase();
+            });
+            matches.sort(function (a, b) {
+              return String((b.fields || {}).Year || "").localeCompare(String((a.fields || {}).Year || ""));
+            });
+            var recent = matches[0];
+            if (!recent) { cb && cb(false); return; }
+            var f = recent.fields || {};
+            var snap = null;
+            try { snap = f.Snapshot ? JSON.parse(f.Snapshot) : null; } catch (e) { snap = null; }
+            _fmtLastYearSnap = snap;
+            _fmtLastYearYear = String(f.Year || "");
+            _fmtLastYearName = String(f.Name || baseName);
+            cb && cb(true);
+          })
+          .catch(function () { cb && cb(false); });
+      }
+      function _fmtLastYearHas(field) {
+        return !!(_fmtLastYearSnap && _fmtLastYearSnap.config && _fmtLastYearSnap.config[field] !== undefined && _fmtLastYearSnap.config[field] !== "");
+      }
+      function _fmtLastYearFmt(field) {
+        // Prettify checkbox booleans / dates for the inline hint. Numbers
+        // and strings pass through as-is.
+        var v = _fmtLastYearSnap && _fmtLastYearSnap.config && _fmtLastYearSnap.config[field];
+        if (v === true) return "yes";
+        if (v === false) return "no";
+        return String(v);
+      }
+      function _fmtRenderLastYearBanner() {
+        var host = document.getElementById("fmtLastYearCta");
+        if (!host) return;
+        var hasCfg = !!(_fmtLastYearSnap && _fmtLastYearSnap.config && Object.keys(_fmtLastYearSnap.config).length);
+        if (!_fmtLastYearYear || !hasCfg) { host.hidden = true; return; }
+        var titleEl = document.getElementById("fmtLastYearTitle");
+        var noteEl = document.getElementById("fmtLastYearNote");
+        if (titleEl) titleEl.textContent = "Copy every setting from " + _fmtLastYearName + " " + _fmtLastYearYear + "?";
+        if (noteEl) noteEl.textContent = "Dates, times, and prices will change year-to-year — this fills every field with what you did last time so you only tweak what's different, then Save.";
+        host.hidden = false;
+      }
+      function _fmtRenderLastYearHints() {
+        // Drop existing hints so a re-render (Format reload) doesn't
+        // stack duplicates.
+        Array.prototype.forEach.call(document.querySelectorAll(".fmt-row__last"), function (n) {
+          if (n.parentNode) n.parentNode.removeChild(n);
+        });
+        if (!_fmtLastYearSnap || !_fmtLastYearSnap.config) return;
+        var yr = _fmtLastYearYear ? _fmtLastYearYear + ": " : "Last time: ";
+        var form = document.getElementById("fmtForm"); if (!form) return;
+        Array.prototype.forEach.call(form.querySelectorAll("input[name], select[name], textarea[name]"), function (el) {
+          var name = el.getAttribute("name"); if (!name) return;
+          if (!_fmtLastYearHas(name)) return;
+          var row = el.closest(".fmt-row"); if (!row) return;
+          // Skip hidden inputs (Waves JSON, Extras JSON, Highlights).
+          if (el.type === "hidden") return;
+          var hint = document.createElement("span");
+          hint.className = "fmt-row__last";
+          hint.textContent = yr + _fmtLastYearFmt(name);
+          row.appendChild(hint);
+        });
+      }
+      function _fmtApplyLastYearCopy() {
+        if (!_fmtLastYearSnap || !_fmtLastYearSnap.config) return;
+        var cfg = _fmtLastYearSnap.config;
+        var form = document.getElementById("fmtForm"); if (!form) return;
+        // Named form inputs first — same DOM walk _fmtApplyRecord uses,
+        // just sourced from the archived config instead of the current
+        // Airtable record.
+        Array.prototype.forEach.call(form.querySelectorAll("input[name], select[name], textarea[name]"), function (el) {
+          var name = el.getAttribute("name"); if (!name) return;
+          var v = cfg[name];
+          if (v === undefined) return;
+          if (el.type === "checkbox") { el.checked = v === true; return; }
+          el.value = String(v == null ? "" : v);
+        });
+        // Non-form-name fields — Handicap Multiplier / Basis / Calcutta
+        // Enabled dropdown / hydrators (Waves / Highlights / Extras).
+        var hm = document.getElementById("fmtHcpMultiplier");
+        if (hm && cfg["Handicap Multiplier"] !== undefined) hm.value = String(cfg["Handicap Multiplier"]);
+        var hb = document.getElementById("fmtHcpBasis");
+        if (hb && cfg["Handicap Basis"]) hb.value = String(cfg["Handicap Basis"]);
+        var ce = document.getElementById("fmtCalcuttaEnabled");
+        if (ce && cfg["Calcutta Enabled"] !== undefined) {
+          var cev = cfg["Calcutta Enabled"];
+          ce.value = (cev === true || cev === "on") ? "on" : "off";
+        }
+        try { _fmtHydrateShotgun(cfg["Waves JSON"] || ""); } catch (e) {}
+        try { _fmtHydrateHighlights(cfg["Highlights"] || ""); } catch (e) {}
+        try { _fmtHydrateExtras(cfg["Extras JSON"] || ""); } catch (e) {}
+        try { _fmtRebuildAdCopy(); } catch (e) {}
+        try { _applyFlightFromVisibility(Number(cfg["Rounds"] || 1)); } catch (e) {}
+        try { _applyCalcuttaVisibility(_isCalcuttaEnabled()); } catch (e) {}
+        try { _fmtPaintStepValidation(); } catch (e) {}
+      }
+      function _fmtWireLastYear() {
+        var copyBtn = document.getElementById("fmtLastYearCopy");
+        if (copyBtn) copyBtn.addEventListener("click", function () {
+          if (!confirm("Fill every Format field with " + _fmtLastYearName + " " + _fmtLastYearYear + "'s values? Dates + times will need updating for the new event.")) return;
+          _fmtApplyLastYearCopy();
+          var host = document.getElementById("fmtLastYearCta");
+          if (host) host.hidden = true;
+        });
+        var dismissBtn = document.getElementById("fmtLastYearDismiss");
+        if (dismissBtn) dismissBtn.addEventListener("click", function () {
+          var host = document.getElementById("fmtLastYearCta");
+          if (host) host.hidden = true;
+        });
+      }
+
       function _fmtWireStepper() {
         Array.prototype.forEach.call(document.querySelectorAll("[data-goto-step]"), function (b) {
           b.addEventListener("click", function () { _fmtShowStep(b.getAttribute("data-goto-step")); });
@@ -4727,6 +4889,32 @@
             }
           });
         });
+        // Snapshot the current Format-tab config alongside the results
+        // so a future setup can offer "Copy from Cornfest 2026" and
+        // inline "Last year: $75" hints per field. Grows over time —
+        // existing archives don't carry `config`, but every archive
+        // committed from 2026-09-28 onward does.
+        var cfgRaw = _tcConfigCache || {};
+        var cfgKeep = [
+          "Play Style", "Players Per Team", "Rounds", "Team Cap", "Flights",
+          "Flight From", "Start Type", "Location", "Blurb",
+          "Alternates Allowed", "Extra Meals Enabled",
+          "Handicaps Enabled", "Handicap Multiplier", "Handicap Basis",
+          "Calcutta Enabled", "Waves JSON", "Highlights", "Extras JSON",
+          "Public Slug", "Start Date", "End Date", "Start Time Display",
+          "Reg Opens", "Reg Closes"
+        ];
+        var cfgSnap = {};
+        cfgKeep.forEach(function (k) { if (cfgRaw[k] !== undefined) cfgSnap[k] = cfgRaw[k]; });
+        var calcSnap = {
+          entryPP: m.entryPP, greenPP: m.greenPP, mealPP: m.mealPP, otherPP: m.otherPP,
+          cartRentalFee: m.cartFee, extraMealFee: m.extraMealFee,
+          courseFlatFee: m.courseFlatFee, flights: m.nFlights,
+          flightSplit: m.flightSplit, calcuttaCommissionPct: m.calcuttaCommissionPct,
+          calcuttaSplit: m.calSplit,
+          additionalFlight: (m.cfg && m.cfg.additionalFlight) || 0,
+          surchargePct: (m.cfg && m.cfg.surchargePct) || 4
+        };
         return {
           champion: champion,
           teams: m.teamCount,
@@ -4739,6 +4927,8 @@
           courseRevenue: m.courseRevenue,
           leaderboard: leaderboard,
           payouts: payouts,
+          config: cfgSnap,
+          calc: calcSnap
         };
       }
       function commitToHistory() {
@@ -13044,6 +13234,8 @@
         // Wire the Format-tab 5-step wizard (stage 1 of the redesign).
         // Idempotent — safe to call every tab open.
         try { _fmtWireStepper(); } catch (e) {}
+        // Wire the "Copy from last year" callout buttons (Stage 2).
+        try { _fmtWireLastYear(); } catch (e) {}
         // ---- Advertising / social share wiring ----
         var fmtAdRefresh = document.getElementById("fmtAdRefresh");
         if (fmtAdRefresh) fmtAdRefresh.addEventListener("click", _fmtRebuildAdCopy);
