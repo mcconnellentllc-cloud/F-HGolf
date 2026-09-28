@@ -885,6 +885,31 @@ table.pairings { width: 100%; border-collapse: collapse; font-family: var(--font
 .tm__btn { padding: 0.5rem 1rem; font-size: 0.85rem; }
 .tm__btn--off { color: var(--muted); font-size: 0.8rem; font-style: italic; align-self: center; }
 
+/* Season money glance — a compact per-tournament ledger strip that sits
+   ABOVE the tournament cards on admin-tournaments.html. Each row is one
+   event's cash-in / to-course / flight pool for the year at a glance;
+   the bottom row is the season total. Renders on single-season views
+   only (multi-season would be too dense). */
+.tm-money { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--primary-green); border-radius: 12px; padding: 1rem 1.15rem 1.15rem; margin: 0 0 1.4rem; box-shadow: var(--shadow-sm); }
+.tm-money__hdr { margin-bottom: 0.55rem; }
+.tm-money__title { color: var(--primary-green); font-family: var(--font-display); font-size: 1.1rem; margin: 0; }
+.tm-money__sub { color: var(--muted); font-size: 0.85rem; margin: 0.2rem 0 0; }
+.tm-money__scroll { overflow-x: auto; }
+.tm-money__tbl { width: 100%; border-collapse: collapse; min-width: 42rem; font-size: 0.92rem; }
+.tm-money__tbl th, .tm-money__tbl td { padding: 0.5rem 0.65rem; text-align: left; border-bottom: 1px solid var(--line); }
+.tm-money__tbl th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; background: var(--paper-2); }
+.tm-money__name { min-width: 12rem; }
+.tm-money__name a { color: var(--primary-green); font-weight: 700; text-decoration: none; }
+.tm-money__name a:hover { text-decoration: underline; }
+.tm-money__date { color: var(--muted); font-size: 0.8rem; font-weight: 500; }
+.tm-money__num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tm-money__num--neg { color: var(--red-deep); }
+.tm-money__num--pool { color: var(--primary-green); font-weight: 700; }
+.tm-money__num--dim { color: var(--muted); font-style: italic; text-align: center; }
+.tm-money__total td { border-top: 2px solid var(--primary-green); border-bottom: none; padding-top: 0.7rem; font-weight: 800; color: var(--ink); background: linear-gradient(180deg, #fbfaf3 0%, #f5f2e2 100%); }
+.tm-money__total .tm-money__num { font-size: 1.02rem; }
+.tm-money__note { color: var(--muted); font-size: 0.8rem; margin: 0.55rem 0 0; }
+
 /* ===================== Staff: Tournament Workspace ===================== */
 .tw-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .tw-soon { opacity: 0.96; }
