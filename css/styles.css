@@ -1336,6 +1336,18 @@ body.is-auction-view .ca-tbl th, body.is-auction-view .ca-tbl td { padding: 0.5r
 .po-tbl__chk { text-align: right; }
 .po-check { width: 6.5rem; padding: 0.3rem 0.4rem; border: 1px dashed var(--line); border-radius: 4px; font: inherit; font-size: 0.9rem; background: #fff; text-align: right; }
 .po-check:focus { border-color: var(--primary-green); border-style: solid; outline: none; }
+/* Per-row Payout amount override: inline input with a "$" prefix and
+   an optional "was $NN.NN" hint when the override differs from the
+   computed value. Green border when overridden so the operator can
+   scan a printed sheet and see which rows they touched. */
+.po-amt { display: inline-flex; align-items: baseline; gap: 0.25rem; justify-content: flex-end; }
+.po-amt__prefix { color: var(--muted); font-weight: 700; font-size: 0.9rem; }
+.po-amt__input { width: 5rem; padding: 0.3rem 0.4rem; border: 1px dashed var(--line); border-radius: 4px; font: inherit; font-size: 0.95rem; font-weight: 700; background: #fff; text-align: right; color: var(--primary-green); -moz-appearance: textfield; }
+.po-amt__input::-webkit-outer-spin-button, .po-amt__input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.po-amt__input:focus { border-color: var(--primary-green); border-style: solid; outline: none; }
+.po-amt__input.is-override { border-color: var(--primary-green); border-style: solid; background: #f4faf5; }
+.po-amt__input::placeholder { color: #bbb; font-weight: 500; }
+.po-amt__note { color: var(--muted); font-size: 0.72rem; font-weight: 500; white-space: nowrap; text-decoration: line-through; }
 
 /* Per-row × delete buttons (Scores + Calcutta) */
 .sc-clear, .ca-clear { border: 1px solid var(--line); background: #fff; color: var(--red-deep); border-radius: 6px; width: 1.7rem; height: 1.7rem; padding: 0; line-height: 1; font-size: 0.9rem; cursor: pointer; }

@@ -11753,10 +11753,15 @@
             }
             var each = combined / teams.length;
             teams.forEach(function (t) {
+              // Read the persistent operator override (if any) so a
+              // corrected dollar amount survives a refresh + rides
+              // through History commit. Undefined/null → use computed.
+              var ovRaw = t.rec && t.rec.fields && t.rec.fields["Flight Payout Override"];
+              var ov = (typeof ovRaw === "number" && isFinite(ovRaw) && ovRaw >= 0) ? ovRaw : null;
               flightPayouts.push({
                 signupId: t.id,
                 savedCheck: (t.rec && t.rec.fields && t.rec.fields["Flight Check #"]) || "",
-                recipient: t.name, teamName: t.name, amount: each,
+                recipient: t.name, teamName: t.name, computed: each, amount: (ov != null ? ov : each), override: ov,
                 flight: fl.name, place: place, tied: teams.length > 1,
                 note: fl.name + " Flight — " + ordinal(place) + " place gross" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
               });
@@ -11820,11 +11825,13 @@
             }
             var each = combined / teams.length;
             teams.forEach(function (t) {
+              var ovRaw = t.rec && t.rec.fields && t.rec.fields["Calcutta Payout Override"];
+              var ov = (typeof ovRaw === "number" && isFinite(ovRaw) && ovRaw >= 0) ? ovRaw : null;
               calPayouts.push({
                 signupId: t.id,
                 savedCheck: (t.rec && t.rec.fields && t.rec.fields["Calcutta Check #"]) || "",
                 recipient: (t.buyer && t.buyer.trim()) || "(no buyer)",
-                teamName: t.name, amount: each,
+                teamName: t.name, computed: each, amount: (ov != null ? ov : each), override: ov,
                 flight: flName, place: place, tied: teams.length > 1,
                 note: flName + " Flight Calcutta — " + ordinal(place) + " net (team " + t.name + ")" + (teams.length > 1 ? " (T-" + teams.length + ", split)" : "")
               });
@@ -11838,11 +11845,27 @@
           if (!list.length) return '<p class="noms__msg">Nothing to pay in this category yet.</p>';
           var trs = list.map(function (p) {
             p.category = category;
+            // Editable amount cell. Placeholder = the computed value so
+            // the operator sees what the formula came up with and only
+            // types when they want to override. Value is the current
+            // override (if any). Clearing the input removes the override
+            // and the row falls back to computed on next render.
+            var computedShown = money(p.computed != null ? p.computed : p.amount);
+            var overrideVal = (p.override != null) ? String(p.override) : "";
+            var isOverridden = p.override != null;
+            var amtCell = ''
+              + '<td class="po-tbl__amt">'
+              +   '<div class="po-amt">'
+              +     '<span class="po-amt__prefix">$</span>'
+              +     '<input type="number" step="0.01" min="0" max="100000" class="po-amt__input' + (isOverridden ? ' is-override' : '') + '" data-signup-id="' + esc(p.signupId || "") + '" data-category="' + esc(category) + '" value="' + esc(overrideVal) + '" placeholder="' + esc((p.computed != null ? p.computed : p.amount).toFixed(2)) + '" autocomplete="off" title="' + (isOverridden ? "Overridden — original computed value: " + computedShown : "Type an amount to override; leave blank to keep the computed value") + '" />'
+              +     (isOverridden ? '<span class="po-amt__note" title="Original computed value">was ' + esc(computedShown) + '</span>' : '')
+              +   '</div>'
+              + '</td>';
             return '<tr data-signup-id="' + esc(p.signupId || "") + '" data-category="' + esc(category) + '">'
               + "<td>" + esc(p.recipient) + (p.recipient === "(no buyer)" ? ' <span class="po-warn">no buyer set</span>' : "") + "</td>"
               + "<td>" + esc(p.teamName) + "</td>"
               + "<td>" + esc(p.note) + "</td>"
-              + '<td class="po-tbl__amt"><b>' + money(p.amount) + "</b></td>"
+              + amtCell
               + '<td class="po-tbl__chk"><input type="text" class="po-check" data-signup-id="' + esc(p.signupId || "") + '" data-category="' + esc(category) + '" value="' + esc(p.savedCheck || "") + '" placeholder="—" autocomplete="off" maxlength="12" /></td>'
               + "</tr>";
           }).join("");
@@ -12002,6 +12025,49 @@
                 headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
                 body: JSON.stringify(payload)
               }).catch(function () {});
+            }, 600);
+          });
+          inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } });
+        });
+        // Wire the per-row Amount override inputs. Blank input clears
+        // the override (row falls back to computed). Debounced PATCH
+        // via tournament-checkin; the local scAllCache is updated in
+        // place so a re-render immediately shows the new number in
+        // the subtotal + grand total without a network round-trip.
+        var poAmtPending = {};
+        Array.prototype.forEach.call(body.querySelectorAll(".po-amt__input"), function (inp) {
+          inp.addEventListener("input", function () {
+            var id = inp.getAttribute("data-signup-id");
+            var cat = inp.getAttribute("data-category");
+            if (!id) return;
+            var raw = inp.value.trim();
+            var num = raw === "" ? null : Number(raw);
+            var isValid = raw === "" || (isFinite(num) && num >= 0 && num <= 100000);
+            if (!isValid) return;
+            var payload = { id: id };
+            payload[cat === "flight" ? "flightPayoutOverride" : "calcuttaPayoutOverride"] = raw;
+            var k = id + ":amt:" + cat;
+            if (poAmtPending[k]) clearTimeout(poAmtPending[k]);
+            poAmtPending[k] = setTimeout(function () {
+              fetch(FH_API.url("/api/tournament-checkin"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+                body: JSON.stringify(payload)
+              })
+                .then(function (r) { return r.json().catch(function () { return {}; }); })
+                .then(function (j) {
+                  // Update in-memory cache so a re-render of Payout /
+                  // $ Summary sees the new value.
+                  var field = cat === "flight" ? "Flight Payout Override" : "Calcutta Payout Override";
+                  for (var i = 0; i < scAllCache.length; i++) if (scAllCache[i].id === id) {
+                    scAllCache[i].fields = scAllCache[i].fields || {};
+                    scAllCache[i].fields[field] = (raw === "") ? null : Number(raw);
+                    break;
+                  }
+                  try { renderPayout(scAllCache); } catch (e) {}
+                  try { renderPL(); } catch (e) {}
+                })
+                .catch(function () {});
             }, 600);
           });
           inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } });
