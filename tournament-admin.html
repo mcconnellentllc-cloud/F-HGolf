@@ -607,6 +607,22 @@
               <button class="lb-flcount__btn" type="button" id="lbFlInc" aria-label="Add a flight">+</button>
               <span class="lb-flcount__note">Sliders below update to match &mdash; then Save flights.</span>
             </div>
+            <!-- Flight From live picker — same dropdown that lives on
+                 Format Step 2. Mirrored here so the operator can flip
+                 Out / In / Full 18 mid-round without leaving the Flights
+                 tab. Two-way sync with Format + Airtable; the Flights
+                 tab is the boss on the fly. Hidden on 2-day tournaments
+                 (Founders always flights off Day 1 total). -->
+            <div class="lb-flfrom" id="lbFlightFromRow">
+              <span class="lb-flfrom__lbl">Flight from</span>
+              <select id="lbFlightFrom" title="Flighting basis. Coin-flip mid-round decides Out vs In; pick whichever the coin lands on and the leaderboard reflights + resorts off that 9.">
+                <option value="">—</option>
+                <option value="Full 18">Full 18 (Day 1 total)</option>
+                <option value="Out">Out — Front 9</option>
+                <option value="In">In — Back 9</option>
+              </select>
+              <span class="sc__status" id="lbFlightFromStatus"></span>
+            </div>
             <p class="scaffold__desc">Teams are ranked by Day-1 gross. Drag each cut to size the flights, then save.</p>
             <div id="lbCutControls"></div>
             <div class="sc__foot">
@@ -2244,6 +2260,24 @@
         // Repaint per-step validation state (required fields blank →
         // red border + stepper "has-blanks" dot).
         try { _fmtPaintStepValidation(); } catch (e) {}
+        // Sync calc.flights from Airtable's Flights field so the
+        // Flights tab reads the same value the Format tab shows.
+        // Airtable is the single source of truth; localStorage's calc
+        // is a working copy that gets rewritten from Airtable on load
+        // and pushed back on any bumpFlights (see bumpFlights above).
+        try {
+          var flightsField = f["Flights"];
+          if (typeof flightsField === "number" && flightsField > 0) {
+            var _c = loadCalc();
+            if (_c.flights !== flightsField) {
+              _c.flights = flightsField;
+              try { localStorage.setItem(CALCK, JSON.stringify(_c)); } catch (e) {}
+              try { localStorage.removeItem(CUTK); } catch (e) {}
+            }
+          }
+        } catch (e) {}
+        // Mirror Flight From onto the Flights-tab live picker.
+        try { _fmtSyncFlightFromInputs(f["Flight From"]); } catch (e) {}
       }
       // Single source of truth for whether this workbook runs a Calcutta.
       // The Format tab checkbox drives everything — tabs, Payout sections,
@@ -10167,8 +10201,48 @@
         return s;
       }
       function _applyFlightFromVisibility(rounds) {
-        var row = document.getElementById("fmtFlightFromRow"); if (!row) return;
-        row.style.display = (Number(rounds) >= 2) ? "none" : "";
+        var row = document.getElementById("fmtFlightFromRow");
+        if (row) row.style.display = (Number(rounds) >= 2) ? "none" : "";
+        // Mirror on the Flights-tab live picker so a 2-day tournament
+        // hides Flight From on both places (Founders always flights
+        // off Day 1 total).
+        var lbRow = document.getElementById("lbFlightFromRow");
+        if (lbRow) lbRow.style.display = (Number(rounds) >= 2) ? "none" : "";
+      }
+      // Bi-directional sync for Flight From. Airtable Tournament Config
+      // is the source of truth; both the Format-tab dropdown and the
+      // Flights-tab live picker read from and write to it. Any change
+      // on either side fires config-write and re-hydrates the other.
+      function _fmtSyncFlightFromInputs(v) {
+        var f = document.querySelector('#fmtForm [name="Flight From"]');
+        if (f) f.value = String(v || "");
+        var l = document.getElementById("lbFlightFrom");
+        if (l) l.value = String(v || "");
+      }
+      function _lbSaveFlightFrom(v) {
+        var st = document.getElementById("lbFlightFromStatus");
+        if (st) { st.textContent = "Saving…"; st.className = "sc__status"; }
+        fetch(FH_API.url("/api/tournament-signups"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+          body: JSON.stringify({ action: "config-write", tournament: KEY, fields: { "Flight From": v } })
+        })
+          .then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (j) {
+            if (j && j.ok) {
+              _tcConfigCache = _tcConfigCache || {};
+              _tcConfigCache["Flight From"] = v;
+              _fmtSyncFlightFromInputs(v);
+              if (st) { st.textContent = "Saved ✓"; st.className = "sc__status is-ok"; setTimeout(function () { st.textContent = ""; st.className = "sc__status"; }, 1200); }
+              // Re-render the Flights board so the new basis takes
+              // effect immediately.
+              try { renderBoard(scAllCache); } catch (e) {}
+              try { renderLeaderboard(scAllCache); } catch (e) {}
+            } else if (st) {
+              st.textContent = "Save failed"; st.className = "sc__status is-err";
+            }
+          })
+          .catch(function () { if (st) { st.textContent = "Network error"; st.className = "sc__status is-err"; } });
       }
       // Handicaps master switch — Format-tab checkbox. Defaults ON for 2-day
       // (Founders) and OFF for 1-day tournaments (couples etc. don't apply
@@ -12580,6 +12654,30 @@
         // Reset stored cuts so loadCuts() recomputes them evenly for the new count.
         try { localStorage.removeItem(CUTK); } catch (e) {}
         renderBoard(scAllCache);
+        // Persist to Airtable's Tournament Config so the Format tab's
+        // Flights input + the two-way sync stay honest. The Flights tab
+        // is the boss — whatever it reads is what Format shows and what
+        // gets snapshotted to History. Fire-and-forget; a network blip
+        // doesn't roll back the local +/- since renderBoard has already
+        // painted the new state.
+        try {
+          fetch(FH_API.url("/api/tournament-signups"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": getKey() },
+            body: JSON.stringify({ action: "config-write", tournament: KEY, fields: { "Flights": nF } })
+          }).then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+              if (!j || !j.ok) return;
+              _tcConfigCache = _tcConfigCache || {};
+              _tcConfigCache["Flights"] = nF;
+              // Mirror onto the Format form input if it's rendered so
+              // the operator sees the same value on both tabs.
+              var fmt = document.querySelector('#fmtForm [name="Flights"]');
+              if (fmt) fmt.value = String(nF);
+              try { _fmtBannerRender(); } catch (e) {}
+            })
+            .catch(function () {});
+        } catch (e) {}
       }
 
       function renderBoard(all) {
@@ -12587,6 +12685,13 @@
         lbFilteredRecs = recs;
         var cfg = loadCalc(), nF = cfg.flights || 4;
         var nEl = document.getElementById("lbFlNum"); if (nEl) nEl.textContent = nF;
+        // Hydrate the Flights-tab live picker from Airtable config
+        // (source of truth) + apply rounds-based visibility so 2-day
+        // events hide it.
+        try {
+          _fmtSyncFlightFromInputs((_tcConfigCache && _tcConfigCache["Flight From"]) || "");
+          _applyFlightFromVisibility(Number((_tcConfigCache && _tcConfigCache["Rounds"]) || 1));
+        } catch (e) {}
         boardSorted = recs.filter(function (r) { return flightScore(r) != null; }).sort(function (a, b) { return flightScore(a) - flightScore(b); });
         var sortedScores = boardSorted.map(flightScore);
         renderCutControls(sortedScores, nF, loadCuts(nF, sortedScores));
@@ -13537,6 +13642,11 @@
         if (lbInc) lbInc.addEventListener("click", function () { bumpFlights(+1); });
         var lbDec = document.getElementById("lbFlDec");
         if (lbDec) lbDec.addEventListener("click", function () { bumpFlights(-1); });
+        // Flights-tab live Flight From dropdown — same value as Format
+        // Step 2. Change here fires config-write; the response mirrors
+        // the value onto the Format input and repaints the leaderboard.
+        var lbFf = document.getElementById("lbFlightFrom");
+        if (lbFf) lbFf.addEventListener("change", function () { _lbSaveFlightFrom(lbFf.value); });
         var lbPr = document.getElementById("lbPrint");
         if (lbPr) lbPr.addEventListener("click", function () {
           document.body.classList.add("is-print-lb");
