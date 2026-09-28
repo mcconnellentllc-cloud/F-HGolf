@@ -1184,16 +1184,15 @@ module.exports = async (req, res) => {
           d2AttestTeam:   f["Day2 Attested By Team"]   || "",
         };
       };
-      // Marker Scoring is OPT-IN via the Format-tab "Marker Scoring
-      // Enabled" checkbox. Any tournament with the box checked runs
-      // USGA-style marker scoring — captains mark another team on
-      // their own tee slot, never their own card. See _marker.js for
-      // the grouping: mates share (hole, slot, start), so teams in
-      // Slot A only ever mark other Slot A teams and Slot B teams
-      // only ever mark other Slot B teams (no cross-slot marker
-      // cycle across the same hole).
-      const _msCfg = cfg && cfg.fields && cfg.fields["Marker Scoring Enabled"];
-      const markerScoringEnabled = _msCfg === true;
+      // Marker scoring is now a house rule for every F&H tournament
+      // (2026-09-28). Captains always mark another team on their own
+      // tee slot — pairs mark each other, trios cycle A→B→C→A. A
+      // captain alone in their slot self-scores (fallback in
+      // _marker.js when mates.length <= 1). The Format-tab "Marker
+      // Scoring Enabled" checkbox is no longer read; slot-scoped
+      // grouping (hole, slot, start) keeps A teams marking A and B
+      // teams marking B — never across.
+      const markerScoringEnabled = true;
       const meStripped = stripField(me);
       const fieldStripped = fieldRows.map(stripField);
       // Compute the marker assignment for THIS captain on Day 1 + Day 2.

@@ -84,12 +84,13 @@ module.exports = async (req, res) => {
         ]);
         const cfgRec = cfgR.ok ? ((await cfgR.json()).records || [])[0] : null;
         const fieldRecs = fieldR.ok ? ((await fieldR.json()).records || []) : [];
-        // Marker Scoring is OPT-IN via the Format-tab checkbox — matches
-        // the same rule in /api/tournament-signups. Marker grouping is
-        // scoped by (hole, slot, start) inside _marker.js so the check
-        // here honors the same slot-scoped writeTargets.
-        const _msCfg = cfgRec && cfgRec.fields && cfgRec.fields["Marker Scoring Enabled"];
-        const markerScoringEnabled = _msCfg === true;
+        // Marker scoring is a house rule for every F&H tournament
+        // (2026-09-28) — matches the always-on behavior in
+        // /api/tournament-signups. Grouping stays slot-scoped inside
+        // _marker.js (hole, slot, start), so a captain's writeTargets
+        // are exactly the other teams sharing their tee slot; a
+        // captain alone in their slot self-scores as fallback.
+        const markerScoringEnabled = true;
         const me = marker.stripSignupField(captainRec);
         const stripped = fieldRecs.map(marker.stripSignupField);
         const assignment = marker.computeMarkerAssignment(me, stripped, markerScoringEnabled, dayForAuth);

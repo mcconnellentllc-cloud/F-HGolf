@@ -5333,18 +5333,15 @@
           + _cartOptionsFor(currentAssign)
           + '</select>'
           + '</div>';
-        // Marker scoring — per-team "Scores whole group" toggle. Only
-        // rendered when the tournament has Marker Scoring Enabled on
-        // Format. Defaults to ON when the config field is undefined /
-        // null (missing on Airtable, new tournament, or auto-stripped
-        // on save) — matches the Format-tab checkbox's default so a
-        // fresh tournament shows the toggle. Explicit false hides it.
-        // Turning this ON for a team lets that captain score every
-        // team on their tee (both their own team AND the opponents),
-        // and switches everyone else on the tee into read-only
-        // spectator mode.
-        var _msRaw = _tcConfigCache && _tcConfigCache["Marker Scoring Enabled"];
-        var _markerEnabled = (_msRaw === undefined || _msRaw === null) ? true : !!_msRaw;
+        // Marker scoring is a house rule as of 2026-09-28 — every
+        // tournament runs USGA-style opponent marking within the tee
+        // slot (pairs mark each other, trios cycle A→B→C→A). The
+        // per-team "Scores whole group" toggle is always shown so
+        // the operator can hand one captain the pencil for their
+        // whole tee (self + others) when a group prefers it, which
+        // flips every other team on the tee to read-only spectator
+        // mode.
+        var _markerEnabled = true;
         var _isGroupScorer = !!f["Group Scorer"];
         var markerLine = _markerEnabled
           ? '<div class="ci-cartline ci-cartline--marker">'
